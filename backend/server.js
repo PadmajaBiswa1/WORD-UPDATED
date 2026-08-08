@@ -1,8 +1,9 @@
 require('dotenv').config();
-const express   = require('express');
-const multer = require('multer');
 
-const cors      = require('cors');
+const express = require('express');
+const cors = require('cors');
+const path = require('path');
+
 const connectDB = require('./config/db');
 const authRoutes = require('./routes/auth');
 const documentRoutes = require('./routes/documents');
@@ -11,90 +12,121 @@ const uploadRoutes = require('./routes/upload');
 
 // Initialize services
 console.log('🔧 Initializing services...');
-require('./utils/sendEmail');      // SMTP verification happens on require
-require('./utils/ipfsService');    // IPFS verification happens on require
+
+require('./utils/sendEmail');
+require('./utils/ipfsService');
+
 console.log('✅ Services initialized');
 
 // Global error handlers
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('❌ Unhandled Rejection at:', promise);
-  console.error('❌ Reason:', reason);
+    console.error('❌ Unhandled Rejection at:', promise);
+    console.error('❌ Reason:', reason);
 });
 
 process.on('uncaughtException', (error) => {
-  console.error('❌ Uncaught Exception:', error);
-  console.error('❌ Stack:', error.stack);
+    console.error('❌ Uncaught Exception:', error);
+    console.error('❌ Stack:', error.stack);
 });
 
 const app = express();
 
+// =====================================================
+// CORS CONFIGURATION
+// =====================================================
+
 const configuredFrontendUrls = String(process.env.FRONTEND_URL || '')
-  .split(',')
-  .map((url) => url.trim())
-  .filter(Boolean);
+    .split(',')
+    .map((url) => url.trim())
+    .filter(Boolean);
+
 const allowedOrigins = new Set([
-  ...configuredFrontendUrls,
-  'http://localhost:3001',
+    ...configuredFrontendUrls,
+    'http://localhost:3000',
+    'http://localhost:3001',
 ]);
+
+app.use(
+    cors({
+        origin(origin, callback) {
+            // Allow requests without an Origin header
+            // and localhost during development.
+            if (
+                !origin ||
+                allowedOrigins.has(origin) ||
+                /^https?:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin)
+            ) {
+                return callback(null, true);
+            }
+
+            console.warn(`⚠️ CORS blocked origin: ${origin}`);
+            return callback(null, false);
+        },
+        credentials: true,
+    })
+);
+
+// =====================================================
+// MIDDLEWARE
+// =====================================================
+
+app.use(express.json({ limit: '5mb' }));
+
+// =====================================================
+// DATABASE
+// =====================================================
 
 connectDB();
 
-
-app.use(cors({
-  origin(origin, callback) {
-    if (!origin || allowedOrigins.has(origin) || /^https?:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin)) {
-      return callback(null, true);
-    }
-    return callback(null, false);
-  },
-  credentials: true,
-}));
-app.use(express.json({ limit: '5mb' }));
-
-// Note: multer handles multipart/form-data for /api/upload.
+// =====================================================
+// API ROUTES
+// =====================================================
 
 app.use('/api/auth', authRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/templates', templateRoutes);
 app.use('/api/upload', uploadRoutes);
 
-// Serve uploaded images
-app.use('/uploads', express.static(require('path').join(__dirname, 'public', 'uploads')));
+// =====================================================
+// STATIC UPLOADS
+// =====================================================
 
+app.use(
+    '/uploads',
+    express.static(path.join(__dirname, 'public', 'uploads'))
+);
 
-app.get('/api/health', (_, res) => res.json({ status: 'ok' }));
+// =====================================================
+// HEALTH CHECK
+// =====================================================
 
-app.use('/api', (req, res) => {
-  res.status(404).json({
-    message: 'API route not found',
-    method: req.method,
-    path: req.originalUrl,
-  });
+app.get('/api/health', (_, res) => {
+    res.json({
+        status: 'ok',
+    });
 });
 
-const BASE_PORT = Number(process.env.PORT || 3001);
-const MAX_PORT_ATTEMPTS = Number(process.env.PORT_RETRY_ATTEMPTS || 20);
+// =====================================================
+// UNKNOWN API ROUTES
+// =====================================================
 
-function startServer(port, attempt = 0) {
-  const server = app.listen(port, () => {
-    const extraInfo = port !== BASE_PORT ? ` (fallback from ${BASE_PORT})` : '';
-    console.log(`Server running on port ${port}${extraInfo}`);
-  });
+app.use('/api', (req, res) => {
+    res.status(404).json({
+        message: 'API route not found',
+        method: req.method,
+        path: req.originalUrl,
+    });
+});
 
-  server.on('error', (error) => {
-    if (error?.code === 'EADDRINUSE' && attempt < MAX_PORT_ATTEMPTS) {
-      const nextPort = port + 1;
-      console.warn(`Port ${port} is in use, retrying on ${nextPort}...`);
-      return startServer(nextPort, attempt + 1);
-    }
+// =====================================================
+// SERVER
+// =====================================================
 
-    if (error?.code === 'EADDRINUSE') {
-      console.error(`Unable to find a free port after ${MAX_PORT_ATTEMPTS + 1} attempts (starting at ${BASE_PORT}).`);
-      process.exit(1);
-    }
+// Render provides process.env.PORT automatically.
+// Locally, it will fall back to port 3001.
 
-    throw error;
-  });
-}
+const PORT = Number(process.env.PORT || 3001);
 
-startServer(BASE_PORT);
+app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+});
