@@ -293,15 +293,6 @@ export function useEditorSetup() {
     },
   }, [extensions]);
 
-  // Sync store changes to editor global styles
-  useEffect(() => {
-    if (!editor) return;
-
-    // Update global editor attributes
-    const stack = FONT_STACK_BY_FAMILY[fontFamily] || `"${fontFamily}", "Noto Sans", "Segoe UI", "Nirmala UI", "Microsoft YaHei", "Malgun Gothic", sans-serif`;
-    editor.view.dom.style.setProperty('font-family', stack);
-    editor.view.dom.style.setProperty('font-size', `${fontSize}pt`);
-  }, [editor, fontFamily, fontSize]);
 
   // Sync layout columns
   useEffect(() => {

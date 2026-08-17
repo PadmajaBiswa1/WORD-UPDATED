@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { Select } from '@/components/ui';
 import { useEditorStore } from '@/store';
 
@@ -44,111 +44,69 @@ export const FONT_SIZE_OPTIONS = ['8', '9', '10', '11', '12', '14', '16', '18', 
 
 export function useFontFormattingControls(editor) {
   const { setFontFamily, setFontSize } = useEditorStore();
+  const lastSelectionRef = useRef(null);
 
-  const run = useCallback((callback) => {
+  useEffect(() => {
     if (!editor) return;
-    editor.view.focus();
-    callback();
-    editor.view.focus();
+    const handleSelectionUpdate = () => {
+      const { selection } = editor.state;
+      if (!selection.empty) {
+        lastSelectionRef.current = { from: selection.from, to: selection.to };
+      }
+    };
+    editor.on('selectionUpdate', handleSelectionUpdate);
+    return () => {
+      editor.off('selectionUpdate', handleSelectionUpdate);
+    };
   }, [editor]);
-
-  const selectionSnapshotRef = useRef(null);
 
   const snapshotSelection = useCallback(() => {
-    const sel = window.getSelection?.();
-    if (!sel || sel.rangeCount === 0) return;
-    const range = sel.getRangeAt(0);
-    selectionSnapshotRef.current = range.cloneRange();
-  }, []);
-
-  const restoreSelection = useCallback(() => {
-    const snap = selectionSnapshotRef.current;
-    const viewDom = editor?.view?.dom;
-    if (!snap || !viewDom) return false;
-
-    const sel = window.getSelection?.();
-    if (!sel) return false;
-
-    try {
-      // Ensure range is still inside the editor DOM
-      const common = snap.commonAncestorContainer;
-      if (!viewDom.contains(common)) return false;
-
-      sel.removeAllRanges();
-      sel.addRange(snap);
-      return true;
-    } catch {
-      return false;
+    if (!editor) return;
+    const { selection } = editor.state;
+    if (!selection.empty) {
+      lastSelectionRef.current = { from: selection.from, to: selection.to };
     }
   }, [editor]);
-
-  // Apply inline styles by wrapping the currently selected range.
-  // This avoids relying on selection state inside Tiptap when the dropdown click clears it.
-  const wrapSelectedRange = useCallback((stylePatch) => {
-    const viewDom = editor?.view?.dom;
-    if (!viewDom) return;
-
-    const restored = restoreSelection();
-    const sel = window.getSelection?.();
-    if (!restored || !sel || sel.rangeCount === 0) return;
-
-    const range = sel.getRangeAt(0);
-    if (range.collapsed) {
-      // If there's no actual selection, fall back to Tiptap commands.
-      Object.entries(stylePatch).forEach(([k, v]) => {
-        if (k === 'font-family') editor.chain().setFontFamily(v).run();
-        if (k === 'font-size') editor.chain().setFontSize(`${v}`).run();
-      });
-      return;
-    }
-
-    const wrapper = document.createElement('span');
-    Object.entries(stylePatch).forEach(([k, v]) => {
-      if (v !== undefined && v !== null && v !== '') wrapper.style.setProperty(k, String(v));
-    });
-
-    // surroundContents can throw if the range splits non-text nodes.
-    // Fallback to extract/insert.
-    try {
-      range.surroundContents(wrapper);
-    } catch {
-      const contents = range.extractContents();
-      wrapper.appendChild(contents);
-      range.insertNode(wrapper);
-    }
-
-    // Re-sync editor selection & state
-    editor.view.focus();
-    editor.view.dispatch(editor.view.state.tr);
-  }, [editor, restoreSelection]);
 
   const applyFontFamily = useCallback((value) => {
     if (!editor || !value) return;
     setFontFamily(value);
 
-    snapshotSelection();
-    // Apply immediately to the saved selection range (not current live selection).
-    wrapSelectedRange({ 'font-family': value });
+    const stack = FONT_STACKS[value] || `${value}, sans-serif`;
+    const chain = editor.chain().focus();
+    
+    // If the live selection was lost due to dropdown focus, restore the saved range
+    if (editor.state.selection.empty && lastSelectionRef.current) {
+      const { from, to } = lastSelectionRef.current;
+      const maxPos = editor.state.doc.content.size;
+      if (from <= maxPos && to <= maxPos) {
+        chain.setTextSelection({ from, to });
+      }
+    }
 
-    // Also update Tiptap mark state for persistence/cursor typing.
-    run(() => editor.chain().focus().setFontFamily(value).run());
-  }, [editor, run, setFontFamily, snapshotSelection, wrapSelectedRange]);
+    chain.setFontFamily(stack).run();
+  }, [editor, setFontFamily]);
 
   const applyFontSize = useCallback((value) => {
     if (!editor || !value) return;
     const next = String(value);
     setFontSize(next);
 
-    snapshotSelection();
-    // Font size in HTML expects px/pt; Tiptap stores as `fontSize` attribute.
-    // We wrap selection with `font-size: <n>pt`.
-    wrapSelectedRange({ 'font-size': `${next}pt` });
+    const chain = editor.chain().focus();
+    
+    // If the live selection was lost due to dropdown focus, restore the saved range
+    if (editor.state.selection.empty && lastSelectionRef.current) {
+      const { from, to } = lastSelectionRef.current;
+      const maxPos = editor.state.doc.content.size;
+      if (from <= maxPos && to <= maxPos) {
+        chain.setTextSelection({ from, to });
+      }
+    }
 
-    run(() => editor.chain().focus().setFontSize(`${next}pt`).run());
-  }, [editor, run, setFontSize, snapshotSelection, wrapSelectedRange]);
+    chain.setFontSize(`${next}pt`).run();
+  }, [editor, setFontSize]);
 
-
-  return { applyFontFamily, applyFontSize, snapshotSelection, restoreSelection };
+  return { applyFontFamily, applyFontSize, snapshotSelection };
 }
 
 export function FontFormattingControls({
@@ -192,6 +150,8 @@ export function FontFormattingControls({
         options={FONT_SIZE_OPTIONS}
         width={sizeWidth}
         title="Font Size"
+        searchable={true}
+        searchPlaceholder="Size..."
       />
     </>
   );

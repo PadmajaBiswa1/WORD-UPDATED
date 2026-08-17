@@ -42,10 +42,20 @@ export function HomeTab() {
   const [textPalettePos, setTextPalettePos] = useState({ top: 0, left: 0 });
   const [highlightPalettePos, setHighlightPalettePos] = useState({ top: 0, left: 0 });
 
+  const savedSelectionRef = useRef(null);
+
+  const snapshotSelection = () => {
+    if (!editor) return;
+    const { selection } = editor.state;
+    if (!selection.empty) {
+      savedSelectionRef.current = { from: selection.from, to: selection.to };
+    }
+  };
+
   const run = (fn) => {
+    if (!editor) return;
     editor.view.focus();
     fn();
-    editor.view.focus();
   };
 
   const getSheetTop = () => {
@@ -54,6 +64,7 @@ export function HomeTab() {
   };
 
   const openTextPalette = (event) => {
+    snapshotSelection();
     const rect = event.currentTarget?.getBoundingClientRect();
     if (!rect) return;
     const top = Math.max(rect.bottom + 8, getSheetTop() + 8);
@@ -63,6 +74,7 @@ export function HomeTab() {
   };
 
   const openHighlightPalette = (event) => {
+    snapshotSelection();
     const rect = event.currentTarget?.getBoundingClientRect();
     if (!rect) return;
     const top = Math.max(rect.bottom + 8, getSheetTop() + 8);
@@ -517,8 +529,17 @@ export function HomeTab() {
                 <button
                   key={c}
                   title={`Highlight: ${c}`}
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
-                    run(() => editor.chain().toggleHighlight({ color: c }).run());
+                    const chain = editor.chain().focus();
+                    if (editor.state.selection.empty && savedSelectionRef.current) {
+                      const { from, to } = savedSelectionRef.current;
+                      const maxPos = editor.state.doc.content.size;
+                      if (from <= maxPos && to <= maxPos) {
+                        chain.setTextSelection({ from, to });
+                      }
+                    }
+                    chain.toggleHighlight({ color: c }).run();
                     setShowHighlightColors(false);
                   }}
                   style={{ width: 14, height: 14, background: c, border: '1px solid var(--border)', borderRadius: 2, cursor: 'pointer', padding: 0 }}
@@ -552,7 +573,15 @@ export function HomeTab() {
                   color={c}
                   size={12}
                   onSelect={(v) => {
-                    run(() => editor.chain().setColor(v).run());
+                    const chain = editor.chain().focus();
+                    if (editor.state.selection.empty && savedSelectionRef.current) {
+                      const { from, to } = savedSelectionRef.current;
+                      const maxPos = editor.state.doc.content.size;
+                      if (from <= maxPos && to <= maxPos) {
+                        chain.setTextSelection({ from, to });
+                      }
+                    }
+                    chain.setColor(v).run();
                     setShowTextColors(false);
                   }}
                 />
