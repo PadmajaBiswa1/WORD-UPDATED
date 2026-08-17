@@ -2,13 +2,12 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { useEffect, useState } from 'react';
 import App from './App';
-import { initTheme } from './hooks/useTheme';
+import { applyTheme } from './theme/tokens';
 import { SplashScreen } from './components/ui/SplashScreen';
 import './theme/global.css';
 
-// Apply persisted theme before first render to avoid flash
-const savedTheme = localStorage.getItem('etherx-theme') || 'dark';
-initTheme(savedTheme);
+// Apply the fixed dark appearance before first render to avoid a flash.
+applyTheme();
 
 function Root() {
   const [showSplash, setShowSplash] = useState(true);

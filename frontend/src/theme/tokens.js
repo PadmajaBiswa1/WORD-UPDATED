@@ -4,70 +4,65 @@
 
 export const GOLD = '#d4af37';
 
-// Apply CSS custom properties to :root for the given theme mode
-export function applyTheme(mode = 'dark') {
+// EtherX Word intentionally ships with one fixed dark appearance.
+export function applyTheme() {
   const root = document.documentElement;
-  const dark = mode === 'dark';
 
   const vars = {
     // ── Surfaces ────────────────────────────────────────────────
-    '--bg-app':      dark ? '#0a0a0a' : '#fafbff',
-    '--bg-surface':  dark ? '#0a0a0a' : '#ffffff',
-    '--bg-elevated': dark ? '#111111' : '#f0f0f0',
-    '--bg-hover':    dark ? '#1f1800' : '#f5efd0',
-    '--bg-active':   dark ? '#1a1a1a' : '#f0e5a8',
-    '--bg-page':     dark ? '#1a1a1a' : '#ffffff',
-    '--bg-code':     dark ? '#161616' : '#f3f3f3',
-    '--bg-th':       dark ? '#1c1c1c' : '#f9f6e8',
-    '--bg-sidebar':  dark ? '#0e0e0e' : '#f0f0f0',
+    '--bg-app':      '#0a0a0a',
+    '--bg-surface':  '#0a0a0a',
+    '--bg-elevated': '#111111',
+    '--bg-hover':    '#1f1800',
+    '--bg-active':   '#1a1a1a',
+    '--bg-page':     '#1a1a1a',
+    '--bg-code':     '#161616',
+    '--bg-th':       '#1c1c1c',
+    '--bg-sidebar':  '#0e0e0e',
 
     // ── Borders ──────────────────────────────────────────────────
-    '--border':        dark ? '#3d3000' : '#d0d0d0',
-    '--border-strong': dark ? '#2a2a2a' : '#aaa',
-    '--border-gold':   dark ? '#3d3000' : 'rgba(180,140,10,0.55)',
+    '--border':        '#3d3000',
+    '--border-strong': '#2a2a2a',
+    '--border-gold':   '#3d3000',
 
     // ── Text ─────────────────────────────────────────────────────
-    '--text-primary':   dark ? '#f0e6c8' : '#1a1a1a',
-    '--text-secondary': dark ? '#d4b86a' : '#444',
-    '--text-muted':     dark ? '#9a8a6a' : '#777',
+    '--text-primary':   '#f0e6c8',
+    '--text-secondary': '#d4b86a',
+    '--text-muted':     '#9a8a6a',
     '--text-gold':      GOLD,
-    '--text-heading':   dark ? '#e8d98a' : '#1a1200',
-    // Document text adapts to theme
-    '--text-doc':       dark ? '#e8d98a' : '#1a1a1a',
+    '--text-heading':   '#e8d98a',
+    '--text-doc':       '#e8d98a',
     '--text-on-gold':   '#0a0800',
 
     // ── Gold accent ───────────────────────────────────────────────
-    '--gold':          '#c9a84c',
-    '--gold-hover':    '#d9bb67',
-    '--gold-dim':      dark ? 'rgba(212,175,55,0.12)' : 'rgba(212,175,55,0.18)',
-    '--gold-glow':     dark ? 'none' : '0 0 0 3px rgba(212,175,55,0.2)',
-    '--gold-border':   dark ? 'rgba(212,175,55,0.35)' : 'rgba(212,175,55,0.5)',
+    '--gold':        '#c9a84c',
+    '--gold-hover':  '#d9bb67',
+    '--gold-dim':    'rgba(212,175,55,0.12)',
+    '--gold-glow':   'none',
+    '--gold-border': 'rgba(212,175,55,0.35)',
 
     // ── Shadows ───────────────────────────────────────────────────
-    '--shadow-sm':   dark ? '0 1px 3px rgba(0,0,0,0.4)' : '0 1px 4px rgba(0,0,0,0.09)',
-    '--shadow-md':   dark ? '0 2px 8px rgba(0,0,0,0.5)'  : '0 2px 10px rgba(0,0,0,0.13)',
-    '--shadow-lg':   dark ? '0 6px 20px rgba(0,0,0,0.6)' : '0 6px 24px rgba(0,0,0,0.12)',
-    // Page shadow — visible in both themes so page edges are always distinct
-    '--shadow-page': dark
-      ? '0 0 0 1px rgba(255,255,255,0.07), 0 4px 20px rgba(0,0,0,0.65)'
-      : '0 2px 16px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.06)',
-    '--page-border': dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)',
+    '--shadow-sm':   '0 1px 3px rgba(0,0,0,0.4)',
+    '--shadow-md':   '0 2px 8px rgba(0,0,0,0.5)',
+    '--shadow-lg':   '0 6px 20px rgba(0,0,0,0.6)',
+    '--shadow-page': '0 0 0 1px rgba(255,255,255,0.07), 0 4px 20px rgba(0,0,0,0.65)',
+    '--page-border': 'rgba(255,255,255,0.07)',
 
     // ── Fonts ─────────────────────────────────────────────────────
-    '--font-ui': "'Segoe UI', Arial, sans-serif",
+    '--font-ui':      "'Segoe UI', Arial, sans-serif",
     '--font-heading': "'Spectral', 'Georgia', serif",
-    '--font-body': "'Segoe UI', Arial, sans-serif",
-    '--font-mono': "'JetBrains Mono', 'SF Mono', monospace",
+    '--font-body':    "'Segoe UI', Arial, sans-serif",
+    '--font-mono':    "'JetBrains Mono', 'SF Mono', monospace",
 
     // ── Radius / transitions ──────────────────────────────────────
-    '--radius-sm':    '2px',
-    '--radius-md':    '6px',
-    '--radius-lg':    '10px',
-    '--radius-xl':    '16px',
-    '--transition':   '140ms ease',
-    '--transition-md':'260ms ease',
+    '--radius-sm':     '2px',
+    '--radius-md':     '6px',
+    '--radius-lg':     '10px',
+    '--radius-xl':     '16px',
+    '--transition':    '140ms ease',
+    '--transition-md': '260ms ease',
   };
 
-  Object.entries(vars).forEach(([k, v]) => root.style.setProperty(k, v));
-  root.setAttribute('data-theme', mode);
+  Object.entries(vars).forEach(([key, value]) => root.style.setProperty(key, value));
+  root.setAttribute('data-theme', 'dark');
 }

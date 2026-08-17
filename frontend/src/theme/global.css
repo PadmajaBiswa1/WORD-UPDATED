@@ -136,47 +136,6 @@ body {
     linear-gradient(135deg, #070502 0%, #130f07 52%, #090601 100%);
 }
 
-[data-theme="light"] .auth-bg {
-  background:
-    radial-gradient(circle at 50% 38%, rgba(212,175,55,0.22), transparent 50%),
-    radial-gradient(circle at 14% 80%, rgba(212,175,55,0.1), transparent 38%),
-    linear-gradient(135deg, #fdf8ee 0%, #f5e9c4 52%, #faf4e2 100%);
-}
-
-.auth-theme-toggle {
-  position: fixed;
-  top: 16px;
-  right: 20px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-gold);
-  border-radius: var(--radius-md);
-  width: 42px;
-  height: 42px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-primary);
-  cursor: pointer;
-  transition: var(--transition);
-  z-index: 10;
-  box-shadow: var(--shadow-sm);
-  line-height: 0;
-}
-
-.auth-theme-toggle:hover {
-  border-color: var(--gold);
-  box-shadow: var(--gold-glow);
-}
-
-.auth-theme-toggle svg {
-  width: 18px;
-  height: 18px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
 
 .auth-card {
   width: min(92vw, 400px);
@@ -191,11 +150,6 @@ body {
   gap: 6px;
 }
 
-[data-theme="light"] .auth-card {
-  background: rgba(255,252,242,0.96);
-  border-color: rgba(212,175,55,0.4);
-  box-shadow: 0 24px 64px rgba(180,140,20,0.15), 0 0 0 1px rgba(212,175,55,0.15);
-}
 
 .auth-logo-wrap {
   width: 72px;
@@ -313,7 +267,6 @@ body {
   stroke-linejoin: round;
 }
 
-.auth-theme-toggle:focus-visible,
 .auth-password-toggle:focus-visible {
   outline: 1.5px solid var(--gold);
   outline-offset: 2px;
@@ -428,22 +381,24 @@ body {
 ::selection { background: rgba(212,175,55,0.28); color: inherit; }
 :focus-visible { outline: 1.5px solid var(--gold); outline-offset: 2px; }
 
-/* ══ Tiptap / ProseMirror ══════════════════════════════════════ */
+/* ══ Tiptap / ProseMirror — matches Microsoft Word "Normal" style exactly ══ */
 .ProseMirror {
   font-family: 'Crimson Pro', Georgia, serif;
-  font-size: 12pt; 
-  line-height: 1.7;
-  color: var(--text-doc); 
+  font-size: 12pt;
+  /* Word "Normal" line spacing = Multiple 1.15 */
+  line-height: 1.15;
+  color: var(--text-doc);
   min-height: 100%;
-  outline: none; 
+  outline: none;
   caret-color: var(--gold);
   word-wrap: break-word;
   overflow-wrap: break-word;
   max-width: 100%;
-  /* Ensure smooth zoom transitions */
-  transition: font-size 0.15s ease-out, line-height 0.15s ease-out;
 }
-.ProseMirror > * + * { margin-top: 0.6em; }
+
+/* Word: 0pt space before, 10pt space after paragraphs ("Space After = 10pt") */
+.ProseMirror > * { margin-top: 0; margin-bottom: 10pt; }
+.ProseMirror > *:last-child { margin-bottom: 0; }
 
 .ProseMirror p,
 .ProseMirror li,
@@ -517,7 +472,7 @@ body {
 
 #editor-scroll-area.etherx-view-read .ProseMirror {
   font-size: 13.5pt;
-  line-height: 1.9;
+  line-height: 1.5;
 }
 
 #editor-scroll-area.etherx-focus-mode {
@@ -547,22 +502,64 @@ body {
   line-height: 1.8;
 }
 
-.ProseMirror h1 { font-family: 'Cinzel', serif; font-size: 2em;    font-weight: 700; color: var(--text-doc); letter-spacing:.02em; word-wrap: break-word; }
-.ProseMirror h2 { font-family: 'Cinzel', serif; font-size: 1.55em; font-weight: 600; color: var(--text-doc); word-wrap: break-word; }
-.ProseMirror h3 { font-family: 'Cinzel', serif; font-size: 1.25em; font-weight: 600; color: var(--text-doc); word-wrap: break-word; }
-.ProseMirror h4, .ProseMirror h5, .ProseMirror h6 { font-weight: 600; word-wrap: break-word; }
-
-.ProseMirror ul, .ProseMirror ol { padding-left: 1.6em; }
-.ProseMirror li + li { margin-top: .2em; }
-
-.ProseMirror blockquote {
-  border-left: 4px solid var(--gold);
-  padding: 8px 0 8px 14px;
-  margin: 0.8em 0;
-  color: var(--text-secondary);
+/* ── Headings — Word built-in heading sizes ──────────────────────────────
+   Word Heading 1 = 16pt bold, H2 = 13pt bold, H3 = 11pt bold.
+   We keep Cinzel for EtherX's distinctive look at the correct pt sizes.
+   ────────────────────────────────────────────────────────────────────── */
+.ProseMirror h1 {
+  font-family: 'Cinzel', serif;
+  font-size: 16pt;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--text-doc);
+  letter-spacing: .02em;
+  word-wrap: break-word;
+  margin-top: 24pt;
+  margin-bottom: 6pt;
+}
+.ProseMirror h2 {
+  font-family: 'Cinzel', serif;
+  font-size: 13pt;
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--text-doc);
+  word-wrap: break-word;
+  margin-top: 14pt;
+  margin-bottom: 4pt;
+}
+.ProseMirror h3 {
+  font-family: 'Cinzel', serif;
+  font-size: 11pt;
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--text-doc);
+  word-wrap: break-word;
+  margin-top: 14pt;
+  margin-bottom: 2pt;
+}
+.ProseMirror h4 {
+  font-size: 11pt;
+  font-weight: 600;
   font-style: italic;
-  font-size: 0.96em;
-  opacity: 0.92;
+  line-height: 1.15;
+  margin-top: 10pt;
+  margin-bottom: 2pt;
+  word-wrap: break-word;
+}
+.ProseMirror h5, .ProseMirror h6 {
+  font-size: 10pt;
+  font-weight: 600;
+  line-height: 1.15;
+  margin-top: 10pt;
+  margin-bottom: 2pt;
+  word-wrap: break-word;
+}
+
+/* Lists — Word indent = 0.5 inch = 48px */
+.ProseMirror ul, .ProseMirror ol { padding-left: 48px; margin-top: 0; margin-bottom: 10pt; }
+.ProseMirror li { line-height: 1.15; margin-bottom: 0; }
+.ProseMirror li > p { margin: 0; }
+
 }
 
 .ProseMirror blockquote p {
@@ -574,12 +571,7 @@ body {
   opacity: 0.95;
 }
 
-[data-theme="light"] .ProseMirror blockquote {
-  background: rgba(212, 175, 55, 0.06);
-  border-left-color: #b8941e;
-}
-
-[data-theme="dark"] .ProseMirror blockquote {
+.ProseMirror blockquote {
   background: rgba(212, 175, 55, 0.04);
   border-left-color: #d9bb67;
 }
@@ -698,9 +690,6 @@ body {
   pointer-events: none !important;
   display: block !important;
   visibility: visible !important;
-  height: var(--etherx-page-content-height, 1000px) !important;
-  min-height: var(--etherx-page-content-height, 1000px) !important;
-  max-height: var(--etherx-page-content-height, 1000px) !important;
   margin: 0 !important;
   padding: 0 !important;
   background: transparent !important;

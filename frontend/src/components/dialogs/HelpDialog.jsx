@@ -73,10 +73,10 @@ const HELP_SECTIONS = [
    • Format table cells with colors
    • Create nested lists with Tab/Shift+Tab
 
-4. Styles & Themes
+4. Styles & Appearance
    • Pre-designed document styles
    • Consistent formatting across document
-   • Dark/Light theme toggle in menu`
+   • EtherX Word uses a focused dark interface`
   },
   {
     id: 'advanced',

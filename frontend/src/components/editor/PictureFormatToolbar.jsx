@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useEditorStore, useUIStore } from '@/store';
+import { useEditorStore } from '@/store';
 import { PictureFormatTab } from '@/components/toolbar/tabs/PictureFormatTab';
 import { getSelectedImageElement, isImageSelection } from '@/utils/imageSelection';
 
@@ -51,7 +51,6 @@ const MIN_USABLE_HEIGHT = 90;
 const MAX_BOX_WIDTH = 260; // small, compact panel — matches the stacked PictureFormatTab layout
 
 export function PictureFormatToolbar({ editor, scrollContainerRef }) {
-  const { theme } = useUIStore();
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -340,13 +339,11 @@ export function PictureFormatToolbar({ editor, scrollContainerRef }) {
     >
       <div
         style={{
-          border: '1px solid var(--border-gold)',
-          borderRadius: 10,
-          background: theme === 'dark' ? 'rgba(24, 24, 24, 0.97)' : 'rgba(255, 255, 255, 0.97)',
-          color: 'var(--text-primary)',
-          boxShadow: theme === 'dark'
-            ? '0 8px 24px rgba(0, 0, 0, 0.45)'
-            : '0 6px 18px rgba(0, 0, 0, 0.12)',
+           border: '1px solid var(--border-gold)',
+           borderRadius: 10,
+           background: 'rgba(24, 24, 24, 0.97)',
+           color: 'var(--text-primary)',
+           boxShadow: '0 8px 24px rgba(0, 0, 0, 0.45)',
           backdropFilter: 'blur(12px)',
           overflow: 'hidden',
           maxHeight: style.maxHeight,

@@ -3,7 +3,6 @@
 // ═══════════════════════════════════════════════════════════════
 import { createPortal } from 'react-dom';
 import { useState, useEffect, useRef } from 'react';
-import { useUIStore } from '@/store';
 
 /* ── Button ─────────────────────────────────────────────────── */
 const variantStyle = {
@@ -72,8 +71,6 @@ export function Divider({ vertical = false }) {
 /* ── Tooltip ────────────────────────────────────────────────── */
 export function Tooltip({ children, text, shortcut, placement = 'top' }) {
   const [show, setShow] = useState(false);
-  const { theme } = useUIStore();
-  const isDark = theme === 'dark';
   const isTop = placement === 'top';
   return (
     <div style={{ position: 'relative', display: 'inline-flex' }}
@@ -82,8 +79,8 @@ export function Tooltip({ children, text, shortcut, placement = 'top' }) {
       {show && text && (
         <div className="anim-fade-in" style={{
           position: 'absolute', zIndex: 9999, whiteSpace: 'nowrap', pointerEvents: 'none',
-          background: isDark ? '#0a0800' : '#ffffff',
-          color: isDark ? '#ece8dc' : '#1a1a1a',
+           background: '#0a0800',
+           color: '#ece8dc',
           border: '1px solid var(--border-gold)',
           fontSize: '11px', padding: '4px 9px', borderRadius: 'var(--radius-sm)',
           ...(isTop ? { bottom: 'calc(100% + 7px)', left: '50%', transform: 'translateX(-50%)' }
@@ -99,8 +96,6 @@ export function Tooltip({ children, text, shortcut, placement = 'top' }) {
 
 /* ── Select ─────────────────────────────────────────────────── */
 export function Select({ value, onChange, options = [], width = 120, title, searchable = false, searchPlaceholder, onFocus, style = {} }) {
-  const { theme } = useUIStore();
-  const isDark = theme === 'dark';
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
@@ -112,10 +107,10 @@ export function Select({ value, onChange, options = [], width = 120, title, sear
   const widthStyle = typeof width === 'number' ? `${width}px` : width;
   
   const styles = {
-    background: isDark ? '#111111' : '#ffffff',
-    color: isDark ? '#f0e6c8' : '#1a1a1a',
-    border: isDark ? '1px solid #3d3000' : '1px solid #d0d0d0',
-    hoverBg: isDark ? '#1f1800' : '#f5efd0',
+    background: '#111111',
+    color: '#f0e6c8',
+    border: '1px solid #3d3000',
+    hoverBg: '#1f1800',
     arrowColor: '#c9a84c',
   };
 
@@ -257,7 +252,7 @@ export function Select({ value, onChange, options = [], width = 120, title, sear
               overflow: 'hidden',
             }}
           >
-            <div style={{ padding: 6, borderBottom: `1px solid ${isDark ? '#2a2200' : '#e5e5e5'}` }}>
+            <div style={{ padding: 6, borderBottom: '1px solid #2a2200' }}>
               <input
                 ref={inputRef}
                 type="text"
@@ -287,17 +282,17 @@ export function Select({ value, onChange, options = [], width = 120, title, sear
                   width: '100%',
                   height: 26,
                   boxSizing: 'border-box',
-                  background: isDark ? '#0d0d0d' : '#ffffff',
-                  color: styles.color,
-                  border: `1px solid ${isDark ? '#3d3000' : '#d0d0d0'}`,
+                   background: '#0d0d0d',
+                   color: styles.color,
+                   border: '1px solid #3d3000',
                   borderRadius: 4,
                   padding: '0 8px',
                   fontSize: 12,
                   fontFamily: 'var(--font-ui)',
                   outline: 'none',
                 }}
-                onFocus={(e) => (e.currentTarget.style.borderColor = '#c9a84c')}
-                onBlur={(e) => (e.currentTarget.style.borderColor = isDark ? '#3d3000' : '#d0d0d0')}
+                 onFocus={(e) => (e.currentTarget.style.borderColor = '#c9a84c')}
+                 onBlur={(e) => (e.currentTarget.style.borderColor = '#3d3000')}
               />
             </div>
             <div style={{ maxHeight: menuStyle.maxHeight - 40, overflowY: 'auto', padding: 4 }}>
@@ -321,7 +316,7 @@ export function Select({ value, onChange, options = [], width = 120, title, sear
                       border: 'none',
                       borderRadius: 4,
                       cursor: 'pointer',
-                      background: isActive ? (isDark ? '#1f1800' : '#f5efd0') : 'transparent',
+                       background: isActive ? '#1f1800' : 'transparent',
                       color: styles.color,
                       fontFamily: option.style?.fontFamily || 'var(--font-ui)',
                       fontSize: 12,
@@ -403,9 +398,7 @@ export function Input({ value, onChange, placeholder, width = '100%', type = 'te
 
 /* ── ColorSwatch ────────────────────────────────────────────── */
 export function ColorSwatch({ color, onSelect, label, size = 18 }) {
-  const { theme } = useUIStore();
-  const isDark = theme === 'dark';
-  const borderColor = isDark ? '#3d3000' : '#d0d0d0';
+  const borderColor = '#3d3000';
   
   return (
     <button title={label || color} onClick={() => onSelect(color)}

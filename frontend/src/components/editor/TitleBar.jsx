@@ -1,6 +1,5 @@
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useCollaborationStore, useDocumentStore, useEditorStore, useUIStore } from '@/store';
-import { useTheme } from '@/hooks/useTheme';
 import { getStoredUser } from '@/services/api';
 
 function getCollaboratorColor(index) {
@@ -10,12 +9,7 @@ function getCollaboratorColor(index) {
 
 export function TitleBar({ onSave }) {
   const navigate = useNavigate();
-  const location = useLocation();
   const openDialog = useUIStore((s) => s.openDialog);
-  const fullscreen = useUIStore((s) => s.fullscreen);
-  const toggleFullscreen = useUIStore((s) => s.toggleFullscreen);
-  const toggleRibbon = useUIStore((s) => s.toggleRibbon);
-  const ribbonCollapsed = useUIStore((s) => s.ribbonCollapsed);
   const autoSaveEnabled = useUIStore((s) => s.autoSaveEnabled);
   const toggleAutoSave = useUIStore((s) => s.toggleAutoSave);
   const title = useDocumentStore((s) => s.title);
@@ -25,7 +19,6 @@ export function TitleBar({ onSave }) {
   const collaborators = useCollaborationStore((s) => s.collaborators);
   const collabStatus = useCollaborationStore((s) => s.status);
   const resetCollaboration = useCollaborationStore((s) => s.reset);
-  const { theme, toggleTheme } = useTheme();
   const visibleCollaborators = collaborators.slice(0, 3);
 
   const canUndo = Boolean(editor?.can?.().undo?.());
@@ -39,10 +32,6 @@ export function TitleBar({ onSave }) {
   const handleRedo = () => {
     if (!editor) return;
     editor.chain().focus().redo().run();
-  };
-
-  const handleClose = () => {
-    navigate('/home', { state: { returnTo: location.pathname } });
   };
 
   const handleLogout = () => {
@@ -64,68 +53,133 @@ export function TitleBar({ onSave }) {
 
   return (
     <div style={{
-      height: 32, display: 'flex', alignItems: 'center', gap: 10,
-      background: 'var(--bg-surface)', borderBottom: '1px solid var(--border)',
-      padding: '0 8px', flexShrink: 0, userSelect: 'none', fontFamily: 'var(--font-ui)',
+      height: 40,
+      minHeight: 40,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+      background: 'var(--bg-surface)',
+      borderBottom: '1px solid var(--border)',
+      padding: '0 10px',
+      flexShrink: 0,
+      overflow: 'hidden',
+      userSelect: 'none',
+      fontFamily: 'var(--font-ui)',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <img src="/assets/etherxword-logo.png" alt="EtherX Word Logo" style={{
-          width: 40, height: 40, borderRadius: 2, objectFit: 'contain',
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        flex: '0 1 auto',
+        minWidth: 0,
+      }}>
+        <img src="/assets/etherxlogo.png" alt="EtherX shield logo" style={{
+          width: 32,
+          height: 32,
+          borderRadius: 2,
+          objectFit: 'contain',
+          flexShrink: 0,
         }} />
-        <span style={{ fontSize: 12, color: 'var(--text-primary)' }}>AutoSave {autoSaveEnabled ? 'On' : 'Off'}</span>
+        <span style={{
+          fontSize: 12,
+          color: 'var(--text-primary)',
+          whiteSpace: 'nowrap',
+        }}>
+          AutoSave {autoSaveEnabled ? 'On' : 'Off'}
+        </span>
         <button
+          type="button"
+          aria-label={`AutoSave ${autoSaveEnabled ? 'on' : 'off'}`}
           onClick={toggleAutoSave}
           style={{
-            width: 30, height: 16, borderRadius: 999, border: '1px solid #c9a84c',
-            background: 'var(--bg-elevated)', cursor: 'pointer', padding: 1, position: 'relative',
+            width: 30,
+            height: 16,
+            borderRadius: 999,
+            border: '1px solid #c9a84c',
+            background: 'var(--bg-elevated)',
+            cursor: 'pointer',
+            padding: 1,
+            position: 'relative',
+            flexShrink: 0,
           }}
           title="Toggle AutoSave"
         >
           <span style={{
-            width: 12, height: 12, borderRadius: '50%', background: 'var(--gold)', display: 'block',
-            transform: `translateX(${autoSaveEnabled ? 14 : 0}px)`, transition: 'transform 0.1s ease',
+            width: 12,
+            height: 12,
+            borderRadius: '50%',
+            background: 'var(--gold)',
+            display: 'block',
+            transform: `translateX(${autoSaveEnabled ? 14 : 0}px)`,
+            transition: 'transform 0.1s ease',
           }} />
         </button>
-        <button title="Save" onClick={onSave} style={quickBtn} onMouseEnter={onGoldHover} onMouseLeave={onGoldLeave}>💾</button>
-        <button title="Undo" onClick={handleUndo} disabled={!canUndo} style={{ ...quickBtn, ...(canUndo ? null : disabledBtn) }} onMouseEnter={onGoldHover} onMouseLeave={onGoldLeave}>↩</button>
-        <button title="Redo" onClick={handleRedo} disabled={!canRedo} style={{ ...quickBtn, ...(canRedo ? null : disabledBtn) }} onMouseEnter={onGoldHover} onMouseLeave={onGoldLeave}>↪</button>
+        <button type="button" title="Save" aria-label="Save" onClick={onSave} style={quickBtn} onMouseEnter={onGoldHover} onMouseLeave={onGoldLeave}>💾</button>
+        <button type="button" title="Undo" aria-label="Undo" onClick={handleUndo} disabled={!canUndo} style={{ ...quickBtn, ...(canUndo ? null : disabledBtn) }} onMouseEnter={onGoldHover} onMouseLeave={onGoldLeave}>↩</button>
+        <button type="button" title="Redo" aria-label="Redo" onClick={handleRedo} disabled={!canRedo} style={{ ...quickBtn, ...(canRedo ? null : disabledBtn) }} onMouseEnter={onGoldHover} onMouseLeave={onGoldLeave}>↪</button>
+        <button type="button" title="Import DOCX" aria-label="Import DOCX" onClick={() => openDialog('importDocx')} style={quickBtn} onMouseEnter={onGoldHover} onMouseLeave={onGoldLeave}>📥</button>
       </div>
 
-      <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+      <div style={{
+        flex: '1 1 360px',
+        minWidth: 220,
+        display: 'flex',
+        justifyContent: 'center',
+      }}>
         <div style={{
-          width: 'min(520px, 52vw)', height: 24, background: 'var(--bg-elevated)',
-          border: '1px solid var(--border)', borderRadius: 2, display: 'flex', alignItems: 'center', padding: '0 8px', gap: 6,
+          width: 'min(620px, 42vw)',
+          minWidth: 220,
+          height: 28,
+          background: 'var(--bg-elevated)',
+          border: '1px solid var(--border)',
+          borderRadius: 3,
+          display: 'flex',
+          alignItems: 'center',
+          padding: '0 10px',
+          gap: 7,
         }}>
-          <span style={{ color: 'var(--gold)', fontSize: 12 }}>✎</span>
+          <span aria-hidden="true" style={{ color: 'var(--gold)', fontSize: 12 }}>✎</span>
           <input
+            aria-label="Document title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Untitled Document"
             style={{
-              border: 'none', background: 'transparent', outline: 'none', width: '100%',
-              color: 'var(--text-primary)', fontSize: 12, fontFamily: 'var(--font-ui)',
+              border: 'none',
+              background: 'transparent',
+              outline: 'none',
+              width: '100%',
+              minWidth: 0,
+              color: 'var(--text-primary)',
+              fontSize: 12,
+              fontFamily: 'var(--font-ui)',
             }}
           />
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <button
-          onClick={toggleTheme}
-          title="Toggle theme"
-          style={outlineBtn}
-          onMouseEnter={onGoldHover}
-          onMouseLeave={onGoldLeave}
-        >
-          {theme === 'dark' ? '🌙 Dark' : '☀ Light'}
-        </button>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        flex: '0 0 auto',
+        minWidth: 0,
+      }}>
         <div style={presenceWrap} title={`${collabStatus} - ${collaborators.length} collaborator(s)`}>
-          <span style={{ fontSize: 10, color: 'var(--text-secondary)', fontWeight: 500 }}>
+          <button
+            type="button"
+            aria-label={collaborators.length > 0 ? 'Open collaboration details' : 'Share document to start collaboration'}
+            title={collaborators.length > 0 ? 'Open collaboration details' : 'Share document to start collaboration'}
+            onClick={() => openDialog('shareDoc')}
+            style={presenceStatusButton}
+            onMouseEnter={onGoldHover}
+            onMouseLeave={onGoldLeave}
+          >
             {collaborators.length > 0 ? `${collaborators.length} editing` : 'Ready to collaborate'}
-          </span>
+          </button>
           {visibleCollaborators.map((person, index) => (
-            <span 
-              key={person.sessionId || `${person.name}-${index}`} 
+            <span
+              key={person.sessionId || `${person.name}-${index}`}
               style={{
                 ...presenceBadge,
                 backgroundColor: getCollaboratorColor(index),
@@ -137,13 +191,14 @@ export function TitleBar({ onSave }) {
             </span>
           ))}
           {collaborators.length > visibleCollaborators.length ? (
-            <span style={{...presenceCount, cursor: 'pointer'}} title={`+${collaborators.length - visibleCollaborators.length} more`}>
+            <span style={{ ...presenceCount, cursor: 'pointer' }} title={`+${collaborators.length - visibleCollaborators.length} more`}>
               +{collaborators.length - visibleCollaborators.length}
             </span>
           ) : null}
         </div>
-        <button onClick={() => openDialog('comments')} style={outlineBtn} onMouseEnter={onGoldHover} onMouseLeave={onGoldLeave}>Comments</button>
+        <button type="button" onClick={() => openDialog('comments')} style={outlineBtn} onMouseEnter={onGoldHover} onMouseLeave={onGoldLeave}>Comments</button>
         <button
+          type="button"
           style={flatTextBtn}
           onClick={() => openDialog('restrictEditing')}
           onMouseEnter={onGoldHover}
@@ -153,6 +208,7 @@ export function TitleBar({ onSave }) {
           Editing ▾
         </button>
         <button
+          type="button"
           onClick={() => openDialog('shareDoc')}
           style={shareBtn}
           onMouseEnter={(e) => { e.currentTarget.style.background = '#d9bb67'; }}
@@ -161,34 +217,24 @@ export function TitleBar({ onSave }) {
           Share
         </button>
         <button
+          type="button"
           title={`Logout${getStoredUser()?.name ? ` (${getStoredUser().name})` : ''}`}
+          aria-label="Logout"
           onClick={handleLogout}
           style={{
-            ...quickBtn, background: 'var(--gold)', color: 'var(--text-on-gold)', borderColor: 'var(--gold)', fontWeight: 700,
+            ...quickBtn,
+            width: 'auto',
+            padding: '0 9px',
+            background: 'var(--gold)',
+            color: 'var(--text-on-gold)',
+            borderColor: 'var(--gold)',
+            fontWeight: 700,
+            whiteSpace: 'nowrap',
           }}
           onMouseEnter={(e) => { e.currentTarget.style.background = '#d9bb67'; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--gold)'; }}
         >
           Logout
-        </button>
-        <button
-          title="Toggle ribbon"
-          onClick={toggleRibbon}
-          style={windowBtn}
-          onMouseEnter={onGoldHover}
-          onMouseLeave={onGoldLeave}
-        >
-          {ribbonCollapsed ? '▔' : '—'}
-        </button>
-        <button title="Maximize" onClick={toggleFullscreen} style={windowBtn} onMouseEnter={onGoldHover} onMouseLeave={onGoldLeave}>{fullscreen ? '❐' : '⬜'}</button>
-        <button
-          title="Back to file menu"
-          onClick={handleClose}
-          style={windowBtn}
-          onMouseEnter={(e) => { e.currentTarget.style.background = '#c42b1c'; e.currentTarget.style.color = '#fff'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-        >
-          ✕
         </button>
       </div>
     </div>
@@ -196,45 +242,44 @@ export function TitleBar({ onSave }) {
 }
 
 const quickBtn = {
-  width: 22,
-  height: 22,
-  borderRadius: 2,
+  width: 24,
+  height: 24,
+  borderRadius: 3,
   border: '1px solid transparent',
   background: 'transparent',
   color: 'var(--gold)',
   fontSize: 12,
   cursor: 'pointer',
   transition: 'background 0.1s, border-color 0.1s',
+  flexShrink: 0,
 };
 
 const outlineBtn = {
   ...quickBtn,
   width: 'auto',
-  padding: '0 8px',
+  padding: '0 9px',
   color: 'var(--text-primary)',
   border: '1px solid var(--border)',
+  whiteSpace: 'nowrap',
 };
 
 const flatTextBtn = {
   ...quickBtn,
   width: 'auto',
-  padding: '0 8px',
+  padding: '0 7px',
   color: 'var(--text-primary)',
+  whiteSpace: 'nowrap',
 };
 
 const shareBtn = {
   ...quickBtn,
   width: 'auto',
-  padding: '0 10px',
+  padding: '0 11px',
   background: 'var(--gold)',
   borderColor: 'var(--gold)',
   color: 'var(--text-on-gold)',
   fontWeight: 600,
-};
-
-const windowBtn = {
-  ...quickBtn,
-  color: 'var(--text-primary)',
+  whiteSpace: 'nowrap',
 };
 
 const disabledBtn = {
@@ -246,7 +291,23 @@ const presenceWrap = {
   display: 'flex',
   alignItems: 'center',
   gap: 4,
+  padding: '0 2px',
+  whiteSpace: 'nowrap',
+};
+
+const presenceStatusButton = {
+  height: 24,
   padding: '0 6px',
+  border: '1px solid transparent',
+  borderRadius: 3,
+  background: 'transparent',
+  color: 'var(--text-secondary)',
+  fontSize: 10,
+  fontWeight: 500,
+  fontFamily: 'var(--font-ui)',
+  whiteSpace: 'nowrap',
+  cursor: 'pointer',
+  transition: 'background 0.1s, border-color 0.1s, color 0.1s',
 };
 
 const presenceBadge = {

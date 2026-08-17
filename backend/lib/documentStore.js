@@ -90,6 +90,7 @@ function normalizeDoc(document) {
     revision: Number.isFinite(revision) && revision >= 0 ? revision : 0,
     owner: document.owner || null,
     sharedWith: Array.isArray(document.sharedWith) ? document.sharedWith : [],
+    shareLinkEnabled: document.shareLinkEnabled === true,
     versions: Array.isArray(document.versions) ? document.versions : [],
     comments: Array.isArray(document.comments) ? document.comments : [],
     trackChanges: Boolean(document.trackChanges),
@@ -114,6 +115,7 @@ function canAccessDocument(document, user = {}) {
   if (!document) return false;
   const owner = document.owner || null;
   if (owner && isSameUser(owner, user)) return true;
+  if (document.shareLinkEnabled === true) return true;
 
   const email = String(user.email || '').trim().toLowerCase();
   const id = String(user.id || '').trim().toLowerCase();
@@ -250,17 +252,19 @@ function shareDocument(id, share = {}) {
   const email = String(share.email || '').trim().toLowerCase();
   const role = share.role || 'viewer';
 
-  // Link-only share should not create empty collaborator entries.
+  // Link-only sharing explicitly enables anonymous collaboration access.
   if (!email) {
-    return {
-      share: {
-        id: makeId('share'),
-        email: '',
-        role,
-        sharedAt: new Date().toISOString(),
-      },
-      document: current,
+    const share = {
+      id: makeId('share'),
+      email: '',
+      role,
+      sharedAt: new Date().toISOString(),
     };
+    current.shareLinkEnabled = true;
+    current.updatedAt = new Date().toISOString();
+    store.documents[index] = current;
+    writeStore(store);
+    return { share, document: current };
   }
 
   const existingIndex = current.sharedWith.findIndex((entry) => String(entry.email || '').toLowerCase() === email);

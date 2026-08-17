@@ -1,7 +1,12 @@
 export const API_BASE = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '');
 
 class ApiError extends Error {
-  constructor(msg, status) { super(msg); this.status = status; this.name = 'ApiError'; }
+  constructor(msg, status, { routeMissing = false } = {}) {
+    super(msg);
+    this.status = status;
+    this.routeMissing = routeMissing;
+    this.name = 'ApiError';
+  }
 }
 
 function getToken() { return localStorage.getItem('etherx_token'); }
@@ -46,10 +51,12 @@ async function req(path, opts = {}) {
     } catch {
       msg = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() || msg;
     }
-    if (res.status === 404 && /route not found|cannot (get|post|put|delete)|not found/i.test(msg)) {
+    const routeMissing = res.status === 404
+      && /^(?:api\s+)?route not found\b|^cannot (get|post|put|delete|patch)\s/i.test(msg);
+    if (routeMissing) {
       msg = `API route not found: ${res.url}. Make sure the EtherX backend is running on the configured API port.`;
     }
-    throw new ApiError(msg, res.status);
+    throw new ApiError(msg, res.status, { routeMissing });
   }
   return res.json();
 }

@@ -58,6 +58,7 @@ export class CollabSocket {
   connect() {
     const params = new URLSearchParams({
       sessionId: this.sessionId,
+      id: this.user.id || '',
       name: this.user.name,
       email: this.user.email || '',
       role: this.user.role || 'editor',

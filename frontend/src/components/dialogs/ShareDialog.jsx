@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { useUIStore, useDocumentStore } from '@/store';
 import { useCollaborationStore } from '@/store';
 import { Modal, Button, Input, Label, Stack } from '@/components/ui';
@@ -15,18 +16,51 @@ function buildSharedUrl(docId) {
   return `${window.location.origin}/shared/${docId}`;
 }
 
+async function copyTextToClipboard(value) {
+  const text = String(value || '');
+  if (!text) return false;
+
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // Continue with the legacy fallback below.
+    }
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  let copied = false;
+  try {
+    copied = document.execCommand('copy');
+  } catch {
+    copied = false;
+  } finally {
+    textarea.remove();
+  }
+  return copied;
+}
+
 export function ShareDialog() {
+  const { id: routeId } = useParams();
   const { closeDialog, toast } = useUIStore();
   const { id, title, content, setId, setLastSaved } = useDocumentStore();
   const { collaborators, connected, enableCollaboration } = useCollaborationStore();
+  const activeDocumentId = routeId || id;
   const [copied, setCopied] = useState(false);
   const [email,  setEmail]  = useState('');
   const [role,   setRole]   = useState('viewer');
   const [working, setWorking] = useState(false);
   const [invitedCollaborators, setInvitedCollaborators] = useState([]);
 
-  const shareUrl = id
-    ? buildSharedUrl(id)
+  const shareUrl = activeDocumentId
+    ? buildSharedUrl(activeDocumentId)
     : 'A share link will be generated when you click Copy Link.';
 
   const loadInvitedCollaborators = async (docId) => {
@@ -52,12 +86,12 @@ export function ShareDialog() {
   }, [enableCollaboration]);
 
   useEffect(() => {
-    if (!id) {
+    if (!activeDocumentId) {
       setInvitedCollaborators([]);
       return;
     }
-    loadInvitedCollaborators(id);
-  }, [id]);
+    loadInvitedCollaborators(activeDocumentId);
+  }, [activeDocumentId]);
 
   const displayedCollaborators = useMemo(() => {
     const active = (collaborators || []).map((person) => ({
@@ -89,7 +123,7 @@ export function ShareDialog() {
   }, [collaborators, invitedCollaborators]);
 
   const ensureShareableDocument = async () => {
-    if (id) return id; // Already have an ID, document is shareable
+    if (activeDocumentId) return activeDocumentId; // Current route/store document is shareable
     
     try {
       const created = await documentApi.create({ title, content });
@@ -115,7 +149,8 @@ export function ShareDialog() {
       const docId = await ensureShareableDocument();
       const response = await documentApi.share(docId, { role });
       const nextUrl = response?.shareUrl || buildSharedUrl(docId);
-      await navigator.clipboard.writeText(nextUrl);
+      const copiedToClipboard = await copyTextToClipboard(nextUrl);
+      if (!copiedToClipboard) throw new Error('Clipboard access was denied');
       setCopied(true);
       toast('Share link copied to clipboard', 'success');
       
@@ -165,8 +200,10 @@ export function ShareDialog() {
         console.error(`📧 Share request failed:`, err?.message, `(status: ${err?.status})`);
         shareError = err;
         
-        // Try fallback to invite endpoint if share returns 404 and invite exists
-        if (err?.status === 404 && typeof documentApi.invite === 'function') {
+        // Only fall back when the server explicitly reports a missing route.
+        // A document-level 404 should be shown as-is instead of being mislabeled
+        // as an API route failure.
+        if (err?.routeMissing && typeof documentApi.invite === 'function') {
           try {
             console.log(`📧 Attempting fallback to invite endpoint...`);
             response = await documentApi.invite(docId, { email: inviteEmail, role });

@@ -451,16 +451,16 @@ function setThemeIndex(index) {
 }
 
 export function DesignTab() {
-  const { toast, theme } = useUIStore();
+  const { toast } = useUIStore();
   const editor = useEditorStore((s) => s.editor);
   const pageColorButtonRef = useRef(null);
   const initialPreset = useMemo(() => readPagePreset(), []);
   
-  // Apply dark page color if dark mode is active and no custom page color is set
+  // Use the fixed dark page color when no custom document color is set.
   const getInitialPageColor = () => {
     const preset = initialPreset?.pageColor;
-    if (preset && preset !== '#fdfbf7') return preset; // Custom color exists
-    return theme === 'dark' ? '#1a1a1a' : '#fdfbf7'; // Default based on theme
+    if (preset && preset !== '#fdfbf7') return preset;
+    return '#1a1a1a';
   };
   
   const [pageColor, setPageColorState] = useState(getInitialPageColor());
@@ -483,21 +483,19 @@ export function DesignTab() {
     setBorderArt(page.dataset.pageBorderArt || '(none)');
   }, []);
 
-  // Auto-apply dark page color when theme changes
+  // Auto-apply the dark page color when no custom document color is set.
   useEffect(() => {
     if (!editor) return;
     const timer = setTimeout(() => {
       applySavedDefault();
-      // If no custom page color, apply theme default
       const page = getPageElement();
       if (page && (!page.dataset.pageColor || page.dataset.pageColor === '#fdfbf7')) {
-        const newColor = theme === 'dark' ? '#1a1a1a' : '#fdfbf7';
-        setPageColorState(newColor);
-        setPageColor(newColor);
+        setPageColorState('#1a1a1a');
+        setPageColor('#1a1a1a');
       }
     }, 0);
     return () => clearTimeout(timer);
-  }, [editor, theme]);
+  }, [editor]);
 
   useEffect(() => {
     const page = getPageElement();

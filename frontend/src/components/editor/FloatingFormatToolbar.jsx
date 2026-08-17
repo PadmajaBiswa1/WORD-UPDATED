@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Button, ColorSwatch, Divider, Select, Tooltip } from '@/components/ui';
-import { useEditorStore, useUIStore } from '@/store';
+import { useEditorStore } from '@/store';
 import { FontFormattingControls, useFontFormattingControls } from '../toolbar/fontFormatting.jsx';
 
 const LINE_SPACING_VALUES = [
@@ -88,7 +88,6 @@ function isFocusableFormField(target) {
 }
 
 export function FloatingFormatToolbar({ editor, scrollContainerRef }) {
-  const { theme } = useUIStore();
   const { fontFamily, fontSize, toast } = useEditorStore();
 
   const { applyFontFamily, applyFontSize, snapshotSelection, restoreSelection } = useFontFormattingControls(editor);
@@ -298,12 +297,10 @@ export function FloatingFormatToolbar({ editor, scrollContainerRef }) {
           gap: 6,
           padding: '10px 12px',
           border: '1px solid var(--border-gold)',
-          borderRadius: 10,
-          background: theme === 'dark' ? 'rgba(18, 18, 18, 0.96)' : 'rgba(255, 255, 255, 0.98)',
-          color: 'var(--text-primary)',
-          boxShadow: theme === 'dark'
-            ? '0 20px 36px rgba(0, 0, 0, 0.38)'
-            : '0 18px 32px rgba(0, 0, 0, 0.14)',
+           borderRadius: 10,
+           background: 'rgba(18, 18, 18, 0.96)',
+           color: 'var(--text-primary)',
+           boxShadow: '0 20px 36px rgba(0, 0, 0, 0.38)',
           backdropFilter: 'blur(10px)',
           pointerEvents: visible ? 'auto' : 'none',
           fontSize: 13,

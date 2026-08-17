@@ -3,7 +3,7 @@ import html2canvas from 'html2canvas';
 import { useUIStore, useDocumentStore, useEditorStore } from '@/store';
 import { getLayoutMetrics, PAGE_GAP } from '@/utils/pageLayout';
 
-async function renderContentToThumbnail(htmlContent, theme, pageIndex, metrics) {
+async function renderContentToThumbnail(htmlContent, pageIndex, metrics) {
   return new Promise((resolve) => {
     try {
       const tempDiv = document.createElement('div');
@@ -16,8 +16,8 @@ async function renderContentToThumbnail(htmlContent, theme, pageIndex, metrics) 
         width: ${metrics.pageWidth}px;
         min-height: ${metrics.pageHeight}px;
         padding: ${metrics.padding}px;
-        background: ${theme === 'dark' ? '#1a1a1a' : '#ffffff'};
-        color: ${theme === 'dark' ? '#e8e0d0' : '#333333'};
+         background: #1a1a1a;
+         color: #e8e0d0;
         font-family: 'Crimson Pro', Georgia, serif;
         font-size: 12pt;
         line-height: 1.7;
@@ -37,7 +37,7 @@ async function renderContentToThumbnail(htmlContent, theme, pageIndex, metrics) 
             width: metrics.pageWidth,
             height: metrics.pageHeight,
             scale: 0.25, // Scale down for thumbnail
-            backgroundColor: theme === 'dark' ? '#1a1a1a' : '#ffffff',
+             backgroundColor: '#1a1a1a',
             logging: false,
             useCORS: true,
             allowTaint: true,
@@ -61,7 +61,7 @@ async function renderContentToThumbnail(htmlContent, theme, pageIndex, metrics) 
 
 export function useThumbnailGenerator() {
   const editor = useEditorStore(s => s.editor);
-  const { theme, pageSize, pageOrientation, pageMargin, zoom } = useUIStore();
+  const { pageSize, pageOrientation, pageMargin, zoom } = useUIStore();
   const { setThumbnail, pageCount } = useDocumentStore();
   const updateTimer = useRef(null);
   const isRendering = useRef(false);
@@ -115,7 +115,7 @@ export function useThumbnailGenerator() {
             // Only re-render if content changed for this bucket
             if (lastContentMap.current[page.index] === page.html) continue;
             
-            const thumbnail = await renderContentToThumbnail(page.html, theme, page.index, metrics);
+            const thumbnail = await renderContentToThumbnail(page.html, page.index, metrics);
             if (thumbnail) {
               setThumbnail(page.index, thumbnail);
               lastContentMap.current[page.index] = page.html;
@@ -136,5 +136,5 @@ export function useThumbnailGenerator() {
       editor.off('update', updateThumbnails);
       clearTimeout(updateTimer.current);
     };
-  }, [editor, theme, pageSize, pageOrientation, pageMargin, zoom, pageCount, setThumbnail]);
+  }, [editor, pageSize, pageOrientation, pageMargin, zoom, pageCount, setThumbnail]);
 }

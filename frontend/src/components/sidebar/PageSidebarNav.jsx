@@ -1,5 +1,6 @@
 import { usePageStore } from '@/store/usePageStore';
 import { useUIStore } from '@/store';
+import { getLayoutMetrics, PAGE_GAP } from '@/utils/pageLayout';
 import {
   DndContext,
   closestCenter,
@@ -16,8 +17,21 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
+/**
+ * Scroll the editor scroll area to the exact top of a given page index.
+ * Uses the same pageStep formula as EditorCanvas — no scrollIntoView needed.
+ */
+function scrollEditorToPage(pageIndex, zoom, metrics) {
+  const scrollArea = document.getElementById('editor-scroll-area');
+  if (!scrollArea) return;
+  const scale = zoom / 100;
+  const pageStep = (metrics.pageHeight + PAGE_GAP) * scale;
+  const scrollPaddingY = 40 * scale;
+  const targetTop = pageIndex * pageStep + scrollPaddingY;
+  scrollArea.scrollTo({ top: targetTop, behavior: 'smooth' });
+}
+
 function SortablePageThumb({ page, index, isActive, onClick }) {
-  const theme = useUIStore((s) => s.theme);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: page.id,
   });
@@ -50,7 +64,7 @@ function SortablePageThumb({ page, index, isActive, onClick }) {
           alignItems: 'center',
           justifyContent: 'center',
           fontSize: '12px',
-          color: theme === 'dark' ? 'var(--text-muted)' : '#666',
+          color: 'var(--text-muted)',
           transition: 'all 0.2s',
           position: 'relative',
         }}
@@ -65,7 +79,11 @@ function SortablePageThumb({ page, index, isActive, onClick }) {
 
 export function PageSidebarNav() {
   const sidebarOpen = useUIStore((s) => s.sidebarOpen);
+  const zoom = useUIStore((s) => s.zoom);
+  const { pageSize, pageOrientation, pageMargin } = useUIStore();
   const { pages, activePage, setActivePage, reorderPages } = usePageStore();
+
+  const metrics = getLayoutMetrics({ size: pageSize, orientation: pageOrientation, margin: pageMargin });
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -81,23 +99,16 @@ export function PageSidebarNav() {
       const oldIndex = pages.findIndex((p) => p.id === active.id);
       const newIndex = pages.findIndex((p) => p.id === over.id);
       reorderPages(oldIndex, newIndex);
-      
-      // Force scroll to reordered page after a brief delay
-      setTimeout(() => {
-        const pageElements = document.querySelectorAll('.page');
-        if (pageElements[newIndex]) {
-          pageElements[newIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-      }, 100);
+
+      // Scroll to reordered page using precise math
+      setTimeout(() => scrollEditorToPage(newIndex, zoom, metrics), 100);
     }
   };
 
   const scrollToPage = (index) => {
     setActivePage(index);
-    const pageElements = document.querySelectorAll('.page');
-    if (pageElements[index]) {
-      pageElements[index].scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+    // Use precise math-based scroll — avoids the scrollIntoView bounce bug
+    scrollEditorToPage(index, zoom, metrics);
   };
 
   if (!sidebarOpen) return null;
@@ -163,3 +174,4 @@ export function PageSidebarNav() {
     </div>
   );
 }
+

@@ -10,7 +10,7 @@ const OPTIONS = [
 ];
 
 export function ExportDialog() {
-  const { closeDialog, toast } = useUIStore();
+  const { closeDialog, toast, pageSize, pageOrientation } = useUIStore();
   const { title }   = useDocumentStore();
   const { editor }  = useEditorStore();
   const [loading, setLoading] = useState(null);
@@ -22,8 +22,15 @@ export function ExportDialog() {
       if (type === 'html') exportToHtml(title, html);
       else if (type === 'pdf') {
         const el = document.getElementById('document-page-0');
-        if (el) await exportToPdf(title, el);
-        else exportToHtml(title, html); // fallback
+        if (el) {
+          const pageSettings = {
+            format: pageSize || 'a4',
+            orientation: pageOrientation || 'portrait',
+          };
+          await exportToPdf(title, el, pageSettings);
+        } else {
+          exportToHtml(title, html); // fallback
+        }
       } else if (type === 'docx') {
         await exportToDocx(title, html);
       }

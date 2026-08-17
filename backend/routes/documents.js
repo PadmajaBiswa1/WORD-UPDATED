@@ -23,7 +23,7 @@ const {
 
 function requestUser(req) {
   return sanitizeUser({
-    id: req.get('X-EtherX-User-Id') || req.body?.user?.id || req.query?.sessionId,
+    id: req.get('X-EtherX-User-Id') || req.body?.user?.id || req.query?.id || req.query?.sessionId,
     name: req.get('X-EtherX-User-Name') || req.body?.user?.name || req.query?.name,
     email: req.get('X-EtherX-User-Email') || req.body?.user?.email || req.query?.email,
   });
@@ -250,11 +250,11 @@ router.get('/:id/collaboration/stream', (req, res) => {
 });
 
 router.post('/:id/collaboration/publish', (req, res) => {
-  const document = getDocument(req.params.id);
+  const user = requestUser(req);
+  const document = getDocument(req.params.id, user);
   if (!document) return res.status(404).json({ message: 'Document not found' });
 
   const { type, payload = {}, sessionId } = req.body || {};
-  const user = requestUser(req);
   if (!type || !sessionId) {
     return res.status(400).json({ message: 'type and sessionId are required' });
   }

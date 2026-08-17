@@ -13,15 +13,12 @@ import { ToastContainer } from '@/components/ui/Toast';
 import { useAutoSave }    from '@/hooks/useAutoSave';
 import { useCollaboration } from '@/hooks/useCollaboration';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { usePagination }  from '@/hooks/usePagination';
 import { useUIStore, useDocumentStore, useCollaborationStore } from '@/store';
 import { documentApi } from '@/services/api';
 
 function getDefaultPageColor() {
-  try {
-    return localStorage.getItem('etherx-theme') === 'dark' ? '#1a1a1a' : '#fdfbf7';
-  } catch {
-    return '#fdfbf7';
-  }
+  return '#1a1a1a';
 }
 
 export function EditorPage({ isShared = false }) {
@@ -47,18 +44,19 @@ export function EditorPage({ isShared = false }) {
 
   const { save } = useAutoSave();
   useKeyboardShortcuts();
+  usePagination();
   
   // For shared documents, always use routeId; for owned, use stored documentId
   const activeDocId = isShared ? routeId : (routeId && routeId !== 'new' ? routeId : documentId);
   useCollaboration(activeDocId && activeDocId !== 'new' ? activeDocId : null);
 
   useEffect(() => {
-    if (isShared) {
+    if (activeDocId && activeDocId !== 'new') {
       enableCollaboration();
     } else {
       disableCollaboration();
     }
-  }, [disableCollaboration, enableCollaboration, isShared]);
+  }, [activeDocId, disableCollaboration, enableCollaboration]);
 
   // Load doc when routeId / isShared / documentId changes.
   // Actions are accessed via actionsRef to avoid adding them as deps

@@ -78,16 +78,21 @@ export function InsertTab() {
 
   const insertSmartArt = () => {
     insertHtml(`
-      <div style="border:1px solid #cfcfcf;padding:10px 12px;margin:8px 0;">
-        <div style="font-weight:700;margin-bottom:8px;">SmartArt Process</div>
-        <ol style="margin:0 0 0 18px;padding:0;">
-          <li>Step 1</li>
-          <li>Step 2</li>
-          <li>Step 3</li>
-        </ol>
+      <div style="border:2px solid #4a90e2;padding:16px;margin:12px 0;border-radius:4px;background:#f9f9f9;" data-smartart="true">
+        <div style="font-weight:700;margin-bottom:12px;color:#4a90e2;display:flex;justify-content:space-between;align-items:center;">
+          <span>SmartArt Process</span>
+          <span style="font-size:11px;font-weight:400;color:#999;">[Editable]</span>
+        </div>
+        <div style="display:flex;gap:16px;justify-content:space-around;align-items:flex-start;flex-wrap:wrap;">
+          <div style="flex:1;min-width:120px;padding:12px;background:#fff;border:1px solid #ddd;border-radius:3px;cursor:text;" contenteditable="true">Step 1</div>
+          <div style="display:flex;align-items:center;color:#999;padding:0 8px;">→</div>
+          <div style="flex:1;min-width:120px;padding:12px;background:#fff;border:1px solid #ddd;border-radius:3px;cursor:text;" contenteditable="true">Step 2</div>
+          <div style="display:flex;align-items:center;color:#999;padding:0 8px;">→</div>
+          <div style="flex:1;min-width:120px;padding:12px;background:#fff;border:1px solid #ddd;border-radius:3px;cursor:text;" contenteditable="true">Step 3</div>
+        </div>
       </div>
     `);
-    toast('SmartArt block inserted', 'success');
+    toast('Editable SmartArt inserted', 'success');
   };
 
   const insertQuickPart = () => {
@@ -121,8 +126,18 @@ export function InsertTab() {
   };
 
   const insertObjectPlaceholder = () => {
-    insertHtml(`<div style="border:1px dashed #999;padding:10px 12px;margin:8px 0;font-size:12px;color:#666;">Embedded Object Placeholder</div>`);
-    toast('Object placeholder inserted', 'success');
+    const objectId = `obj-${Date.now()}`;
+    insertHtml(`
+      <div style="border:2px solid #9b59b6;border-radius:4px;padding:16px;margin:12px 0;background:#f5f5f5;display:inline-block;min-width:200px;" data-object-id="${objectId}" data-object-type="embedded">
+        <div style="font-weight:600;color:#9b59b6;margin-bottom:8px;">Embedded Object</div>
+        <div style="font-size:12px;color:#666;margin-bottom:10px;">Object ID: ${objectId}</div>
+        <input type="text" placeholder="Object URL or Path" style="width:100%;padding:6px;border:1px solid #ddd;border-radius:3px;font-size:12px;margin-bottom:8px;" />
+        <div style="font-size:11px;color:#999;">
+          Embedded objects require compatible viewers in exported documents. You can reference external files or embed media objects.
+        </div>
+      </div>
+    `);
+    toast('Embedded object placeholder inserted', 'success');
   };
 
   const insertEsignFields = () => {
@@ -227,7 +242,7 @@ export function InsertTab() {
       <div style={group}>
         <div style={stack}>
           <button style={textBtn} onClick={insertCoverPage}>Cover Page v</button>
-          <button style={textBtn} onClick={() => run(() => editor.chain().focus().insertPageBreak().insertPageBreak().run())}>Blank Page</button>
+          <button style={textBtn} onClick={() => run(() => editor.chain().focus().insertPageBreak().run())}>Blank Page</button>
           <button style={textBtn} onClick={() => run(() => editor.chain().focus().insertPageBreak().run())}>Page Break</button>
         </div>
         <div style={footer}>Pages</div>
@@ -248,17 +263,17 @@ export function InsertTab() {
           <button style={cmdStyle} onClick={() => openDialog('insertImage')}>{iconBox('picture')}{label('Pictures', true)}</button>
           <button style={cmdStyle} onClick={() => openDialog('insertShape')}>{iconBox('picture')}{label('Shapes', true)}</button>
           <button style={cmdStyle} onClick={() => openDialog('insertSymbol')}>{iconBox('picture')}{label('Icons', true)}</button>
-          <button style={cmdStyle} onClick={() => openDialog('insertImage')}>{iconBox('picture')}{label('3D Models', true)}</button>
+          <button style={cmdStyle} onClick={() => openDialog('insert3DModel')}>{iconBox('picture')}{label('3D Models', true)}</button>
           <button style={cmdStyle} onClick={insertSmartArt}>{iconBox('picture')}{label('SmartArt', true)}</button>
           <button style={cmdStyle} onClick={() => openDialog('insertChart')}>{iconBox('chart')}{label('Chart', true)}</button>
-          <button style={cmdStyle} onClick={() => openDialog('insertImage')}>{iconBox('picture')}{label('Screenshot', true)}</button>
+          <button style={cmdStyle} onClick={() => openDialog('screenshot')}>{iconBox('picture')}{label('Screenshot', true)}</button>
         </div>
         <div style={footer}>Illustrations</div>
       </div>
 
       <div style={group}>
         <div style={cmds}>
-          <button style={cmdStyle} onClick={() => openDialog('insertLink')}>{iconBox('picture')}{label('Online Videos')}</button>
+          <button style={cmdStyle} onClick={() => openDialog('insertVideo')}>{iconBox('picture')}{label('Online Videos')}</button>
         </div>
         <div style={footer}>Media</div>
       </div>
@@ -294,14 +309,15 @@ export function InsertTab() {
             style={cmdStyle}
             onClick={() => {
               if (!editor) return;
+              const boxId = `textbox-${Date.now()}`;
               run(() => {
                 editor
                   .chain()
                   .focus()
-                  .insertTable({ rows: 1, cols: 1, withHeaderRow: false })
+                  .insertContent(`<div id="${boxId}" style="border:2px solid #4472c4;border-radius:4px;padding:12px;margin:8px 0;background:#f0f7ff;cursor:text;min-width:200px;min-height:60px;" contenteditable="true" data-textbox="true"><span style="color:#999;font-style:italic;">Click to type</span></div>`)
                   .run();
               });
-              toast('Editable text box inserted', 'success');
+              toast('Text box inserted', 'success');
             }}
           >
             {iconBox('picture')}{label('Text Box', true)}

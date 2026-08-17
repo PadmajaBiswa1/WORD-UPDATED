@@ -1,9 +1,23 @@
-import { useRef, useState, useMemo } from 'react';
+import { useRef, useState } from 'react';
 import { useUIStore, useDocumentStore, useEditorStore, useCollaborationStore } from '@/store';
 import { PAGE_SIZES, getLayoutMetrics, PAGE_GAP } from '@/utils/pageLayout';
 
 const THUMB_W  = 108;
 const THUMB_H  = 153;
+
+/**
+ * Scroll the editor scroll area to the exact top of a given page index.
+ * Uses the same pageStep formula as EditorCanvas — no DOM offsetTop needed.
+ */
+function scrollEditorToPage(pageIndex, zoom, metrics) {
+  const scrollArea = document.getElementById('editor-scroll-area');
+  if (!scrollArea) return;
+  const scale = zoom / 100;
+  const pageStep = (metrics.pageHeight + PAGE_GAP) * scale;
+  const scrollPaddingY = 40 * scale;
+  const targetTop = pageIndex * pageStep + scrollPaddingY;
+  scrollArea.scrollTo({ top: targetTop, behavior: 'smooth' });
+}
 
 // Split ProseMirror DOM children into page buckets using rendered offsetTop.
 function getPageBuckets(pageCount, metrics, zoom) {
@@ -84,14 +98,8 @@ export function PageSidebar() {
       reorderPages(from, i);
       setActivePage(i);
 
-      // 5. Scroll to the dropped page
-      setTimeout(() => {
-        const scrollArea = document.getElementById('editor-scroll-area');
-        const pageEl = document.getElementById(`document-page-${i}`);
-        if (scrollArea && pageEl) {
-          scrollArea.scrollTo({ top: pageEl.offsetTop - 40, behavior: 'smooth' });
-        }
-      }, 100);
+      // 5. Scroll to the dropped page using precise math
+      setTimeout(() => scrollEditorToPage(i, zoom, metrics), 100);
     }
     setDragIndex(null); setDropIndex(null); dragNode.current = null;
   };
@@ -103,12 +111,8 @@ export function PageSidebar() {
   const handleClick = (i) => {
     if (didDrag.current) { didDrag.current = false; return; }
     setActivePage(i);
-    const scrollArea = document.getElementById('editor-scroll-area');
-    const pageEl = document.getElementById(`document-page-${i}`);
-    if (scrollArea && pageEl) {
-      const pageTop = pageEl.offsetTop;
-      scrollArea.scrollTo({ top: pageTop - 40, behavior: 'smooth' });
-    }
+    // Use precise math-based scroll — avoids the offsetTop bounce bug
+    scrollEditorToPage(i, zoom, metrics);
   };
 
   const typingNames = (typingUsers || []).filter((u) => u?.sessionId).map((u) => u.name);
@@ -224,17 +228,14 @@ export function PageSidebar() {
 }
 
 function PageThumb({ index, active, thumbnail, isDragging }) {
-  const { theme } = useUIStore();
-  
-  // Theme-aware colors
-  const themeColors = useMemo(() => ({
-    bg: theme === 'dark' ? '#1a1a1a' : '#ffffff',
-    border: active ? '#d4af37' : (theme === 'dark' ? '#333333' : '#e0e0e0'),
-    placeholder: theme === 'dark' ? '#fafafa' : '#f0f0f0',
-    placeholderLine: theme === 'dark' ? '#333333' : '#e0e0e0',
-    pageNum: theme === 'dark' ? '#666666' : '#999999',
-    pageNumBg: theme === 'dark' ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.85)',
-  }), [theme, active]);
+  const themeColors = {
+    bg: '#1a1a1a',
+    border: active ? '#d4af37' : '#333333',
+    placeholder: '#171717',
+    placeholderLine: '#333333',
+    pageNum: '#666666',
+    pageNumBg: 'rgba(0,0,0,0.5)',
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>

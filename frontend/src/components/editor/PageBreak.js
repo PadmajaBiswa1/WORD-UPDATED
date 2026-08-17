@@ -1,7 +1,7 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { Fragment } from '@tiptap/pm/model';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
-import { getLayoutMetrics } from '@/utils/pageLayout';
+import { getLayoutMetrics, PAGE_SIZES, PAGE_GAP } from '@/utils/pageLayout';
 import { useUIStore } from '@/store';
 
 export const PAGE_H    = 1123;
@@ -58,15 +58,20 @@ function estimateNodeHeight(node) {
 function getNodeHeight(view, node, dom) {
   if (dom) {
     const rect = dom.getBoundingClientRect();
-    if (Number.isFinite(rect.height) && rect.height > 0) return rect.height;
+    if (Number.isFinite(rect.height) && rect.height > 0) {
+      // Divide by contentScale (multiply by scale) to get natural pixels
+      const scale = useUIStore.getState().zoom / 100;
+      return rect.height * scale;
+    }
   }
   return estimateNodeHeight(node);
 }
 
 function getContentHeightPx() {
-  const { pageSize, pageOrientation, pageMargin, zoom } = useUIStore.getState();
+  const { pageSize, pageOrientation, pageMargin } = useUIStore.getState();
   const metrics = getLayoutMetrics({ size: pageSize, orientation: pageOrientation, margin: pageMargin });
-  return Math.max(1, metrics.contentHeight * (zoom / 100) - (PAGE_BORDER_WIDTH * 2));
+  // Content is counter-scaled so we use natural (unscaled) content height
+  return Math.max(1, metrics.contentHeight - (PAGE_BORDER_WIDTH * 2));
 }
 
 function paginateDocument(view) {
@@ -77,7 +82,10 @@ function paginateDocument(view) {
   if (!pageBreakType) return false;
 
   const contentHeight = getContentHeightPx();
-  const containerRect = view.dom.getBoundingClientRect();
+  const { pageSize, pageOrientation } = useUIStore.getState();
+  const dims = PAGE_SIZES[pageSize] || PAGE_SIZES.a4;
+  const pageHeight = pageOrientation === 'landscape' ? dims.w : dims.h;
+  const pageStep = pageHeight + PAGE_GAP;
 
   const sourceBlocks = [];
   doc.forEach((node, pos) => {
@@ -89,9 +97,29 @@ function paginateDocument(view) {
     });
   });
 
+  // Track selection before replacing nodes
+  const oldSelection = view.state.selection;
+  const oldPos = oldSelection.$from.pos;
+  let targetBlockIndex = -1;
+  let offsetInBlock = 0;
+
+  for (let i = 0; i < sourceBlocks.length; i++) {
+    const block = sourceBlocks[i];
+    const blockStart = block.pos;
+    const blockEnd = block.pos + block.node.nodeSize;
+    if (oldPos >= blockStart && oldPos <= blockEnd) {
+      targetBlockIndex = i;
+      offsetInBlock = oldPos - blockStart;
+      break;
+    }
+  }
+
   const nextNodes = [];
-  let pageStartTop = null;
+  let pageAccumHeight = 0;
   let pageHasContent = false;
+  
+  // Spacing after each block: 10pt = 13.33px in 96dpi
+  const blockSpacing = 13.33;
 
   for (let index = 0; index < sourceBlocks.length; index += 1) {
     const current = sourceBlocks[index];
@@ -101,45 +129,63 @@ function paginateDocument(view) {
       if (nextNodes[nextNodes.length - 1]?.type?.name !== 'pageBreak') {
         nextNodes.push(node);
       }
-      pageStartTop = null;
+      pageAccumHeight = 0;
       pageHasContent = false;
       continue;
     }
 
-    const rect = dom?.getBoundingClientRect?.();
-    const nodeTop = Number.isFinite(rect?.top) ? Math.max(0, rect.top - containerRect.top) : 0;
-    const nodeBottom = Number.isFinite(rect?.bottom) ? Math.max(0, rect.bottom - containerRect.top) : nodeTop + getNodeHeight(view, node, dom);
     const nodeHeight = Math.max(1, getNodeHeight(view, node, dom));
-    const next = sourceBlocks[index + 1];
-
-    if (pageStartTop === null) {
-      pageStartTop = nodeTop;
+    const isHeading = ['heading'].includes(node.type.name);
+    
+    // Heading margins (Word presets converted to pixels @ 96dpi)
+    let spaceBefore = 0;
+    if (isHeading) {
+      const level = node.attrs?.level || 1;
+      spaceBefore = level === 1 ? 32 : 18.6;
+    }
+    
+    let spaceAfter = blockSpacing;
+    if (isHeading) {
+      const level = node.attrs?.level || 1;
+      spaceAfter = level === 1 ? 8 : (level === 2 ? 5.3 : 2.6);
     }
 
-    const fitsCurrentPage = (nodeBottom - pageStartTop) <= contentHeight;
+    const totalNodeHeight = nodeHeight + spaceBefore + spaceAfter;
+    const next = sourceBlocks[index + 1];
+
+    const fitsCurrentPage = (pageAccumHeight + totalNodeHeight) <= contentHeight;
     const shouldKeepWithNext = isKeepWithNextBlock(node) && next && !isPageBreakNode(next.node);
-    const nextRect = next?.dom?.getBoundingClientRect?.();
-    const nextBottom = Number.isFinite(nextRect?.bottom) ? Math.max(0, nextRect.bottom - containerRect.top) : null;
-    const nextWouldOverflow = shouldKeepWithNext && nextBottom !== null ? (nextBottom - pageStartTop) > contentHeight : false;
+    
+    let nextWouldOverflow = false;
+    if (shouldKeepWithNext && next) {
+      const nextHeight = Math.max(1, getNodeHeight(view, next.node, next.dom));
+      const nextIsHeading = ['heading'].includes(next.node.type.name);
+      let nextSpaceBefore = 0;
+      if (nextIsHeading) {
+        const level = next.node.attrs?.level || 1;
+        nextSpaceBefore = level === 1 ? 32 : 18.6;
+      }
+      let nextSpaceAfter = blockSpacing;
+      if (nextIsHeading) {
+        const level = next.node.attrs?.level || 1;
+        nextSpaceAfter = level === 1 ? 8 : (level === 2 ? 5.3 : 2.6);
+      }
+      const totalNextHeight = nextHeight + nextSpaceBefore + nextSpaceAfter;
+      nextWouldOverflow = (pageAccumHeight + totalNodeHeight + totalNextHeight) > contentHeight;
+    }
 
     if (pageHasContent && (!fitsCurrentPage || nextWouldOverflow)) {
       if (nextNodes[nextNodes.length - 1]?.type?.name !== 'pageBreak') {
-        nextNodes.push(pageBreakType.create({ auto: true, fillHeight: CONTENT_H }));
+        const fillHeight = Math.max(1, pageStep - pageAccumHeight);
+        nextNodes.push(pageBreakType.create({ auto: true, fillHeight }));
       }
-      pageStartTop = nodeTop;
+      pageAccumHeight = 0;
       pageHasContent = false;
     }
 
     nextNodes.push(node);
+    pageAccumHeight += totalNodeHeight;
     pageHasContent = true;
-
-    if (!pageHasContent) {
-      pageStartTop = nodeTop;
-    }
-
-    if (nodeHeight <= 1) {
-      pageHasContent = true;
-    }
   }
 
   const currentNodes = [];
@@ -152,6 +198,29 @@ function paginateDocument(view) {
   }
 
   const tr = view.state.tr.replaceWith(0, doc.content.size, Fragment.fromArray(nextNodes));
+
+  // Restore selection position dynamically mapping it to the new document layout
+  if (targetBlockIndex !== -1) {
+    let currentPos = 0;
+    let blockCount = 0;
+    let newSelectionPos = 1;
+    for (let i = 0; i < nextNodes.length; i++) {
+      const node = nextNodes[i];
+      if (isPageBreakNode(node)) {
+        currentPos += node.nodeSize;
+      } else {
+        if (blockCount === targetBlockIndex) {
+          newSelectionPos = currentPos + offsetInBlock;
+          break;
+        }
+        currentPos += node.nodeSize;
+        blockCount++;
+      }
+    }
+    const resolvedPos = tr.doc.resolve(Math.min(tr.doc.content.size - 1, Math.max(1, newSelectionPos)));
+    tr.setSelection(oldSelection.constructor.near(resolvedPos));
+  }
+
   tr.setMeta('addToHistory', false);
   tr.setMeta(AUTO_PAGINATION_KEY, true);
   view.dispatch(tr);
@@ -264,8 +333,12 @@ export const PageBreak = Node.create({
 
   addCommands() {
     return {
-      insertPageBreak: () => ({ commands }) =>
-        commands.insertContent({ type: 'pageBreak', attrs: { fillHeight: CONTENT_H, auto: false } }),
+      insertPageBreak: () => ({ commands }) => {
+        // Use the live content height so the filler node is sized correctly
+        // for whatever page size + margin the user currently has selected.
+        const fillHeight = getContentHeightPx();
+        return commands.insertContent({ type: 'pageBreak', attrs: { fillHeight, auto: false } });
+      },
     };
   },
 
@@ -410,8 +483,9 @@ export const PageBreak = Node.create({
               state.pageOrientation !== prevState.pageOrientation ||
               state.pageMargin !== prevState.pageMargin
             ) {
-              const editor = useEditorStore.getState().editor;
-              if (editor) schedule(editor.view);
+              // Re-paginate on zoom/page-size/margin change.
+              // We access the editor view via the plugin's own view reference.
+              schedule(view);
             }
           });
 

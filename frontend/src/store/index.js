@@ -7,11 +7,7 @@ const DESIGN_STORAGE_PREFIX = 'etherx-doc-design:';
 const HEADER_FOOTER_STORAGE_PREFIX = 'etherx-doc-header-footer:';
 
 function getDefaultPageColor() {
-  try {
-    return localStorage.getItem('etherx-theme') === 'dark' ? '#1a1a1a' : '#fdfbf7';
-  } catch {
-    return '#fdfbf7';
-  }
+  return '#1a1a1a';
 }
 
 const baseDesignState = () => ({
@@ -231,9 +227,7 @@ export const useDocumentStore = create((set, get) => ({
 
 /* ── UI Store ───────────────────────────────────────────────── */
 export const useUIStore = create((set) => ({
-  theme: typeof localStorage !== 'undefined' ? localStorage.getItem('etherx-theme') || 'dark' : 'dark',
   autoSaveEnabled: typeof localStorage !== 'undefined' ? localStorage.getItem('etherx-autosave') !== 'false' : true,
-  toggleTheme: () => set((s) => ({ theme: s.theme === 'dark' ? 'light' : 'dark' })),
   toggleAutoSave: () =>
     set((s) => {
       const next = !s.autoSaveEnabled;

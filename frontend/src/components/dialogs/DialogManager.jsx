@@ -5,6 +5,10 @@ import { InsertLinkDialog }    from './InsertLinkDialog';
 import { InsertChartDialog }   from './InsertChartDialog';
 import { InsertShapeDialog }   from './InsertShapeDialog';
 import { InsertSymbolDialog }  from './InsertSymbolDialog';
+import { InsertVideoDialog }   from './InsertVideoDialog';
+import { Insert3DModelDialog } from './Insert3DModelDialog';
+import { ScreenshotDialog }    from './ScreenshotDialog';
+import { ImportDocxDialog }    from './ImportDocxDialog';
 import { FindReplaceDialog }   from './FindReplaceDialog';
 import { ExportDialog }        from './ExportDialog';
 import { ShareDialog }         from './ShareDialog';
@@ -49,7 +53,11 @@ export function DialogManager() {
       {dialogs.insertImage    && <InsertImageDialog />}
       {dialogs.insertTable    && <InsertTableDialog />}
       {dialogs.insertLink     && <InsertLinkDialog />}
+      {dialogs.insertVideo    && <InsertVideoDialog />}
+      {dialogs.insert3DModel  && <Insert3DModelDialog />}
       {dialogs.insertChart    && <InsertChartDialog />}
+      {dialogs.screenshot     && <ScreenshotDialog />}
+      {dialogs.importDocx     && <ImportDocxDialog />}
       {dialogs.insertShape    && <InsertShapeDialog />}
       {dialogs.insertSymbol   && <InsertSymbolDialog />}
       {dialogs.findReplace    && <FindReplaceDialog />}

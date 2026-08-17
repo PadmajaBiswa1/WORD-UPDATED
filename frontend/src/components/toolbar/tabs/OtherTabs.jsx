@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useUIStore, useEditorStore } from '@/store';
 import { Button, Tooltip, Select } from '@/components/ui';
 import { RibbonGroup } from '../RibbonGroup';
+import { recalculatePages } from '@/utils/paginationUtils';
 
 // Page dimension maps (px at 96dpi)
 const PAGE_SIZES = {
@@ -72,6 +73,7 @@ function applyPageLayout({ size, orientation, margin, columns }) {
     el.style.width = w + 'px';
     el.style.minHeight = h + 'px';
     el.style.padding = pad + 'px';
+    el.style.boxSizing = 'border-box';
   });
   if (pm && columns > 1) {
     pm.style.columnCount = String(columns);
@@ -80,6 +82,20 @@ function applyPageLayout({ size, orientation, margin, columns }) {
     if (pm) {
       pm.style.columnCount = '';
       pm.style.columnGap = '';
+    }
+  }
+  
+  // Recalculate pagination with new layout
+  if (pm?.parentElement) {
+    try {
+      const result = recalculatePages(pm, { size, margin, orientation });
+      // Update page count if available
+      const statusBar = document.querySelector('[data-status="pageCount"]');
+      if (statusBar) {
+        statusBar.textContent = `Page ${Math.max(1, Math.ceil(pageEls.length / (columns || 1)))} of ${result.totalPages}`;
+      }
+    } catch (err) {
+      console.warn('Pagination calculation failed:', err);
     }
   }
 }
@@ -467,53 +483,116 @@ export function ReviewTab() {
 
   const handleAcceptChange = () => {
     if (!editor) return;
-    editor.chain().focus().unsetMark('insertion').unsetMark('deletion').run();
+    
+    // Find and accept tracked change marks at cursor position
+    const { from, to } = editor.state.selection;
+    const $from = editor.state.doc.resolve(from);
+    
+    // Find all tracked change spans in the document
+    let changeFound = false;
+    editor.state.doc.nodesBetween(0, editor.state.doc.content.size, (node, pos) => {
+      if (node.marks.some(m => m.type.name === 'insertion' || m.type.name === 'deletion')) {
+        if (pos >= from - 10 && pos <= to + 10) {
+          changeFound = true;
+          // Remove the insertion/deletion marks, keeping the content for insertion
+          const marks = node.marks.filter(m => m.type.name !== 'insertion' && m.type.name !== 'deletion');
+          if (node.type.name === 'text') {
+            editor.chain().focus().setSelection(pos, pos + node.text.length).removeAllMarks().setMarks(marks).run();
+          }
+        }
+      }
+    });
+    
+    if (!changeFound) {
+      // Use a simpler approach: find tracked-change data attributes
+      const editorEl = editor.view.dom;
+      const changes = editorEl.querySelectorAll('[data-tracked-change]');
+      if (changes.length === 0) {
+        toast('No tracked changes found', 'info');
+        return;
+      }
+      const change = changes[0]; // Accept first change
+      if (change) {
+        change.removeAttribute('data-tracked-change');
+        change.style.background = '';
+        change.style.textDecoration = '';
+      }
+    }
+    
     toast('Change accepted', 'success');
   };
 
   const handleRejectChange = () => {
     if (!editor) return;
+    
     const { from, to } = editor.state.selection;
-    if (from !== to) editor.chain().focus().deleteSelection().run();
-    toast('Change rejected', 'info');
-  };
-
-  const stepComment = (direction) => {
-    if (!comments.length) {
-      toast('No comments available', 'info');
+    
+    // Find tracked-change data attributes in the selection
+    const editorEl = editor.view.dom;
+    const changes = editorEl.querySelectorAll('[data-tracked-change]');
+    
+    if (changes.length === 0) {
+      toast('No tracked changes to reject', 'info');
       return;
     }
-    const next = (commentCursor + direction + comments.length) % comments.length;
-    setCommentCursor(next);
-    toast(comments[next]?.text || `Comment ${next + 1}`, 'info');
-  };
-
-  const removeCurrentComment = () => {
-    if (!comments.length) {
-      toast('No comments to delete', 'info');
-      return;
+    
+    // Find and reject the most relevant change
+    let rejectedAny = false;
+    changes.forEach(change => {
+      const changeType = change.getAttribute('data-tracked-change');
+      if (changeType === 'deletion') {
+        // Restore deleted content
+        change.removeAttribute('data-tracked-change');
+        change.style.background = '';
+        change.style.textDecoration = '';
+        rejectedAny = true;
+      } else if (changeType === 'insertion') {
+        // Remove inserted content
+        change.remove();
+        rejectedAny = true;
+      }
+    });
+    
+    if (rejectedAny) {
+      toast('Change rejected', 'success');
+    } else {
+      toast('No changes to reject', 'info');
     }
-    const index = commentCursor < 0 ? comments.length - 1 : commentCursor;
-    const target = comments[index];
-    if (!target) return;
-    deleteComment(target.id);
-    setCommentCursor((prev) => Math.max(-1, Math.min(prev - 1, comments.length - 2)));
-    toast('Comment deleted', 'success');
   };
 
-  const announceChange = (direction) => {
+  const stepChange = (direction) => {
     if (!editor) {
       toast('Editor is not ready yet', 'info');
       return;
     }
-    const text = editor.state.doc.textBetween(0, editor.state.doc.content.size, ' ');
-    const tokens = text.match(/\{\{[^}]+\}\}|\[[^\]]+\]/g) || [];
-    if (!tokens.length) {
-      toast('No tracked markers found', 'info');
+    
+    const editorEl = editor.view.dom;
+    const changes = editorEl.querySelectorAll('[data-tracked-change]');
+    
+    if (!changes.length) {
+      toast('No tracked changes found', 'info');
       return;
     }
-    const idx = direction > 0 ? 0 : tokens.length - 1;
-    toast(`Change marker: ${tokens[idx]}`, 'info');
+    
+    // Find the change closest to cursor
+    const { from } = editor.state.selection;
+    let nearestChange = changes[0];
+    let nearestDistance = Infinity;
+    
+    changes.forEach(change => {
+      // Estimate distance (this is approximate)
+      const distance = Math.abs(from - (change.offsetTop || 0));
+      if (distance < nearestDistance || distance === 0) {
+        nearestDistance = distance;
+        nearestChange = change;
+      }
+    });
+    
+    if (nearestChange) {
+      nearestChange.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const changeType = nearestChange.getAttribute('data-tracked-change');
+      toast(`${changeType === 'insertion' ? 'Inserted' : 'Deleted'} text: ${nearestChange.textContent.slice(0, 50)}...`, 'info');
+    }
   };
 
   const blockAuthors = () => {
@@ -693,12 +772,62 @@ export function ViewTab() {
             toast('Split view closed', 'info');
             return;
           }
-          const clone = left.cloneNode(true);
-          clone.id = 'etherx-split-preview';
-          clone.style.borderLeft = '1px solid var(--border)';
-          clone.style.flex = '1';
-          left.parentElement?.appendChild(clone);
-          toast('Split view opened', 'success');
+          
+          // Create a synchronized split view container
+          const container = document.createElement('div');
+          container.id = 'etherx-split-preview';
+          container.style.flex = '1';
+          container.style.borderLeft = '1px solid var(--border)';
+          container.style.overflow = 'auto';
+          container.style.background = 'var(--bg-primary)';
+          container.style.position = 'relative';
+          
+          // Create a mirror view label
+          const label = document.createElement('div');
+          label.style.position = 'absolute';
+          label.style.top = '0';
+          label.style.left = '0';
+          label.style.right = '0';
+          label.style.padding = '8px 12px';
+          label.style.background = 'var(--ribbon-surface)';
+          label.style.borderBottom = '1px solid var(--border)';
+          label.style.fontSize = '12px';
+          label.style.fontWeight = '600';
+          label.style.color = 'var(--text-muted)';
+          label.style.zIndex = '10';
+          label.textContent = 'Preview';
+          container.appendChild(label);
+          
+          // Create content area
+          const content = document.createElement('div');
+          content.id = 'etherx-split-content';
+          content.style.marginTop = '32px';
+          content.style.padding = '20px';
+          content.style.whiteSpace = 'pre-wrap';
+          content.style.wordWrap = 'break-word';
+          content.style.fontFamily = 'inherit';
+          content.style.fontSize = 'inherit';
+          content.style.lineHeight = 'inherit';
+          container.appendChild(content);
+          
+          left.parentElement?.appendChild(container);
+          
+          // Sync content when editor changes
+          const updatePreview = () => {
+            if (editor) {
+              content.innerText = editor.state.doc.textBetween(0, editor.state.doc.content.size, '\n');
+            }
+          };
+          
+          if (editor) {
+            editor.on('update', updatePreview);
+            updatePreview(); // Initial update
+            
+            // Store editor listener so we can remove it later
+            container.dataset.editorListener = 'true';
+          }
+          
+          toast('Split view opened - synchronized preview', 'success');
         }}>⊟ Split</Button></Tooltip>
       </RibbonGroup>
 

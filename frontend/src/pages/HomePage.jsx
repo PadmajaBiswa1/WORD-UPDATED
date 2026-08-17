@@ -4,7 +4,6 @@ import mammoth from 'mammoth';
 import { documentApi, exportApi } from '@/services/api';
 import { buildDocxBlob, buildHtmlDocument, exportToDocx, exportToHtml, exportToPdf } from '@/services/export';
 import { buildAiResult, getPlainTextFromHtml, openTranslationUrl } from '@/services/ai';
-import { useTheme } from '@/hooks/useTheme';
 import { useUIStore, useDocumentStore } from '@/store';
 import { getStoredUser } from '@/services/api';
 
@@ -483,6 +482,20 @@ function getLanguageCode(name = '') {
   return LANG_CODES[key] || key;
 }
 
+function downloadBlob(blob, filename) {
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  link.href = url;
+  link.download = filename;
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  window.setTimeout(() => {
+    link.remove();
+    URL.revokeObjectURL(url);
+  }, 0);
+}
+
 function downloadEtherxFile(title, content) {
   const payload = {
     title: cleanBaseName(title),
@@ -492,11 +505,38 @@ function downloadEtherxFile(title, content) {
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
   const safe = cleanBaseName(title).replace(/[^a-z0-9_\-\s]/gi, '_');
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = `${safe || 'document'}.ethex`;
-  link.click();
-  URL.revokeObjectURL(link.href);
+  downloadBlob(blob, `${safe || 'document'}.ethex`);
+}
+
+async function copyTextToClipboard(value) {
+  const text = String(value || '');
+  if (!text) return false;
+
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // Continue with the legacy clipboard fallback.
+    }
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  let copied = false;
+  try {
+    copied = document.execCommand('copy');
+  } catch {
+    copied = false;
+  } finally {
+    textarea.remove();
+  }
+  return copied;
 }
 
 function filePickerSupported() {
@@ -571,6 +611,10 @@ function readLocalDocs() {
       title: d.title || 'Untitled Document',
       content: d.content || '',
       updatedAt: d.updatedAt || new Date().toISOString(),
+      design: d.design || undefined,
+      headerFooter: d.headerFooter || undefined,
+      comments: Array.isArray(d.comments) ? d.comments : [],
+      trackChanges: Boolean(d.trackChanges),
       localOnly: true,
     }));
   } catch {
@@ -589,12 +633,16 @@ function upsertLocalDoc(doc) {
   return next;
 }
 
-function createLocalDoc({ title, content }) {
+function createLocalDoc({ title, content, source = {} }) {
   const doc = {
     id: `local-${Date.now()}`,
     title: title || 'Untitled Document',
     content: content || '<p></p>',
     updatedAt: new Date().toISOString(),
+    design: source.design,
+    headerFooter: source.headerFooter,
+    comments: Array.isArray(source.comments) ? source.comments : [],
+    trackChanges: Boolean(source.trackChanges),
     localOnly: true,
   };
   const next = upsertLocalDoc(doc);
@@ -604,11 +652,17 @@ function createLocalDoc({ title, content }) {
 export function HomePage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { theme, toggleTheme } = useTheme();
   const toast = useUIStore((s) => s.toast);
   const resetDoc = useDocumentStore((s) => s.reset);
   const setDocTitle = useDocumentStore((s) => s.setTitle);
   const setDocContent = useDocumentStore((s) => s.setContent);
+  const currentEditorId = useDocumentStore((s) => s.id);
+  const currentEditorTitle = useDocumentStore((s) => s.title);
+  const currentEditorContent = useDocumentStore((s) => s.content);
+  const currentEditorDesign = useDocumentStore((s) => s.design);
+  const currentEditorHeaderFooter = useDocumentStore((s) => s.headerFooter);
+  const currentEditorComments = useDocumentStore((s) => s.comments);
+  const currentEditorTrackChanges = useDocumentStore((s) => s.trackChanges);
 
   const [activeMenu, setActiveMenu] = useState('home');
   const [loading, setLoading] = useState(true);
@@ -664,6 +718,10 @@ export function HomePage() {
           title: d.title || 'Untitled Document',
           updatedAt: d.updatedAt || d.updated || new Date().toISOString(),
           content: d.content || '',
+          design: d.design,
+          headerFooter: d.headerFooter,
+          comments: Array.isArray(d.comments) ? d.comments : [],
+          trackChanges: Boolean(d.trackChanges),
           localOnly: Boolean(d.localOnly),
         }))];
         setDocs(normalized);
@@ -686,6 +744,29 @@ export function HomePage() {
   }, [currentDocIdFromRoute]);
 
   const selectedDoc = useMemo(() => docs.find((d) => d.id === selectedDocId) || null, [docs, selectedDocId]);
+  const saveAsSourceDoc = useMemo(() => {
+    if (selectedDoc) return selectedDoc;
+    if (!currentEditorId && !currentEditorContent) return null;
+    return {
+      id: currentEditorId,
+      title: currentEditorTitle || 'Untitled Document',
+      content: currentEditorContent || '<p></p>',
+      design: currentEditorDesign,
+      headerFooter: currentEditorHeaderFooter,
+      comments: currentEditorComments,
+      trackChanges: currentEditorTrackChanges,
+      localOnly: !currentEditorId,
+    };
+  }, [
+    selectedDoc,
+    currentEditorId,
+    currentEditorTitle,
+    currentEditorContent,
+    currentEditorDesign,
+    currentEditorHeaderFooter,
+    currentEditorComments,
+    currentEditorTrackChanges,
+  ]);
 
   useEffect(() => {
     if (!selectedDoc) {
@@ -935,19 +1016,16 @@ export function HomePage() {
     navigate(`/doc/${doc.id}`);
   }
 
-  function setThemeMode(mode) {
-    if (mode !== theme) toggleTheme();
-  }
-
   async function runMenuAction(key) {
-      if (key === 'home' || key === 'ai' || key === 'open' || key === 'export' || key === 'share' || key === 'saveAs' || key === 'info' || key === 'statistics' || key === 'settings') {
-        setActiveMenu(key);
-        if (key !== 'ai') setAiAction(null);
-        if (key === 'saveAs' && selectedDoc) {
-          setSaveAsName(nextCopyName(selectedDoc.title));
-        }
-        return;
+    if (key === 'home' || key === 'ai' || key === 'open' || key === 'export' || key === 'share' || key === 'saveAs' || key === 'info' || key === 'statistics' || key === 'settings') {
+      setActiveMenu(key);
+      if (key !== 'ai') setAiAction(null);
+      if (key === 'saveAs' && saveAsSourceDoc) {
+        setSaveAsName(nextCopyName(saveAsSourceDoc.title));
+        setSaveAsLocation('cloud');
       }
+      return;
+    }
 
     if (key === 'new') {
       await createFromTemplate('blank');
@@ -1097,15 +1175,22 @@ export function HomePage() {
     const created = await documentApi.create({
       title,
       content,
-      comments: [],
-      trackChanges: false,
+      comments: Array.isArray(doc?.comments) ? doc.comments : [],
+      trackChanges: Boolean(doc?.trackChanges),
+      design: doc?.design,
+      headerFooter: doc?.headerFooter,
     });
     const newId = String(created?.id || created?._id || created?.document?.id || created?.document?._id || '');
+    if (!newId) throw new Error('Cloud document was not created');
     const newDoc = {
       id: newId,
       title,
       content,
-      updatedAt: new Date().toISOString(),
+      updatedAt: created?.updatedAt || new Date().toISOString(),
+      design: created?.design || doc?.design,
+      headerFooter: created?.headerFooter || doc?.headerFooter,
+      comments: Array.isArray(created?.comments) ? created.comments : (doc?.comments || []),
+      trackChanges: typeof created?.trackChanges === 'boolean' ? created.trackChanges : Boolean(doc?.trackChanges),
       localOnly: false,
     };
     if (newId) {
@@ -1123,40 +1208,45 @@ export function HomePage() {
   }
 
   async function performSaveAs() {
-    if (!selectedDoc) {
-      toast('Select a document first', 'info');
+    const sourceDoc = saveAsSourceDoc;
+    if (!sourceDoc) {
+      toast('Open or select a document first', 'info');
       return;
     }
 
-    const finalName = cleanBaseName(saveAsName || nextCopyName(selectedDoc.title));
+    const finalName = cleanBaseName(saveAsName || nextCopyName(sourceDoc.title));
     if (!finalName) {
       toast('Enter a file name', 'warning');
       return;
     }
 
+    if (saveAsLocation === 'recent') {
+      toast('Choose EtherX Cloud, This PC, or Browse Folder to save', 'info');
+      return;
+    }
+
     setSaveAsBusy(true);
     try {
-      if (saveAsLocation === 'share') {
-        const targetDoc = await ensureCloudDocForShare(selectedDoc);
+      if (saveAsLocation === 'share' || saveAsLocation === 'copyLink') {
+        const targetDoc = await ensureCloudDocForShare(sourceDoc);
         const response = await documentApi.share(targetDoc.id, { role: 'viewer' });
         const link = response?.shareUrl || buildSharedUrl(targetDoc.id);
-        await navigator.clipboard.writeText(link);
-        toast('Share link copied', 'success');
-        return;
-      }
-      if (saveAsLocation === 'copyLink') {
-        const targetDoc = await ensureCloudDocForShare(selectedDoc);
-        const response = await documentApi.share(targetDoc.id, { role: 'viewer' });
-        const link = response?.shareUrl || buildSharedUrl(targetDoc.id);
-        await navigator.clipboard.writeText(link);
-        toast('Document share link copied', 'success');
+        const copied = await copyTextToClipboard(link);
+        if (copied) {
+          toast(saveAsLocation === 'share' ? 'Share link copied' : 'Document share link copied', 'success');
+        } else {
+          window.prompt('Copy share link', link);
+          toast('Share link ready to copy', 'info');
+        }
+        setActiveMenu('home');
         return;
       }
 
       const wantsLocalFile = saveAsLocation === 'thisPc' || saveAsLocation === 'browse';
+      const content = sourceDoc.content || '<p></p>';
 
-      if (wantsLocalFile) {
-        const pickerResult = await saveWithFilePicker(finalName, saveAsFormat, selectedDoc.content || '<p></p>');
+      if (wantsLocalFile || (saveAsLocation === 'cloud' && saveAsFormat !== 'etherx')) {
+        const pickerResult = await saveWithFilePicker(finalName, saveAsFormat, content);
         if (pickerResult === null) {
           toast('Save As cancelled', 'info');
           return;
@@ -1164,32 +1254,42 @@ export function HomePage() {
 
         if (pickerResult !== true) {
           if (saveAsFormat === 'docx') {
-            await exportToDocx(finalName, selectedDoc.content || '<p></p>');
+            await exportToDocx(finalName, content);
           } else if (saveAsFormat === 'html') {
-            exportToHtml(finalName, selectedDoc.content || '<p></p>');
+            exportToHtml(finalName, content);
           } else {
-            downloadEtherxFile(finalName, selectedDoc.content || '<p></p>');
+            downloadEtherxFile(finalName, content);
           }
         }
-        toast('Saved to local files', 'success');
+
+        const destination = wantsLocalFile
+          ? (saveAsLocation === 'browse' ? 'the selected folder' : 'your computer')
+          : 'your computer because Word/Web formats are file exports';
+        toast(`Saved to ${destination}`, 'success');
         setActiveMenu('home');
         return;
       }
 
-      const createdDoc = await createCloudCopyFrom(selectedDoc, finalName);
-      const newId = createdDoc.id;
+      const createdDoc = await createCloudCopyFrom(sourceDoc, finalName);
       toast('Saved as a new cloud document', 'success');
-      if (newId) {
-        navigate(`/doc/${newId}`);
+      navigate(`/doc/${createdDoc.id}`);
+    } catch (error) {
+      const message = error?.message || 'Save failed';
+      if (saveAsLocation === 'share' || saveAsLocation === 'copyLink') {
+        toast(`Unable to create a share link: ${message}`, 'error');
+      } else if (saveAsLocation === 'thisPc' || saveAsLocation === 'browse' || saveAsFormat !== 'etherx') {
+        toast(`Unable to save the file: ${message}`, 'error');
       } else {
+        const { doc, next } = createLocalDoc({
+          title: finalName,
+          content: sourceDoc.content || '<p></p>',
+          source: sourceDoc,
+        });
+        setDocs(next);
+        setSelectedDocId(doc.id);
+        toast('Cloud Save As failed, saved locally', 'warning');
         setActiveMenu('home');
       }
-    } catch {
-      const { doc, next } = createLocalDoc({ title: finalName, content: selectedDoc.content || '<p></p>' });
-      setDocs(next);
-      setSelectedDocId(doc.id);
-      toast('Cloud Save As failed, saved locally', 'warning');
-      setActiveMenu('home');
     } finally {
       setSaveAsBusy(false);
     }
@@ -1311,7 +1411,7 @@ export function HomePage() {
       <div style={styles.page}>
       <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={handleUploadOpen} />
 
-      <aside style={styles.sidebar}>
+      <aside style={styles.sidebar} aria-label="File menu" tabIndex={0}>
         <img src="/assets/etherxwordlogo.png" alt="EtherX Word Logo" style={{ ...styles.fileMenuTitle, maxHeight: '100%', objectFit: 'contain' }} />
 
         <div style={styles.menuList}>
@@ -1333,21 +1433,9 @@ export function HomePage() {
             <div style={styles.docPillTitle}>{selectedDoc?.title || 'Untitled Document'}</div>
             <div style={styles.docPillMeta}>{stats.words} words • {stats.pages} page</div>
           </div>
-          <div style={styles.themeSwitchRow}>
-            <button
-              style={{ ...styles.themeSwitchBtn, ...(theme === 'light' ? styles.themeSwitchBtnActive : null) }}
-              onClick={() => setThemeMode('light')}
-              title="Light mode"
-            >
-              Light
-            </button>
-            <button
-              style={{ ...styles.themeSwitchBtn, ...(theme === 'dark' ? styles.themeSwitchBtnActive : null) }}
-              onClick={() => setThemeMode('dark')}
-              title="Dark mode"
-            >
-              Dark
-            </button>
+          <div style={styles.darkModeStatus} aria-label="Appearance mode">
+            <span style={styles.darkModeIndicator} aria-hidden="true" />
+            Dark mode
           </div>
           <button style={styles.backEditorBtn} onClick={() => navigate(returnTo)}>← Back to Editor</button>
         </div>
@@ -1582,19 +1670,9 @@ export function HomePage() {
           <section style={styles.panel}>
             <h2 style={styles.panelTitle}>Settings</h2>
             <div style={styles.panelRow}>Appearance mode</div>
-            <div style={styles.panelActionsLeft}>
-              <button
-                style={{ ...styles.secondaryActionBtn, ...(theme === 'light' ? styles.modeBtnActive : null) }}
-                onClick={() => setThemeMode('light')}
-              >
-                Light mode
-              </button>
-              <button
-                style={{ ...styles.secondaryActionBtn, ...(theme === 'dark' ? styles.modeBtnActive : null) }}
-                onClick={() => setThemeMode('dark')}
-              >
-                Dark mode
-              </button>
+            <div style={styles.darkModeStatus} aria-label="Appearance mode">
+              <span style={styles.darkModeIndicator} aria-hidden="true" />
+              Dark mode is always enabled
             </div>
           </section>
         )}
@@ -1678,6 +1756,32 @@ export function HomePage() {
                       </div>
                     </div>
                   </div>
+
+                  {saveAsLocation === 'recent' && (
+                    <div style={styles.saveAsRecentPanel}>
+                      <div style={styles.saveAsRecentTitle}>Recent documents</div>
+                      {docs.length > 0 ? docs.slice(0, 8).map((doc) => (
+                        <button
+                          type="button"
+                          key={doc.id}
+                          style={styles.saveAsRecentItem}
+                          onClick={() => {
+                            setSelectedDocId(doc.id);
+                            setSaveAsName(nextCopyName(doc.title));
+                            setSaveAsLocation('cloud');
+                          }}
+                        >
+                          <span style={styles.saveAsRecentItemMain}>
+                            <span style={styles.saveAsRecentItemTitle}>{doc.title}</span>
+                            <span style={styles.saveAsRecentItemMeta}>{formatActualTime(doc.updatedAt)}</span>
+                          </span>
+                          <span style={styles.saveAsRecentItemAction}>Use</span>
+                        </button>
+                      )) : (
+                        <div style={styles.saveAsRecentEmpty}>No recent documents found.</div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Info Banner */}
                   {saveAsLocation === 'cloud' && (
@@ -1820,10 +1924,15 @@ const styles = {
   },
   sidebar: {
     width: 238,
+    minHeight: 0,
     borderRight: '1px solid var(--border-strong)',
     background: 'var(--bg-surface)',
     display: 'flex',
     flexDirection: 'column',
+    overflowY: 'auto',
+    overflowX: 'hidden',
+    overscrollBehaviorY: 'contain',
+    WebkitOverflowScrolling: 'touch',
   },
   fileMenuTitle: {
     height: 90,
@@ -1837,6 +1946,7 @@ const styles = {
     fontWeight: 700,
   },
   menuList: {
+    flex: '0 0 auto',
     display: 'flex',
     flexDirection: 'column',
     gap: 4,
@@ -1872,6 +1982,7 @@ const styles = {
     opacity: 0.92,
   },
   sidebarFooter: {
+    flexShrink: 0,
     marginTop: 'auto',
     borderTop: '1px solid var(--border)',
     padding: '10px 8px 10px',
@@ -1907,25 +2018,25 @@ const styles = {
     fontSize: 16,
     textAlign: 'left',
   },
-  themeSwitchRow: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: 6,
-  },
-  themeSwitchBtn: {
-    border: '1px solid var(--border)',
+  darkModeStatus: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 7,
+    border: '1px solid var(--border-gold)',
     borderRadius: 8,
-    background: 'var(--bg-surface)',
-    color: 'var(--text-primary)',
-    padding: '7px 0',
-    cursor: 'pointer',
+    background: 'var(--bg-hover)',
+    color: 'var(--text-gold)',
+    padding: '7px 10px',
     fontSize: 12,
     fontWeight: 600,
   },
-  themeSwitchBtnActive: {
-    borderColor: 'var(--border-gold)',
-    background: 'var(--bg-hover)',
-    color: 'var(--text-gold)',
+  darkModeIndicator: {
+    width: 7,
+    height: 7,
+    borderRadius: '50%',
+    background: 'var(--gold)',
+    boxShadow: '0 0 8px rgba(212,175,55,0.55)',
+    flexShrink: 0,
   },
   main: {
     flex: 1,
@@ -2273,11 +2384,6 @@ const styles = {
     cursor: 'pointer',
     fontSize: 13,
   },
-  modeBtnActive: {
-    borderColor: 'var(--border-gold)',
-    background: 'var(--bg-hover)',
-    color: 'var(--text-gold)',
-  },
   search: {
     width: '100%',
     border: '1px solid var(--border)',
@@ -2524,6 +2630,64 @@ const styles = {
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
+  },
+  saveAsRecentPanel: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
+    padding: 14,
+    background: 'var(--bg-surface)',
+    border: '1px solid var(--border)',
+    borderRadius: 8,
+  },
+  saveAsRecentTitle: {
+    color: 'var(--text-secondary)',
+    fontSize: 12,
+    fontWeight: 700,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+  },
+  saveAsRecentItem: {
+    width: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    padding: '9px 10px',
+    border: '1px solid var(--border)',
+    borderRadius: 6,
+    background: 'var(--bg-elevated)',
+    color: 'var(--text-primary)',
+    cursor: 'pointer',
+    textAlign: 'left',
+  },
+  saveAsRecentItemMain: {
+    display: 'flex',
+    flexDirection: 'column',
+    minWidth: 0,
+    gap: 2,
+  },
+  saveAsRecentItemTitle: {
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+    fontSize: 13,
+    fontWeight: 600,
+  },
+  saveAsRecentItemMeta: {
+    color: 'var(--text-muted)',
+    fontSize: 11,
+  },
+  saveAsRecentItemAction: {
+    color: 'var(--text-gold)',
+    fontSize: 12,
+    fontWeight: 600,
+    flexShrink: 0,
+  },
+  saveAsRecentEmpty: {
+    color: 'var(--text-muted)',
+    fontSize: 13,
+    padding: '6px 0',
   },
   saveAsFormArea: {
     display: 'flex',
