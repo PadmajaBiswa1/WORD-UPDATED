@@ -47,6 +47,7 @@ export async function sendOtpEmail({ toEmail, toName, code, purpose }) {
     otp_code: otpText,
     verification_code: otpText,
     verificationCode: otpText,
+    passcode: otpText,
     purpose,
     action_label: purpose === 'reset' ? 'reset your password' : 'verify your account',
     action: purpose === 'reset' ? 'reset your password' : 'verify your account',
@@ -55,6 +56,8 @@ export async function sendOtpEmail({ toEmail, toName, code, purpose }) {
     body: message,
     text: message,
   });
+
+  console.log('[EmailJS] Sending OTP with templateParams:', templateParams);
 
   return emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams, {
     publicKey: EMAILJS_PUBLIC_KEY,
