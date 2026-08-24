@@ -48,6 +48,8 @@ export async function sendOtpEmail({ toEmail, toName, code, purpose }) {
     verification_code: otpText,
     verificationCode: otpText,
     passcode: otpText,
+    expires_in: '10 minutes',
+    expiresIn: '10 minutes',
     purpose,
     action_label: purpose === 'reset' ? 'reset your password' : 'verify your account',
     action: purpose === 'reset' ? 'reset your password' : 'verify your account',
