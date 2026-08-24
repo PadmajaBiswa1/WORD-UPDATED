@@ -73,6 +73,9 @@ export async function sendOtpEmail({ toEmail, toName, code, purpose }) {
   });
 
   console.log('[EmailJS] Sending OTP with templateParams:', templateParams);
+  if (typeof window !== 'undefined') {
+    window.alert('[Debug] EmailJS templateParams being sent:\n' + JSON.stringify(templateParams, null, 2));
+  }
 
   return emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams, {
     publicKey: EMAILJS_PUBLIC_KEY,
