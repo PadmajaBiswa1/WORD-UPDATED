@@ -57,8 +57,18 @@ async function sendOTPEmail(email, otp, type) {
     const result = await sendEmailJs(
       {
         otp_code: otp,
+        passcode: otp,
+        otp: otp,
         action,
         action_label: action,
+        expires_in: '10 minutes',
+        expiresIn: '10 minutes',
+        expires: '10 minutes',
+        expiry: '10 minutes',
+        expire: '10 minutes',
+        valid_for: '10 minutes',
+        expires_at: '10 minutes',
+        expiresAt: '10 minutes',
         message: `Use the code below to ${action}. It expires in 10 minutes.`,
       },
       email,
