@@ -668,6 +668,7 @@ export function ReviewTab() {
       <RibbonGroup label="Smart Features">
         <Tooltip text="Voice Typing"><Button onClick={() => runDictation({ editor, toast })}>🎤 Voice Typing</Button></Tooltip>
         <Tooltip text="Text-to-Speech"><Button onClick={() => runReadAloud({ editor, toast })}>🔊 TTS</Button></Tooltip>
+        <Tooltip text="Stop Reading"><Button onClick={() => { if (window.speechSynthesis) { window.speechSynthesis.cancel(); toast('Read aloud stopped', 'info'); } }}>🔇 Stop TTS</Button></Tooltip>
         <Tooltip text="OCR (Image to Text)"><Button onClick={() => runImageTextCapture({ editor, toast, mode: 'ocr' })}>🧾 OCR</Button></Tooltip>
         <Tooltip text="Handwriting Recognition"><Button onClick={() => runImageTextCapture({ editor, toast, mode: 'handwriting' })}>✍ Handwriting</Button></Tooltip>
         <Tooltip text="Smart Suggestions"><Button onClick={() => runSmartSuggestions({ editor, toast })}>✨ Suggestions</Button></Tooltip>

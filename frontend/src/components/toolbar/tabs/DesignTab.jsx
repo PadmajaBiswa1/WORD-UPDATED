@@ -451,7 +451,7 @@ function setThemeIndex(index) {
 }
 
 export function DesignTab() {
-  const { toast } = useUIStore();
+  const { toast, watermarkText, setWatermarkText } = useUIStore();
   const editor = useEditorStore((s) => s.editor);
   const pageColorButtonRef = useRef(null);
   const initialPreset = useMemo(() => readPagePreset(), []);
@@ -883,11 +883,16 @@ export function DesignTab() {
           </button>
 
           <button
-            onClick={() => runImageTextCapture({ editor, toast, mode: 'ocr' })}
+            onClick={() => {
+              if (window.speechSynthesis) {
+                window.speechSynthesis.cancel();
+                toast('Read aloud stopped', 'info');
+              }
+            }}
             style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, color: 'var(--ribbon-ink)' }}
           >
-            <div style={{ fontSize: 20, lineHeight: 1 }}>🧾</div>
-            <div style={{ fontSize: 11, marginTop: 2 }}>OCR</div>
+            <div style={{ fontSize: 20, lineHeight: 1 }}>🔇</div>
+            <div style={{ fontSize: 11, marginTop: 2 }}>Stop Read</div>
           </button>
 
           <button
@@ -922,10 +927,16 @@ export function DesignTab() {
         <div style={{ display: 'flex', gap: 16 }}>
           <button
             onClick={() => {
-              const input = window.prompt('Watermark text (leave blank for DRAFT):', 'DRAFT');
-              const result = toggleWatermark((input || 'DRAFT').trim() || 'DRAFT');
-              if (!result) return toast('Page is not ready yet', 'info');
-              toast(result === 'added' ? 'Watermark added' : 'Watermark removed', 'success');
+              const input = window.prompt('Watermark text (leave blank to remove):', watermarkText || 'DRAFT');
+              if (input === null) return;
+              const trimmed = input.trim();
+              if (trimmed === '') {
+                setWatermarkText('');
+                toast('Watermark removed', 'success');
+              } else {
+                setWatermarkText(trimmed);
+                toast('Watermark added', 'success');
+              }
             }}
             style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, color: 'var(--ribbon-ink)' }}
           >

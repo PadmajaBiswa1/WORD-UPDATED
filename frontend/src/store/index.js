@@ -1,4 +1,4 @@
-﻿// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 //  EtherX Word — Central State (Zustand)
 // ═══════════════════════════════════════════════════════════════
 import { create } from 'zustand';
@@ -260,6 +260,7 @@ export const useUIStore = create((set) => ({
   drawColor: '#111111',
   drawSize: 4,
   drawOpacity: 0.4,
+  watermarkText: '',
 
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
   toggleFullscreen: () => set((s) => ({ fullscreen: !s.fullscreen })),
@@ -278,6 +279,7 @@ export const useUIStore = create((set) => ({
   setDrawColor: (c) => set({ drawColor: c }),
   setDrawSize: (s) => set({ drawSize: s }),
   setDrawOpacity: (o) => set({ drawOpacity: Math.max(0.1, Math.min(1, o)) }),
+  setWatermarkText: (text) => set({ watermarkText: text }),
 
   dialogs: {
     insertImage: false, insertTable: false, insertLink: false,

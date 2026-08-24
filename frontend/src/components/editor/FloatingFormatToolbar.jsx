@@ -98,9 +98,35 @@ export function FloatingFormatToolbar({ editor, scrollContainerRef }) {
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const [textColorOpen, setTextColorOpen] = useState(false);
   const [highlightColorOpen, setHighlightColorOpen] = useState(false);
+  const [isImageOperationActive, setIsImageOperationActive] = useState(false);
   const toolbarRef = useRef(null);
   const hideTimerRef = useRef(null);
   const pointerLockRef = useRef(false);
+
+  const hideToolbar = useCallback(() => {
+    clearTimeout(hideTimerRef.current);
+    setVisible(false);
+    hideTimerRef.current = setTimeout(() => {
+      setMounted(false);
+      setAnchor(null);
+      setTextColorOpen(false);
+      setHighlightColorOpen(false);
+    }, 180);
+  }, []);
+
+  useEffect(() => {
+    const handleStart = () => {
+      setIsImageOperationActive(true);
+      hideToolbar();
+    };
+    const handleEnd = () => setIsImageOperationActive(false);
+    window.addEventListener('image-drag-start', handleStart);
+    window.addEventListener('image-drag-end', handleEnd);
+    return () => {
+      window.removeEventListener('image-drag-start', handleStart);
+      window.removeEventListener('image-drag-end', handleEnd);
+    };
+  }, [hideToolbar]);
 
   const run = useCallback((callback) => {
     if (!editor) return;
@@ -119,17 +145,6 @@ export function FloatingFormatToolbar({ editor, scrollContainerRef }) {
     });
     run(() => editor.chain().updateAttributes('paragraph', { style: toStyle(css) }).run());
   }, [editor, run]);
-
-  const hideToolbar = useCallback(() => {
-    clearTimeout(hideTimerRef.current);
-    setVisible(false);
-    hideTimerRef.current = setTimeout(() => {
-      setMounted(false);
-      setAnchor(null);
-      setTextColorOpen(false);
-      setHighlightColorOpen(false);
-    }, 180);
-  }, []);
 
   const showToolbar = useCallback(() => {
     if (!editor) return;
@@ -259,7 +274,7 @@ export function FloatingFormatToolbar({ editor, scrollContainerRef }) {
   const paragraphStyle = editor?.getAttributes('paragraph')?.style || '';
   const currentLineSpacing = parseStyle(paragraphStyle)['line-height'] || '1';
 
-  if (!mounted || !editor) return null;
+  if (!mounted || !editor || isImageOperationActive) return null;
 
   return createPortal(
     <div

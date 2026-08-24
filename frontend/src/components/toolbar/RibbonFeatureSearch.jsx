@@ -14,7 +14,7 @@ const makeAction = (key, { title, tab, keywords = [], run }) => ({
 });
 
 export function RibbonFeatureSearch({ compactWidth = 190, onActivateTab: onActivateTabProp }) {
-  const { openDialog, toast, setActiveTab } = useUIStore();
+  const { openDialog, toast, setActiveTab, watermarkText, setWatermarkText } = useUIStore();
   const onActivateTab = onActivateTabProp ?? null;
   const { editor } = useEditorStore();
 
@@ -353,6 +353,124 @@ export function RibbonFeatureSearch({ compactWidth = 190, onActivateTab: onActiv
 
     // Execute (must not be a no-op for available items)
     try {
+      const actionId = action.id || action.key;
+      if (actionId && editor) {
+        switch (actionId) {
+          case 'home-bold':
+            editor.chain().focus().toggleBold().run();
+            return;
+          case 'home-italic':
+            editor.chain().focus().toggleItalic().run();
+            return;
+          case 'home-underline':
+            editor.chain().focus().toggleUnderline().run();
+            return;
+          case 'home-strike':
+            editor.chain().focus().toggleStrike().run();
+            return;
+          case 'home-subscript':
+            editor.chain().focus().toggleSubscript().run();
+            return;
+          case 'home-superscript':
+            editor.chain().focus().toggleSuperscript().run();
+            return;
+          case 'home-alignleft':
+            editor.chain().focus().setTextAlign('left').run();
+            return;
+          case 'home-aligncenter':
+            editor.chain().focus().setTextAlign('center').run();
+            return;
+          case 'home-alignright':
+            editor.chain().focus().setTextAlign('right').run();
+            return;
+          case 'home-justify':
+            editor.chain().focus().setTextAlign('justify').run();
+            return;
+          case 'home-bullets':
+            editor.chain().focus().toggleBulletList().run();
+            return;
+          case 'home-ordered':
+            editor.chain().focus().toggleOrderedList().run();
+            return;
+          case 'home-tasklist':
+            editor.chain().focus().toggleTaskList().run();
+            return;
+          case 'home-blockquote':
+            editor.chain().focus().toggleBlockquote().run();
+            return;
+          case 'home-undo':
+            editor.chain().focus().undo().run();
+            return;
+          case 'home-redo':
+            editor.chain().focus().redo().run();
+            return;
+          case 'home-selectall':
+            editor.chain().focus().selectAll().run();
+            return;
+          case 'ins-pagebreak':
+          case 'ins-blankpage':
+          case 'layout-breaks':
+            editor.chain().focus().insertPageBreak().run();
+            return;
+          case 'layout-margins':
+          case 'layout-orientation':
+          case 'layout-pagesize':
+          case 'layout-columns':
+            openDialog('pageSetup');
+            return;
+          case 'design-watermark': {
+            const input = window.prompt('Watermark text (leave blank to remove):', watermarkText || 'DRAFT');
+            if (input !== null) {
+              const trimmed = input.trim();
+              if (trimmed === '') {
+                setWatermarkText('');
+                toast('Watermark removed', 'success');
+              } else {
+                setWatermarkText(trimmed);
+                toast('Watermark added', 'success');
+              }
+            }
+            return;
+          }
+          case 'design-pagecolor':
+            setActiveTab('design');
+            toast('Select Page Color from the Design tab', 'info');
+            return;
+          case 'design-pageborder':
+            setActiveTab('design');
+            toast('Select Page Border from the Design tab', 'info');
+            return;
+          case 'home-paste':
+            navigator.clipboard.readText().then(text => {
+              if (text) editor.chain().focus().insertContent(text).run();
+            }).catch(() => toast('Paste blocked by browser permissions', 'warning'));
+            return;
+          case 'home-copy': {
+            const { from, to } = editor.state.selection;
+            if (from !== to) {
+              const text = editor.state.doc.textBetween(from, to, ' ');
+              navigator.clipboard.writeText(text);
+              toast('Text copied to clipboard', 'success');
+            } else {
+              toast('Select some text first', 'info');
+            }
+            return;
+          }
+          case 'home-cut': {
+            const { from, to } = editor.state.selection;
+            if (from !== to) {
+              const text = editor.state.doc.textBetween(from, to, ' ');
+              navigator.clipboard.writeText(text);
+              editor.chain().focus().deleteSelection().run();
+              toast('Text cut to clipboard', 'success');
+            } else {
+              toast('Select some text first', 'info');
+            }
+            return;
+          }
+        }
+      }
+
       if (typeof action.run === 'function') {
         action.run();
       } else if (tab) {

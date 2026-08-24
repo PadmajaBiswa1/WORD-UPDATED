@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { authApi } from '@/services/api';
 
 function EyeIcon({ open }) {
   return open ? (
@@ -28,17 +29,22 @@ export function SignInPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    
+    const email = form.email.trim();
+    const password = form.password;
+    if (!email || !password) {
+      setError('Please enter both email and password.');
+      return;
+    }
+
     setLoading(true);
     try {
-      // Frontend-only mock: always succeed, no backend needed
-      const fakeToken = 'demo-frontend-token-' + Date.now();
-      const fakeUser = { 
-        name: form.email.split('@')[0] || 'User', 
-        email: form.email 
-      };
-      localStorage.setItem('etherx_token', fakeToken);
-      localStorage.setItem('etherx_user', JSON.stringify(fakeUser));
+      const response = await authApi.signin({ email, password });
+      localStorage.setItem('etherx_token', response.token);
+      localStorage.setItem('etherx_user', JSON.stringify(response.user));
       navigate('/home');
+    } catch (err) {
+      setError(err.message || 'Invalid email or password');
     } finally {
       setLoading(false);
     }

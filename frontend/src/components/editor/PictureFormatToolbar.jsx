@@ -58,6 +58,7 @@ export function PictureFormatToolbar({ editor, scrollContainerRef }) {
   // top/left are always the box's TOP-LEFT CORNER in fixed-position pixels
   // (never a center point), so drag math and clamp math stay consistent.
   const [style, setStyle] = useState({ top: 0, left: 0, maxWidth: MAX_BOX_WIDTH, maxHeight: '50vh' });
+  const [isImageOperationActive, setIsImageOperationActive] = useState(false);
   const toolbarRef = useRef(null);
   const hideTimerRef = useRef(null);
   const anchorRef = useRef(null);
@@ -85,6 +86,20 @@ export function PictureFormatToolbar({ editor, scrollContainerRef }) {
       userMovedRef.current = false; // next open should auto-position again
     }, 160);
   }, []);
+
+  useEffect(() => {
+    const handleStart = () => {
+      setIsImageOperationActive(true);
+      hideToolbar();
+    };
+    const handleEnd = () => setIsImageOperationActive(false);
+    window.addEventListener('image-drag-start', handleStart);
+    window.addEventListener('image-drag-end', handleEnd);
+    return () => {
+      window.removeEventListener('image-drag-start', handleStart);
+      window.removeEventListener('image-drag-end', handleEnd);
+    };
+  }, [hideToolbar]);
 
   const showToolbar = useCallback(() => {
     if (!editor) return;
@@ -320,7 +335,7 @@ export function PictureFormatToolbar({ editor, scrollContainerRef }) {
     window.removeEventListener('pointerup', handleDragPointerUp);
   }, [handleDragPointerMove, handleDragPointerUp]);
 
-  if (!mounted || !editor) return null;
+  if (!mounted || !editor || isImageOperationActive) return null;
 
   return createPortal(
     <div

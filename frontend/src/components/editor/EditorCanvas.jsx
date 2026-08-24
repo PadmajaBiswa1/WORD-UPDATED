@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { EditorContent } from '@tiptap/react';
 import { useEditorSetup } from '@/hooks/useEditorSetup';
 import { useThumbnailGenerator } from '@/hooks/useThumbnailGenerator';
@@ -46,7 +46,7 @@ function colorFromString(seed = '') {
 
 export function EditorCanvas() {
   const editor    = useEditorSetup();
-  const { zoom, setActivePage, rulerVisible, pageSize, pageOrientation, pageMargin, pageColumns }  = useUIStore();
+  const { zoom, setActivePage, rulerVisible, pageSize, pageOrientation, pageMargin, pageColumns, watermarkText }  = useUIStore();
   const design = useDocumentStore((s) => s.design);
   const documentId = useDocumentStore((s) => s.id);
   const { setStats, headerFooter, setHeaderFooter } = useDocumentStore();
@@ -286,7 +286,29 @@ export function EditorCanvas() {
                   backgroundImage: 'var(--etherx-page-fill-image, none)',
                   borderRadius: 2,
                 }}
-              />
+              >
+                {watermarkText && (
+                  <div
+                    data-etherx-watermark="true"
+                    style={{
+                      position: 'absolute',
+                      top: '45%',
+                      left: '50%',
+                      transform: 'translate(-50%, -50%) rotate(-28deg)',
+                      fontSize: `${78 * scale}px`,
+                      fontWeight: 700,
+                      letterSpacing: '0.08em',
+                      opacity: 0.11,
+                      color: '#6f5320',
+                      pointerEvents: 'none',
+                      userSelect: 'none',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {watermarkText}
+                  </div>
+                )}
+              </div>
             ))}
           </div>
           <div aria-hidden="true" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 1 }}>
