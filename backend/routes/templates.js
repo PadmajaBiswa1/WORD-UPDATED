@@ -20,7 +20,7 @@ router.get('/:id', (req, res) => {
   res.json(template);
 });
 
-router.post('/:id/documents', (req, res) => {
+router.post('/:id/documents', async (req, res) => {
   try {
     console.log(`[templates] Creating document from template: ${req.params.id}`);
     const template = getTemplate(req.params.id);
@@ -31,7 +31,7 @@ router.post('/:id/documents', (req, res) => {
 
     const title = req.body?.title || template.title;
     console.log(`[templates] Creating document with title: ${title}`);
-    const document = createDocument(
+    const document = await createDocument(
       {
         title,
         content: template.content,

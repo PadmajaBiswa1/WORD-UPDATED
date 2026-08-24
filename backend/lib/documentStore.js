@@ -1,9 +1,5 @@
-const fs = require('fs');
-const path = require('path');
 const crypto = require('crypto');
-
-const DATA_DIR = path.join(__dirname, '..', 'data');
-const DATA_FILE = path.join(DATA_DIR, 'documents.json');
+const Document = require('../models/Document');
 
 function defaultDesign() {
   return {
@@ -39,31 +35,6 @@ function defaultHeaderFooter() {
 function normalizeHeaderFooter(headerFooter) {
   if (!headerFooter || typeof headerFooter !== 'object') return defaultHeaderFooter();
   return { ...defaultHeaderFooter(), ...headerFooter };
-}
-
-function ensureStore() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  if (!fs.existsSync(DATA_FILE)) {
-    fs.writeFileSync(DATA_FILE, JSON.stringify({ documents: [] }, null, 2), 'utf8');
-  }
-}
-
-function readStore() {
-  ensureStore();
-  try {
-    const raw = fs.readFileSync(DATA_FILE, 'utf8');
-    const parsed = JSON.parse(raw || '{}');
-    return {
-      documents: Array.isArray(parsed.documents) ? parsed.documents : [],
-    };
-  } catch {
-    return { documents: [] };
-  }
-}
-
-function writeStore(store) {
-  ensureStore();
-  fs.writeFileSync(DATA_FILE, JSON.stringify(store, null, 2), 'utf8');
 }
 
 function makeId(prefix = 'doc') {
@@ -133,28 +104,45 @@ function sanitizeUser(user = {}) {
   return { id, name, email };
 }
 
-function listDocuments(user = {}) {
-  const store = readStore();
+async function listDocuments(user = {}) {
   const normalizedUser = sanitizeUser(user);
-  return store.documents
-    .map(normalizeDoc)
-    .filter((document) => !document.owner || canAccessDocument(document, normalizedUser))
-    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  const email = String(normalizedUser.email || '').trim().toLowerCase();
+  const id = String(normalizedUser.id || '').trim().toLowerCase();
+  
+  let query;
+  if (id === 'guest-user') {
+    query = {
+      $or: [
+        { 'owner.id': 'guest-user' },
+        { 'owner.id': { $exists: false } },
+        { 'owner.id': null }
+      ]
+    };
+  } else {
+    query = {
+      $or: [
+        { 'owner.id': id },
+        { 'sharedWith.email': email },
+        { 'sharedWith.id': id }
+      ]
+    };
+  }
+
+  const docs = await Document.find(query).sort({ updatedAt: -1 });
+  return docs.map((d) => normalizeDoc(d.toObject()));
 }
 
-function getDocument(id, user = {}) {
-  const store = readStore();
-  const document = store.documents.find((entry) => entry.id === id);
-  const normalized = document ? normalizeDoc(document) : null;
-  if (!normalized) return null;
+async function getDocument(id, user = {}) {
+  const doc = await Document.findOne({ id });
+  if (!doc) return null;
+  const normalized = normalizeDoc(doc.toObject());
   if (!normalized.owner) return normalized;
   return canAccessDocument(normalized, user) ? normalized : null;
 }
 
-function createDocument(input = {}, user = {}) {
-  const store = readStore();
+async function createDocument(input = {}, user = {}) {
   const now = new Date().toISOString();
-  const doc = normalizeDoc({
+  const docData = normalizeDoc({
     id: makeId(),
     title: input.title || 'Untitled Document',
     content: input.content || '<p></p>',
@@ -169,17 +157,16 @@ function createDocument(input = {}, user = {}) {
     design: input.design && typeof input.design === 'object' ? { ...defaultDesign(), ...input.design } : defaultDesign(),
     headerFooter: normalizeHeaderFooter(input.headerFooter),
   });
-  store.documents.unshift(doc);
-  writeStore(store);
-  return doc;
+
+  const created = await Document.create(docData);
+  return normalizeDoc(created.toObject());
 }
 
-function updateDocument(id, input = {}, options = {}) {
-  const store = readStore();
-  const index = store.documents.findIndex((entry) => entry.id === id);
-  if (index === -1) return null;
+async function updateDocument(id, input = {}, options = {}) {
+  const doc = await Document.findOne({ id });
+  if (!doc) return null;
 
-  const current = normalizeDoc(store.documents[index]);
+  const current = normalizeDoc(doc.toObject());
   const next = { ...current };
   const createVersionEntry = options.createVersion !== false;
 
@@ -193,8 +180,7 @@ function updateDocument(id, input = {}, options = {}) {
   if (input.headerFooter && typeof input.headerFooter === 'object') {
     next.headerFooter = normalizeHeaderFooter({ ...(current.headerFooter || {}), ...input.headerFooter });
   }
-  
-  // Handle IPFS fields
+
   if (typeof input.ipfsHash === 'string' || input.ipfsHash === null) next.ipfsHash = input.ipfsHash || null;
   if (typeof input.ipfsGatewayUrl === 'string' || input.ipfsGatewayUrl === null) next.ipfsGatewayUrl = input.ipfsGatewayUrl || null;
   if (typeof input.ipfsPinnedAt === 'string' || input.ipfsPinnedAt === null) next.ipfsPinnedAt = input.ipfsPinnedAt || null;
@@ -217,44 +203,38 @@ function updateDocument(id, input = {}, options = {}) {
     next.versions = [createVersion(current.content, current.versions.length), ...current.versions].slice(0, 40);
   }
 
-  store.documents[index] = next;
-  writeStore(store);
-  return next;
+  const updated = await Document.findOneAndUpdate({ id }, next, { new: true });
+  return updated ? normalizeDoc(updated.toObject()) : null;
 }
 
-function deleteDocument(id) {
-  const store = readStore();
-  const before = store.documents.length;
-  store.documents = store.documents.filter((entry) => entry.id !== id);
-  writeStore(store);
-  return store.documents.length !== before;
+async function deleteDocument(id) {
+  const result = await Document.deleteOne({ id });
+  return result.deletedCount > 0;
 }
 
-function listVersions(id) {
-  const document = getDocument(id);
+async function listVersions(id) {
+  const document = await getDocument(id);
   return document ? document.versions : null;
 }
 
-function restoreVersion(id, versionId) {
-  const document = getDocument(id);
+async function restoreVersion(id, versionId) {
+  const document = await getDocument(id);
   if (!document) return null;
   const version = document.versions.find((entry) => entry.id === versionId);
   if (!version) return null;
   return updateDocument(id, { content: version.snapshot }, { createVersion: true });
 }
 
-function shareDocument(id, share = {}) {
-  const store = readStore();
-  const index = store.documents.findIndex((entry) => entry.id === id);
-  if (index === -1) return null;
+async function shareDocument(id, share = {}) {
+  const doc = await Document.findOne({ id });
+  if (!doc) return null;
 
-  const current = normalizeDoc(store.documents[index]);
+  const current = normalizeDoc(doc.toObject());
   const email = String(share.email || '').trim().toLowerCase();
   const role = share.role || 'viewer';
 
-  // Link-only sharing explicitly enables anonymous collaboration access.
   if (!email) {
-    const share = {
+    const shareEntry = {
       id: makeId('share'),
       email: '',
       role,
@@ -262,9 +242,8 @@ function shareDocument(id, share = {}) {
     };
     current.shareLinkEnabled = true;
     current.updatedAt = new Date().toISOString();
-    store.documents[index] = current;
-    writeStore(store);
-    return { share, document: current };
+    const updated = await Document.findOneAndUpdate({ id }, current, { new: true });
+    return { share: shareEntry, document: normalizeDoc(updated.toObject()) };
   }
 
   const existingIndex = current.sharedWith.findIndex((entry) => String(entry.email || '').toLowerCase() === email);
@@ -282,9 +261,8 @@ function shareDocument(id, share = {}) {
   }
 
   current.updatedAt = new Date().toISOString();
-  store.documents[index] = current;
-  writeStore(store);
-  return { share: shareEntry, document: current };
+  const updated = await Document.findOneAndUpdate({ id }, current, { new: true });
+  return { share: shareEntry, document: normalizeDoc(updated.toObject()) };
 }
 
 module.exports = {

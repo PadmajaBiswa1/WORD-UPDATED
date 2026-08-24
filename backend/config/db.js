@@ -1,4 +1,7 @@
 const mongoose = require('mongoose');
+const fs = require('fs');
+const path = require('path');
+const Document = require('../models/Document');
 
 async function cleanupLegacyUserIndexes() {
   try {
@@ -27,6 +30,32 @@ async function connectDB() {
     await mongoose.connect(process.env.MONGO_URI);
     await cleanupLegacyUserIndexes();
     console.log('MongoDB connected');
+    
+    // Migrate documents from local JSON if MongoDB is empty
+    try {
+      const docCount = await Document.countDocuments();
+      if (docCount === 0) {
+        const jsonPath = path.join(__dirname, '..', 'data', 'documents.json');
+        if (fs.existsSync(jsonPath)) {
+          console.log('📦 Found local documents.json, starting migration to MongoDB...');
+          const raw = fs.readFileSync(jsonPath, 'utf8');
+          const parsed = JSON.parse(raw || '{}');
+          const docs = Array.isArray(parsed.documents) ? parsed.documents : [];
+          if (docs.length > 0) {
+            const cleanDocs = docs.map(d => {
+              const clean = { ...d };
+              delete clean._id;
+              return clean;
+            });
+            await Document.insertMany(cleanDocs);
+            console.log(`✅ Successfully migrated ${docs.length} documents to MongoDB!`);
+          }
+        }
+      }
+    } catch (migError) {
+      console.warn('⚠️ Documents migration failed:', migError.message);
+    }
+    
     return true;
   } catch (err) {
     console.error('MongoDB connection error:', err.message);
