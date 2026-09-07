@@ -4,13 +4,13 @@ import { markdownToHtml } from '@/services/ai';
 import { aiApi, uploadApi } from '@/services/api';
 
 const QUICK_PROMPTS = [
-  { label: '⚡ Summary', prompt: 'Provide a concise, punchy executive summary of the attached text with key takeaways.' },
-  { label: '👔 Professional', prompt: 'Rewrite the attached text in an authoritative, executive, and highly polished corporate tone.' },
-  { label: '✓ Fix Grammar', prompt: 'Proofread and correct all grammar, punctuation, and phrasing issues while improving sentence flow.' },
-  { label: '📊 Table', prompt: 'Structure the key points and data from the attached text into a clean markdown table.' },
-  { label: '📝 Action Items', prompt: 'Extract all actionable tasks and next steps into a structured checklist.' },
-  { label: '🎯 Simplify', prompt: 'Simplify the language, eliminate unnecessary jargon, and make the content effortless to read.' },
-  { label: '💡 Brainstorm', prompt: 'Brainstorm creative angles and missing sections to improve this document.' },
+  { label: 'Executive Summary', prompt: 'Provide a concise, punchy executive summary of the attached text with key takeaways.' },
+  { label: 'Professional & Formal', prompt: 'Rewrite the attached text in an authoritative, executive, and highly polished corporate tone.' },
+  { label: 'Polish Grammar & Flow', prompt: 'Proofread and correct all grammar, punctuation, and phrasing issues while improving sentence flow.' },
+  { label: 'Convert to Table', prompt: 'Structure the key points and data from the attached text into a clean markdown data table.' },
+  { label: 'Action Items & Checklist', prompt: 'Extract all actionable tasks and next steps into a structured checklist.' },
+  { label: 'Simplify & Clarify', prompt: 'Simplify the language, eliminate unnecessary jargon, and make the content effortless to read.' },
+  { label: 'Brainstorm Ideas', prompt: 'Brainstorm creative angles and missing sections to improve this document.' },
 ];
 
 function formatBytes(bytes) {
@@ -898,7 +898,7 @@ Attach files/images below or ask me anything!`,
                                     gap: 3,
                                   }}
                                 >
-                                  <span>🖼️ Insert in Doc</span>
+                                  <span>Insert in Doc</span>
                                 </button>
                               </div>
                             </div>
@@ -925,7 +925,7 @@ Attach files/images below or ask me anything!`,
                                   whiteSpace: 'nowrap',
                                 }}
                               >
-                                <span>📥 Insert Content</span>
+                                <span>Insert Content</span>
                               </button>
                             </div>
                           )}
@@ -1026,7 +1026,7 @@ Attach files/images below or ask me anything!`,
                       cursor: 'pointer',
                     }}
                   >
-                    <span>📥 Insert</span>
+                    <span>Insert</span>
                   </button>
 
                   <button

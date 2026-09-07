@@ -5,14 +5,14 @@ import { markdownToHtml } from '@/services/ai';
 import { aiApi } from '@/services/api';
 
 const QUICK_PROMPTS = [
-  { label: '⚡ Executive Summary', prompt: 'Provide a concise, punchy executive summary of the attached document/selection with key takeaways.' },
-  { label: '👔 Make Professional & Formal', prompt: 'Rewrite the attached text in an authoritative, executive, and highly polished corporate tone.' },
-  { label: '✓ Polish Grammar & Flow', prompt: 'Proofread and correct all grammar, punctuation, and phrasing issues while improving sentence flow.' },
-  { label: '📊 Convert to Table', prompt: 'Analyze the information in the attached text and structure it into a clean, markdown data table.' },
-  { label: '📝 Action Items & Checklist', prompt: 'Extract all actionable tasks, obligations, and next steps into a structured checklist with owners if applicable.' },
-  { label: '🎯 Simplify & Clarify', prompt: 'Simplify the language, eliminate unnecessary jargon, and make the content effortless to read.' },
-  { label: '➕ Elaborate with Details', prompt: 'Expand on these points with thorough rationale, concrete context, and clear explanations.' },
-  { label: '💡 Brainstorm Ideas', prompt: 'Brainstorm creative directions, missing sections, and compelling angles to enhance this document.' },
+  { label: 'Executive Summary', prompt: 'Provide a concise, punchy executive summary of the attached document/selection with key takeaways.' },
+  { label: 'Professional & Formal', prompt: 'Rewrite the attached text in an authoritative, executive, and highly polished corporate tone.' },
+  { label: 'Polish Grammar & Flow', prompt: 'Proofread and correct all grammar, punctuation, and phrasing issues while improving sentence flow.' },
+  { label: 'Convert to Table', prompt: 'Analyze the information in the attached text and structure it into a clean, markdown data table.' },
+  { label: 'Action Items & Checklist', prompt: 'Extract all actionable tasks, obligations, and next steps into a structured checklist with owners if applicable.' },
+  { label: 'Simplify & Clarify', prompt: 'Simplify the language, eliminate unnecessary jargon, and make the content effortless to read.' },
+  { label: 'Elaborate with Details', prompt: 'Expand on these points with thorough rationale, concrete context, and clear explanations.' },
+  { label: 'Brainstorm Ideas', prompt: 'Brainstorm creative directions, missing sections, and compelling angles to enhance this document.' },
 ];
 
 const AVAILABLE_MODELS = [
@@ -326,7 +326,6 @@ How can I assist with your document today?`,
                 transition: 'all 0.15s ease',
               }}
             >
-              <span>🌐</span>
               <span>Web Search: {webSearchEnabled ? 'ON' : 'OFF'}</span>
             </button>
 
@@ -344,7 +343,7 @@ How can I assist with your document today?`,
                 cursor: 'pointer',
               }}
             >
-              🗑️ Clear
+              Clear
             </button>
           </div>
         </div>
@@ -417,7 +416,7 @@ How can I assist with your document today?`,
                   }}
                 >
                   <span style={{ fontWeight: 600, color: isUser ? 'var(--gold)' : 'var(--text-primary)' }}>
-                    {isUser ? 'You' : '✦ Pragna AI'}
+                    {isUser ? 'You' : 'Pragna AI'}
                   </span>
                   {msg.model && <span>• {msg.model}</span>}
                   {msg.latencyMs && <span>• {(msg.latencyMs / 1000).toFixed(1)}s</span>}
@@ -525,7 +524,7 @@ How can I assist with your document today?`,
                         gap: 4,
                       }}
                     >
-                      <span>📥 Insert into Doc</span>
+                      <span>Insert into Doc</span>
                     </button>
 
                     <button
@@ -540,7 +539,7 @@ How can I assist with your document today?`,
                         cursor: 'pointer',
                       }}
                     >
-                      <span>🔄 Replace Selection</span>
+                      <span>Replace Selection</span>
                     </button>
 
                     <button
@@ -555,7 +554,7 @@ How can I assist with your document today?`,
                         cursor: 'pointer',
                       }}
                     >
-                      <span>📋 Copy</span>
+                      <span>Copy</span>
                     </button>
 
                     <button
@@ -570,7 +569,7 @@ How can I assist with your document today?`,
                         cursor: 'pointer',
                       }}
                     >
-                      <span>🏷 Set Title</span>
+                      <span>Set Title</span>
                     </button>
                   </div>
                 )}
