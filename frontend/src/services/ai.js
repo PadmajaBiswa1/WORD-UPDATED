@@ -254,12 +254,52 @@ function translateText(text = '', language = 'English') {
   return `${prefix}${source}`;
 }
 
+import { aiApi } from './api';
+
 export function getPlainTextFromHtml(html = '') {
   return stripHtml(html);
 }
 
 export function getHtmlFromPlainText(text = '') {
   return toParagraphHtml(text);
+}
+
+/**
+ * Execute real Pragna AI action via Ollama Cloud backend with resilient local fallback
+ */
+export async function executePragnaAi(action, text = '', options = {}) {
+  try {
+    const effectiveInstruction = options.instructions || options.prompt || options.mode || '';
+    const payload = {
+      action,
+      text: stripHtml(text || ''),
+      topic: options.topic || '',
+      tone: options.tone || 'professional',
+      pages: options.pages || 1,
+      mode: options.mode || 'clear',
+      fallbackTitle: options.fallbackTitle || '',
+      language: options.language || 'English',
+      prompt: effectiveInstruction,
+      instructions: effectiveInstruction,
+      model: options.model || 'gemma4:31b',
+    };
+
+    const res = await aiApi.action(payload);
+    if (res && res.success) {
+      return {
+        text: res.text || '',
+        html: res.html || toParagraphHtml(res.text || ''),
+        title: res.title || options.fallbackTitle || 'Untitled Document',
+        model: res.model || 'gemma4:31b',
+        latencyMs: res.latencyMs,
+      };
+    }
+  } catch (err) {
+    console.warn('⚠️ Pragna AI backend request failed, falling back to local processor:', err.message);
+  }
+
+  // Graceful local fallback
+  return buildAiResult(action, text, options);
 }
 
 export function buildAiResult(action, text = '', options = {}) {
@@ -281,6 +321,12 @@ export function buildAiResult(action, text = '', options = {}) {
       const corrected = fixGrammar(source);
       return { text: corrected, html: toParagraphHtml(corrected) };
     }
+    case 'edit':
+    case 'custom-edit':
+    case 'instruction': {
+      const edited = rewriteText(source, options.instructions || options.mode || 'clear');
+      return { text: edited, html: toParagraphHtml(edited) };
+    }
     case 'rewrite': {
       const rewritten = rewriteText(source, options.mode || 'clear');
       return { text: rewritten, html: toParagraphHtml(rewritten) };
@@ -296,6 +342,140 @@ export function buildAiResult(action, text = '', options = {}) {
     default:
       return { text: source, html: toParagraphHtml(source) };
   }
+}
+
+export function markdownToHtml(markdown = '') {
+  if (!markdown) return '<p></p>';
+  const hasHtmlTags = /<\/?(p|h[1-6]|ul|ol|li|table|blockquote|div)\b/i.test(markdown);
+  if (hasHtmlTags && !markdown.includes('```')) {
+    return markdown;
+  }
+
+  let text = String(markdown).trim();
+  text = text.replace(/^```(?:html|markdown)?\s*\n?/i, '').replace(/\n?```\s*$/i, '');
+
+  const lines = text.split(/\r?\n/);
+  const htmlLines = [];
+  let inList = false;
+  let listType = null;
+  let inBlockquote = false;
+  let inCodeBlock = false;
+  let codeBlockContent = [];
+
+  const formatInline = (str = '') => {
+    return str
+      .replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" style="max-width:100%; border-radius:4px; margin:4px 0;" />')
+      .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noreferrer" style="color:var(--gold); text-decoration:underline;">$1</a>')
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/__(.*?)__/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/_(.*?)_/g, '<em>$1</em>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>');
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i];
+
+    // Code block toggle
+    if (line.startsWith('```')) {
+      if (inCodeBlock) {
+        htmlLines.push(`<pre><code>${codeBlockContent.join('\n')}</code></pre>`);
+        codeBlockContent = [];
+        inCodeBlock = false;
+      } else {
+        if (inList) { htmlLines.push(`</${listType}>`); inList = false; listType = null; }
+        if (inBlockquote) { htmlLines.push('</blockquote>'); inBlockquote = false; }
+        inCodeBlock = true;
+      }
+      continue;
+    }
+
+    if (inCodeBlock) {
+      codeBlockContent.push(line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'));
+      continue;
+    }
+
+    // Blockquotes
+    if (line.startsWith('> ')) {
+      if (!inBlockquote) {
+        if (inList) { htmlLines.push(`</${listType}>`); inList = false; listType = null; }
+        htmlLines.push('<blockquote>');
+        inBlockquote = true;
+      }
+      line = line.replace(/^>\s?/, '');
+    } else if (inBlockquote && !line.trim()) {
+      htmlLines.push('</blockquote>');
+      inBlockquote = false;
+      continue;
+    }
+
+    // Headings
+    const h4Match = line.match(/^####\s+(.*)/);
+    const h3Match = line.match(/^###\s+(.*)/);
+    const h2Match = line.match(/^##\s+(.*)/);
+    const h1Match = line.match(/^#\s+(.*)/);
+
+    if (h1Match || h2Match || h3Match || h4Match) {
+      if (inList) { htmlLines.push(`</${listType}>`); inList = false; listType = null; }
+      if (inBlockquote) { htmlLines.push('</blockquote>'); inBlockquote = false; }
+      
+      if (h4Match) htmlLines.push(`<h4>${formatInline(h4Match[1])}</h4>`);
+      else if (h3Match) htmlLines.push(`<h3>${formatInline(h3Match[1])}</h3>`);
+      else if (h2Match) htmlLines.push(`<h2>${formatInline(h2Match[1])}</h2>`);
+      else if (h1Match) htmlLines.push(`<h1>${formatInline(h1Match[1])}</h1>`);
+      continue;
+    }
+
+    // Unordered list
+    const ulMatch = line.match(/^[-*•]\s+(.*)/);
+    if (ulMatch) {
+      if (!inList || listType !== 'ul') {
+        if (inList) htmlLines.push(`</${listType}>`);
+        htmlLines.push('<ul>');
+        inList = true;
+        listType = 'ul';
+      }
+      htmlLines.push(`<li>${formatInline(ulMatch[1])}</li>`);
+      continue;
+    }
+
+    // Ordered list
+    const olMatch = line.match(/^\d+\.\s+(.*)/);
+    if (olMatch) {
+      if (!inList || listType !== 'ol') {
+        if (inList) htmlLines.push(`</${listType}>`);
+        htmlLines.push('<ol>');
+        inList = true;
+        listType = 'ol';
+      }
+      htmlLines.push(`<li>${formatInline(olMatch[1])}</li>`);
+      continue;
+    }
+
+    // End of list
+    if (inList) {
+      htmlLines.push(`</${listType}>`);
+      inList = false;
+      listType = null;
+    }
+
+    // Horizontal Rule
+    if (/^(\*\*\*|---|___)$/.test(line.trim())) {
+      htmlLines.push('<hr>');
+      continue;
+    }
+
+    // Regular paragraph
+    if (line.trim()) {
+      htmlLines.push(`<p>${formatInline(line.trim())}</p>`);
+    }
+  }
+
+  if (inList) htmlLines.push(`</${listType}>`);
+  if (inBlockquote) htmlLines.push('</blockquote>');
+  if (inCodeBlock) htmlLines.push(`<pre><code>${codeBlockContent.join('\n')}</code></pre>`);
+
+  return htmlLines.join('\n') || '<p></p>';
 }
 
 export function openTranslationUrl(text = '', targetLanguage = 'en') {

@@ -31,9 +31,8 @@ export function InsertShapeDialog() {
     const vb   = viewBoxes[selected] || '0 0 140 140';
     const inner = shape.svg(fill, stroke);
     const svg  = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}" width="${size}" height="${size}" opacity="${opacity}">${inner}</svg>`;
-    const blob = new Blob([svg], { type:'image/svg+xml' });
-    const url  = URL.createObjectURL(blob);
-    editor?.chain().focus().setImage({ src: url, alt: shape.label, width: String(size) }).run();
+    const dataUrl = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+    editor?.chain().focus().setImage({ src: dataUrl, alt: shape.label, width: String(size) }).run();
     closeDialog('insertShape');
   };
 

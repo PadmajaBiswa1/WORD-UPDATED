@@ -25,7 +25,6 @@ const TABS = [
   { id: 'mailings',  label: 'Mailings'  },
   { id: 'review',    label: 'Review'    },
   { id: 'view',      label: 'View'      },
-  { id: 'ai',        label: 'AI'        },
   { id: 'help',      label: 'Help'      },
 ];
 

@@ -6,6 +6,7 @@ import { useParams } from 'react-router-dom';
 import { TitleBar }       from '@/components/editor/TitleBar';
 import { Ribbon }         from '@/components/toolbar/Ribbon';
 import { PageSidebar }    from '@/components/sidebar/PageSidebar';
+import { PragnaChatSidebar } from '@/components/sidebar/PragnaChatSidebar';
 import { EditorCanvas }   from '@/components/editor/EditorCanvas';
 import { StatusBar }      from '@/components/editor/StatusBar';
 import { DialogManager }  from '@/components/dialogs/DialogManager';
@@ -122,10 +123,11 @@ export function EditorPage({ isShared = false }) {
       {/* Ribbon */}
       <Ribbon />
 
-      {/* Body: sidebar + canvas */}
-      <div style={{ flex:1, display:'flex', overflow:'hidden' }}>
+      {/* Body: sidebar + canvas + AI Copilot chat */}
+      <div style={{ flex:1, display:'flex', overflow:'hidden', position:'relative' }}>
         <PageSidebar />
         <EditorCanvas />
+        <PragnaChatSidebar />
       </div>
 
       {/* Status bar */}

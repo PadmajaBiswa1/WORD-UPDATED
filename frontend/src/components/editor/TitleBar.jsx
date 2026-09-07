@@ -12,6 +12,8 @@ export function TitleBar({ onSave }) {
   const openDialog = useUIStore((s) => s.openDialog);
   const autoSaveEnabled = useUIStore((s) => s.autoSaveEnabled);
   const toggleAutoSave = useUIStore((s) => s.toggleAutoSave);
+  const copilotOpen = useUIStore((s) => s.copilotOpen);
+  const toggleCopilot = useUIStore((s) => s.toggleCopilot);
   const title = useDocumentStore((s) => s.title);
   const setTitle = useDocumentStore((s) => s.setTitle);
   const resetDocument = useDocumentStore((s) => s.reset);

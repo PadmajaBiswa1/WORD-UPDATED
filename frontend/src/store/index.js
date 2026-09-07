@@ -262,6 +262,9 @@ export const useUIStore = create((set) => ({
   drawOpacity: 0.4,
   watermarkText: '',
 
+  copilotOpen: true,
+  toggleCopilot: () => set((s) => ({ copilotOpen: !s.copilotOpen })),
+  setCopilotOpen: (open) => set({ copilotOpen: !!open }),
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
   toggleFullscreen: () => set((s) => ({ fullscreen: !s.fullscreen })),
   toggleRibbon: () => set((s) => ({ ribbonCollapsed: !s.ribbonCollapsed })),
@@ -301,8 +304,17 @@ export const useUIStore = create((set) => ({
     wordCount: false, language: false, reviewingPane: false,
     accessibility: false, compareDocuments: false, restrictEditing: false,
     commandMap: false,
+    pragnaAi: false,
     help: false, feedback: false, whatsNew: false, about: false,
   },
+  pragnaInitialTab: 'ask',
+  pragnaInitialPrompt: '',
+  openPragna: (initialTab = 'ask', initialPrompt = '') =>
+    set((s) => ({
+      copilotOpen: true,
+      pragnaInitialTab: initialTab,
+      pragnaInitialPrompt: initialPrompt,
+    })),
   openDialog: (name) => set((s) => ({ dialogs: { ...s.dialogs, [name]: true } })),
   closeDialog: (name) => set((s) => ({ dialogs: { ...s.dialogs, [name]: false } })),
   closeAll: () => set((s) => ({ dialogs: Object.fromEntries(Object.keys(s.dialogs).map((k) => [k, false])) })),

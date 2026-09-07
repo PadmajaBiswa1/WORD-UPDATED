@@ -6,6 +6,7 @@ import { useImageResizeAndDrag } from '@/hooks/useImageResizeAndDrag';
 import { HorizontalRuler } from './HorizontalRuler';
 import { FloatingFormatToolbar } from './FloatingFormatToolbar';
 import { PictureFormatToolbar } from './PictureFormatToolbar';
+import { InlinePragnaTrigger } from './InlinePragnaTrigger';
 import { useUIStore, useDocumentStore, useCollaborationStore } from '@/store';
 import { getLayoutMetrics, PAGE_GAP, PAGE_BORDER_WIDTH } from '@/utils/pageLayout';
 
@@ -132,6 +133,37 @@ export function EditorCanvas() {
     page.style.setProperty('--etherx-page-border-color', design.borderColor || 'transparent');
     page.style.setProperty('--etherx-page-border-width', `${Number(design.borderWidth ?? 1)}px`);
     page.style.setProperty('--etherx-page-shadow', design.pageShadow || 'var(--shadow-page)');
+
+    const headingFont = design.headingFont || design.font || 'Crimson Pro';
+    const bodyFont = design.bodyFont || design.font || 'Crimson Pro';
+    const accentColor = design.accent || '#c9a84c';
+    const headingColor = design.heading || accentColor;
+    const subtleColor = design.subtle || '#444444';
+    const lineSpacing = String(design.spacing || '1.7');
+    const paragraphGap = Math.max(0.35, ((Number(lineSpacing) || 1.7) - 1) * 0.62);
+
+    document.documentElement.style.setProperty('--gold', accentColor);
+    document.documentElement.style.setProperty('--design-heading', headingColor);
+    document.documentElement.style.setProperty('--design-subtle', subtleColor);
+    document.documentElement.style.setProperty('--design-heading-font', `'${headingFont}', serif`);
+    document.documentElement.style.setProperty('--design-font', `'${bodyFont}', serif`);
+    document.documentElement.style.setProperty('--design-spacing', lineSpacing);
+    document.documentElement.style.setProperty('--design-paragraph-gap', `${paragraphGap.toFixed(2)}em`);
+
+    const proseEl = page.querySelector('.ProseMirror');
+    if (proseEl) {
+      proseEl.style.fontFamily = `'${bodyFont}', serif`;
+      proseEl.style.lineHeight = lineSpacing;
+      proseEl.style.setProperty('--design-paragraph-gap', `${paragraphGap.toFixed(2)}em`);
+    }
+
+    if (design.effect === 'soft') {
+      page.style.filter = 'contrast(1.02) saturate(1.03)';
+    } else if (design.effect === 'strong') {
+      page.style.filter = 'contrast(1.08) saturate(1.10)';
+    } else {
+      page.style.filter = '';
+    }
   }, [design]);
 
   useEffect(() => {
@@ -287,7 +319,7 @@ export function EditorCanvas() {
                   borderRadius: 2,
                 }}
               >
-                {watermarkText && (
+                {(design?.watermark || watermarkText) && (
                   <div
                     data-etherx-watermark="true"
                     style={{
@@ -305,7 +337,7 @@ export function EditorCanvas() {
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    {watermarkText}
+                    {design?.watermark || watermarkText}
                   </div>
                 )}
               </div>

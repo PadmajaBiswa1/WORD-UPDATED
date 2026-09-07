@@ -20,6 +20,7 @@ import { EquationDialog }      from './EquationDialog';
 import { CommandMapDialog }    from './CommandMapDialog';
 import { HelpDialog }          from './HelpDialog';
 import { WhatsNewDialog }      from './WhatsNewDialog';
+import { PragnaAiDialog }      from './PragnaAiDialog';
 import {
   WordCountDialog,
   CommentsDialog,
@@ -90,6 +91,7 @@ export function DialogManager() {
       {dialogs.envelopes       && <EnvelopesDialog />}
       {dialogs.labels          && <LabelsDialog />}
       {dialogs.finishMerge     && <PreviewMergeDialog />}
+      {dialogs.pragnaAi        && <PragnaAiDialog />}
     </>
   );
 }
