@@ -46,10 +46,40 @@ router.post('/image', upload.single('file'), (req, res) => {
     fs.writeFileSync(outPath, req.file.buffer);
 
     // server.js serves /uploads/* statically
-    return res.json({ url: `/uploads/${fileName}` });
+    return res.json({
+      url: `/uploads/${fileName}`,
+      name: req.file.originalname,
+      size: req.file.size,
+    });
   } catch (err) {
     console.error('[upload/image] error:', err);
     return res.status(500).json({ message: 'Image upload failed', error: err?.message || 'Unknown error' });
+  }
+});
+
+// General file upload endpoint (documents, pdf, docx, txt, csv, code, etc.)
+router.post('/file', upload.single('file'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'file is required' });
+    }
+
+    const rawExt = path.extname(req.file.originalname || '').replace(/^\./, '').toLowerCase();
+    const safeExt = rawExt ? rawExt.replace(/[^a-z0-9_-]/g, '') : 'bin';
+    const fileName = `${Date.now()}-${Math.random().toString(16).slice(2)}.${safeExt || 'bin'}`;
+    const outPath = path.join(UPLOAD_DIR, fileName);
+
+    fs.writeFileSync(outPath, req.file.buffer);
+
+    return res.json({
+      url: `/uploads/${fileName}`,
+      name: req.file.originalname,
+      size: req.file.size,
+      mimetype: req.file.mimetype,
+    });
+  } catch (err) {
+    console.error('[upload/file] error:', err);
+    return res.status(500).json({ message: 'File upload failed', error: err?.message || 'Unknown error' });
   }
 });
 

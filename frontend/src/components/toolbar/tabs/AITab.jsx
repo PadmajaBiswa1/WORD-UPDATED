@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
-import { Button, Tooltip } from '@/components/ui';
+import { Button, Tooltip, Divider } from '@/components/ui';
 import { RibbonGroup } from '../RibbonGroup';
 import { useDocumentStore, useEditorStore, useUIStore } from '@/store';
-import { buildAiResult, openTranslationUrl } from '@/services/ai';
+import { executePragnaAi, openTranslationUrl } from '@/services/ai';
 
 function getSelectedText(editor) {
   if (!editor) return '';
@@ -23,7 +23,7 @@ function replaceSelectionOrInsert(editor, html) {
 
 export function AITab() {
   const { editor } = useEditorStore();
-  const { toast } = useUIStore();
+  const { toast, openPragna } = useUIStore();
   const setTitle = useDocumentStore((s) => s.setTitle);
 
   const hasEditor = !!editor;
@@ -42,122 +42,148 @@ export function AITab() {
     fontSize: 11,
   }), []);
 
-  const runWithSelection = (kind, options = {}) => {
+  const heroButtonStyle = useMemo(() => ({
+    width: 140,
+    height: 56,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    gap: 2,
+    padding: '8px 12px',
+    background: 'linear-gradient(135deg, rgba(212,175,55,0.18) 0%, rgba(212,175,55,0.06) 100%)',
+    border: '1px solid var(--gold-border)',
+    color: 'var(--gold)',
+    fontSize: 11,
+    fontWeight: 600,
+    boxShadow: '0 0 10px rgba(212,175,55,0.12)',
+  }), []);
+
+  const openPragnaTab = (tabId) => {
     if (!editor) {
       toast('Editor is not ready yet', 'info');
       return;
     }
+    openPragna(tabId);
+  };
 
+  const quickGrammar = async () => {
+    if (!editor) return;
     const source = getSelectedText(editor);
     if (!source) {
-      toast('Select text or add content first', 'info');
+      openPragna('grammar');
       return;
     }
-
-    const result = buildAiResult(kind, source, options);
-    if (kind === 'title') {
-      setTitle(result.title || options.fallbackTitle || 'Untitled Document');
-      toast('Document title updated', 'success');
-      return;
+    toast('Pragna is proofreading with Ollama...', 'info');
+    try {
+      const res = await executePragnaAi('grammar', source);
+      if (res && res.html) {
+        replaceSelectionOrInsert(editor, res.html);
+        toast('Pragna: Grammar and spelling perfected', 'success');
+      }
+    } catch (err) {
+      toast('Proofreading failed: ' + err.message, 'error');
     }
-
-    replaceSelectionOrInsert(editor, result.html || '<p></p>');
   };
 
-  const generateContent = () => {
-    if (!editor) {
-      toast('Editor is not ready yet', 'info');
-      return;
-    }
-    const topic = window.prompt('What should the AI content generator write about?', 'project update');
-    if (!topic) return;
-    const tone = window.prompt('Tone for the draft?', 'professional') || 'professional';
-    const result = buildAiResult('content-generator', '', { topic, tone });
-    replaceSelectionOrInsert(editor, result.html || '<p></p>');
-    toast('AI content inserted', 'success');
-  };
-
-  const summarize = () => {
-    runWithSelection('summarize');
-    toast('Text summarized', 'success');
-  };
-
-  const correctGrammar = () => {
-    runWithSelection('grammar');
-    toast('Grammar corrected', 'success');
-  };
-
-  const rewrite = () => {
-    const mode = window.prompt('Rewrite style: clear, formal, or short', 'clear') || 'clear';
-    runWithSelection('rewrite', { mode });
-    toast(`Rewritten in ${mode} mode`, 'success');
-  };
-
-  const generateTitle = () => {
-    if (!editor) {
-      toast('Editor is not ready yet', 'info');
-      return;
-    }
-    const fallbackTitle = window.prompt('Fallback title if the content is short', 'Untitled Document') || 'Untitled Document';
-    const source = getSelectedText(editor);
-    const result = buildAiResult('title', source, { fallbackTitle });
-    setTitle(result.title || fallbackTitle);
-    toast(`Title generated: ${result.title || fallbackTitle}`, 'success');
-  };
-
-  const translate = () => {
-    if (!editor) {
-      toast('Editor is not ready yet', 'info');
-      return;
-    }
+  const quickSummarize = async () => {
+    if (!editor) return;
     const source = getSelectedText(editor);
     if (!source) {
-      toast('Select text or add content first', 'info');
+      openPragna('summarize');
       return;
     }
-    const language = window.prompt('Translate to which language?', 'Spanish') || 'Spanish';
-    openTranslationUrl(source, language);
-    toast(`Opened translation for ${language}`, 'info');
+    toast('Pragna is summarizing with Ollama...', 'info');
+    try {
+      const res = await executePragnaAi('summarize', source);
+      if (res && res.html) {
+        replaceSelectionOrInsert(editor, res.html);
+        toast('Pragna: Summary inserted', 'success');
+      }
+    } catch (err) {
+      toast('Summarizing failed: ' + err.message, 'error');
+    }
   };
 
   return (
     <>
-      <RibbonGroup label="AI Features">
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, maxWidth: 860 }}>
-          <Tooltip text="AI Content Generator">
-            <Button disabled={!hasEditor} style={buttonStyle} onClick={generateContent}>
+      <RibbonGroup label="Pragna AI">
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, maxWidth: 940 }}>
+          {/* Flagship Assistant Button */}
+          <Tooltip text="Open Pragna AI Assistant Modal">
+            <Button disabled={!hasEditor} style={heroButtonStyle} onClick={() => openPragnaTab('ask')}>
               <span style={{ fontSize: 18, lineHeight: 1 }}>✦</span>
-              <span>Content Generator</span>
+              <span style={{ fontSize: 12 }}>Ask Pragna</span>
             </Button>
           </Tooltip>
-          <Tooltip text="AI Text Summarizer">
-            <Button disabled={!hasEditor} style={buttonStyle} onClick={summarize}>
+
+          {/* Edit as Instructed Button */}
+          <Tooltip text="Edit selected text according to custom instructions using Gemma 31B">
+            <Button disabled={!hasEditor} style={heroButtonStyle} onClick={() => openPragnaTab('edit')}>
+              <span style={{ fontSize: 18, lineHeight: 1 }}>✏️</span>
+              <span style={{ fontSize: 12 }}>Edit as Instructed</span>
+            </Button>
+          </Tooltip>
+
+          <Divider vertical />
+
+          <Tooltip text="Generate full draft from topic prompt">
+            <Button disabled={!hasEditor} style={buttonStyle} onClick={() => openPragnaTab('generate')}>
+              <span style={{ fontSize: 18, lineHeight: 1 }}>✎</span>
+              <span>Draft Generator</span>
+            </Button>
+          </Tooltip>
+
+          <Tooltip text="Summarize selected text or document">
+            <Button disabled={!hasEditor} style={buttonStyle} onClick={() => openPragnaTab('summarize')}>
               <span style={{ fontSize: 18, lineHeight: 1 }}>▤</span>
-              <span>Text Summarizer</span>
+              <span>Summarize</span>
             </Button>
           </Tooltip>
-          <Tooltip text="AI Grammar Correction">
-            <Button disabled={!hasEditor} style={buttonStyle} onClick={correctGrammar}>
+
+          <Tooltip text="Fix grammar, spelling, and polish style">
+            <Button disabled={!hasEditor} style={buttonStyle} onClick={() => openPragnaTab('grammar')}>
               <span style={{ fontSize: 18, lineHeight: 1 }}>✓</span>
-              <span>Grammar Correction</span>
+              <span>Grammar & Polish</span>
             </Button>
           </Tooltip>
-          <Tooltip text="AI Rewrite Assistant">
-            <Button disabled={!hasEditor} style={buttonStyle} onClick={rewrite}>
+
+          <Tooltip text="Rewrite text in different tones">
+            <Button disabled={!hasEditor} style={buttonStyle} onClick={() => openPragnaTab('rewrite')}>
               <span style={{ fontSize: 18, lineHeight: 1 }}>↻</span>
               <span>Rewrite Assistant</span>
             </Button>
           </Tooltip>
-          <Tooltip text="AI Title Generator">
-            <Button disabled={!hasEditor} style={buttonStyle} onClick={generateTitle}>
+
+          <Tooltip text="Generate compelling document title">
+            <Button disabled={!hasEditor} style={buttonStyle} onClick={() => openPragnaTab('title')}>
               <span style={{ fontSize: 18, lineHeight: 1 }}>🏷</span>
               <span>Title Generator</span>
             </Button>
           </Tooltip>
-          <Tooltip text="AI Translation">
-            <Button disabled={!hasEditor} style={buttonStyle} onClick={translate}>
+
+          <Tooltip text="Translate text with Pragna AI">
+            <Button disabled={!hasEditor} style={buttonStyle} onClick={() => openPragnaTab('translate')}>
               <span style={{ fontSize: 18, lineHeight: 1 }}>🌐</span>
               <span>Translation</span>
+            </Button>
+          </Tooltip>
+        </div>
+      </RibbonGroup>
+
+      <RibbonGroup label="Web & Research Tools">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Tooltip text="Live Web Research across Google News, ArXiv, and Wikipedia">
+            <Button disabled={!hasEditor} style={heroButtonStyle} onClick={() => openPragnaTab('research')}>
+              <span style={{ fontSize: 18, lineHeight: 1 }}>🌐</span>
+              <span style={{ fontSize: 12 }}>Web Research</span>
+            </Button>
+          </Tooltip>
+
+          <Tooltip text="Fetch and analyze any web page or article URL">
+            <Button disabled={!hasEditor} style={buttonStyle} onClick={() => openPragnaTab('urlReader')}>
+              <span style={{ fontSize: 18, lineHeight: 1 }}>🔗</span>
+              <span>URL Reader</span>
             </Button>
           </Tooltip>
         </div>
@@ -165,3 +191,4 @@ export function AITab() {
     </>
   );
 }
+

@@ -140,122 +140,102 @@ export const FEATURES = [
     action: (editor) => editor?.chain().focus().clearNodes().unsetAllMarks().run(),
   },
   {
+    id: 'ai-pragna',
+    name: 'Pragna AI Assistant',
+    category: 'Pragna AI',
+    tab: 'ai',
+    keywords: ['pragna', 'ai', 'assistant', 'ask pragna', 'copilot', 'ollama'],
+    description: 'Open the Pragna AI writing assistant',
+    action: () => {
+      useUIStore.getState().openPragna('ask');
+    },
+  },
+  {
     id: 'ai-generate',
-    name: 'AI Content Generator',
-    category: 'AI Assist',
-    tab: 'home',
-    keywords: ['ai', 'generate', 'content', 'draft', 'write'],
-    description: 'Generate a draft from a topic prompt',
-    action: (editor) => {
-      if (!editor) return;
-      const topic = window.prompt('What should the AI content generator write about?', 'project update');
-      if (!topic) return;
-      const tone = window.prompt('Tone for the draft?', 'professional') || 'professional';
-      const result = buildAiResult('content-generator', '', { topic, tone });
-      editor.chain().focus().insertContent(result.html || '<p></p>').run();
+    name: 'Pragna Draft Generator',
+    category: 'Pragna AI',
+    tab: 'ai',
+    keywords: ['pragna', 'ai', 'generate', 'content', 'draft', 'write', 'ollama'],
+    description: 'Generate a full document draft with Pragna AI',
+    action: () => {
+      useUIStore.getState().openPragna('generate');
     },
   },
   {
     id: 'ai-summarize',
-    name: 'AI Text Summarizer',
-    category: 'AI Assist',
-    tab: 'home',
-    keywords: ['ai', 'summarize', 'summary', 'shorten', 'digest'],
-    description: 'Summarize the selected text or document',
-    action: (editor) => {
-      if (!editor) return;
-      const { from, to } = editor.state.selection;
-      const source = from !== to
-        ? editor.state.doc.textBetween(from, to, ' ').trim()
-        : editor.state.doc.textBetween(0, editor.state.doc.content.size, ' ').trim();
-      if (!source) return;
-      const result = buildAiResult('summarize', source);
-      if (from !== to) {
-        editor.chain().focus().insertContentAt({ from, to }, result.html || '<p></p>').run();
-      } else {
-        editor.chain().focus().insertContent(result.html || '<p></p>').run();
-      }
+    name: 'Pragna Summarizer',
+    category: 'Pragna AI',
+    tab: 'ai',
+    keywords: ['pragna', 'ai', 'summarize', 'summary', 'shorten', 'digest', 'ollama'],
+    description: 'Summarize the selected text or document with Pragna AI',
+    action: () => {
+      useUIStore.getState().openPragna('summarize');
     },
   },
   {
     id: 'ai-grammar',
-    name: 'AI Grammar Correction',
-    category: 'AI Assist',
-    tab: 'home',
-    keywords: ['ai', 'grammar', 'correct', 'proofread', 'fix text'],
-    description: 'Correct grammar and punctuation',
-    action: (editor) => {
-      if (!editor) return;
-      const { from, to } = editor.state.selection;
-      const source = from !== to
-        ? editor.state.doc.textBetween(from, to, ' ').trim()
-        : editor.state.doc.textBetween(0, editor.state.doc.content.size, ' ').trim();
-      if (!source) return;
-      const result = buildAiResult('grammar', source);
-      if (from !== to) {
-        editor.chain().focus().insertContentAt({ from, to }, result.html || '<p></p>').run();
-      } else {
-        editor.chain().focus().insertContent(result.html || '<p></p>').run();
-      }
+    name: 'Pragna Grammar & Polish',
+    category: 'Pragna AI',
+    tab: 'ai',
+    keywords: ['pragna', 'ai', 'grammar', 'correct', 'proofread', 'fix text', 'polish', 'ollama'],
+    description: 'Correct grammar, spelling, and polish style with Pragna AI',
+    action: () => {
+      useUIStore.getState().openPragna('grammar');
     },
   },
   {
     id: 'ai-rewrite',
-    name: 'AI Rewrite Assistant',
-    category: 'AI Assist',
-    tab: 'home',
-    keywords: ['ai', 'rewrite', 'rephrase', 'formal', 'short'],
-    description: 'Rewrite text in a clearer style',
-    action: (editor) => {
-      if (!editor) return;
-      const mode = window.prompt('Rewrite style: clear, formal, or short', 'clear') || 'clear';
-      const { from, to } = editor.state.selection;
-      const source = from !== to
-        ? editor.state.doc.textBetween(from, to, ' ').trim()
-        : editor.state.doc.textBetween(0, editor.state.doc.content.size, ' ').trim();
-      if (!source) return;
-      const result = buildAiResult('rewrite', source, { mode });
-      if (from !== to) {
-        editor.chain().focus().insertContentAt({ from, to }, result.html || '<p></p>').run();
-      } else {
-        editor.chain().focus().insertContent(result.html || '<p></p>').run();
-      }
+    name: 'Pragna Rewrite Assistant',
+    category: 'Pragna AI',
+    tab: 'ai',
+    keywords: ['pragna', 'ai', 'rewrite', 'rephrase', 'formal', 'short', 'persuasive', 'ollama'],
+    description: 'Rewrite text in various tones with Pragna AI',
+    action: () => {
+      useUIStore.getState().openPragna('rewrite');
     },
   },
   {
     id: 'ai-title',
-    name: 'AI Title Generator',
-    category: 'AI Assist',
-    tab: 'home',
-    keywords: ['ai', 'title', 'headline', 'rename'],
-    description: 'Generate a document title from the content',
-    action: (editor) => {
-      if (!editor) return;
-      const { from, to } = editor.state.selection;
-      const source = from !== to
-        ? editor.state.doc.textBetween(from, to, ' ').trim()
-        : editor.state.doc.textBetween(0, editor.state.doc.content.size, ' ').trim();
-      const fallbackTitle = window.prompt('Fallback title if the content is short', 'Untitled Document') || 'Untitled Document';
-      const result = buildAiResult('title', source, { fallbackTitle });
-      useDocumentStore.getState().setTitle(result.title || fallbackTitle);
+    name: 'Pragna Title Generator',
+    category: 'Pragna AI',
+    tab: 'ai',
+    keywords: ['pragna', 'ai', 'title', 'headline', 'rename', 'ollama'],
+    description: 'Generate a compelling document title with Pragna AI',
+    action: () => {
+      useUIStore.getState().openPragna('title');
     },
   },
   {
     id: 'ai-translate',
-    name: 'AI Translation',
-    category: 'AI Assist',
-    tab: 'home',
-    keywords: ['ai', 'translate', 'language', 'translate text'],
-    description: 'Open a translation view for the selected text',
-    action: (editor) => {
-      if (!editor) return;
-      const { from, to } = editor.state.selection;
-      const source = from !== to
-        ? editor.state.doc.textBetween(from, to, ' ').trim()
-        : editor.state.doc.textBetween(0, editor.state.doc.content.size, ' ').trim();
-      if (!source) return;
-      const language = window.prompt('Translate to which language?', 'Spanish') || 'Spanish';
-      openTranslationUrl(source, language);
+    name: 'Pragna Translation',
+    category: 'Pragna AI',
+    tab: 'ai',
+    keywords: ['pragna', 'ai', 'translate', 'language', 'translate text', 'ollama'],
+    description: 'Translate text to 20+ languages with Pragna AI',
+    action: () => {
+      useUIStore.getState().openPragna('translate');
+    },
+  },
+  {
+    id: 'ai-web-research',
+    name: 'Pragna Web Research',
+    category: 'Web Tools',
+    tab: 'ai',
+    keywords: ['pragna', 'web', 'research', 'search', 'live search', 'google news', 'arxiv', 'wikipedia', 'facts', 'citations'],
+    description: 'Search the live web and synthesize findings with Pragna AI',
+    action: () => {
+      useUIStore.getState().openPragna('research');
+    },
+  },
+  {
+    id: 'ai-url-reader',
+    name: 'Pragna URL Reader',
+    category: 'Web Tools',
+    tab: 'ai',
+    keywords: ['pragna', 'url', 'web', 'link', 'article', 'webpage', 'fetch', 'summarize url', 'cite link'],
+    description: 'Fetch and analyze any web page or article URL with Pragna AI',
+    action: () => {
+      useUIStore.getState().openPragna('urlReader');
     },
   },
   {

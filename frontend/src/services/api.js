@@ -18,11 +18,15 @@ export function getStoredUser() {
   }
 }
 
+function sanitizeHeader(val = '') {
+  return String(val).replace(/[^\x00-\xFF]/g, '');
+}
+
 function getUserHeaders() {
   const user = getStoredUser();
-  const name = user.name || user.email || 'Guest User';
-  const email = user.email || '';
-  const id = user.id || email || name.toLowerCase().replace(/\s+/g, '-');
+  const name = sanitizeHeader(user.name || user.email || 'Guest User');
+  const email = sanitizeHeader(user.email || '');
+  const id = sanitizeHeader(user.id || email || name.toLowerCase().replace(/\s+/g, '-'));
   return {
     'X-EtherX-User-Id': id,
     'X-EtherX-User-Name': name,
@@ -31,7 +35,8 @@ function getUserHeaders() {
 }
 
 async function req(path, opts = {}) {
-  const token = getToken();
+  const rawToken = getToken();
+  const token = sanitizeHeader(rawToken);
   const res = await fetch(`${API_BASE}${path}`, {
     headers: {
       'Content-Type': 'application/json',
@@ -100,6 +105,16 @@ export const uploadApi = {
       url: resolveUploadUrl(data.url),
     };
   },
+  file: async (file) => {
+    const fd = new FormData(); fd.append('file', file);
+    const res = await fetch(`${API_BASE}/upload/file`, { method: 'POST', body: fd });
+    if (!res.ok) throw new ApiError('Upload failed', res.status);
+    const data = await res.json();
+    return {
+      ...data,
+      url: resolveUploadUrl(data.url),
+    };
+  },
 };
 
 function resolveUploadUrl(url) {
@@ -120,4 +135,14 @@ export const templateApi = {
   list: () => req('/templates'),
   get:  (id) => req(`/templates/${id}`),
   createDocument: (id, data = {}) => req(`/templates/${id}/documents`, { method: 'POST', body: data }),
+};
+
+export const aiApi = {
+  action:          (payload) => req('/ai/action',           { method: 'POST', body: payload }),
+  chat:            (payload) => req('/ai/chat',             { method: 'POST', body: payload }),
+  status:          ()        => req('/ai/status'),
+  webSearch:       (payload) => req('/ai/web/search',       { method: 'POST', body: payload }),
+  webFetch:        (payload) => req('/ai/web/fetch',        { method: 'POST', body: payload }),
+  webResearch:     (payload) => req('/ai/web/research',     { method: 'POST', body: payload }),
+  webSummarizeUrl: (payload) => req('/ai/web/summarize-url', { method: 'POST', body: payload }),
 };

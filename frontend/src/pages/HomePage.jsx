@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import mammoth from 'mammoth';
 import { documentApi, exportApi } from '@/services/api';
 import { buildDocxBlob, buildHtmlDocument, exportToDocx, exportToHtml, exportToPdf } from '@/services/export';
-import { buildAiResult, getPlainTextFromHtml, openTranslationUrl } from '@/services/ai';
+import { buildAiResult, executePragnaAi, getPlainTextFromHtml, openTranslationUrl } from '@/services/ai';
 import { useUIStore, useDocumentStore } from '@/store';
 import { getStoredUser } from '@/services/api';
 
@@ -62,7 +62,7 @@ const LoadingIcon = () => (
 
 const MENU_ITEMS = [
   { key: 'home', label: 'Home', icon: '⌂' },
-  { key: 'ai', label: 'AI', icon: '✦' },
+  { key: 'ai', label: 'Pragna AI', icon: '✦' },
   { key: 'new', label: 'New', icon: '✧' },
   { key: 'open', label: 'Open', icon: '◫' },
   { key: 'save', label: 'Save', icon: '⎙' },
@@ -861,7 +861,7 @@ export function HomePage() {
       if (!aiTopic.trim()) { toast('Enter a topic for the content generator', 'info'); return; }
       setAiRunning(true);
       try {
-        const result = buildAiResult('content-generator', '', { 
+        const result = await executePragnaAi('content-generator', '', { 
           topic: aiTopic.trim(), 
           tone: aiTone,
           pages: aiPageCount
@@ -880,26 +880,26 @@ export function HomePage() {
     setAiRunning(true);
     try {
       if (aiAction === 'summarize') {
-        const result = buildAiResult('summarize', source);
+        const result = await executePragnaAi('summarize', source);
         await createAiDocument(`Summary of ${cleanBaseName(selectedDoc?.title || 'Document')}`, result.html || '<p></p>');
         setAiAction(null);
         return;
       }
       if (aiAction === 'grammar') {
-        const result = buildAiResult('grammar', source);
+        const result = await executePragnaAi('grammar', source);
         const saved = await persistSelectedDocPatch({ content: result.html || '<p></p>' });
         if (saved) {
-          toast('Grammar corrected. Opening document…', 'success');
+          toast('Pragna: Grammar corrected. Opening document…', 'success');
           openDoc(selectedDoc);
           setAiAction(null);
         }
         return;
       }
       if (aiAction === 'rewrite') {
-        const result = buildAiResult('rewrite', source, { mode: aiRewriteMode });
+        const result = await executePragnaAi('rewrite', source, { mode: aiRewriteMode });
         const saved = await persistSelectedDocPatch({ content: result.html || '<p></p>' });
         if (saved) {
-          toast(`Rewritten in "${aiRewriteMode}" style. Opening document…`, 'success');
+          toast(`Pragna: Rewritten in "${aiRewriteMode}" style. Opening document…`, 'success');
           openDoc(selectedDoc);
           setAiAction(null);
         }
@@ -907,19 +907,19 @@ export function HomePage() {
       }
       if (aiAction === 'title') {
         const fallback = aiFallbackTitle.trim() || selectedDoc?.title || 'Untitled Document';
-        const result = buildAiResult('title', source, { fallbackTitle: fallback });
+        const result = await executePragnaAi('title', source, { fallbackTitle: fallback });
         const saved = await persistSelectedDocPatch({ title: result.title || fallback });
         if (saved) {
-          toast(`Title updated to "${result.title || fallback}"`, 'success');
+          toast(`Pragna: Title updated to "${result.title || fallback}"`, 'success');
           setAiAction(null);
         }
         return;
       }
       if (aiAction === 'translate') {
-        const result = buildAiResult('translate', selectedDoc.content, { language: aiLanguage });
+        const result = await executePragnaAi('translate', selectedDoc.content, { language: aiLanguage });
         const saved = await persistSelectedDocPatch({ content: result.html || result.text });
         if (saved) {
-          toast(`Document translated to ${aiLanguage}. Opening...`, 'success');
+          toast(`Pragna: Document translated to ${aiLanguage}. Opening...`, 'success');
           openDoc(selectedDoc);
           setAiAction(null);
         }
@@ -1495,8 +1495,8 @@ export function HomePage() {
 
         {activeMenu === 'ai' && (
           <section style={styles.panel}>
-            <h2 style={styles.panelTitle}>AI Assist</h2>
-            <p style={styles.panelSubtitle}>Apply AI-assisted actions to the selected document or create a new draft.</p>
+            <h2 style={styles.panelTitle}>Pragna AI Assist</h2>
+            <p style={styles.panelSubtitle}>Apply intelligent Pragna AI actions to your documents powered by Ollama Cloud.</p>
             <div style={styles.aiGrid}>
               {[
                 { key: 'content-generator', icon: '✦', label: 'Content Generator', desc: 'Start a new AI draft from a topic' },

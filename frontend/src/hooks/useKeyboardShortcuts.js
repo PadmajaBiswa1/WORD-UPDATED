@@ -3,6 +3,7 @@ import { useUIStore, useEditorStore, useDocumentStore } from '@/store';
 
 export function useKeyboardShortcuts() {
   const openDialog = useUIStore((s) => s.openDialog);
+  const openPragna = useUIStore((s) => s.openPragna);
   const setZoom = useUIStore((s) => s.setZoom);
   const zoom = useUIStore((s) => s.zoom);
   const toggleFullscreen = useUIStore((s) => s.toggleFullscreen);
@@ -16,6 +17,14 @@ export function useKeyboardShortcuts() {
     const h = (e) => {
       const mod = e.ctrlKey || e.metaKey;
       const key = e.key.toLowerCase();
+
+      // Pragna Copilot shortcut (Word standard Alt+I)
+      if (e.altKey && key === 'i' && !mod) {
+        e.preventDefault();
+        const hasSelection = editor && !editor.state.selection.empty;
+        openPragna(hasSelection ? 'edit' : 'ask');
+        return;
+      }
 
       // Ignore non-shortcut keydowns in form controls, but still allow modified shortcuts.
       const tag = (e.target?.tagName || '').toLowerCase();

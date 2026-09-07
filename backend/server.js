@@ -9,6 +9,7 @@ const authRoutes = require('./routes/auth');
 const documentRoutes = require('./routes/documents');
 const templateRoutes = require('./routes/templates');
 const uploadRoutes = require('./routes/upload');
+const aiRoutes = require('./routes/ai');
 
 // Initialize services
 console.log('🔧 Initializing services...');
@@ -86,6 +87,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/templates', templateRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/ai', aiRoutes);
 
 // =====================================================
 // STATIC UPLOADS

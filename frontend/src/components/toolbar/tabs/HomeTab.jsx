@@ -33,7 +33,7 @@ export function HomeTab() {
     formatPainterMarks,
     setFormatPainterMarks,
   } = useEditorStore();
-  const { openDialog, toast } = useUIStore();
+  const { openDialog, toast, openPragna } = useUIStore();
   const { applyFontSize } = useFontFormattingControls(editor);
   const painterActive = useRef(false);
   const [showTextColors, setShowTextColors] = useState(false);
@@ -41,6 +41,19 @@ export function HomeTab() {
   const [showFormattingMarks, setShowFormattingMarks] = useState(false);
   const [textPalettePos, setTextPalettePos] = useState({ top: 0, left: 0 });
   const [highlightPalettePos, setHighlightPalettePos] = useState({ top: 0, left: 0 });
+
+  const handlePragnaClick = () => {
+    if (!editor) {
+      openPragna('ask');
+      return;
+    }
+    const { from, to } = editor.state.selection;
+    if (from !== to) {
+      openPragna('edit');
+    } else {
+      openPragna('ask');
+    }
+  };
 
   const savedSelectionRef = useRef(null);
 
@@ -481,6 +494,53 @@ export function HomeTab() {
           <Divider vertical />
           <Tooltip text="Find & Replace" shortcut="Ctrl+H"><Button style={{ ...toolBtn, width: 68 }} onClick={() => openDialog('findReplace')}>Find</Button></Tooltip>
           <Tooltip text="Select All" shortcut="Ctrl+A"><Button style={{ ...toolBtn, width: 68 }} onClick={() => run(() => editor.chain().selectAll().run())}>Select</Button></Tooltip>
+        </div>
+      </RibbonGroup>
+
+      <RibbonGroup label="Pragna">
+        <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+          {/* Clean MS Word-style Copilot Button */}
+          <Tooltip text="Open Pragna Writing Copilot (Alt+I)">
+            <button
+              onClick={handlePragnaClick}
+              style={{
+                width: 62,
+                height: 56,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 3,
+                padding: '4px 6px',
+                background: 'rgba(212,175,55,0.08)',
+                border: '1px solid rgba(212,175,55,0.3)',
+                borderRadius: 4,
+                cursor: 'pointer',
+                transition: 'all 0.12s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(212,175,55,0.18)';
+                e.currentTarget.style.borderColor = 'var(--gold)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(212,175,55,0.08)';
+                e.currentTarget.style.borderColor = 'rgba(212,175,55,0.3)';
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <linearGradient id="pragnaGoldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#fae084" />
+                    <stop offset="50%" stopColor="#d4af37" />
+                    <stop offset="100%" stopColor="#aa8420" />
+                  </linearGradient>
+                </defs>
+                <path d="M12 2L14.6 8.4L21 11L14.6 13.6L12 20L9.4 13.6L3 11L9.4 8.4L12 2Z" fill="url(#pragnaGoldGrad)" />
+                <path d="M19 14L20.2 16.8L23 18L20.2 19.2L19 22L17.8 19.2L15 18L17.8 16.8L19 14Z" fill="url(#pragnaGoldGrad)" />
+              </svg>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.2px', lineHeight: 1 }}>Pragna</span>
+            </button>
+          </Tooltip>
         </div>
       </RibbonGroup>
 

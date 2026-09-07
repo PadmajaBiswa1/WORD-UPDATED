@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Button, ColorSwatch, Divider, Select, Tooltip } from '@/components/ui';
-import { useEditorStore } from '@/store';
+import { useEditorStore, useUIStore } from '@/store';
 import { FontFormattingControls, useFontFormattingControls } from '../toolbar/fontFormatting.jsx';
 
 const LINE_SPACING_VALUES = [
@@ -321,6 +321,29 @@ export function FloatingFormatToolbar({ editor, scrollContainerRef }) {
           fontSize: 13,
         }}
       >
+        <Tooltip text="Edit selected text with Pragna AI (Gemma 31B)">
+          <Button
+            style={{
+              ...BUTTON_STYLE,
+              minWidth: 96,
+              fontWeight: 600,
+              fontSize: 12,
+              padding: '0 10px',
+              gap: 5,
+              background: 'linear-gradient(135deg, #d4af37 0%, #b89628 100%)',
+              color: '#000000',
+              border: '1px solid #d4af37',
+              boxShadow: '0 1px 6px rgba(212, 175, 55, 0.35)',
+            }}
+            onClick={() => useUIStore.getState().openPragna('edit')}
+          >
+            <span style={{ fontSize: 13, color: '#000000' }}>✦</span>
+            <span>Pragna Edit</span>
+          </Button>
+        </Tooltip>
+
+        <Divider vertical />
+
         <FontFormattingControls
           editor={editor}
           fontFamily={fontFamily}

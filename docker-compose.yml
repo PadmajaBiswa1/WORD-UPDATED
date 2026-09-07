@@ -1,0 +1,50 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: word-backend
+    restart: unless-stopped
+    ports:
+      - "5053:5053"
+    env_file:
+      - ./backend/.env
+    environment:
+      - PORT=5053
+      - NODE_ENV=production
+    volumes:
+      - backend_uploads:/app/public/uploads
+      - backend_data:/app/data
+    networks:
+      - word-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: word-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - word-network
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: word-tunnel
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --url http://frontend:3000
+    depends_on:
+      - frontend
+    networks:
+      - word-network
+
+volumes:
+  backend_uploads:
+  backend_data:
+
+networks:
+  word-network:
+    driver: bridge

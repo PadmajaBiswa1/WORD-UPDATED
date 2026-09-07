@@ -14,7 +14,7 @@ const makeAction = (key, { title, tab, keywords = [], run }) => ({
 });
 
 export function RibbonFeatureSearch({ compactWidth = 190, onActivateTab: onActivateTabProp }) {
-  const { openDialog, toast, setActiveTab, watermarkText, setWatermarkText } = useUIStore();
+  const { openDialog, toast, setActiveTab, watermarkText, setWatermarkText, setFindQuery, openPragna } = useUIStore();
   const onActivateTab = onActivateTabProp ?? null;
   const { editor } = useEditorStore();
 
@@ -80,57 +80,37 @@ export function RibbonFeatureSearch({ compactWidth = 190, onActivateTab: onActiv
       { id: 'home-find',       key: 'home-find',       title: 'Find & Replace', tab: 'home',  keywords: ['find', 'replace', 'search text', 'find replace','ctrl+h'], run: () => openDialog('findReplace'), },
       { id: 'home-selectall',  key: 'home-selectall',  title: 'Select All',     tab: 'home',  keywords: ['select all', 'select everything', 'ctrl+a'], run: () => { }, },
       { id: 'home-help',       key: 'home-help',       title: 'Get Help',       tab: 'home',  keywords: ['help', 'support', 'assistance'], run: () => openDialog('help'), },
-      { id: 'home-ai-generate', key:'home-ai-generate', title:'AI Content Generator', tab:'ai', keywords:['ai','generate','content','draft','write'], run: () => {
-        if (!editor) return;
-        const topic = window.prompt('What should the AI content generator write about?', 'project update');
-        if (!topic) return;
-        const tone = window.prompt('Tone for the draft?', 'professional') || 'professional';
-        const result = buildAiResult('content-generator', '', { topic, tone });
-        editor.chain().focus().insertContent(result.html || '<p></p>').run();
+      { id: 'home-ai-pragna', key:'home-ai-pragna', title:'Pragna AI (Copilot)', tab:'home', keywords:['pragna','copilot','ai','assistant','chat','ask pragna','alt+i','gemma 31b'], run: () => {
+        useUIStore.getState().openPragna('ask');
       } },
-      { id: 'home-ai-summarize', key:'home-ai-summarize', title:'AI Text Summarizer', tab:'ai', keywords:['ai','summarize','summary','shorten'], run: () => {
-        if (!editor) return;
-        const { from, to } = editor.state.selection;
-        const source = from !== to ? editor.state.doc.textBetween(from, to, ' ').trim() : editor.state.doc.textBetween(0, editor.state.doc.content.size, ' ').trim();
-        if (!source) return;
-        const result = buildAiResult('summarize', source);
-        if (from !== to) editor.chain().focus().insertContentAt({ from, to }, result.html || '<p></p>').run();
-        else editor.chain().focus().insertContent(result.html || '<p></p>').run();
+      { id: 'home-ai-edit', key:'home-ai-edit', title:'Pragna Edit as Instructed', tab:'home', keywords:['pragna','edit','edit selection','instruction','custom edit','copilot','rewrite as instructed','gemma'], run: () => {
+        useUIStore.getState().openPragna('edit');
       } },
-      { id: 'home-ai-grammar', key:'home-ai-grammar', title:'AI Grammar Correction', tab:'ai', keywords:['ai','grammar','correct','proofread'], run: () => {
-        if (!editor) return;
-        const { from, to } = editor.state.selection;
-        const source = from !== to ? editor.state.doc.textBetween(from, to, ' ').trim() : editor.state.doc.textBetween(0, editor.state.doc.content.size, ' ').trim();
-        if (!source) return;
-        const result = buildAiResult('grammar', source);
-        if (from !== to) editor.chain().focus().insertContentAt({ from, to }, result.html || '<p></p>').run();
-        else editor.chain().focus().insertContent(result.html || '<p></p>').run();
+      { id: 'home-ai-generate', key:'home-ai-generate', title:'Pragna Draft Generator', tab:'home', keywords:['pragna','ai','generate','content','draft','write','ollama'], run: () => {
+        useUIStore.getState().openPragna('generate');
       } },
-      { id: 'home-ai-rewrite', key:'home-ai-rewrite', title:'AI Rewrite Assistant', tab:'ai', keywords:['ai','rewrite','rephrase','formal','short'], run: () => {
-        if (!editor) return;
-        const mode = window.prompt('Rewrite style: clear, formal, or short', 'clear') || 'clear';
-        const { from, to } = editor.state.selection;
-        const source = from !== to ? editor.state.doc.textBetween(from, to, ' ').trim() : editor.state.doc.textBetween(0, editor.state.doc.content.size, ' ').trim();
-        if (!source) return;
-        const result = buildAiResult('rewrite', source, { mode });
-        if (from !== to) editor.chain().focus().insertContentAt({ from, to }, result.html || '<p></p>').run();
-        else editor.chain().focus().insertContent(result.html || '<p></p>').run();
+      { id: 'home-ai-summarize', key:'home-ai-summarize', title:'Pragna Summarizer', tab:'ai', keywords:['pragna','ai','summarize','summary','shorten','digest','ollama'], run: () => {
+        useUIStore.getState().openPragna('summarize');
       } },
-      { id: 'home-ai-title', key:'home-ai-title', title:'AI Title Generator', tab:'ai', keywords:['ai','title','headline','rename'], run: () => {
-        if (!editor) return;
-        const source = editor.state.doc.textBetween(0, editor.state.doc.content.size, ' ').trim();
-        const fallback = window.prompt('Fallback title if the content is short', 'Untitled Document') || 'Untitled Document';
-        const result = buildAiResult('title', source, { fallbackTitle: fallback });
-        useDocumentStore.getState().setTitle(result.title || fallback);
+      { id: 'home-ai-grammar', key:'home-ai-grammar', title:'Pragna Grammar & Polish', tab:'ai', keywords:['pragna','ai','grammar','correct','proofread','polish','ollama'], run: () => {
+        useUIStore.getState().openPragna('grammar');
       } },
-      { id: 'home-ai-translate', key:'home-ai-translate', title:'AI Translation', tab:'ai', keywords:['ai','translate','language'], run: () => {
-        if (!editor) return;
-        const { from, to } = editor.state.selection;
-        const source = from !== to ? editor.state.doc.textBetween(from, to, ' ').trim() : editor.state.doc.textBetween(0, editor.state.doc.content.size, ' ').trim();
-        if (!source) return;
-        const language = window.prompt('Translate to which language?', 'Spanish') || 'Spanish';
-        openTranslationUrl(source, language);
+      { id: 'home-ai-rewrite', key:'home-ai-rewrite', title:'Pragna Rewrite Assistant', tab:'ai', keywords:['pragna','ai','rewrite','rephrase','formal','short','persuasive','ollama'], run: () => {
+        useUIStore.getState().openPragna('rewrite');
       } },
+      { id: 'home-ai-title', key:'home-ai-title', title:'Pragna Title Generator', tab:'ai', keywords:['pragna','ai','title','headline','rename','ollama'], run: () => {
+        useUIStore.getState().openPragna('title');
+      } },
+      { id: 'home-ai-translate', key:'home-ai-translate', title:'Pragna Translation', tab:'ai', keywords:['pragna','ai','translate','language','ollama'], run: () => {
+        useUIStore.getState().openPragna('translate');
+      } },
+      { id: 'home-ai-web-research', key:'home-ai-web-research', title:'Pragna Web Research', tab:'ai', keywords:['pragna','web','research','search','google news','arxiv','wikipedia'], run: () => {
+        useUIStore.getState().openPragna('research');
+      } },
+      { id: 'home-ai-url-reader', key:'home-ai-url-reader', title:'Pragna URL Reader', tab:'ai', keywords:['pragna','url','web','link','article','summarize url'], run: () => {
+        useUIStore.getState().openPragna('urlReader');
+      } },
+
       // ── Insert Tab ──
       { id: 'ins-coverpage',   key:'ins-coverpage',    title: 'Cover Page',     tab: 'insert',keywords: ['cover page','title page','cover'], run: () => { }, },
       { id: 'ins-blankpage',   key:'ins-blankpage',    title: 'Blank Page',     tab: 'insert',keywords: ['blank page','new page'], run: () => { }, },
@@ -508,10 +488,15 @@ export function RibbonFeatureSearch({ compactWidth = 190, onActivateTab: onActiv
     }
 
     if (e.key === 'Enter') {
-      if (!open && filtered.length) setOpen(true);
-      if (!filtered.length) return;
-      e.preventDefault();
-      runAction(filtered[activeIdx] || filtered[0]);
+      if (filtered.length > 0) {
+        e.preventDefault();
+        runAction(filtered[activeIdx] || filtered[0]);
+      } else if (query.trim()) {
+        e.preventDefault();
+        setOpen(false);
+        setFindQuery(query.trim());
+        openDialog('findReplace');
+      }
       return;
     }
   };

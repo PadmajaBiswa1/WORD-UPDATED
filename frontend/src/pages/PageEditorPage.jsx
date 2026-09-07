@@ -1,6 +1,7 @@
 import { TitleBar } from '@/components/editor/TitleBar';
 import { Ribbon } from '@/components/toolbar/Ribbon';
 import { PageSidebarNav } from '@/components/sidebar/PageSidebarNav';
+import { PragnaChatSidebar } from '@/components/sidebar/PragnaChatSidebar';
 import { PageEditor } from '@/components/editor/PageEditor';
 import { PageStatusBar } from '@/components/editor/PageStatusBar';
 import { DialogManager } from '@/components/dialogs/DialogManager';
@@ -29,9 +30,10 @@ export function PageEditorPage() {
       <TitleBar onSave={handleSave} />
       <Ribbon />
 
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
         <PageSidebarNav />
         <PageEditor />
+        <PragnaChatSidebar />
       </div>
 
       <PageStatusBar />
