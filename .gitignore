@@ -12,3 +12,6 @@ frontend/node_modules/.vite/
 backend/.env
 frontend/.env
 .env
+
+# Rootfs archives
+*-rootfs.tar.gz
