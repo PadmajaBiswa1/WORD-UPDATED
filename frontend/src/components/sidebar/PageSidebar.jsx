@@ -14,8 +14,12 @@ function scrollEditorToPage(pageIndex, zoom, metrics) {
   if (!scrollArea) return;
   const scale = zoom / 100;
   const pageStep = (metrics.pageHeight + PAGE_GAP) * scale;
-  const scrollPaddingY = 40 * scale;
-  const targetTop = pageIndex * pageStep + scrollPaddingY;
+  // The scroll container has padding = 40*scale at top which offsets the
+  // page content div. scrollTop = pageIndex * pageStep lands exactly at the
+  // top of page i with the top padding naturally showing above it.
+  // We subtract a small amount (8px scaled) so the page doesn't jam to the
+  // very top edge of the viewport — keeps a comfortable margin.
+  const targetTop = Math.max(0, pageIndex * pageStep - 8 * scale);
   scrollArea.scrollTo({ top: targetTop, behavior: 'smooth' });
 }
 
