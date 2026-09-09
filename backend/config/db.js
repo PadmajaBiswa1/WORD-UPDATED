@@ -24,10 +24,13 @@ async function cleanupLegacyUserIndexes() {
 async function connectDB() {
   if (!process.env.MONGO_URI) {
     console.warn('MongoDB disabled: MONGO_URI is not set.');
+    mongoose.set('bufferCommands', false);
     return false;
   }
   try {
-    await mongoose.connect(process.env.MONGO_URI);
+    await mongoose.connect(process.env.MONGO_URI, {
+      serverSelectionTimeoutMS: 15000,
+    });
     await cleanupLegacyUserIndexes();
     console.log('MongoDB connected');
     
