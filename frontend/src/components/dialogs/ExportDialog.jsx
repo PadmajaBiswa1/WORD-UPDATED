@@ -21,15 +21,32 @@ export function ExportDialog() {
       const html = editor?.getHTML() || '';
       if (type === 'html') exportToHtml(title, html);
       else if (type === 'pdf') {
-        const el = document.getElementById('document-page-0');
+        const el = document.getElementById('document-page-0') ||
+                   document.querySelector('.page') ||
+                   document.querySelector('.document-page') ||
+                   document.querySelector('.ProseMirror') ||
+                   document.querySelector('.document-editor');
+        const pageSettings = {
+          format: pageSize || 'a4',
+          orientation: pageOrientation || 'portrait',
+        };
         if (el) {
-          const pageSettings = {
-            format: pageSize || 'a4',
-            orientation: pageOrientation || 'portrait',
-          };
           await exportToPdf(title, el, pageSettings);
         } else {
-          exportToHtml(title, html); // fallback
+          const frame = document.createElement('div');
+          frame.style.position = 'fixed';
+          frame.style.left = '-10000px';
+          frame.style.top = '0';
+          frame.style.width = '794px';
+          frame.style.background = '#ffffff';
+          frame.style.padding = '40px';
+          frame.innerHTML = html || '<p></p>';
+          document.body.appendChild(frame);
+          try {
+            await exportToPdf(title, frame, pageSettings);
+          } finally {
+            frame.remove();
+          }
         }
       } else if (type === 'docx') {
         await exportToDocx(title, html);

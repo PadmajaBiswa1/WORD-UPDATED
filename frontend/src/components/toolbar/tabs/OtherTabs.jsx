@@ -481,6 +481,47 @@ export function ReviewTab() {
     openDialog('comments');
   };
 
+  const removeCurrentComment = () => {
+    try {
+      if (!comments || comments.length === 0) {
+        toast('No comments to delete', 'info');
+        return;
+      }
+      const targetIndex = (commentCursor >= 0 && commentCursor < comments.length)
+        ? commentCursor
+        : comments.length - 1;
+      const target = comments[targetIndex];
+      if (target && typeof deleteComment === 'function') {
+        deleteComment(target.id);
+        setCommentCursor((prev) => Math.max(-1, Math.min(prev, comments.length - 2)));
+        toast('Comment deleted', 'success');
+      } else {
+        toast('Select a comment to delete', 'info');
+      }
+    } catch (err) {
+      console.error('removeCurrentComment error:', err);
+      toast('Failed to delete comment', 'error');
+    }
+  };
+
+  const stepComment = (direction) => {
+    try {
+      if (!comments || comments.length === 0) {
+        toast('No comments in document', 'info');
+        return;
+      }
+      const nextIdx = (commentCursor + direction + comments.length) % comments.length;
+      setCommentCursor(nextIdx);
+      const target = comments[nextIdx];
+      if (target) {
+        toast(`Comment (${nextIdx + 1}/${comments.length}): ${(target.text || target.body || '').slice(0, 40)}`, 'info');
+        openDialog('comments');
+      }
+    } catch (err) {
+      console.error('stepComment error:', err);
+    }
+  };
+
   const handleAcceptChange = () => {
     if (!editor) return;
     
@@ -594,6 +635,8 @@ export function ReviewTab() {
       toast(`${changeType === 'insertion' ? 'Inserted' : 'Deleted'} text: ${nearestChange.textContent.slice(0, 50)}...`, 'info');
     }
   };
+
+  const announceChange = stepChange;
 
   const blockAuthors = () => {
     const selected = getSelectedText(editor);
