@@ -240,9 +240,8 @@ export function PictureFormatToolbar({ editor, scrollContainerRef }) {
 
     syncFromSelection();
     editor.on('selectionUpdate', syncFromSelection);
-    editor.on('update', syncFromSelection);
-    // Losing focus entirely (clicking outside the editor's own DOM, e.g. a
-    // sidebar or blank page area) doesn't always fire selectionUpdate.
+    // Note: NOT subscribing to 'update' — it fires on every keystroke and
+    // causes the image toolbar to flicker/hide-show unnecessarily.
     editor.on('blur', syncFromSelection);
     document.addEventListener('selectionchange', syncFromSelection);
     window.addEventListener('resize', handleWindowInteraction);
@@ -252,7 +251,6 @@ export function PictureFormatToolbar({ editor, scrollContainerRef }) {
 
     return () => {
       editor.off('selectionUpdate', syncFromSelection);
-      editor.off('update', syncFromSelection);
       editor.off('blur', syncFromSelection);
       document.removeEventListener('selectionchange', syncFromSelection);
       window.removeEventListener('resize', handleWindowInteraction);

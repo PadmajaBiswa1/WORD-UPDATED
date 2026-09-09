@@ -195,8 +195,14 @@ export function FloatingFormatToolbar({ editor, scrollContainerRef }) {
       showToolbar();
     };
 
+    // On scroll/resize, re-measure the selection bounds (don't use stale anchor)
     const handleWindowInteraction = () => {
       if (!mounted || !anchor) return;
+      // Re-measure selection to get updated viewport-relative coords
+      const nextAnchor = getSelectionBounds(editor);
+      if (nextAnchor) {
+        setAnchor(nextAnchor);
+      }
       positionToolbar();
     };
 
@@ -210,8 +216,9 @@ export function FloatingFormatToolbar({ editor, scrollContainerRef }) {
     };
 
     syncFromSelection();
+    // Only listen to selectionUpdate — 'update' fires too broadly (any doc change)
+    // and was causing spurious show/hide cycles
     editor.on('selectionUpdate', syncFromSelection);
-    editor.on('update', syncFromSelection);
     editor.on('blur', handleBlur);
     window.addEventListener('resize', handleWindowInteraction);
 
@@ -220,7 +227,6 @@ export function FloatingFormatToolbar({ editor, scrollContainerRef }) {
 
     return () => {
       editor.off('selectionUpdate', syncFromSelection);
-      editor.off('update', syncFromSelection);
       editor.off('blur', handleBlur);
       window.removeEventListener('resize', handleWindowInteraction);
       if (scrollEl) scrollEl.removeEventListener('scroll', handleWindowInteraction);
