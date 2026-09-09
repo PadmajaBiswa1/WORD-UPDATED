@@ -69,26 +69,67 @@ export function Divider({ vertical = false }) {
 }
 
 /* ── Tooltip ────────────────────────────────────────────────── */
-export function Tooltip({ children, text, shortcut, placement = 'top' }) {
+export function Tooltip({ children, text, shortcut, placement = 'top', delay = 450 }) {
   const [show, setShow] = useState(false);
-  const isTop = placement === 'top';
+  const [coords, setCoords] = useState({ top: 0, left: 0, actualPlacement: placement });
+  const triggerRef = useRef(null);
+  const timerRef = useRef(null);
+
+  const handleMouseEnter = () => {
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      if (!triggerRef.current) return;
+      const rect = triggerRef.current.getBoundingClientRect();
+      const isTop = placement === 'top';
+      const actualPlacement = (isTop && rect.top < 36) ? 'bottom' : placement;
+      const top = actualPlacement === 'top'
+        ? Math.max(4, rect.top - 8)
+        : Math.min(window.innerHeight - 30, rect.bottom + 8);
+      const left = Math.max(10, Math.min(window.innerWidth - 10, rect.left + rect.width / 2));
+      setCoords({ top, left, actualPlacement });
+      setShow(true);
+    }, delay);
+  };
+
+  const handleMouseLeave = () => {
+    clearTimeout(timerRef.current);
+    setShow(false);
+  };
+
+  useEffect(() => () => clearTimeout(timerRef.current), []);
+
   return (
-    <div style={{ position: 'relative', display: 'inline-flex' }}
-      onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}>
+    <div
+      ref={triggerRef}
+      style={{ position: 'relative', display: 'inline-flex' }}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
       {children}
-      {show && text && (
-        <div className="anim-fade-in" style={{
-          position: 'absolute', zIndex: 9999, whiteSpace: 'nowrap', pointerEvents: 'none',
-           background: '#0a0800',
-           color: '#ece8dc',
-          border: '1px solid var(--border-gold)',
-          fontSize: '11px', padding: '4px 9px', borderRadius: 'var(--radius-sm)',
-          ...(isTop ? { bottom: 'calc(100% + 7px)', left: '50%', transform: 'translateX(-50%)' }
-                     : { top: 'calc(100% + 7px)',   left: '50%', transform: 'translateX(-50%)' }),
-        }}>
+      {show && text && typeof document !== 'undefined' && createPortal(
+        <div
+          className="anim-fade-in"
+          style={{
+            position: 'fixed',
+            zIndex: 99999,
+            whiteSpace: 'nowrap',
+            pointerEvents: 'none',
+            background: '#0a0800',
+            color: '#ece8dc',
+            border: '1px solid var(--border-gold)',
+            fontSize: '11px',
+            padding: '4px 9px',
+            borderRadius: 'var(--radius-sm)',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+            top: coords.top,
+            left: coords.left,
+            transform: coords.actualPlacement === 'top' ? 'translate(-50%, -100%)' : 'translate(-50%, 0)',
+          }}
+        >
           {text}
           {shortcut && <span style={{ color: 'var(--gold)', marginLeft: 6, fontSize: '10px' }}>{shortcut}</span>}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

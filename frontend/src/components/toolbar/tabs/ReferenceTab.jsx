@@ -1,8 +1,19 @@
 import { useRef, useState } from 'react';
-import { useUIStore, useEditorStore } from '@/store';
+import { useUIStore, useEditorStore, useDocumentStore } from '@/store';
 import { Button, Tooltip } from '@/components/ui';
 import { RibbonGroup } from '../RibbonGroup';
-import { buildTocHtml, getHeadingOutline, syncHeadingIds } from '@/components/dialogs/ReferenceDialogs';
+import {
+  buildTocHtml,
+  getHeadingOutline,
+  syncHeadingIds,
+  scanFigures,
+  buildTofHtml,
+  scanTables,
+  buildTotHtml,
+  buildIndexData,
+  buildIndexHtml,
+  upsertReferenceSection,
+} from '@/components/dialogs/ReferenceDialogs';
 
 const INDEX_STORE_KEY = 'etherx-reference-index-entries';
 const AUTH_STORE_KEY = 'etherx-reference-authority-entries';
@@ -199,25 +210,45 @@ export function ReferenceTab() {
 
   const insertCaption = () => {
     if (!editor) return;
-    const captionText = (window.prompt('Caption text', 'Figure 1: Caption') || '').trim();
+    const type = window.confirm('Click OK for Figure caption, or Cancel for Table caption') ? 'Figure' : 'Table';
+    const num = (type === 'Figure' ? scanFigures(editor).length : scanTables(editor).length) + 1;
+    const captionText = (window.prompt(`Enter ${type} caption`, `${type} ${num}: Description`) || '').trim();
     if (!captionText) return;
-    insertHtml(`<p>Figure: ${escapeHtml(captionText)}</p>`);
-    toast('Caption inserted', 'success');
+    const id = `${type.toLowerCase()}-${Date.now()}`;
+    useDocumentStore.getState().addCaption?.({ id, type: type.toLowerCase(), text: captionText, label: `${type} ${num}` });
+    insertHtml(`<p id="${id}" data-caption-type="${type.toLowerCase()}"><strong>${escapeHtml(captionText)}</strong></p>`);
+    toast(`${type} caption inserted`, 'success');
   };
 
   const insertTableOfFigures = () => {
+    openDialog('tableOfFigures');
+  };
+
+  const insertTableOfTables = () => {
+    openDialog('tableOfTables');
+  };
+
+  const updateCaptionsTable = () => {
     if (!editor) return;
+    let updatedAny = false;
     const wrapper = document.createElement('div');
     wrapper.innerHTML = editor.getHTML();
-    const captions = [...wrapper.querySelectorAll('p')]
-      .map((node) => node.textContent?.trim() || '')
-      .filter((text) => /^Figure\s*:/i.test(text));
-    if (!captions.length) {
-      toast('No captions found', 'info');
-      return;
+
+    if (wrapper.querySelector('[data-tof="true"]')) {
+      const figs = scanFigures(editor);
+      upsertReferenceSection(editor, '[data-tof="true"]', buildTofHtml(figs));
+      updatedAny = true;
     }
-    if (upsertListSection('Table of Figures', captions)) {
-      toast('Table of figures updated', 'success');
+    if (wrapper.querySelector('[data-tot="true"]')) {
+      const tbls = scanTables(editor);
+      upsertReferenceSection(editor, '[data-tot="true"]', buildTotHtml(tbls));
+      updatedAny = true;
+    }
+
+    if (updatedAny) {
+      toast('Table of Figures / Tables updated in place', 'success');
+    } else {
+      openDialog('tableOfFigures');
     }
   };
 
@@ -228,26 +259,25 @@ export function ReferenceTab() {
       toast('Select text to mark as an index entry', 'info');
       return;
     }
+    useDocumentStore.getState().addIndexEntry?.({ id: `idx-${Date.now()}`, term: text, page: 1 });
     const next = dedupeSorted([...readEntryStore(INDEX_STORE_KEY), text]);
     writeEntryStore(INDEX_STORE_KEY, next);
-    toast('Index entry marked', 'success');
+    toast(`Index entry marked: "${text}"`, 'success');
   };
 
   const insertIndex = () => {
-    if (!editor) return;
-    const entries = readEntryStore(INDEX_STORE_KEY);
-    if (!entries.length) {
-      toast('No marked index entries found', 'info');
-      return;
-    }
-    const unique = dedupeSorted(entries);
-    if (upsertListSection('Index', unique)) {
-      toast('Index updated', 'success');
-    }
+    openDialog('insertIndex');
   };
 
   const updateIndex = () => {
-    insertIndex();
+    if (!editor) return;
+    const storeEntries = useDocumentStore.getState().references?.indexEntries || [];
+    const localEntries = readEntryStore(INDEX_STORE_KEY);
+    const combined = [...storeEntries, ...localEntries];
+    const grouped = buildIndexData(combined);
+    const html = buildIndexHtml(grouped);
+    upsertReferenceSection(editor, '[data-index="true"]', html);
+    toast('Index refreshed in place', 'success');
   };
 
   const markCitation = () => {
@@ -315,12 +345,14 @@ export function ReferenceTab() {
         <Tooltip text="Manage Sources"><Button onMouseDown={keepSelectionOnMouseDown} onClick={manageSources}>📚 Sources</Button></Tooltip>
         <Tooltip text="Style"><Button onMouseDown={keepSelectionOnMouseDown} onClick={() => openDialog('insertCitation')}>APA Style</Button></Tooltip>
         <Tooltip text="Bibliography"><Button onMouseDown={keepSelectionOnMouseDown} onClick={insertBibliography}>📖 Bibliography</Button></Tooltip>
+        <Tooltip text="AI Citation Fact-Checking"><Button onMouseDown={keepSelectionOnMouseDown} onClick={() => openDialog('citationFactCheck')}>🛡 Fact-Check</Button></Tooltip>
       </RibbonGroup>
 
       <RibbonGroup label="Captions">
-        <Tooltip text="Insert Caption"><Button onMouseDown={keepSelectionOnMouseDown} onClick={insertCaption}>🏷 Caption</Button></Tooltip>
+        <Tooltip text="Insert Caption (Figure or Table)"><Button onMouseDown={keepSelectionOnMouseDown} onClick={insertCaption}>🏷 Caption</Button></Tooltip>
         <Tooltip text="Insert Table of Figures"><Button onMouseDown={keepSelectionOnMouseDown} onClick={insertTableOfFigures}>≡ Figures</Button></Tooltip>
-        <Tooltip text="Update Table"><Button onMouseDown={keepSelectionOnMouseDown} onClick={insertTableOfFigures}>↻ Update</Button></Tooltip>
+        <Tooltip text="Insert Table of Tables"><Button onMouseDown={keepSelectionOnMouseDown} onClick={insertTableOfTables}>≡ Tables</Button></Tooltip>
+        <Tooltip text="Update Tables of Figures / Tables"><Button onMouseDown={keepSelectionOnMouseDown} onClick={updateCaptionsTable}>↻ Update</Button></Tooltip>
         <Tooltip text="Cross-reference"><Button onMouseDown={keepSelectionOnMouseDown} onClick={() => {
           const picked = selectedText(editor) || (window.prompt('Cross-reference label', 'Reference') || 'Reference');
           run(() => editor.chain().insertContent(`[See: ${picked}]`).run());
@@ -328,8 +360,8 @@ export function ReferenceTab() {
       </RibbonGroup>
 
       <RibbonGroup label="Index">
-        <Tooltip text="Mark Entry"><Button onMouseDown={keepSelectionOnMouseDown} onClick={markIndexEntry}>✎ Mark Entry</Button></Tooltip>
-        <Tooltip text="Insert Index"><Button onMouseDown={keepSelectionOnMouseDown} onClick={insertIndex}>≡ Index</Button></Tooltip>
+        <Tooltip text="Mark Selected Text for Index"><Button onMouseDown={keepSelectionOnMouseDown} onClick={markIndexEntry}>✎ Mark Entry</Button></Tooltip>
+        <Tooltip text="Insert Alphabetical Index (A-Z)"><Button onMouseDown={keepSelectionOnMouseDown} onClick={insertIndex}>≡ Index</Button></Tooltip>
         <Tooltip text="Update Index"><Button onMouseDown={keepSelectionOnMouseDown} onClick={updateIndex}>↻ Update</Button></Tooltip>
       </RibbonGroup>
 

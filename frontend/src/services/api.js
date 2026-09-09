@@ -87,6 +87,8 @@ export const documentApi = {
   restoreVersion: (id, vid)   => req(`/documents/${id}/versions/${vid}/restore`, { method: 'POST' }),
   share:          (id, opts)  => req(`/documents/${id}/share`, { method: 'POST', body: opts }),
   invite:         (id, opts)  => req(`/documents/${id}/invite`, { method: 'POST', body: opts }),
+  // Digital Signatures
+  verifySignature:(id, fieldId, data) => req(`/documents/${id}/signatures/${fieldId}/verify`, { method: 'POST', body: data }),
   // IPFS Operations
   pinToIPFS:      (id)        => req(`/documents/${id}/pin`, { method: 'POST', body: {} }),
   unpinFromIPFS:  (id)        => req(`/documents/${id}/unpin`, { method: 'POST', body: {} }),
@@ -145,4 +147,13 @@ export const aiApi = {
   webFetch:        (payload) => req('/ai/web/fetch',        { method: 'POST', body: payload }),
   webResearch:     (payload) => req('/ai/web/research',     { method: 'POST', body: payload }),
   webSummarizeUrl: (payload) => req('/ai/web/summarize-url', { method: 'POST', body: payload }),
+};
+
+export const notificationApi = {
+  list:        (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    return req(`/notifications${qs ? `?${qs}` : ''}`);
+  },
+  markRead:    (id)          => req(`/notifications/${id}/read`, { method: 'POST' }),
+  markAllRead: ()            => req('/notifications/mark-all-read', { method: 'POST' }),
 };

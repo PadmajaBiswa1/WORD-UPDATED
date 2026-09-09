@@ -20,6 +20,7 @@ router.post('/action', async (req, res) => {
       instructions = '',
       instruction = '',
       model = '',
+      aiProfile = null,
     } = req.body;
 
     const effectivePrompt = prompt || instructions || instruction || '';
@@ -28,14 +29,15 @@ router.post('/action', async (req, res) => {
       action,
       text,
       topic,
-      tone,
+      tone: (aiProfile && aiProfile.tone) || tone,
       pages,
       mode,
       fallbackTitle,
       language,
       prompt: effectivePrompt,
-      instructions: effectivePrompt,
+      instructions: (aiProfile && aiProfile.instructions) ? `${effectivePrompt} ${aiProfile.instructions}` : effectivePrompt,
       model,
+      aiProfile,
     });
 
     const latencyMs = Date.now() - startTime;
@@ -67,6 +69,7 @@ router.post('/chat', async (req, res) => {
       context = '',
       webSearch = false,
       model,
+      aiProfile = null,
     } = req.body;
 
     if (!Array.isArray(messages) || messages.length === 0) {
@@ -90,6 +93,22 @@ router.post('/chat', async (req, res) => {
 
     const effectiveSelectedText = selectedText || '';
     const effectiveDocumentText = documentText || context || '';
+
+    let personaPrompt = '';
+    if (aiProfile && typeof aiProfile === 'object') {
+      const pTerms = Array.isArray(aiProfile.preferredTerms) && aiProfile.preferredTerms.length
+        ? `\n- **Preferred Terminology (MUST use whenever applicable):** ${aiProfile.preferredTerms.join(', ')}`
+        : '';
+      const fTerms = Array.isArray(aiProfile.forbiddenTerms) && aiProfile.forbiddenTerms.length
+        ? `\n- **Forbidden Terminology (NEVER use these words or phrases):** ${aiProfile.forbiddenTerms.join(', ')}`
+        : '';
+      const instr = aiProfile.instructions ? `\n- **Document Directives / Custom Persona Instructions:** ${aiProfile.instructions}` : '';
+      const targetTone = aiProfile.tone ? `\n- **Persona Tone:** ${aiProfile.tone}` : '';
+      const targetAudience = aiProfile.audience ? `\n- **Target Audience:** ${aiProfile.audience}` : '';
+      const respStyle = aiProfile.responseStyle ? `\n- **Response Style:** ${aiProfile.responseStyle}` : '';
+
+      personaPrompt = `\n\n## Active Document AI Persona Guidelines\nYou must strictly adhere to the following document persona guidelines established for this document:${targetTone}${targetAudience}${respStyle}${instr}${pTerms}${fTerms}`;
+    }
 
     const systemPrompt = `You are Pragna, an AI assistant chatting with a user inside a Word document, in a side panel.
 
@@ -120,7 +139,7 @@ ${webSearch ? `Live web search is ENABLED.\nWeb findings:\n${webContext}\nCite s
 
 ## Tone
 - Match the existing voice of documentText (formal, casual, academic, marketing, etc.) unless told to change it.
-- Keep chat replies focused — the deliverable is the text meant for the document, not a long explanation of your reasoning.`;
+- Keep chat replies focused — the deliverable is the text meant for the document, not a long explanation of your reasoning.${personaPrompt}`;
 
     const targetText = effectiveSelectedText || (scope === 'document' ? effectiveDocumentText : '');
 

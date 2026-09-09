@@ -122,12 +122,12 @@ function getHandleContainer() {
         `width:${HANDLE_HIT}px`,
         `height:${HANDLE_HIT}px`,
         `cursor:${DIR_CURSORS[def.dir]}`,
-        'pointer-events:all',
+        'pointer-events:auto',
         'display:flex',
         'align-items:center',
         'justify-content:center',
         'transform:translate(-50%,-50%)',
-        'z-index:9991',
+        'z-index:9995',
       ].join(';');
 
       const dot = document.createElement('div');
@@ -349,6 +349,9 @@ export function useImageResizeAndDrag(editor, editorRef) {
 
         const aspectRatio = state.initialHeight / Math.max(state.initialWidth, 1);
 
+        const isCorner = ['se', 'sw', 'ne', 'nw'].includes(resizeDir);
+        const freeAspect = event.shiftKey; // Shift allows free (non-proportional) corner drag; default is proportional
+
         if (resizeDir === 'e') {
           newWidth = Math.max(20, state.initialWidth + deltaX);
         } else if (resizeDir === 'w') {
@@ -361,18 +364,18 @@ export function useImageResizeAndDrag(editor, editorRef) {
           newMarginTop = state.initialMarginTop + deltaY;
         } else if (resizeDir === 'se') {
           newWidth = Math.max(20, state.initialWidth + deltaX);
-          newHeight = newWidth * aspectRatio;
+          newHeight = freeAspect ? Math.max(20, state.initialHeight + deltaY) : newWidth * aspectRatio;
         } else if (resizeDir === 'sw') {
           newWidth = Math.max(20, state.initialWidth - deltaX);
-          newHeight = newWidth * aspectRatio;
+          newHeight = freeAspect ? Math.max(20, state.initialHeight + deltaY) : newWidth * aspectRatio;
           newMarginLeft = state.initialMarginLeft + deltaX;
         } else if (resizeDir === 'ne') {
           newWidth = Math.max(20, state.initialWidth + deltaX);
-          newHeight = newWidth * aspectRatio;
+          newHeight = freeAspect ? Math.max(20, state.initialHeight - deltaY) : newWidth * aspectRatio;
           newMarginTop = state.initialMarginTop + (state.initialHeight - newHeight);
         } else if (resizeDir === 'nw') {
           newWidth = Math.max(20, state.initialWidth - deltaX);
-          newHeight = newWidth * aspectRatio;
+          newHeight = freeAspect ? Math.max(20, state.initialHeight - deltaY) : newWidth * aspectRatio;
           newMarginLeft = state.initialMarginLeft + deltaX;
           newMarginTop = state.initialMarginTop + (state.initialHeight - newHeight);
         }
@@ -382,7 +385,10 @@ export function useImageResizeAndDrag(editor, editorRef) {
         img.style.marginLeft = `${newMarginLeft}px`;
         img.style.marginTop = `${newMarginTop}px`;
 
-        updateDimensionLabel(img, Math.round(newWidth), Math.round(newHeight));
+        const roundedW = Math.round(newWidth);
+        const roundedH = Math.round(newHeight);
+        updateDimensionLabel(img, roundedW, roundedH);
+        window.dispatchEvent(new CustomEvent('image-resize-live', { detail: { width: roundedW, height: roundedH } }));
       } else {
         img.style.marginLeft = `${state.initialMarginLeft + deltaX}px`;
         img.style.marginTop = `${state.initialMarginTop + deltaY}px`;
@@ -450,6 +456,7 @@ export function useImageResizeAndDrag(editor, editorRef) {
     };
     if (scrollEl) scrollEl.addEventListener('scroll', onScrollOrResize, { passive: true });
     window.addEventListener('resize', onScrollOrResize);
+    window.addEventListener('image-reposition-handles', onScrollOrResize);
 
     editorElement.addEventListener('mousedown', handleMouseDown);
     document.addEventListener('mousedown', handleMouseDown);  // catch handle clicks (fixed-pos)
@@ -468,6 +475,7 @@ export function useImageResizeAndDrag(editor, editorRef) {
       proseMirrorEl.removeEventListener('keydown', handleKeyDown);
       if (scrollEl) scrollEl.removeEventListener('scroll', onScrollOrResize);
       window.removeEventListener('resize', onScrollOrResize);
+      window.removeEventListener('image-reposition-handles', onScrollOrResize);
       hideHandles();
       hideSelectionBorder();
       hideDimensionLabel();

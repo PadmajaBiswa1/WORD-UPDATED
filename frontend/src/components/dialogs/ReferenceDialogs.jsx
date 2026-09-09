@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useEditorStore, useUIStore } from '@/store';
+import { useEffect, useState, useMemo } from 'react';
+import { useEditorStore, useUIStore, useDocumentStore } from '@/store';
 import { Button, Input, Label, Modal, Stack } from '@/components/ui';
 
 const STORAGE_KEY = 'etherx-reference-sources';
@@ -9,7 +9,7 @@ function getStorage() {
   return window.localStorage;
 }
 
-function loadSources() {
+export function loadSources() {
   const storage = getStorage();
   if (!storage) return [];
 
@@ -477,6 +477,534 @@ export function BibliographyDialog() {
             <Button variant="subtle" onClick={() => { closeDialog('bibliography'); openDialog('manageSources'); }}>Manage Sources</Button>
             <Button variant="primary" onClick={insertBibliography}>Insert Bibliography</Button>
           </div>
+        </div>
+      </Stack>
+    </Modal>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Table of Figures & Table of Tables Helpers & Dialogs
+// ═══════════════════════════════════════════════════════════════
+
+export function scanFigures(editor) {
+  const figures = [];
+  const storeCaptions = useDocumentStore.getState().references?.captions || [];
+
+  storeCaptions.forEach((c, idx) => {
+    if (c.type === 'figure' || /^figure/i.test(c.label || c.text || '')) {
+      figures.push({
+        id: c.id || `figure-${idx + 1}`,
+        label: c.label || `Figure ${idx + 1}`,
+        text: c.text || c.title || `Figure ${idx + 1}`,
+        page: c.page || 1,
+      });
+    }
+  });
+
+  if (editor) {
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = editor.getHTML();
+    const pNodes = [...wrapper.querySelectorAll('p, figcaption, div')];
+    let figIdx = figures.length;
+
+    pNodes.forEach((node) => {
+      const text = node.textContent?.trim() || '';
+      const match = text.match(/^(Figure\s*(\d+)?\s*[:.-]?\s*(.*))/i);
+      if (match && !text.toLowerCase().includes('table of figures')) {
+        figIdx += 1;
+        const figId = node.getAttribute('id') || `fig-ref-${figIdx}`;
+        if (!figures.some((f) => f.text === text || f.id === figId)) {
+          figures.push({
+            id: figId,
+            label: match[2] ? `Figure ${match[2]}` : `Figure ${figIdx}`,
+            text,
+            page: 1,
+          });
+        }
+      }
+    });
+
+    const imgNodes = [...wrapper.querySelectorAll('img')];
+    imgNodes.forEach((img) => {
+      const alt = (img.getAttribute('alt') || img.getAttribute('title') || '').trim();
+      if (alt && /^figure/i.test(alt) && !figures.some((f) => f.text === alt)) {
+        figIdx += 1;
+        figures.push({
+          id: img.getAttribute('id') || `fig-ref-${figIdx}`,
+          label: `Figure ${figIdx}`,
+          text: alt,
+          page: 1,
+        });
+      }
+    });
+  }
+
+  return figures;
+}
+
+export function buildTofHtml(figures = []) {
+  const items = figures.length
+    ? figures
+        .map(
+          (fig) => `
+      <li class="etherx-tof-item">
+        <a href="#${escapeHtml(fig.id)}">
+          <span>${escapeHtml(fig.text)}</span>
+          <span class="etherx-tof-dots"></span>
+          <span class="etherx-tof-page">${fig.page || 1}</span>
+        </a>
+      </li>
+    `
+        )
+        .join('')
+    : '<li style="color:var(--text-muted); padding: 4px 0;">No figures found. Insert figure captions (e.g. "Figure 1: Diagram") in the document.</li>';
+
+  return `
+    <div class="etherx-tof" data-tof="true">
+      <h2>Table of Figures</h2>
+      <ul class="etherx-tof-list">
+        ${items}
+      </ul>
+    </div>
+  `;
+}
+
+export function scanTables(editor) {
+  const tables = [];
+  const storeCaptions = useDocumentStore.getState().references?.captions || [];
+
+  storeCaptions.forEach((c, idx) => {
+    if (c.type === 'table' || /^table/i.test(c.label || c.text || '')) {
+      tables.push({
+        id: c.id || `table-ref-${idx + 1}`,
+        label: c.label || `Table ${idx + 1}`,
+        text: c.text || c.title || `Table ${idx + 1}`,
+        page: c.page || 1,
+      });
+    }
+  });
+
+  if (editor) {
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = editor.getHTML();
+    const pNodes = [...wrapper.querySelectorAll('p, figcaption, div')];
+    let tblIdx = tables.length;
+
+    pNodes.forEach((node) => {
+      const text = node.textContent?.trim() || '';
+      const match = text.match(/^(Table\s*(\d+)?\s*[:.-]?\s*(.*))/i);
+      if (match && !text.toLowerCase().includes('table of tables')) {
+        tblIdx += 1;
+        const tblId = node.getAttribute('id') || `table-target-${tblIdx}`;
+        if (!tables.some((t) => t.text === text || t.id === tblId)) {
+          tables.push({
+            id: tblId,
+            label: match[2] ? `Table ${match[2]}` : `Table ${tblIdx}`,
+            text,
+            page: 1,
+          });
+        }
+      }
+    });
+
+    const tableElements = [...wrapper.querySelectorAll('table')];
+    tableElements.forEach((tbl) => {
+      tblIdx += 1;
+      const tblId = tbl.getAttribute('id') || `table-target-${tblIdx}`;
+      const firstHeader = tbl.querySelector('th')?.textContent?.trim();
+      const name = firstHeader ? `Table ${tblIdx}: ${firstHeader}` : `Table ${tblIdx}`;
+      if (!tables.some((t) => t.id === tblId)) {
+        tables.push({
+          id: tblId,
+          label: `Table ${tblIdx}`,
+          text: name,
+          page: 1,
+        });
+      }
+    });
+  }
+
+  return tables;
+}
+
+export function buildTotHtml(tables = []) {
+  const items = tables.length
+    ? tables
+        .map(
+          (tbl) => `
+      <li class="etherx-tot-item">
+        <a href="#${escapeHtml(tbl.id)}">
+          <span>${escapeHtml(tbl.text)}</span>
+          <span class="etherx-tot-dots"></span>
+          <span class="etherx-tot-page">${tbl.page || 1}</span>
+        </a>
+      </li>
+    `
+        )
+        .join('')
+    : '<li style="color:var(--text-muted); padding: 4px 0;">No tables found. Insert tables or captions (e.g. "Table 1: Data") in the document.</li>';
+
+  return `
+    <div class="etherx-tot" data-tot="true">
+      <h2>Table of Tables</h2>
+      <ul class="etherx-tot-list">
+        ${items}
+      </ul>
+    </div>
+  `;
+}
+
+export function upsertReferenceSection(editor, dataSelector, newHtml) {
+  if (!editor) return false;
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = editor.getHTML();
+  const existing = wrapper.querySelector(dataSelector);
+
+  if (existing) {
+    const temp = document.createElement('div');
+    temp.innerHTML = newHtml;
+    const replacement = temp.firstElementChild;
+    if (replacement) {
+      existing.replaceWith(replacement);
+      editor.commands.setContent(wrapper.innerHTML, false);
+      return true;
+    }
+  }
+
+  insertHtml(editor, newHtml);
+  return true;
+}
+
+export function TableOfFiguresDialog() {
+  const { closeDialog, toast } = useUIStore();
+  const { editor } = useEditorStore();
+  const [figures, setFigures] = useState([]);
+
+  useEffect(() => {
+    setFigures(scanFigures(editor));
+  }, [editor]);
+
+  const refresh = () => {
+    setFigures(scanFigures(editor));
+    toast('Figures list refreshed', 'success');
+  };
+
+  const handleInsert = () => {
+    if (!editor) return;
+    const currentFigs = scanFigures(editor);
+    const html = buildTofHtml(currentFigs);
+    upsertReferenceSection(editor, '[data-tof="true"]', html);
+    toast('Table of Figures inserted', 'success');
+    closeDialog('tableOfFigures');
+  };
+
+  return (
+    <Modal title="Table of Figures" onClose={() => closeDialog('tableOfFigures')} width={520}>
+      <Stack gap={14}>
+        <div>
+          <Label>Detected Figures ({figures.length})</Label>
+          <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '10px 12px', background: 'var(--bg-elevated)', maxHeight: 220, overflow: 'auto' }}>
+            {figures.length ? (
+              figures.map((fig, idx) => (
+                <div key={`${fig.id}-${idx}`} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-primary)', padding: '3px 0' }}>
+                  <span>{fig.text}</span>
+                  <span style={{ color: 'var(--text-muted)' }}>Page {fig.page || 1}</span>
+                </div>
+              ))
+            ) : (
+              <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+                No figure captions detected yet. Add captions starting with "Figure 1:" or select images to generate entries.
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', flexWrap: 'wrap' }}>
+          <Button variant="subtle" onClick={refresh}>Refresh</Button>
+          <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
+            <Button variant="subtle" onClick={() => closeDialog('tableOfFigures')}>Cancel</Button>
+            <Button variant="primary" onClick={handleInsert}>Insert Table of Figures</Button>
+          </div>
+        </div>
+      </Stack>
+    </Modal>
+  );
+}
+
+export function TableOfTablesDialog() {
+  const { closeDialog, toast } = useUIStore();
+  const { editor } = useEditorStore();
+  const [tables, setTables] = useState([]);
+
+  useEffect(() => {
+    setTables(scanTables(editor));
+  }, [editor]);
+
+  const refresh = () => {
+    setTables(scanTables(editor));
+    toast('Tables list refreshed', 'success');
+  };
+
+  const handleInsert = () => {
+    if (!editor) return;
+    const currentTables = scanTables(editor);
+    const html = buildTotHtml(currentTables);
+    upsertReferenceSection(editor, '[data-tot="true"]', html);
+    toast('Table of Tables inserted', 'success');
+    closeDialog('tableOfTables');
+  };
+
+  return (
+    <Modal title="Table of Tables" onClose={() => closeDialog('tableOfTables')} width={520}>
+      <Stack gap={14}>
+        <div>
+          <Label>Detected Tables ({tables.length})</Label>
+          <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '10px 12px', background: 'var(--bg-elevated)', maxHeight: 220, overflow: 'auto' }}>
+            {tables.length ? (
+              tables.map((tbl, idx) => (
+                <div key={`${tbl.id}-${idx}`} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-primary)', padding: '3px 0' }}>
+                  <span>{tbl.text}</span>
+                  <span style={{ color: 'var(--text-muted)' }}>Page {tbl.page || 1}</span>
+                </div>
+              ))
+            ) : (
+              <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+                No tables or table captions detected yet. Insert a table or add captions starting with "Table 1:".
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', flexWrap: 'wrap' }}>
+          <Button variant="subtle" onClick={refresh}>Refresh</Button>
+          <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
+            <Button variant="subtle" onClick={() => closeDialog('tableOfTables')}>Cancel</Button>
+            <Button variant="primary" onClick={handleInsert}>Insert Table of Tables</Button>
+          </div>
+        </div>
+      </Stack>
+    </Modal>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Index Generation Helpers & Dialog
+// ═══════════════════════════════════════════════════════════════
+
+export function buildIndexData(rawEntries = []) {
+  const normalized = rawEntries
+    .map((e) => {
+      if (typeof e === 'string') return { term: e.trim(), page: 1 };
+      return { term: (e.term || e.title || e.text || '').trim(), page: e.page || 1, subterm: e.subterm || null, id: e.id };
+    })
+    .filter((e) => Boolean(e.term));
+
+  const uniqueMap = new Map();
+  normalized.forEach((item) => {
+    const key = item.term.toLowerCase();
+    if (!uniqueMap.has(key)) {
+      uniqueMap.set(key, item);
+    }
+  });
+
+  const sorted = [...uniqueMap.values()].sort((a, b) =>
+    a.term.localeCompare(b.term, undefined, { sensitivity: 'base' })
+  );
+
+  const groups = {};
+  sorted.forEach((item) => {
+    const firstChar = item.term[0].toUpperCase();
+    const letter = /[A-Z]/.test(firstChar) ? firstChar : '#';
+    if (!groups[letter]) groups[letter] = [];
+    groups[letter].push(item);
+  });
+
+  return Object.keys(groups)
+    .sort((a, b) => {
+      if (a === '#') return 1;
+      if (b === '#') return -1;
+      return a.localeCompare(b);
+    })
+    .map((letter) => ({ letter, items: groups[letter] }));
+}
+
+export function buildIndexHtml(groupedData = []) {
+  if (!groupedData.length) {
+    return `
+      <div class="etherx-index-section" data-index="true">
+        <h2>Index</h2>
+        <div style="color:var(--text-muted); padding: 6px 0;">No index entries marked yet. Select text in your document and click "Mark Entry" first.</div>
+      </div>
+    `;
+  }
+
+  const columnsHtml = groupedData
+    .map(
+      (group) => `
+    <div class="etherx-index-group">
+      <div class="etherx-index-letter">${escapeHtml(group.letter)}</div>
+      <ul class="etherx-index-list">
+        ${group.items
+          .map(
+            (item) => `
+          <li class="etherx-index-item">
+            <a href="#index-${escapeHtml(slugify(item.term))}" class="etherx-index-link">${escapeHtml(item.term)}</a>
+            <span class="etherx-tof-dots"></span>
+            <span class="etherx-tof-page">${item.page || 1}</span>
+          </li>
+        `
+          )
+          .join('')}
+      </ul>
+    </div>
+  `
+    )
+    .join('');
+
+  return `
+    <div class="etherx-index-section" data-index="true">
+      <h2>Index</h2>
+      <div class="etherx-index-columns">
+        ${columnsHtml}
+      </div>
+    </div>
+  `;
+}
+
+export function IndexDialog() {
+  const { closeDialog, toast } = useUIStore();
+  const { editor } = useEditorStore();
+  const { references, addIndexEntry } = useDocumentStore();
+  const [newEntryTerm, setNewEntryTerm] = useState('');
+
+  const allEntries = useMemo(() => {
+    const storeEntries = references?.indexEntries || [];
+    let localEntries = [];
+    try {
+      const raw = window.localStorage.getItem('etherx-reference-index-entries');
+      if (raw) localEntries = JSON.parse(raw);
+    } catch {
+      // ignore
+    }
+    return [...storeEntries, ...(Array.isArray(localEntries) ? localEntries : [])];
+  }, [references]);
+
+  const grouped = useMemo(() => buildIndexData(allEntries), [allEntries]);
+
+  const handleAddEntry = () => {
+    const term = newEntryTerm.trim();
+    if (!term) {
+      toast('Enter a term to mark in the index', 'info');
+      return;
+    }
+    const entry = { id: `idx-${Date.now()}`, term, page: 1 };
+    addIndexEntry(entry);
+
+    try {
+      const raw = window.localStorage.getItem('etherx-reference-index-entries');
+      const parsed = raw ? JSON.parse(raw) : [];
+      const updated = [...(Array.isArray(parsed) ? parsed : []), term];
+      window.localStorage.setItem('etherx-reference-index-entries', JSON.stringify(updated));
+    } catch {
+      // ignore
+    }
+
+    setNewEntryTerm('');
+    toast(`Marked index entry: "${term}"`, 'success');
+  };
+
+  const handleInsert = () => {
+    if (!editor) return;
+    const html = buildIndexHtml(grouped);
+    upsertReferenceSection(editor, '[data-index="true"]', html);
+    toast('Structured Index inserted at cursor', 'success');
+    closeDialog('insertIndex');
+  };
+
+  return (
+    <Modal title="Index & Concordance Generator" onClose={() => closeDialog('insertIndex')} width={580}>
+      <Stack gap={14}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+          <div style={{ flex: 1 }}>
+            <Label>Mark New Index Term</Label>
+            <Input
+              value={newEntryTerm}
+              onChange={setNewEntryTerm}
+              placeholder="e.g. Quantum Computing"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleAddEntry();
+              }}
+            />
+          </div>
+          <Button variant="primary" onClick={handleAddEntry}>+ Mark Term</Button>
+        </div>
+
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <Label style={{ margin: 0 }}>Alphabetical Index Preview (A-Z)</Label>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+              {grouped.reduce((acc, g) => acc + g.items.length, 0)} Total Entries
+            </span>
+          </div>
+
+          <div
+            style={{
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-sm)',
+              padding: '12px 14px',
+              background: 'var(--bg-elevated)',
+              maxHeight: 260,
+              overflowY: 'auto',
+            }}
+          >
+            {grouped.length ? (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                {grouped.map((group) => (
+                  <div key={group.letter} style={{ breakInside: 'avoid' }}>
+                    <div
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 700,
+                        color: 'var(--gold)',
+                        borderBottom: '1px solid var(--border-gold)',
+                        paddingBottom: 2,
+                        marginBottom: 4,
+                      }}
+                    >
+                      {group.letter}
+                    </div>
+                    {group.items.map((item, i) => (
+                      <div
+                        key={`${item.term}-${i}`}
+                        style={{
+                          fontSize: 12,
+                          color: 'var(--text-primary)',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          padding: '2px 0',
+                        }}
+                      >
+                        <span>{item.term}</span>
+                        <span style={{ color: 'var(--text-muted)' }}>{item.page || 1}</span>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', padding: '16px 0' }}>
+                No index entries marked yet. Type a term above or select words in the editor and click "Mark Entry".
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', flexWrap: 'wrap' }}>
+          <Button variant="subtle" onClick={() => closeDialog('insertIndex')}>Cancel</Button>
+          <Button variant="primary" onClick={handleInsert} disabled={grouped.length === 0}>
+            ✓ Insert Structured Index
+          </Button>
         </div>
       </Stack>
     </Modal>

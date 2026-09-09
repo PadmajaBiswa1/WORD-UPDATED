@@ -15,3 +15,7 @@ frontend/.env
 
 # Rootfs archives
 *-rootfs.tar.gz
+
+# Local database runtime files
+backend/data/*.json
+!backend/data/documents.json

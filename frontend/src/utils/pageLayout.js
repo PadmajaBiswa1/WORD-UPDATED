@@ -1,3 +1,5 @@
+import { useUIStore } from '../store';
+
 // Page size definitions — pixel dimensions at 96 dpi (matches browser default)
 // These match Microsoft Word's exact page sizes.
 export const PAGE_SIZES = {
@@ -44,17 +46,13 @@ export function getLayoutMetrics({ size, orientation, margin } = {}) {
   };
 }
 
+
 /**
  * Convenience: returns the usable text-column height in natural pixels for
  * the current store state. Used by PageBreak to size the invisible filler
  * node that pushes content to the next page.
- *
- * Import lazily (call at runtime, not at module load) to avoid circular deps.
  */
 export function getCurrentContentHeight() {
-  // Dynamic import of store state — safe to call outside React render
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { useUIStore } = require('@/store');
   const { pageSize, pageOrientation, pageMargin } = useUIStore.getState();
   const metrics = getLayoutMetrics({ size: pageSize, orientation: pageOrientation, margin: pageMargin });
   return metrics.contentHeight;

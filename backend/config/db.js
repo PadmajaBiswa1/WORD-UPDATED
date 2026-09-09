@@ -22,9 +22,9 @@ async function cleanupLegacyUserIndexes() {
 }
 
 async function connectDB() {
+  mongoose.set('bufferCommands', false);
   if (!process.env.MONGO_URI) {
-    console.warn('MongoDB disabled: MONGO_URI is not set.');
-    mongoose.set('bufferCommands', false);
+    console.warn('MongoDB disabled: MONGO_URI is not set. Operating in local JSON storage mode.');
     return false;
   }
   try {

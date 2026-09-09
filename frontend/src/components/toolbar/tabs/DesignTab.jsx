@@ -10,16 +10,16 @@ const THEME_INDEX_KEY = 'etherx-design-theme-index';
 
 // 10 Curated Document Style Presets (matching MS Word Design themes)
 const THEMES = [
-  { name: 'Title', font: 'Crimson Pro', headingFont: 'Crimson Pro', bodyFont: 'Crimson Pro', accent: '#c9a84c', heading: '#c9a84c', subtle: '#5c4a1a', spacing: '1.7', pageColor: '#ffffff', effect: 'soft' },
-  { name: 'TITLE', font: 'Georgia', headingFont: 'Georgia', bodyFont: 'Georgia', accent: '#b8941e', heading: '#b8941e', subtle: '#5e4a17', spacing: '1.7', pageColor: '#fdfbf7', effect: 'none' },
-  { name: 'Title', font: 'Times New Roman', headingFont: 'Times New Roman', bodyFont: 'Times New Roman', accent: '#9f7b17', heading: '#9f7b17', subtle: '#4b5563', spacing: '1.7', pageColor: '#ffffff', effect: 'none' },
-  { name: 'Title', font: 'Merriweather', headingFont: 'Merriweather', bodyFont: 'Merriweather', accent: '#aa8a2b', heading: '#aa8a2b', subtle: '#5c4a1a', spacing: '1.7', pageColor: '#f5f5f5', effect: 'soft' },
-  { name: 'Title', font: 'Crimson Pro', headingFont: 'Crimson Pro', bodyFont: 'Crimson Pro', accent: '#d4af37', heading: '#d4af37', subtle: '#6e561c', spacing: '1.8', pageColor: '#fff8e8', effect: 'soft' },
-  { name: 'TITLE', font: 'Georgia', headingFont: 'Georgia', bodyFont: 'Georgia', accent: '#8e6d12', heading: '#8e6d12', subtle: '#444444', spacing: '1.6', pageColor: '#ffffff', effect: 'none' },
-  { name: 'Title', font: 'Times New Roman', headingFont: 'Times New Roman', bodyFont: 'Times New Roman', accent: '#c2a252', heading: '#c2a252', subtle: '#5e4a17', spacing: '1.6', pageColor: '#fdfbf7', effect: 'none' },
-  { name: 'Title', font: 'Merriweather', headingFont: 'Merriweather', bodyFont: 'Merriweather', accent: '#d9bb67', heading: '#d9bb67', subtle: '#675628', spacing: '1.8', pageColor: '#fff8e8', effect: 'soft' },
-  { name: 'Title', font: 'Crimson Pro', headingFont: 'Crimson Pro', bodyFont: 'Crimson Pro', accent: '#a58324', heading: '#a58324', subtle: '#58431a', spacing: '1.7', pageColor: '#f5f5f5', effect: 'none' },
-  { name: 'Title', font: 'Georgia', headingFont: 'Georgia', bodyFont: 'Georgia', accent: '#e0c36f', heading: '#e0c36f', subtle: '#675628', spacing: '1.8', pageColor: '#ffffff', effect: 'strong' },
+  { name: 'Modern Blue', font: 'Inter', headingFont: 'Segoe UI', bodyFont: 'Inter', accent: '#2563eb', heading: '#1d4ed8', subtle: '#3b82f6', spacing: '1.5', pageColor: '#ffffff', effect: 'none' },
+  { name: 'Editorial Crimson', font: 'Merriweather', headingFont: 'Playfair Display', bodyFont: 'Merriweather', accent: '#be123c', heading: '#9f1239', subtle: '#881337', spacing: '1.65', pageColor: '#fffafa', effect: 'soft' },
+  { name: 'Royal Gold', font: 'Crimson Pro', headingFont: 'Cinzel', bodyFont: 'Crimson Pro', accent: '#d4af37', heading: '#c9a84c', subtle: '#6e561c', spacing: '1.7', pageColor: '#fdfbf7', effect: 'soft' },
+  { name: 'Emerald Forest', font: 'Roboto', headingFont: 'Georgia', bodyFont: 'Roboto', accent: '#059669', heading: '#047857', subtle: '#064e3b', spacing: '1.5', pageColor: '#f8faf8', effect: 'none' },
+  { name: 'Executive Slate', font: 'Arial', headingFont: 'Segoe UI', bodyFont: 'Arial', accent: '#475569', heading: '#1e293b', subtle: '#334155', spacing: '1.5', pageColor: '#f8fafc', effect: 'none' },
+  { name: 'Amethyst Creative', font: 'Lato', headingFont: 'Playfair Display', bodyFont: 'Lato', accent: '#7c3aed', heading: '#6d28d9', subtle: '#4c1d95', spacing: '1.6', pageColor: '#fcfaff', effect: 'soft' },
+  { name: 'Warm Amber', font: 'Georgia', headingFont: 'Georgia', bodyFont: 'Georgia', accent: '#d97706', heading: '#b45309', subtle: '#78350f', spacing: '1.7', pageColor: '#fffdfa', effect: 'soft' },
+  { name: 'Celestial Teal', font: 'Inter', headingFont: 'Inter', bodyFont: 'Inter', accent: '#0d9488', heading: '#0f766e', subtle: '#115e59', spacing: '1.5', pageColor: '#f0fdfa', effect: 'none' },
+  { name: 'Classic Serif', font: 'Times New Roman', headingFont: 'Times New Roman', bodyFont: 'Times New Roman', accent: '#374151', heading: '#111827', subtle: '#4b5563', spacing: '1.6', pageColor: '#ffffff', effect: 'none' },
+  { name: 'Obsidian Prestige', font: 'Cinzel', headingFont: 'Cinzel', bodyFont: 'Crimson Pro', accent: '#e0c36f', heading: '#e0c36f', subtle: '#a89454', spacing: '1.8', pageColor: '#18181b', effect: 'strong' },
 ];
 
 const COLOR_PALETTES = [
@@ -73,8 +73,56 @@ const BORDER_STYLES = ['none', 'solid', 'double', 'dashed'];
 const BORDER_WIDTHS = [1, 2, 3, 4, 6];
 const BORDER_COLORS = ['#6f5320', '#c9a84c', '#8b6b1a', '#4a4a4a', '#8f3d3d', '#2f5d62', '#2563eb', '#059669'];
 
+const TABLE_STYLES = [
+  {
+    id: 'grid',
+    name: 'Grid Table 1 Light',
+    className: 'table-theme-grid',
+    headerBg: 'rgba(255,255,255,0.14)',
+    headerColor: '#ffffff',
+    border: '1px solid #777777',
+    stripeBg: 'transparent',
+  },
+  {
+    id: 'accent',
+    name: 'Grid Table 2 Accent 1',
+    className: 'table-theme-accent',
+    headerBg: 'var(--gold, #c9a84c)',
+    headerColor: '#000000',
+    border: '1px solid var(--gold, #c9a84c)',
+    stripeBg: 'rgba(201,168,76,0.12)',
+  },
+  {
+    id: 'dark-header',
+    name: 'Dark Header Shaded',
+    className: 'table-theme-dark-header',
+    headerBg: '#18181b',
+    headerColor: '#ffffff',
+    border: '1px solid #333333',
+    stripeBg: 'rgba(255,255,255,0.06)',
+  },
+  {
+    id: 'striped',
+    name: 'Striped Rows',
+    className: 'table-theme-striped',
+    headerBg: 'rgba(201,168,76,0.18)',
+    headerColor: 'var(--gold, #c9a84c)',
+    border: '1px solid var(--border)',
+    stripeBg: 'rgba(255,255,255,0.06)',
+  },
+  {
+    id: 'minimalist',
+    name: 'Elegant Minimalist',
+    className: 'table-theme-minimalist',
+    headerBg: 'transparent',
+    headerColor: 'var(--text-primary)',
+    border: '1px solid rgba(255,255,255,0.1)',
+    stripeBg: 'transparent',
+  },
+];
+
 export function DesignTab() {
-  const { toast, watermarkText, setWatermarkText, setActiveTab } = useUIStore();
+  const { toast, watermarkText, setWatermarkText, setActiveTab, openDialog } = useUIStore();
   const { editor } = useEditorStore();
   const { design, setDesign } = useDocumentStore();
 
@@ -129,7 +177,7 @@ export function DesignTab() {
       spacing: theme.spacing,
       pageColor: theme.pageColor,
       effect: theme.effect,
-      pageColorMode: theme.pageColor === '#ffffff' || theme.pageColor === '#1a1a1a' ? 'theme' : 'custom',
+      pageColorMode: 'custom',
     });
     toast(`Theme "${theme.name}" applied`, 'success');
   };
@@ -232,20 +280,75 @@ export function DesignTab() {
     toast(text ? `Watermark "${text}" added` : 'Watermark removed', 'success');
   };
 
+  const applyTableTheme = (theme) => {
+    if (!editor) return;
+    editor.view.focus();
+
+    const { state, view } = editor;
+    const { $from } = state.selection;
+    let foundTableDepth = -1;
+    for (let d = $from.depth; d > 0; d--) {
+      if ($from.node(d).type.name === 'table') {
+        foundTableDepth = d;
+        break;
+      }
+    }
+
+    if (foundTableDepth > 0) {
+      const tablePos = $from.before(foundTableDepth);
+      const tableNode = $from.node(foundTableDepth);
+      const tr = state.tr.setNodeMarkup(tablePos, undefined, {
+        ...tableNode.attrs,
+        class: theme.className,
+        theme: theme.className,
+      });
+      view.dispatch(tr);
+      toast(`Applied table theme: "${theme.name}"`, 'success');
+      return;
+    }
+
+    let firstTablePos = null;
+    let firstTableNode = null;
+    state.doc.descendants((node, pos) => {
+      if (node.type.name === 'table' && firstTablePos === null) {
+        firstTablePos = pos;
+        firstTableNode = node;
+        return false;
+      }
+    });
+
+    if (firstTablePos !== null) {
+      const tr = state.tr.setNodeMarkup(firstTablePos, undefined, {
+        ...firstTableNode.attrs,
+        class: theme.className,
+        theme: theme.className,
+      });
+      view.dispatch(tr);
+      toast(`Applied "${theme.name}" to document table`, 'success');
+    } else {
+      editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+      setTimeout(() => {
+        const { state: newState, view: newView } = editor;
+        const { $from: newFrom } = newState.selection;
+        for (let d = newFrom.depth; d > 0; d--) {
+          if (newFrom.node(d).type.name === 'table') {
+            const tPos = newFrom.before(d);
+            const tNode = newFrom.node(d);
+            newView.dispatch(newState.tr.setNodeMarkup(tPos, undefined, {
+              ...tNode.attrs,
+              class: theme.className,
+              theme: theme.className,
+            }));
+            break;
+          }
+        }
+      }, 50);
+      toast(`Inserted sample table with "${theme.name}"`, 'success');
+    }
+  };
+
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'stretch',
-        height: '100%',
-        width: '100%',
-        minWidth: 1220,
-        background: 'var(--ribbon-surface)',
-        border: '1px solid var(--ribbon-divider)',
-        borderTop: 'none',
-        userSelect: 'none',
-      }}
-    >
+    <>
       {/* ── Group 1: Document Formatting (Themes) ── */}
       <div
         style={{
@@ -254,6 +357,7 @@ export function DesignTab() {
           gap: 8,
           borderRight: '1px solid var(--ribbon-divider)',
           padding: '5px 8px 0 8px',
+          flexShrink: 0,
         }}
       >
         {/* Themes Button */}
@@ -277,6 +381,7 @@ export function DesignTab() {
             fontFamily: 'var(--font-ui)',
             padding: 0,
             borderRadius: 2,
+            flexShrink: 0,
           }}
         >
           <div
@@ -299,9 +404,12 @@ export function DesignTab() {
           <span style={{ fontSize: 9, marginTop: -4 }}>{CARET}</span>
         </button>
 
-        {/* 10 Theme Preview Cards Strip */}
-        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', paddingBottom: 3 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 1 }}>
+        {/* 10 Theme Preview Cards Strip — horizontally scrollable */}
+        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', paddingBottom: 3, minWidth: 0, flex: 1 }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 5, marginTop: 1,
+            overflowX: 'auto', overflowY: 'hidden', scrollbarWidth: 'none',
+          }}>
             {THEMES.map((theme, idx) => {
               const active = design.accent === theme.accent && (design.headingFont === theme.font || design.font === theme.font);
               return (
@@ -310,6 +418,7 @@ export function DesignTab() {
                   onClick={() => handleApplyTheme(theme)}
                   style={{
                     width: 80,
+                    minWidth: 80,
                     height: 66,
                     border: active ? '1.5px solid var(--gold)' : '1px solid var(--ribbon-divider)',
                     background: '#ffffff',
@@ -318,6 +427,7 @@ export function DesignTab() {
                     textAlign: 'left',
                     borderRadius: 2,
                     boxShadow: active ? '0 0 8px rgba(212,175,55,0.3)' : 'none',
+                    flexShrink: 0,
                   }}
                 >
                   <div
@@ -362,6 +472,7 @@ export function DesignTab() {
                 fontSize: 11,
                 padding: 0,
                 borderRadius: 2,
+                flexShrink: 0,
               }}
             >
               {CARET}
@@ -391,6 +502,7 @@ export function DesignTab() {
           borderRight: '1px solid var(--ribbon-divider)',
           padding: '5px 10px 3px 10px',
           minWidth: 340,
+          flexShrink: 0,
         }}
       >
         <div style={{ display: 'flex', gap: 18 }}>
@@ -524,6 +636,113 @@ export function DesignTab() {
         <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--ribbon-ink)', fontFamily: 'var(--font-ui)' }}>Design</div>
       </div>
 
+      {/* ── Table Styles Gallery ── */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          borderRight: '1px solid var(--ribbon-divider)',
+          padding: '5px 10px 3px 10px',
+          minWidth: 0,
+          flex: 1,
+        }}
+      >
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 6, marginTop: 1,
+          overflowX: 'auto', overflowY: 'hidden', scrollbarWidth: 'none',
+        }}>
+          {TABLE_STYLES.map((ts) => (
+            <button
+              key={ts.id}
+              onClick={() => applyTableTheme(ts)}
+              title={`Apply ${ts.name} to active table`}
+              style={{
+                width: 72,
+                minWidth: 72,
+                height: 66,
+                flexShrink: 0,
+                border: '1px solid var(--ribbon-divider)',
+                borderRadius: 2,
+                background: 'var(--ribbon-surface-2, #18181b)',
+                cursor: 'pointer',
+                padding: '4px 3px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                fontFamily: 'var(--font-ui)',
+                boxShadow: 'none',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--gold)';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--ribbon-divider)';
+                e.currentTarget.style.transform = 'none';
+              }}
+            >
+              {/* Mini Table Visual Preview */}
+              <div
+                style={{
+                  width: '100%',
+                  height: 38,
+                  borderRadius: 2,
+                  overflow: 'hidden',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  border: ts.border,
+                }}
+              >
+                {/* Header row */}
+                <div
+                  style={{
+                    height: 12,
+                    background: ts.headerBg,
+                    display: 'flex',
+                    borderBottom: ts.border,
+                  }}
+                >
+                  <div style={{ flex: 1, borderRight: ts.border }} />
+                  <div style={{ flex: 1, borderRight: ts.border }} />
+                  <div style={{ flex: 1 }} />
+                </div>
+                {/* Body row 1 */}
+                <div style={{ height: 12, display: 'flex', borderBottom: ts.border }}>
+                  <div style={{ flex: 1, borderRight: ts.border }} />
+                  <div style={{ flex: 1, borderRight: ts.border }} />
+                  <div style={{ flex: 1 }} />
+                </div>
+                {/* Body row 2 */}
+                <div style={{ height: 12, display: 'flex', background: ts.stripeBg }}>
+                  <div style={{ flex: 1, borderRight: ts.border }} />
+                  <div style={{ flex: 1, borderRight: ts.border }} />
+                  <div style={{ flex: 1 }} />
+                </div>
+              </div>
+              {/* Table Name */}
+              <div
+                style={{
+                  fontSize: 9,
+                  fontWeight: 600,
+                  color: 'var(--ribbon-ink)',
+                  textAlign: 'center',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  width: '100%',
+                }}
+              >
+                {ts.name.replace('Grid Table ', 'Grid ').replace('Light', '')}
+              </div>
+            </button>
+          ))}
+        </div>
+        <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--ribbon-ink)', fontFamily: 'var(--font-ui)' }}>
+          Table Styles
+        </div>
+      </div>
+
       {/* ── Group 3: Smart Features ── */}
       <div
         style={{
@@ -533,6 +752,7 @@ export function DesignTab() {
           borderRight: '1px solid var(--ribbon-divider)',
           padding: '5px 10px 3px 10px',
           minWidth: 210,
+          flexShrink: 0,
         }}
       >
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-start' }}>
@@ -591,6 +811,7 @@ export function DesignTab() {
           justifyContent: 'space-between',
           padding: '5px 12px 3px 12px',
           minWidth: 190,
+          flexShrink: 0,
         }}
       >
         <div style={{ display: 'flex', gap: 16 }}>
@@ -659,6 +880,39 @@ export function DesignTab() {
         </div>
 
         <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--ribbon-ink)', fontFamily: 'var(--font-ui)' }}>Page Background</div>
+      </div>
+
+      {/* ── Group 5: Document Security & Master Structure ── */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          borderRight: 'none',
+          padding: '5px 10px 3px 10px',
+          minWidth: 150,
+          flexShrink: 0,
+        }}
+      >
+        <div style={{ display: 'flex', gap: 16, alignItems: 'center', justifyContent: 'center', flex: 1, padding: '0 4px' }}>
+          <button
+            onClick={() => openDialog('security')}
+            style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, color: 'var(--ribbon-ink)', textAlign: 'center' }}
+            title="Document Password & Encryption"
+          >
+            <div style={{ fontSize: 20, margin: '0 auto 2px' }}>🔒</div>
+            <div style={{ fontSize: 11 }}>Security</div>
+          </button>
+          <button
+            onClick={() => openDialog('masterDoc')}
+            style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, color: 'var(--ribbon-ink)', textAlign: 'center' }}
+            title="Master Document & Subdocuments"
+          >
+            <div style={{ fontSize: 20, margin: '0 auto 2px' }}>📑</div>
+            <div style={{ fontSize: 11 }}>Master Doc</div>
+          </button>
+        </div>
+        <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--ribbon-ink)', fontFamily: 'var(--font-ui)' }}>Protection</div>
       </div>
 
       {/* ── PORTAL: REAL POPOVERS ── */}
@@ -1086,6 +1340,6 @@ export function DesignTab() {
           </Stack>
         </Modal>
       )}
-    </div>
+    </>
   );
 }

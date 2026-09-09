@@ -64,15 +64,80 @@ function extractImagesFromMessage(content = '', html = '') {
 export function PragnaChatSidebar() {
   const { copilotOpen, toggleCopilot, pragnaInitialTab, pragnaInitialPrompt, toast } = useUIStore();
   const { editor } = useEditorStore();
-  const { title: docTitle } = useDocumentStore();
+  const { title: docTitle, aiProfile, setAiProfile } = useDocumentStore();
+
+  const [activeSidebarTab, setActiveSidebarTab] = useState('chat'); // 'chat' | 'persona'
+  const [personaTone, setPersonaTone] = useState(aiProfile?.tone || 'professional');
+  const [personaAudience, setPersonaAudience] = useState(aiProfile?.audience || 'general');
+  const [personaResponseStyle, setPersonaResponseStyle] = useState(aiProfile?.responseStyle || 'concise');
+  const [personaInstructions, setPersonaInstructions] = useState(aiProfile?.instructions || '');
+  const [preferredTermsInput, setPreferredTermsInput] = useState(
+    Array.isArray(aiProfile?.preferredTerms) ? aiProfile.preferredTerms.join(', ') : ''
+  );
+  const [forbiddenTermsInput, setForbiddenTermsInput] = useState(
+    Array.isArray(aiProfile?.forbiddenTerms) ? aiProfile.forbiddenTerms.join(', ') : ''
+  );
+
+  const [aiConfigured, setAiConfigured] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    aiApi.status()
+      .then((res) => {
+        if (!active) return;
+        if (res && res.activeKeysCount === 0) {
+          setAiConfigured(false);
+        } else {
+          setAiConfigured(true);
+        }
+      })
+      .catch(() => {
+        // keep current state if status check fails
+      });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (aiProfile) {
+      if (aiProfile.tone) setPersonaTone(aiProfile.tone);
+      if (aiProfile.audience) setPersonaAudience(aiProfile.audience);
+      if (aiProfile.responseStyle) setPersonaResponseStyle(aiProfile.responseStyle);
+      if (aiProfile.instructions !== undefined) setPersonaInstructions(aiProfile.instructions);
+      if (Array.isArray(aiProfile.preferredTerms)) setPreferredTermsInput(aiProfile.preferredTerms.join(', '));
+      if (Array.isArray(aiProfile.forbiddenTerms)) setForbiddenTermsInput(aiProfile.forbiddenTerms.join(', '));
+    }
+  }, [aiProfile]);
+
+  const handleSavePersona = () => {
+    const pTerms = preferredTermsInput
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean);
+    const fTerms = forbiddenTermsInput
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean);
+
+    const next = {
+      tone: personaTone,
+      audience: personaAudience,
+      responseStyle: personaResponseStyle,
+      instructions: personaInstructions.trim(),
+      preferredTerms: pTerms,
+      forbiddenTerms: fTerms,
+    };
+    setAiProfile(next);
+    toast('Persistent AI Persona saved for this document', 'success');
+    setActiveSidebarTab('chat');
+  };
 
   const [messages, setMessages] = useState([
     {
       id: 'welcome',
       role: 'assistant',
       content: `Hello! I am **Pragna**, your document intelligence copilot.
-
-I can help you:
+ 
+ I can help you:
 - **Embed Media & Files** directly into your document or analyze them
 - **Draft & Generate** sections, proposals, or full articles
 - **Edit & Polish** selected text with precise instructions
@@ -454,6 +519,7 @@ Ask me anything or attach files below.`,
         documentText: fullDoc,
         scope: currentScope,
         webSearch: webSearchEnabled,
+        aiProfile,
       });
 
       if (response && response.success) {
@@ -473,18 +539,35 @@ Ask me anything or attach files below.`,
       }
     } catch (err) {
       console.error('Pragna Chat Error:', err);
-      toast('Chat error: ' + err.message, 'error');
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `error-${Date.now()}`,
-          role: 'assistant',
-          content: `**Error:** ${err.message || 'Unable to communicate with Pragna AI.'}`,
-          html: '',
-          isError: true,
-          timestamp: new Date(),
-        },
-      ]);
+      const isConfigError = String(err.message || '').includes('No Ollama API keys') || String(err.message || '').includes('not configured');
+      if (isConfigError) {
+        setAiConfigured(false);
+        toast('AI assistant not configured. Please check backend .env', 'error');
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `error-${Date.now()}`,
+            role: 'assistant',
+            content: `⚠️ **AI Assistant Not Configured**\n\nPragna AI requires Ollama API keys configured in the backend environment. Please check your backend \`.env\` settings.`,
+            html: '',
+            isError: true,
+            timestamp: new Date(),
+          },
+        ]);
+      } else {
+        toast('Chat error: ' + err.message, 'error');
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `error-${Date.now()}`,
+            role: 'assistant',
+            content: `**Error:** ${err.message || 'Unable to communicate with Pragna AI.'}`,
+            html: '',
+            isError: true,
+            timestamp: new Date(),
+          },
+        ]);
+      }
     } finally {
       setLoading(false);
     }
@@ -673,12 +756,50 @@ Ask me anything or attach files below.`,
           boxSizing: 'border-box',
         }}
       >
-        {/* Brand */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 13, color: 'var(--gold)', lineHeight: 1 }}>✦</span>
-          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '0.02em' }}>
-            Pragna
-          </span>
+        {/* Brand & Tab Toggle */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 13, color: 'var(--gold)', lineHeight: 1 }}>✦</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '0.02em' }}>
+              Pragna
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', background: 'var(--bg-elevated)', borderRadius: 4, padding: 2, border: '1px solid var(--border)' }}>
+            <button
+              onClick={() => setActiveSidebarTab('chat')}
+              style={{
+                background: activeSidebarTab === 'chat' ? 'var(--gold)' : 'transparent',
+                color: activeSidebarTab === 'chat' ? 'var(--text-on-gold)' : 'var(--text-secondary)',
+                border: 'none',
+                borderRadius: 3,
+                padding: '2px 8px',
+                fontSize: 10,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              Chat
+            </button>
+            <button
+              onClick={() => setActiveSidebarTab('persona')}
+              style={{
+                background: activeSidebarTab === 'persona' ? 'var(--gold)' : 'transparent',
+                color: activeSidebarTab === 'persona' ? 'var(--text-on-gold)' : 'var(--text-secondary)',
+                border: 'none',
+                borderRadius: 3,
+                padding: '2px 8px',
+                fontSize: 10,
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 3,
+              }}
+            >
+              <span>🎭</span> Persona
+            </button>
+          </div>
         </div>
 
         {/* Controls */}
@@ -778,6 +899,224 @@ Ask me anything or attach files below.`,
           {scope === 'selection' ? 'Focused' : 'Active'}
         </span>
       </div>
+
+      {activeSidebarTab === 'persona' ? (
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gold)', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span>🎭</span> Document AI Persona & Directives
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+              Configure persistent tone, audience, instructions, and vocabulary enforced by Pragna for this document.
+            </div>
+          </div>
+
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
+              Tone of Voice
+            </label>
+            <select
+              value={personaTone}
+              onChange={(e) => setPersonaTone(e.target.value)}
+              style={{
+                width: '100%',
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-primary)',
+                padding: '6px 8px',
+                borderRadius: 4,
+                fontSize: 11,
+                fontFamily: 'var(--font-ui)',
+              }}
+            >
+              <option value="professional">Professional & Authoritative</option>
+              <option value="academic">Academic & Scholarly</option>
+              <option value="executive">Executive & C-Suite</option>
+              <option value="conversational">Conversational & Friendly</option>
+              <option value="technical">Technical & Precise</option>
+              <option value="persuasive">Persuasive & Compelling</option>
+              <option value="creative">Creative & Expressive</option>
+            </select>
+          </div>
+
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
+              Target Audience
+            </label>
+            <select
+              value={personaAudience}
+              onChange={(e) => setPersonaAudience(e.target.value)}
+              style={{
+                width: '100%',
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-primary)',
+                padding: '6px 8px',
+                borderRadius: 4,
+                fontSize: 11,
+                fontFamily: 'var(--font-ui)',
+              }}
+            >
+              <option value="general">General Audience</option>
+              <option value="executive">Executive Leadership / Board</option>
+              <option value="technical">Technical Specialists & Engineers</option>
+              <option value="legal">Legal & Compliance Officers</option>
+              <option value="academic">Academic Peer Reviewers</option>
+              <option value="students">Students & General Learners</option>
+            </select>
+          </div>
+
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
+              Response Style
+            </label>
+            <select
+              value={personaResponseStyle}
+              onChange={(e) => setPersonaResponseStyle(e.target.value)}
+              style={{
+                width: '100%',
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-primary)',
+                padding: '6px 8px',
+                borderRadius: 4,
+                fontSize: 11,
+                fontFamily: 'var(--font-ui)',
+              }}
+            >
+              <option value="concise">Concise & Direct</option>
+              <option value="balanced">Balanced</option>
+              <option value="detailed">In-depth & Comprehensive</option>
+            </select>
+          </div>
+
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
+              Custom Instructions & Directives
+            </label>
+            <textarea
+              value={personaInstructions}
+              onChange={(e) => setPersonaInstructions(e.target.value)}
+              placeholder="e.g. Always structure findings with clear metrics. Adopt the perspective of a seasoned management consultant."
+              rows={4}
+              style={{
+                width: '100%',
+                boxSizing: 'border-box',
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-primary)',
+                padding: '8px',
+                borderRadius: 4,
+                fontSize: 11,
+                fontFamily: 'var(--font-ui)',
+                resize: 'vertical',
+                lineHeight: 1.4,
+              }}
+            />
+          </div>
+
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
+              Preferred Terminology (comma-separated)
+            </label>
+            <input
+              type="text"
+              value={preferredTermsInput}
+              onChange={(e) => setPreferredTermsInput(e.target.value)}
+              placeholder="e.g. EtherX, cloud infrastructure, stakeholders"
+              style={{
+                width: '100%',
+                boxSizing: 'border-box',
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-primary)',
+                padding: '6px 8px',
+                borderRadius: 4,
+                fontSize: 11,
+                fontFamily: 'var(--font-ui)',
+              }}
+            />
+            <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Preferred terms Pragna must use.</span>
+          </div>
+
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
+              Forbidden Terminology (comma-separated)
+            </label>
+            <input
+              type="text"
+              value={forbiddenTermsInput}
+              onChange={(e) => setForbiddenTermsInput(e.target.value)}
+              placeholder="e.g. synergy, paradigm shift, utilizes"
+              style={{
+                width: '100%',
+                boxSizing: 'border-box',
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-primary)',
+                padding: '6px 8px',
+                borderRadius: 4,
+                fontSize: 11,
+                fontFamily: 'var(--font-ui)',
+              }}
+            />
+            <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Forbidden terms Pragna must never use.</span>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 10, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+            <button
+              onClick={() => setActiveSidebarTab('chat')}
+              style={{
+                background: 'transparent',
+                border: '1px solid var(--border)',
+                color: 'var(--text-secondary)',
+                padding: '6px 12px',
+                borderRadius: 4,
+                fontSize: 11,
+                cursor: 'pointer',
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSavePersona}
+              style={{
+                background: 'var(--gold)',
+                border: '1px solid var(--gold-border)',
+                color: 'var(--text-on-gold)',
+                padding: '6px 14px',
+                borderRadius: 4,
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              Save Persona
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Persona Indicator Banner */}
+          <div
+            onClick={() => setActiveSidebarTab('persona')}
+            style={{
+              padding: '5px 12px',
+              background: 'rgba(212,175,55,0.07)',
+              borderBottom: '1px solid var(--border)',
+              fontSize: 10,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              cursor: 'pointer',
+            }}
+            title="Click to customize AI Persona"
+          >
+            <span style={{ color: 'var(--text-gold)', fontWeight: 600 }}>
+              🎭 Active Persona: {personaTone} • {personaAudience}
+            </span>
+            <span style={{ color: 'var(--text-muted)', fontSize: 9 }}>Configure ⚙</span>
+          </div>
 
       {/* Messages Feed */}
       <div
@@ -1409,6 +1748,23 @@ Ask me anything or attach files below.`,
         </div>
       )}
 
+      {!aiConfigured && (
+        <div style={{
+          padding: '6px 10px',
+          background: 'rgba(212, 175, 55, 0.1)',
+          borderTop: '1px solid rgba(212, 175, 55, 0.3)',
+          borderBottom: '1px solid rgba(212, 175, 55, 0.15)',
+          color: 'var(--gold)',
+          fontSize: 10.5,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+        }}>
+          <span>⚠️</span>
+          <span><strong>AI assistant not configured.</strong> Please check backend .env</span>
+        </div>
+      )}
+
       {/* Input Box */}
       <div
         style={{
@@ -1430,7 +1786,8 @@ Ask me anything or attach files below.`,
               processFiles(e.clipboardData.files);
             }
           }}
-          placeholder="Ask Pragna, draft, edit, or attach files..."
+          disabled={loading || !aiConfigured}
+          placeholder={!aiConfigured ? "AI assistant not configured. Please check backend .env..." : "Ask Pragna, draft, edit, or attach files..."}
           rows={2}
           style={{
             flex: 1,
@@ -1444,23 +1801,25 @@ Ask me anything or attach files below.`,
             outline: 'none',
             resize: 'none',
             lineHeight: 1.4,
+            opacity: !aiConfigured ? 0.6 : 1,
+            cursor: !aiConfigured ? 'not-allowed' : 'text',
           }}
         />
 
         <button
           onClick={() => handleSendMessage()}
-          disabled={loading}
-          title="Send message"
+          disabled={loading || !aiConfigured}
+          title={!aiConfigured ? "AI assistant not configured" : "Send message"}
           style={{
             height: 34,
             padding: '0 12px',
-            background: !loading ? 'var(--gold)' : 'var(--bg-elevated)',
-            color: !loading ? 'var(--text-on-gold)' : 'var(--text-muted)',
-            border: `1px solid ${!loading ? 'var(--gold-border)' : 'var(--border)'}`,
+            background: (!loading && aiConfigured) ? 'var(--gold)' : 'var(--bg-elevated)',
+            color: (!loading && aiConfigured) ? 'var(--text-on-gold)' : 'var(--text-muted)',
+            border: `1px solid ${(!loading && aiConfigured) ? 'var(--gold-border)' : 'var(--border)'}`,
             borderRadius: 5,
             fontSize: 12,
             fontWeight: 600,
-            cursor: !loading ? 'pointer' : 'not-allowed',
+            cursor: (!loading && aiConfigured) ? 'pointer' : 'not-allowed',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -1470,6 +1829,8 @@ Ask me anything or attach files below.`,
           ➔
         </button>
       </div>
+      </>
+      )}
     </div>
   );
 }

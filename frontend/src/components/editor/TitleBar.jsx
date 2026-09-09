@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useCollaborationStore, useDocumentStore, useEditorStore, useUIStore } from '@/store';
 import { getStoredUser } from '@/services/api';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 
 function getCollaboratorColor(index) {
   const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F'];
@@ -198,6 +199,7 @@ export function TitleBar({ onSave }) {
             </span>
           ) : null}
         </div>
+        <NotificationBell />
         <button type="button" onClick={() => openDialog('comments')} style={outlineBtn} onMouseEnter={onGoldHover} onMouseLeave={onGoldLeave}>Comments</button>
         <button
           type="button"

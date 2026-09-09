@@ -36,6 +36,8 @@ export function speakText(text) {
   return true;
 }
 
+import { parseVoiceCommand, executeVoiceCommand } from '@/services/voiceCommands';
+
 export function runDictation({ editor, toast }) {
   const SpeechRecognitionApi = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognitionApi) {
@@ -50,13 +52,19 @@ export function runDictation({ editor, toast }) {
   recognition.onresult = (event) => {
     const transcript = event.results?.[0]?.[0]?.transcript || '';
     if (transcript && editor) {
-      editor.chain().focus().insertContent(`${transcript} `).run();
-      toast('Dictation inserted', 'success');
+      const match = parseVoiceCommand(transcript);
+      if (match.matched) {
+        executeVoiceCommand(transcript, { editor });
+        toast(`Voice Command: ${match.command.label}`, 'success');
+      } else {
+        editor.chain().focus().insertContent(`${transcript} `).run();
+        toast('Dictation inserted', 'success');
+      }
     }
   };
   recognition.onerror = () => toast('Dictation failed. Try again.', 'warning');
   recognition.start();
-  toast('Listening for dictation...', 'info');
+  toast('Listening for voice commands & dictation...', 'info');
   return true;
 }
 

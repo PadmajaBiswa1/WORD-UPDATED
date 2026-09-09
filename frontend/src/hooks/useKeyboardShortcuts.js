@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
-import { useUIStore, useEditorStore, useDocumentStore } from '@/store';
+import { useUIStore, useEditorStore, useDocumentStore, useProductivityStore } from '@/store';
+import { normalizeKeyEvent, executeShortcutCommand } from '@/services/productivityExtension';
 
 export function useKeyboardShortcuts() {
   const openDialog = useUIStore((s) => s.openDialog);
@@ -15,6 +16,26 @@ export function useKeyboardShortcuts() {
 
   useEffect(() => {
     const h = (e) => {
+      // 1. Check Custom Shortcuts from useProductivityStore first
+      const { customShortcuts = {} } = useProductivityStore.getState();
+      if (customShortcuts && Object.keys(customShortcuts).length > 0) {
+        const currentCombo = normalizeKeyEvent(e);
+        const matchedEntry = Object.entries(customShortcuts).find(([, shortcut]) => {
+          return shortcut && shortcut.toLowerCase() === currentCombo.toLowerCase();
+        });
+
+        if (matchedEntry) {
+          e.preventDefault();
+          e.stopPropagation();
+          executeShortcutCommand(matchedEntry[0], {
+            editor,
+            uiStore: { openDialog, openPragna, toast },
+            documentStore: { addComment, toggleTrackChanges },
+          });
+          return;
+        }
+      }
+
       const mod = e.ctrlKey || e.metaKey;
       const key = e.key.toLowerCase();
 

@@ -2,10 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import mammoth from 'mammoth';
 import { documentApi, exportApi } from '@/services/api';
-import { buildDocxBlob, buildHtmlDocument, exportToDocx, exportToHtml, exportToPdf } from '@/services/export';
+import { buildDocxBlob, buildHtmlDocument, exportToDocx, exportToHtml, exportToPdf, exportToMarkdown, exportToEpub } from '@/services/export';
 import { buildAiResult, executePragnaAi, getPlainTextFromHtml, openTranslationUrl } from '@/services/ai';
 import { useUIStore, useDocumentStore } from '@/store';
 import { getStoredUser } from '@/services/api';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 
 const LOCAL_FILE_DOCS_KEY = 'etherx_file_docs';
 
@@ -90,6 +91,8 @@ const SAVE_AS_FORMATS = [
   { key: 'docx', label: 'Word Document (.docx)' },
   { key: 'pdf', label: 'PDF Document (.pdf)' },
   { key: 'html', label: 'Web Page (.html)' },
+  { key: 'markdown', label: 'Markdown Document (.md)' },
+  { key: 'epub', label: 'EPUB eBook (.epub)' },
 ];
 
 const SAVE_AS_LOCATIONS = [
@@ -304,33 +307,41 @@ function templateContent(key) {
 <p>Highlight your team's relevant experience, past successes, and unique qualifications. Include 1–2 specific examples of similar work delivered successfully.</p>
     `,
     invoice: `
-<div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px;">
-  <div>
-    <h1 style="margin: 0; font-size: 32px; font-weight: bold;">INVOICE</h1>
-    <p style="margin: 5px 0; font-size: 14px; color: #d4af37;"><strong>#INV-2026-001</strong></p>
-  </div>
-  <div style="text-align: right;">
-    <h2 style="margin: 0; font-size: 16px; font-weight: bold;">Your Business Name</h2>
-    <p style="margin: 5px 0; font-size: 13px;">123 Your Street, City, State ZIP</p>
-    <p style="margin: 5px 0; font-size: 13px;">billing@business.com • (555) 000-0000</p>
-  </div>
-</div>
+<table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
+  <tbody>
+    <tr>
+      <td style="border: none; padding: 0; vertical-align: top;">
+        <h1 style="margin: 0; font-size: 32px; font-weight: bold;">INVOICE</h1>
+        <p style="margin: 5px 0; font-size: 14px; color: #d4af37;"><strong>#INV-2026-001</strong></p>
+      </td>
+      <td style="border: none; padding: 0; text-align: right; vertical-align: top;">
+        <h2 style="margin: 0; font-size: 16px; font-weight: bold; text-align: right;">Your Business Name</h2>
+        <p style="margin: 5px 0; font-size: 13px; text-align: right;">123 Your Street, City, State ZIP</p>
+        <p style="margin: 5px 0; font-size: 13px; text-align: right;">billing@business.com • (555) 000-0000</p>
+      </td>
+    </tr>
+  </tbody>
+</table>
 
-<div style="display: flex; gap: 40px; margin-bottom: 30px;">
-  <div style="flex: 1;">
-    <p style="margin: 0; font-size: 12px; font-weight: bold; color: #666;">BILL TO</p>
-    <p style="margin: 5px 0 0 0; font-size: 13px;"><strong>Client Full Name</strong></p>
-    <p style="margin: 5px 0; font-size: 13px;">Client Company Inc.</p>
-    <p style="margin: 5px 0; font-size: 13px;">456 Client Street, City, State ZIP</p>
-    <p style="margin: 5px 0; font-size: 13px;">client@company.com</p>
-  </div>
-  <div>
-    <p style="margin: 5px 0; font-size: 13px;"><strong>Invoice No.</strong> <span style="float: right; color: #d4af37;">INV-2026-001</span></p>
-    <p style="margin: 5px 0; font-size: 13px;"><strong>Invoice Date</strong> <span style="float: right; color: #d4af37;">April 22, 2026</span></p>
-    <p style="margin: 5px 0; font-size: 13px;"><strong>Due Date</strong> <span style="float: right; color: #d4af37;">May 22, 2026</span></p>
-    <p style="margin: 5px 0; font-size: 13px;"><strong>Status</strong> <span style="float: right; color: #d4af37; font-weight: bold;">UNPAID</span></p>
-  </div>
-</div>
+<table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
+  <tbody>
+    <tr>
+      <td style="border: none; padding: 0; vertical-align: top; width: 60%;">
+        <p style="margin: 0; font-size: 12px; font-weight: bold; color: #666;">BILL TO</p>
+        <p style="margin: 5px 0 0 0; font-size: 13px;"><strong>Client Full Name</strong></p>
+        <p style="margin: 5px 0; font-size: 13px;">Client Company Inc.</p>
+        <p style="margin: 5px 0; font-size: 13px;">456 Client Street, City, State ZIP</p>
+        <p style="margin: 5px 0; font-size: 13px;">client@company.com</p>
+      </td>
+      <td style="border: none; padding: 0; vertical-align: top; width: 40%; text-align: right;">
+        <p style="margin: 5px 0; font-size: 13px; text-align: right;"><strong>Invoice No.:</strong> <span style="color: #d4af37;">INV-2026-001</span></p>
+        <p style="margin: 5px 0; font-size: 13px; text-align: right;"><strong>Invoice Date:</strong> <span style="color: #d4af37;">April 22, 2026</span></p>
+        <p style="margin: 5px 0; font-size: 13px; text-align: right;"><strong>Due Date:</strong> <span style="color: #d4af37;">May 22, 2026</span></p>
+        <p style="margin: 5px 0; font-size: 13px; text-align: right;"><strong>Status:</strong> <span style="color: #d4af37; font-weight: bold;">UNPAID</span></p>
+      </td>
+    </tr>
+  </tbody>
+</table>
 
 <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
   <thead>
@@ -343,19 +354,19 @@ function templateContent(key) {
   </thead>
   <tbody>
     <tr style="border-bottom: 1px solid #ddd;">
-      <td style="padding: 10px; font-size: 13px;">Service or Product Name</td>
+      <td style="padding: 10px; font-size: 13px; text-align: left;">Service or Product Name</td>
       <td style="text-align: center; padding: 10px; font-size: 13px;">1</td>
       <td style="text-align: right; padding: 10px; font-size: 13px;">$1,200.00</td>
       <td style="text-align: right; padding: 10px; font-size: 13px;">$1,200.00</td>
     </tr>
     <tr style="border-bottom: 1px solid #ddd;">
-      <td style="padding: 10px; font-size: 13px;">Consulting Hours (Design)</td>
+      <td style="padding: 10px; font-size: 13px; text-align: left;">Consulting Hours (Design)</td>
       <td style="text-align: center; padding: 10px; font-size: 13px;">4</td>
       <td style="text-align: right; padding: 10px; font-size: 13px;">$150.00</td>
       <td style="text-align: right; padding: 10px; font-size: 13px;">$600.00</td>
     </tr>
-    <tr>
-      <td style="padding: 10px; font-size: 13px;">Additional Service Item</td>
+    <tr style="border-bottom: 1px solid #ddd;">
+      <td style="padding: 10px; font-size: 13px; text-align: left;">Additional Service Item</td>
       <td style="text-align: center; padding: 10px; font-size: 13px;">1</td>
       <td style="text-align: right; padding: 10px; font-size: 13px;">$350.00</td>
       <td style="text-align: right; padding: 10px; font-size: 13px;">$350.00</td>
@@ -363,36 +374,50 @@ function templateContent(key) {
   </tbody>
 </table>
 
-<div style="display: flex; justify-content: flex-end; margin: 20px 0;"></div>
+<table style="width: 100%; border-collapse: collapse; margin: 20px 0 30px 0;">
+  <tbody>
+    <tr>
+      <td style="border: none; width: 60%;"></td>
+      <td style="border: none; width: 40%; text-align: right;">
+        <table style="width: 100%; border-collapse: collapse;">
+          <tbody>
+            <tr style="border-bottom: 1px solid #ddd;">
+              <td style="padding: 8px 0; font-size: 13px; text-align: left;"><strong>Subtotal</strong></td>
+              <td style="padding: 8px 0; font-size: 13px; text-align: right;">$2,150.00</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #ddd;">
+              <td style="padding: 8px 0; font-size: 13px; text-align: left;"><strong>Tax (GST 18%)</strong></td>
+              <td style="padding: 8px 0; font-size: 13px; text-align: right;">$387.00</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; font-size: 14px; text-align: left; color: #d4af37;"><strong>Total Due</strong></td>
+              <td style="padding: 8px 0; font-size: 14px; text-align: right; font-weight: bold; color: #d4af37;">$2,537.00</td>
+            </tr>
+          </tbody>
+        </table>
+      </td>
+    </tr>
+  </tbody>
+</table>
 
-<div style="display: flex; justify-content: flex-end; gap: 30px; margin: 30px 0; font-size: 13px;">
-  <div style="width: 200px;">
-    <div style="border-bottom: 1px solid #ddd; padding: 8px 0; text-align: right;">
-      <p style="margin: 0;"><strong>Subtotal</strong> <span style="float: right;">$2,150.00</span></p>
-    </div>
-    <div style="border-bottom: 1px solid #ddd; padding: 8px 0; text-align: right;">
-      <p style="margin: 0;"><strong>Tax (GST 18%)</strong> <span style="float: right;">$387.00</span></p>
-    </div>
-    <div style="padding: 8px 0; text-align: right; font-size: 14px;">
-      <p style="margin: 0; font-weight: bold; color: #d4af37;"><strong>Total Due</strong> <span style="float: right;">$2,537.00</span></p>
-    </div>
-  </div>
-</div>
-
-<div style="display: flex; gap: 40px; margin: 40px 0; padding-top: 20px; border-top: 1px solid #ccc;">
-  <div style="flex: 1;">
-    <p style="margin: 0 0 5px 0; font-size: 12px; font-weight: bold; color: #666;">PAYMENT INSTRUCTIONS</p>
-    <p style="margin: 3px 0; font-size: 12px;">Bank Transfer: Your Bank Name</p>
-    <p style="margin: 3px 0; font-size: 12px;">Account Name: Your Business Name</p>
-    <p style="margin: 3px 0; font-size: 12px;">Account No.: XXXX-XXXX-XXXX</p>
-    <p style="margin: 3px 0; font-size: 12px;">IFSC / Routing: XXXXXXXX</p>
-    <p style="margin: 3px 0; font-size: 12px;">Or pay via: razorpay.com/your-link</p>
-  </div>
-  <div style="flex: 1;">
-    <p style="margin: 0 0 5px 0; font-size: 12px; font-weight: bold; color: #666;">TERMS & NOTES</p>
-    <p style="margin: 3px 0; font-size: 12px;">Payment due within 30 days of invoice date. Late payments are subject to a 1.5% monthly interest charge. Thank you for your business — we appreciate the partnership!</p>
-  </div>
-</div>
+<table style="width: 100%; border-collapse: collapse; margin-top: 30px; border-top: 1px solid #ccc;">
+  <tbody>
+    <tr>
+      <td style="border: none; padding: 20px 20px 0 0; vertical-align: top; width: 50%;">
+        <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: bold; color: #666; text-align: left;">PAYMENT INSTRUCTIONS</p>
+        <p style="margin: 3px 0; font-size: 12px; text-align: left;">Bank Transfer: Your Bank Name</p>
+        <p style="margin: 3px 0; font-size: 12px; text-align: left;">Account Name: Your Business Name</p>
+        <p style="margin: 3px 0; font-size: 12px; text-align: left;">Account No.: XXXX-XXXX-XXXX</p>
+        <p style="margin: 3px 0; font-size: 12px; text-align: left;">IFSC / Routing: XXXXXXXX</p>
+        <p style="margin: 3px 0; font-size: 12px; text-align: left;">Or pay via: razorpay.com/your-link</p>
+      </td>
+      <td style="border: none; padding: 20px 0 0 20px; vertical-align: top; width: 50%;">
+        <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: bold; color: #666; text-align: left;">TERMS & NOTES</p>
+        <p style="margin: 3px 0; font-size: 12px; text-align: left; line-height: 1.5;">Payment due within 30 days of invoice date. Late payments are subject to a 1.5% monthly interest charge. Thank you for your business — we appreciate the partnership!</p>
+      </td>
+    </tr>
+  </tbody>
+</table>
     `,
   };
   return map[key] || '<p></p>';
@@ -1101,6 +1126,16 @@ export function HomePage() {
     const fmt = (fmtOverride || exportFormat || 'pdf').toLowerCase();
     setExportBusy(true);
     const exportLocally = async () => {
+      if (fmt === 'markdown' || fmt === 'md') {
+        exportToMarkdown(selectedDoc.title, selectedDoc.content || '<p></p>');
+        return;
+      }
+
+      if (fmt === 'epub') {
+        await exportToEpub(selectedDoc.title, selectedDoc.content || '<p></p>');
+        return;
+      }
+
       if (fmt === 'docx') {
         await exportToDocx(selectedDoc.title, selectedDoc.content || '<p></p>');
         return;
@@ -1299,6 +1334,10 @@ export function HomePage() {
             }
           } else if (saveAsFormat === 'html') {
             exportToHtml(finalName, content);
+          } else if (saveAsFormat === 'markdown' || saveAsFormat === 'md') {
+            exportToMarkdown(finalName, content);
+          } else if (saveAsFormat === 'epub') {
+            await exportToEpub(finalName, content);
           } else {
             downloadEtherxFile(finalName, content);
           }
@@ -1484,7 +1523,34 @@ export function HomePage() {
       </aside>
 
       <main style={styles.main}>
-        <button style={styles.topBar} onClick={() => navigate(returnTo)}>← Editor</button>
+        <div style={{
+          ...styles.topBar,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          cursor: 'default',
+        }}>
+          <button
+            type="button"
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--text-muted)',
+              fontSize: 13,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: 0,
+            }}
+            onClick={() => navigate(returnTo)}
+          >
+            ← Editor
+          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <NotificationBell />
+          </div>
+        </div>
 
         <section style={styles.hero}>
           <h1 style={styles.heroTitle}>Start Here</h1>
@@ -1868,6 +1934,8 @@ export function HomePage() {
                         {saveAsFormat === 'docx' && 'Microsoft Word format - compatible with Word'}
                         {saveAsFormat === 'pdf' && 'PDF Document - ideal for printing and sharing'}
                         {saveAsFormat === 'html' && 'Web format - for viewing in browsers'}
+                        {saveAsFormat === 'markdown' && 'Markdown format - lightweight plain text'}
+                        {saveAsFormat === 'epub' && 'EPUB format - compatible with e-readers'}
                       </div>
                     </div>
                   </div>
@@ -1924,8 +1992,14 @@ export function HomePage() {
                 <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 10px 0' }}>
                   Choose a format and export the selected document.
                 </p>
-                <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                  {[{ key: 'pdf', label: 'PDF' }, { key: 'docx', label: 'Word (.docx)' }, { key: 'html', label: 'HTML' }].map((f) => (
+                <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+                  {[
+                    { key: 'pdf', label: 'PDF' },
+                    { key: 'docx', label: 'Word (.docx)' },
+                    { key: 'html', label: 'HTML' },
+                    { key: 'markdown', label: 'Markdown (.md)' },
+                    { key: 'epub', label: 'EPUB (.epub)' },
+                  ].map((f) => (
                     <button
                       key={f.key}
                       style={{

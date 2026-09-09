@@ -213,6 +213,13 @@ export function RibbonFeatureSearch({ compactWidth = 190, onActivateTab: onActiv
       { id: 'rev-ocr',         key:'rev-ocr',           title: 'OCR (Image to Text)', tab: 'review',keywords:['ocr','image to text','scan text','extract text'], run: () => runImageTextCapture({ editor, toast, mode: 'ocr' }) },
       { id: 'rev-handwriting', key:'rev-handwriting',   title: 'Handwriting Recognition', tab: 'review',keywords:['handwriting','recognition','notes','image text'], run: () => runImageTextCapture({ editor, toast, mode: 'handwriting' }) },
       { id: 'rev-smart-suggestions', key:'rev-smart-suggestions', title: 'Smart Suggestions', tab: 'review', keywords:['suggestions','smart','ai help','rewrite','summarize'], run: () => runSmartSuggestions({ editor, toast }) },
+      { id: 'rev-readability', key:'rev-readability', title: 'Readability Dashboard', tab: 'review', keywords:['readability','flesch','grade level','clarity','stats'], run: () => openDialog('readability') },
+      { id: 'sec-security', key:'sec-security', title: 'Document Security & Encryption', tab: 'design', keywords:['security','encrypt','password','lock','protect'], run: () => openDialog('security') },
+      { id: 'ins-buildingblocks', key:'ins-buildingblocks', title: 'Building Blocks & AutoText', tab: 'insert', keywords:['autotext','building blocks','snippets','quick parts'], run: () => openDialog('buildingBlocks') },
+      { id: 'help-remapshortcuts', key:'help-remapshortcuts', title: 'Remap Keyboard Shortcuts', tab: 'help', keywords:['remap','keyboard shortcuts','custom shortcuts','hotkeys'], run: () => openDialog('shortcuts') },
+      { id: 'rev-mergeconflict', key:'rev-mergeconflict', title: 'Three-Way Merge Conflict Resolution', tab: 'review', keywords:['merge','conflict','diff','three-way merge'], run: () => openDialog('mergeConflict') },
+      { id: 'layout-masterdoc', key:'layout-masterdoc', title: 'Master Document & Subdocuments', tab: 'layout', keywords:['master document','subdocuments','chapters','compose'], run: () => openDialog('masterDoc') },
+      { id: 'home-styleinspector', key:'home-styleinspector', title: 'Style Inspector & Formatting', tab: 'home', keywords:['style inspector','styles','clear formatting','overrides'], run: () => openDialog('styleInspector') },
       // ── View Tab ──
       { id: 'view-print',      key:'view-print',       title: 'Print Layout',    tab: 'view',keywords:['print layout','reading view','print'], run: () => { }, },
       { id: 'view-web',        key:'view-web',         title: 'Web Layout',      tab: 'view',keywords:['web layout','web view'], run: () => { }, },

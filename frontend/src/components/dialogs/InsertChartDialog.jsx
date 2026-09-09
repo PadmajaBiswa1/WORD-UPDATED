@@ -14,6 +14,32 @@ const DEFAULT_DATA = {
   pie:  { labels: ['Alpha','Beta','Gamma','Delta'], values: [35,25,20,20] },
 };
 
+const CHART_DEFAULT_COLORS = {
+  bar: '#2563eb',
+  line: '#0d9488',
+  pie: '#7c3aed',
+};
+
+const PIE_PALETTE = [
+  '#2563eb', // Blue
+  '#10b981', // Emerald
+  '#f59e0b', // Amber
+  '#ef4444', // Red
+  '#8b5cf6', // Violet
+  '#06b6d4', // Cyan
+  '#ec4899', // Pink
+  '#f97316', // Orange
+  '#6366f1', // Indigo
+  '#14b8a6', // Teal
+];
+
+const BAR_PALETTE = [
+  '#2563eb',
+  '#3b82f6',
+  '#60a5fa',
+  '#93c5fd',
+];
+
 export function InsertChartDialog() {
   const { closeDialog, toast } = useUIStore();
   const { editor } = useEditorStore();
@@ -23,7 +49,7 @@ export function InsertChartDialog() {
   const [type,   setType]   = useState('bar');
   const [title,  setTitle]  = useState('My Chart');
   const [data,   setData]   = useState(DEFAULT_DATA.bar);
-  const [color,  setColor]  = useState('#d4af37');
+  const [color,  setColor]  = useState(CHART_DEFAULT_COLORS.bar);
 
   // Re-draw chart on change
   useEffect(() => {
@@ -35,6 +61,13 @@ export function InsertChartDialog() {
       if (!canvasRef.current) return;
 
       const ctx = canvasRef.current.getContext('2d');
+      const pieBackgrounds = data.labels.map((_, i) => PIE_PALETTE[i % PIE_PALETTE.length]);
+      const barBackgrounds = data.labels.map((_, i) => (
+        color === CHART_DEFAULT_COLORS.bar
+          ? PIE_PALETTE[i % PIE_PALETTE.length]
+          : `${color}cc`
+      ));
+
       chartRef.current = new Chart(ctx, {
         type,
         data: {
@@ -43,19 +76,28 @@ export function InsertChartDialog() {
             label: title,
             data: data.values,
             backgroundColor: type === 'pie'
-              ? ['#d4af37','#b8952d','#edd870','#7a5f1a','#f5e6a3']
-              : `${color}99`,
-            borderColor: color,
+              ? pieBackgrounds
+              : type === 'bar'
+                ? barBackgrounds
+                : `${color}33`,
+            borderColor: type === 'pie'
+              ? '#1e1e1e'
+              : type === 'bar' && color === CHART_DEFAULT_COLORS.bar
+                ? barBackgrounds
+                : color,
             borderWidth: 2,
             borderRadius: type === 'bar' ? 4 : 0,
-            tension: 0.4,
+            tension: 0.35,
             fill: type === 'line',
           }],
         },
         options: {
           responsive: false,
           plugins: {
-            legend: { labels: { color: '#ece8dc', font: { family: 'Cinzel, serif', size: 11 } } },
+            legend: {
+              display: true,
+              labels: { color: '#ece8dc', font: { family: 'Cinzel, serif', size: 11 } }
+            },
           },
           scales: type !== 'pie' ? {
             x: { ticks: { color: '#888' }, grid: { color: '#2a2a2a' } },
@@ -81,6 +123,7 @@ export function InsertChartDialog() {
   const handleTypeChange = (t) => {
     setType(t);
     setData(DEFAULT_DATA[t]);
+    setColor(CHART_DEFAULT_COLORS[t] || '#2563eb');
   };
 
   const insertChart = () => {

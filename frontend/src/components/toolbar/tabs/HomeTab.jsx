@@ -5,11 +5,122 @@ import { Button, Divider, Tooltip, Select, ColorSwatch } from '@/components/ui';
 import { RibbonGroup } from '../RibbonGroup';
 import { FONT_SIZE_OPTIONS, FontFormattingControls, useFontFormattingControls } from '../fontFormatting.jsx';
 
-const PARA_STYLES = [
-  { value: 'p', label: 'Normal' },
-  { value: 'h1', label: 'Heading 1' },
-  { value: 'h2', label: 'Heading 2' },
-  { value: 'title', label: 'Title' },
+const QUICK_STYLES = [
+  {
+    id: 'normal',
+    label: 'Normal',
+    desc: 'Default body paragraph',
+    preview: { fontSize: 11, fontWeight: 400, color: 'var(--text-primary)' },
+  },
+  {
+    id: 'heading-1',
+    label: 'Heading 1',
+    desc: 'Top-level section heading',
+    preview: { fontSize: 13, fontWeight: 700, color: 'var(--gold)' },
+  },
+  {
+    id: 'heading-2',
+    label: 'Heading 2',
+    desc: 'Sub-section heading',
+    preview: { fontSize: 12, fontWeight: 600, color: 'var(--gold)' },
+  },
+  {
+    id: 'heading-3',
+    label: 'Heading 3',
+    desc: 'Topic heading',
+    preview: { fontSize: 11, fontWeight: 600, color: 'var(--gold)' },
+  },
+  {
+    id: 'heading-4',
+    label: 'Heading 4',
+    desc: 'Sub-topic heading',
+    preview: { fontSize: 11, fontWeight: 600, fontStyle: 'italic', color: 'var(--text-secondary)' },
+  },
+  {
+    id: 'title',
+    label: 'Title',
+    desc: 'Document title',
+    preview: { fontSize: 14, fontWeight: 700, letterSpacing: '0.04em', color: 'var(--text-primary)' },
+  },
+  {
+    id: 'subtitle',
+    label: 'Subtitle',
+    desc: 'Document subtitle',
+    preview: { fontSize: 11, fontWeight: 400, color: 'var(--text-muted)' },
+  },
+  {
+    id: 'subtle-emphasis',
+    label: 'Subtle Emphasis',
+    desc: 'Subtle italic emphasis',
+    preview: { fontSize: 11, fontStyle: 'italic', color: 'var(--text-muted)' },
+  },
+  {
+    id: 'emphasis',
+    label: 'Emphasis',
+    desc: 'Italic emphasis',
+    preview: { fontSize: 11, fontStyle: 'italic', color: 'var(--text-primary)' },
+  },
+  {
+    id: 'intense-emphasis',
+    label: 'Intense Emphasis',
+    desc: 'Bold italic gold emphasis',
+    preview: { fontSize: 11, fontWeight: 700, fontStyle: 'italic', color: 'var(--gold)' },
+  },
+  {
+    id: 'strong',
+    label: 'Strong',
+    desc: 'Bold importance',
+    preview: { fontSize: 11, fontWeight: 700, color: 'var(--text-primary)' },
+  },
+  {
+    id: 'quote',
+    label: 'Quote',
+    desc: 'Block quotation',
+    preview: { fontSize: 11, fontStyle: 'italic', color: 'var(--text-secondary)' },
+  },
+  {
+    id: 'intense-quote',
+    label: 'Intense Quote',
+    desc: 'Centered gold quote',
+    preview: { fontSize: 11, fontStyle: 'italic', fontWeight: 600, color: 'var(--gold)' },
+  },
+  {
+    id: 'code',
+    label: 'Code',
+    desc: 'Inline monospaced code',
+    preview: { fontSize: 11, fontFamily: 'monospace', color: '#93c5fd' },
+  },
+];
+
+const MULTILEVEL_FORMATS = [
+  {
+    id: 'numeric',
+    label: '1. -> 1.1 -> 1.1.1',
+    desc: 'Hierarchical numeric outline',
+    icon: '1.1',
+    className: 'multilevel-numeric',
+  },
+  {
+    id: 'alpha',
+    label: '1. -> a. -> i.',
+    desc: 'Standard alpha-numeric outline',
+    icon: '1.a',
+    className: 'multilevel-alpha',
+  },
+  {
+    id: 'legal',
+    label: '§ 1. -> § 1.01',
+    desc: 'Legal section numbering',
+    icon: '§ 1',
+    className: 'multilevel-legal',
+  },
+  {
+    id: 'standard',
+    label: 'Standard Numbering (1, 2, 3)',
+    desc: 'Simple sequential list',
+    icon: '1.',
+    className: null,
+  },
 ];
 
 const TEXT_COLORS = [
@@ -41,6 +152,14 @@ export function HomeTab() {
   const [showFormattingMarks, setShowFormattingMarks] = useState(false);
   const [textPalettePos, setTextPalettePos] = useState({ top: 0, left: 0 });
   const [highlightPalettePos, setHighlightPalettePos] = useState({ top: 0, left: 0 });
+  const [showMultilevelPicker, setShowMultilevelPicker] = useState(false);
+  const [multilevelPickerPos, setMultilevelPickerPos] = useState({ top: 0, left: 0 });
+  const [showStylesDropdown, setShowStylesDropdown] = useState(false);
+  const [stylesDropdownPos, setStylesDropdownPos] = useState({ top: 0, left: 0 });
+  const stylesStripRef = useRef(null);
+
+  const activeTextColor = editor?.getAttributes('textStyle')?.color || '#d4af37';
+  const activeHighlight = editor?.getAttributes('highlight')?.color || '#ffe08a';
 
   const handlePragnaClick = () => {
     if (!editor) {
@@ -84,6 +203,8 @@ export function HomeTab() {
     setTextPalettePos({ top, left: rect.left });
     setShowTextColors((v) => !v);
     setShowHighlightColors(false);
+    setShowMultilevelPicker(false);
+    setShowStylesDropdown(false);
   };
 
   const openHighlightPalette = (event) => {
@@ -94,14 +215,52 @@ export function HomeTab() {
     setHighlightPalettePos({ top, left: rect.left });
     setShowHighlightColors((v) => !v);
     setShowTextColors(false);
+    setShowMultilevelPicker(false);
+    setShowStylesDropdown(false);
+  };
+
+  const openMultilevelPicker = (event) => {
+    snapshotSelection();
+    const rect = event.currentTarget?.getBoundingClientRect();
+    if (!rect) return;
+    const top = Math.max(rect.bottom + 8, getSheetTop() + 8);
+    setMultilevelPickerPos({ top, left: Math.min(rect.left, window.innerWidth - 260) });
+    setShowMultilevelPicker((v) => !v);
+    setShowStylesDropdown(false);
+    setShowTextColors(false);
+    setShowHighlightColors(false);
+  };
+
+  const openStylesDropdown = (event) => {
+    snapshotSelection();
+    const rect = event.currentTarget?.getBoundingClientRect();
+    if (!rect) return;
+    const top = Math.max(rect.bottom + 8, getSheetTop() + 8);
+    setStylesDropdownPos({ top, left: Math.max(10, Math.min(rect.right - 360, window.innerWidth - 380)) });
+    setShowStylesDropdown((v) => !v);
+    setShowMultilevelPicker(false);
+    setShowTextColors(false);
+    setShowHighlightColors(false);
+  };
+
+  const scrollStyles = (direction) => {
+    if (!stylesStripRef.current) return;
+    const delta = direction === 'left' ? -180 : 180;
+    stylesStripRef.current.scrollBy({ left: delta, behavior: 'smooth' });
   };
 
   useEffect(() => {
     const closeOnOutside = (event) => {
       if (event.target.closest('[data-home-color-trigger="true"]')) return;
       if (event.target.closest('[data-home-color-palette="true"]')) return;
+      if (event.target.closest('[data-multilevel-trigger="true"]')) return;
+      if (event.target.closest('[data-multilevel-palette="true"]')) return;
+      if (event.target.closest('[data-styles-trigger="true"]')) return;
+      if (event.target.closest('[data-styles-palette="true"]')) return;
       setShowTextColors(false);
       setShowHighlightColors(false);
+      setShowMultilevelPicker(false);
+      setShowStylesDropdown(false);
     };
 
     document.addEventListener('mousedown', closeOnOutside);
@@ -321,19 +480,131 @@ export function HomeTab() {
   };
 
   const activeStyle = () => {
-    if (editor.isActive('heading', { level: 1 })) return 'h1';
-    if (editor.isActive('heading', { level: 2 })) return 'h2';
-    return 'p';
+    if (!editor) return 'normal';
+    if (editor.isActive('code')) return 'code';
+    if (editor.isActive('heading', { level: 1 })) {
+      const size = editor.getAttributes('textStyle')?.fontSize;
+      if (size === '24pt' || size === '26pt' || size === '2.4em') return 'title';
+      return 'heading-1';
+    }
+    if (editor.isActive('heading', { level: 2 })) return 'heading-2';
+    if (editor.isActive('heading', { level: 3 })) return 'heading-3';
+    if (editor.isActive('heading', { level: 4 })) return 'heading-4';
+    if (editor.isActive('blockquote')) {
+      if (editor.isActive({ textAlign: 'center' })) return 'intense-quote';
+      return 'quote';
+    }
+    if (editor.isActive('bold') && editor.isActive('italic')) return 'intense-emphasis';
+    if (editor.isActive('bold')) return 'strong';
+    if (editor.isActive('italic')) {
+      const color = editor.getAttributes('textStyle')?.color;
+      if (color === '#9a8a6a' || color === 'var(--text-muted)') return 'subtle-emphasis';
+      return 'emphasis';
+    }
+    const color = editor.getAttributes('textStyle')?.color;
+    const size = editor.getAttributes('textStyle')?.fontSize;
+    if (size === '14pt' && (color === '#9a8a6a' || color === 'var(--text-muted)')) return 'subtitle';
+    return 'normal';
   };
 
-  const applyStyle = (val) => {
-    if (val === 'p') {
-      run(() => editor.chain().setParagraph().run());
-    } else if (val === 'title') {
-      run(() => editor.chain().setHeading({ level: 1 }).setFontSize('2.4em').run());
-    } else {
-      run(() => editor.chain().setHeading({ level: parseInt(val[1]) }).run());
+  const applyStyle = (id) => {
+    if (!editor) return;
+    editor.view.focus();
+
+    switch (id) {
+      case 'normal':
+        run(() => {
+          editor.chain().setParagraph().unsetAllMarks().run();
+          editor.commands.unsetFontSize?.();
+          editor.commands.unsetColor?.();
+        });
+        toast('Applied Normal style', 'info');
+        break;
+
+      case 'heading-1':
+        run(() => editor.chain().setHeading({ level: 1 }).run());
+        toast('Applied Heading 1', 'info');
+        break;
+
+      case 'heading-2':
+        run(() => editor.chain().setHeading({ level: 2 }).run());
+        toast('Applied Heading 2', 'info');
+        break;
+
+      case 'heading-3':
+        run(() => editor.chain().setHeading({ level: 3 }).run());
+        toast('Applied Heading 3', 'info');
+        break;
+
+      case 'heading-4':
+        run(() => editor.chain().setHeading({ level: 4 }).run());
+        toast('Applied Heading 4', 'info');
+        break;
+
+      case 'title':
+        run(() => editor.chain().setHeading({ level: 1 }).setFontSize('24pt').run());
+        toast('Applied Title style', 'info');
+        break;
+
+      case 'subtitle':
+        run(() => editor.chain().setParagraph().setFontSize('14pt').setColor('#9a8a6a').run());
+        toast('Applied Subtitle style', 'info');
+        break;
+
+      case 'subtle-emphasis':
+        run(() => editor.chain().setItalic().setColor('#9a8a6a').run());
+        toast('Applied Subtle Emphasis', 'info');
+        break;
+
+      case 'emphasis':
+        run(() => editor.chain().setItalic().run());
+        toast('Applied Emphasis', 'info');
+        break;
+
+      case 'intense-emphasis':
+        run(() => editor.chain().setBold().setItalic().setColor('#c9a84c').run());
+        toast('Applied Intense Emphasis', 'info');
+        break;
+
+      case 'strong':
+        run(() => editor.chain().setBold().run());
+        toast('Applied Strong style', 'info');
+        break;
+
+      case 'quote':
+        run(() => editor.chain().setBlockquote().run());
+        toast('Applied Quote style', 'info');
+        break;
+
+      case 'intense-quote':
+        run(() => editor.chain().setBlockquote().setTextAlign('center').setColor('#c9a84c').setItalic().run());
+        toast('Applied Intense Quote', 'info');
+        break;
+
+      case 'code':
+        run(() => editor.chain().toggleCode().run());
+        toast('Applied Code style', 'info');
+        break;
+
+      default:
+        run(() => editor.chain().setParagraph().run());
+        break;
     }
+  };
+
+  const applyMultilevelList = (format) => {
+    if (!editor) return;
+    editor.view.focus();
+    if (!editor.isActive('orderedList')) {
+      editor.chain().focus().toggleOrderedList().run();
+    }
+    if (format.className) {
+      editor.chain().focus().updateAttributes('orderedList', { class: format.className }).run();
+    } else {
+      editor.chain().focus().updateAttributes('orderedList', { class: null }).run();
+    }
+    setShowMultilevelPicker(false);
+    toast(`Multilevel list: ${format.label}`, 'success');
   };
 
   const toolBtn = {
@@ -355,7 +626,7 @@ export function HomeTab() {
             <Button
               onClick={handlePaste}
               style={{
-                width: 52,
+                width: 50,
                 height: 60,
                 background: 'var(--bg-elevated)',
                 border: '1px solid var(--border)',
@@ -368,6 +639,25 @@ export function HomeTab() {
             >
               <span style={{ fontSize: 20 }}>📋</span>
               <span>Paste</span>
+            </Button>
+          </Tooltip>
+          <Tooltip text="Clipboard History (Drawer of past clips)">
+            <Button
+              onClick={() => openDialog('clipboardHistory')}
+              style={{
+                width: 52,
+                height: 60,
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-primary)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 1,
+                fontSize: 11,
+              }}
+            >
+              <span style={{ fontSize: 19 }}>⏱</span>
+              <span>History</span>
             </Button>
           </Tooltip>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -413,26 +703,28 @@ export function HomeTab() {
             <Tooltip text="Subscript"><Button style={toolBtn} active={editor.isActive('subscript')} onClick={() => run(() => editor.chain().toggleSubscript().run())}>x2</Button></Tooltip>
             <Tooltip text="Superscript"><Button style={toolBtn} active={editor.isActive('superscript')} onClick={() => run(() => editor.chain().toggleSuperscript().run())}>x2</Button></Tooltip>
             <Divider vertical />
-            <Tooltip text="Highlight Color">
-              <div>
+            <Tooltip text="Text Highlight Color">
+              <div data-home-color-trigger="true">
                 <Button
-                  data-home-color-trigger="true"
-                  style={{ ...toolBtn, width: 36, fontWeight: 700 }}
+                  style={{ ...toolBtn, width: 36, fontWeight: 700, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, padding: '2px 0' }}
                   onClick={openHighlightPalette}
+                  title="Text Highlight Color"
                 >
-                  ab
+                  <span style={{ fontSize: 11, lineHeight: 1 }}>ab</span>
+                  <span style={{ width: 18, height: 3, borderRadius: 1, background: activeHighlight, border: '0.5px solid rgba(255,255,255,0.25)' }} />
                 </Button>
               </div>
             </Tooltip>
             <Divider vertical />
             <Tooltip text="Text Color">
-              <div>
+              <div data-home-color-trigger="true">
                 <Button
-                  data-home-color-trigger="true"
-                  style={{ ...toolBtn, width: 34, fontWeight: 700 }}
+                  style={{ ...toolBtn, width: 34, fontWeight: 700, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, padding: '2px 0' }}
                   onClick={openTextPalette}
+                  title="Text Color"
                 >
-                  A
+                  <span style={{ fontSize: 12, lineHeight: 1 }}>A</span>
+                  <span style={{ width: 18, height: 3, borderRadius: 1, background: activeTextColor, border: '0.5px solid rgba(255,255,255,0.25)' }} />
                 </Button>
               </div>
             </Tooltip>
@@ -441,49 +733,173 @@ export function HomeTab() {
       </RibbonGroup>
 
       <RibbonGroup label="Paragraph">
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2, width: 128 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2, width: 136 }}>
           <Tooltip text="Align Left" shortcut="Ctrl+L"><Button style={toolBtn} active={editor.isActive({ textAlign: 'left' })} onClick={() => run(() => editor.chain().setTextAlign('left').run())}>≡</Button></Tooltip>
           <Tooltip text="Center" shortcut="Ctrl+E"><Button style={toolBtn} active={editor.isActive({ textAlign: 'center' })} onClick={() => run(() => editor.chain().setTextAlign('center').run())}>≣</Button></Tooltip>
           <Tooltip text="Align Right" shortcut="Ctrl+R"><Button style={toolBtn} active={editor.isActive({ textAlign: 'right' })} onClick={() => run(() => editor.chain().setTextAlign('right').run())}>≡</Button></Tooltip>
           <Tooltip text="Justify"><Button style={toolBtn} active={editor.isActive({ textAlign: 'justify' })} onClick={() => run(() => editor.chain().setTextAlign('justify').run())}>☰</Button></Tooltip>
           <Tooltip text="Bullet List"><Button style={toolBtn} active={editor.isActive('bulletList')} onClick={() => run(() => editor.chain().toggleBulletList().run())}>•≡</Button></Tooltip>
           <Tooltip text="Ordered List"><Button style={toolBtn} active={editor.isActive('orderedList')} onClick={() => run(() => editor.chain().toggleOrderedList().run())}>1≡</Button></Tooltip>
+          <Tooltip text="Multilevel Numbering (1. -> 1.1 or 1. -> a. -> i.)">
+            <div data-multilevel-trigger="true" style={{ display: 'inline-block' }}>
+              <Button
+                style={{ ...toolBtn, width: 34, fontSize: 10, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}
+                active={Boolean(editor.isActive('orderedList') && editor.getAttributes('orderedList')?.class?.startsWith('multilevel'))}
+                onClick={openMultilevelPicker}
+              >
+                <span>1.a</span>
+                <span style={{ fontSize: 7 }}>▼</span>
+              </Button>
+            </div>
+          </Tooltip>
           <Tooltip text="Task List"><Button style={toolBtn} active={editor.isActive('taskList')} onClick={() => run(() => editor.chain().toggleTaskList().run())}>☑</Button></Tooltip>
           <Tooltip text="Blockquote" shortcut="Ctrl+Shift+B"><Button style={toolBtn} active={editor.isActive('blockquote')} onClick={() => run(() => editor.chain().toggleBlockquote().run())}>"</Button></Tooltip>
-          <Tooltip text="Increase Indent"><Button style={toolBtn} onClick={indent}>→</Button></Tooltip>
           <Tooltip text="Decrease Indent"><Button style={toolBtn} onClick={outdent}>←</Button></Tooltip>
+          <Tooltip text="Increase Indent"><Button style={toolBtn} onClick={indent}>→</Button></Tooltip>
           <Tooltip text="Line Spacing"><Button style={toolBtn} onClick={cycleLineSpacing}>↕</Button></Tooltip>
           <Tooltip text="Show Formatting Marks"><Button style={toolBtn} active={showFormattingMarks} onClick={toggleFormattingMarks}>¶</Button></Tooltip>
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Styles">
-        <div style={{ display: 'flex', gap: 4 }}>
-          {PARA_STYLES.map((s) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+          {/* Scroll Left Button */}
+          <Button
+            style={{ ...toolBtn, width: 16, height: 62, padding: 0, fontSize: 10, borderRadius: 2 }}
+            onClick={() => scrollStyles('left')}
+            title="Scroll styles left"
+          >
+            ◀
+          </Button>
+
+          {/* Horizontally Scrollable Styles Strip */}
+          <div
+            ref={stylesStripRef}
+            style={{
+              display: 'flex',
+              gap: 4,
+              overflowX: 'auto',
+              maxWidth: 340,
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+              padding: '1px 0',
+            }}
+          >
+            {QUICK_STYLES.map((s) => {
+              const isActive = activeStyle() === s.id;
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => applyStyle(s.id)}
+                  title={`${s.label}: ${s.desc}`}
+                  style={{
+                    minWidth: 78,
+                    width: 78,
+                    height: 62,
+                    border: `1px solid ${isActive ? 'var(--border-gold)' : 'var(--border)'}`,
+                    borderRadius: 2,
+                    background: isActive ? 'var(--bg-hover)' : 'var(--bg-elevated)',
+                    cursor: 'pointer',
+                    padding: '3px 4px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    textAlign: 'center',
+                    fontFamily: 'var(--font-ui)',
+                    boxShadow: isActive ? '0 0 6px rgba(212,175,55,0.35)' : 'none',
+                    flexShrink: 0,
+                  }}
+                >
+                  <span
+                    style={{
+                      display: 'block',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      maxWidth: 72,
+                      fontFamily: s.id.startsWith('heading') ? 'Cinzel, serif' : s.preview.fontFamily || 'var(--font-ui)',
+                      ...s.preview,
+                    }}
+                  >
+                    {s.label}
+                  </span>
+                  <span style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 3 }}>
+                    {s.id.startsWith('heading') ? 'Heading' : s.id === 'normal' ? 'Normal' : 'Style'}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Scroll Right Button */}
+          <Button
+            style={{ ...toolBtn, width: 16, height: 62, padding: 0, fontSize: 10, borderRadius: 2 }}
+            onClick={() => scrollStyles('right')}
+            title="Scroll styles right"
+          >
+            ▶
+          </Button>
+
+          {/* More Styles Dropdown Button */}
+          <div data-styles-trigger="true" style={{ display: 'flex', flexDirection: 'column', height: 62 }}>
+            <Tooltip text="More Styles Gallery">
+              <button
+                onClick={openStylesDropdown}
+                style={{
+                  width: 20,
+                  height: 62,
+                  border: '1px solid var(--border)',
+                  borderRadius: 2,
+                  background: 'var(--bg-elevated)',
+                  cursor: 'pointer',
+                  padding: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--text-secondary)',
+                  fontSize: 9,
+                }}
+              >
+                ▼
+              </button>
+            </Tooltip>
+          </div>
+
+          {/* Style Inspector Button */}
+          <Tooltip text="Style Inspector & Styles Pane">
             <button
-              key={s.value}
-              onClick={() => applyStyle(s.value)}
+              onClick={() => openDialog('styleInspector')}
               style={{
-                width: 80,
+                width: 64,
                 height: 62,
-                border: `1px solid ${activeStyle() === s.value ? 'var(--border-gold)' : 'var(--border)'}`,
+                border: '1px solid var(--border)',
                 borderRadius: 2,
-                background: activeStyle() === s.value ? 'var(--bg-hover)' : 'var(--bg-elevated)',
+                background: 'var(--bg-elevated)',
                 cursor: 'pointer',
-                padding: 0,
+                padding: '4px 2px',
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
                 textAlign: 'center',
                 fontFamily: 'var(--font-ui)',
-                color: activeStyle() === s.value ? 'var(--text-gold)' : 'var(--text-primary)',
-                fontSize: 12,
-                fontWeight: s.value.startsWith('h') || s.value === 'title' ? 600 : 400,
+                color: 'var(--text-secondary)',
+                gap: 2,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--gold)';
+                e.currentTarget.style.color = 'var(--gold)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--border)';
+                e.currentTarget.style.color = 'var(--text-secondary)';
               }}
             >
-              {s.label}
+              <span style={{ fontSize: 18 }}>🔍</span>
+              <span style={{ fontSize: 10, fontWeight: 600 }}>Inspector</span>
             </button>
-          ))}
+          </Tooltip>
         </div>
       </RibbonGroup>
 
@@ -646,6 +1062,122 @@ export function HomeTab() {
                   }}
                 />
               ))}
+            </div>
+          )}
+
+          {showMultilevelPicker && (
+            <div
+              data-multilevel-palette="true"
+              style={{
+                position: 'fixed',
+                top: multilevelPickerPos.top,
+                left: multilevelPickerPos.left,
+                zIndex: 2000,
+                border: '1px solid var(--border-gold)',
+                background: 'var(--bg-elevated)',
+                borderRadius: 'var(--radius-sm)',
+                padding: 8,
+                width: 240,
+                boxShadow: 'var(--shadow-md)',
+              }}
+            >
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gold)', marginBottom: 6, paddingBottom: 4, borderBottom: '1px solid var(--border)' }}>
+                Multilevel List Library
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {MULTILEVEL_FORMATS.map((f) => (
+                  <button
+                    key={f.id}
+                    onClick={() => applyMultilevelList(f)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '6px 8px',
+                      background: 'var(--bg-app)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 3,
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      color: 'var(--text-primary)',
+                      fontFamily: 'var(--font-ui)',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--gold)';
+                      e.currentTarget.style.background = 'var(--bg-hover)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--border)';
+                      e.currentTarget.style.background = 'var(--bg-app)';
+                    }}
+                  >
+                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--gold)', minWidth: 26 }}>
+                      {f.icon}
+                    </span>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 600 }}>{f.label}</div>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{f.desc}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {showStylesDropdown && (
+            <div
+              data-styles-palette="true"
+              style={{
+                position: 'fixed',
+                top: stylesDropdownPos.top,
+                left: stylesDropdownPos.left,
+                zIndex: 2000,
+                border: '1px solid var(--border-gold)',
+                background: 'var(--bg-elevated)',
+                borderRadius: 'var(--radius-sm)',
+                padding: 10,
+                width: 360,
+                maxHeight: 380,
+                overflowY: 'auto',
+                boxShadow: 'var(--shadow-lg)',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, paddingBottom: 4, borderBottom: '1px solid var(--border)' }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--gold)' }}>Quick Styles Gallery</span>
+                <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>14 Styles</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
+                {QUICK_STYLES.map((s) => {
+                  const isActive = activeStyle() === s.id;
+                  return (
+                    <button
+                      key={s.id}
+                      onClick={() => {
+                        applyStyle(s.id);
+                        setShowStylesDropdown(false);
+                      }}
+                      style={{
+                        padding: '6px 8px',
+                        border: `1px solid ${isActive ? 'var(--border-gold)' : 'var(--border)'}`,
+                        borderRadius: 3,
+                        background: isActive ? 'var(--bg-hover)' : 'var(--bg-app)',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        fontFamily: 'var(--font-ui)',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--gold)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = isActive ? 'var(--border-gold)' : 'var(--border)';
+                      }}
+                    >
+                      <div style={{ ...s.preview, marginBottom: 2 }}>{s.label}</div>
+                      <div style={{ fontSize: 9, color: 'var(--text-muted)' }}>{s.desc}</div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
         </>,

@@ -263,11 +263,7 @@ function PageThumb({ index, active, thumbnail, isDragging }) {
           ? <img src={thumbnail} alt={`Page ${index + 1}`}
               style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top', display: 'block' }} />
           : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: themeColors.placeholder }}>
-              <div style={{ width: 64, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {Array.from({ length: 7 }).map((_, j) => (
-                  <div key={j} style={{ height: 2, background: themeColors.placeholderLine, borderRadius: 1, width: j % 3 === 0 ? '55%' : '100%' }} />
-                ))}
-              </div>
+              <div style={{ width: '80%', height: '85%', border: '1px dashed #2d2d2d', borderRadius: 2 }} />
             </div>
         }
         <div style={{

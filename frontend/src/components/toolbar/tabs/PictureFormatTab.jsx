@@ -90,9 +90,26 @@ export function PictureFormatTab() {
         setWrapMode(wrap);
       }
     };
+
+    const handleLiveResize = (e) => {
+      const { width, height } = e.detail || {};
+      if (typeof width === 'number') {
+        setImgWidth(width);
+        setDraftWidth(String(width));
+      }
+      if (typeof height === 'number') {
+        setImgHeight(height);
+        setDraftHeight(String(height));
+      }
+    };
+
     updateFromSelection();
     editor.on('selectionUpdate', updateFromSelection);
-    return () => editor.off('selectionUpdate', updateFromSelection);
+    window.addEventListener('image-resize-live', handleLiveResize);
+    return () => {
+      editor.off('selectionUpdate', updateFromSelection);
+      window.removeEventListener('image-resize-live', handleLiveResize);
+    };
   }, [editor]);
 
   const withSelectedImage = (action) => {
@@ -160,6 +177,7 @@ export function PictureFormatTab() {
         setImgHeight(clamped);
         setDraftHeight(String(clamped));
       }
+      window.dispatchEvent(new CustomEvent('image-reposition-handles'));
       toast(`Image ${dimension}: ${clamped}px`, 'success');
     });
   };

@@ -1,0 +1,19 @@
+{
+  "name": "EtherX Word",
+  "short_name": "EtherX Word",
+  "description": "Enterprise Document Editor with End-to-End Security, AI Copilot, and Real-Time Collaboration",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#121212",
+  "theme_color": "#c9a84c",
+  "icons": [
+    {
+      "src": "/assets/etherx-favicon.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "utilities", "business"]
+}

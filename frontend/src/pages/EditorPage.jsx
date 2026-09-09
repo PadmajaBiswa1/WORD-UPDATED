@@ -15,6 +15,7 @@ import { useAutoSave }    from '@/hooks/useAutoSave';
 import { useCollaboration } from '@/hooks/useCollaboration';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { usePagination }  from '@/hooks/usePagination';
+import { useClipboardListener } from '@/hooks/useClipboardListener';
 import { useUIStore, useDocumentStore, useCollaborationStore } from '@/store';
 import { documentApi } from '@/services/api';
 
@@ -46,6 +47,7 @@ export function EditorPage({ isShared = false }) {
   const { save } = useAutoSave();
   useKeyboardShortcuts();
   usePagination();
+  useClipboardListener();
   
   // For shared documents, always use routeId; for owned, use stored documentId
   const activeDocId = isShared ? routeId : (routeId && routeId !== 'new' ? routeId : documentId);
