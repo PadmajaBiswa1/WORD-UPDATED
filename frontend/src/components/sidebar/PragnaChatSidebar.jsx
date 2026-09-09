@@ -5,10 +5,10 @@ import { aiApi, uploadApi } from '@/services/api';
 
 const QUICK_PROMPTS = [
   { label: 'Executive Summary', prompt: 'Provide a concise, punchy executive summary of the attached text with key takeaways.' },
-  { label: 'Professional & Formal', prompt: 'Rewrite the attached text in an authoritative, executive, and highly polished corporate tone.' },
-  { label: 'Polish Grammar & Flow', prompt: 'Proofread and correct all grammar, punctuation, and phrasing issues while improving sentence flow.' },
+  { label: 'Professional Tone', prompt: 'Rewrite the attached text in an authoritative, executive, and highly polished corporate tone.' },
+  { label: 'Fix Grammar & Flow', prompt: 'Proofread and correct all grammar, punctuation, and phrasing issues while improving sentence flow.' },
   { label: 'Convert to Table', prompt: 'Structure the key points and data from the attached text into a clean markdown data table.' },
-  { label: 'Action Items & Checklist', prompt: 'Extract all actionable tasks and next steps into a structured checklist.' },
+  { label: 'Action Items', prompt: 'Extract all actionable tasks and next steps into a structured checklist.' },
   { label: 'Simplify & Clarify', prompt: 'Simplify the language, eliminate unnecessary jargon, and make the content effortless to read.' },
   { label: 'Brainstorm Ideas', prompt: 'Brainstorm creative angles and missing sections to improve this document.' },
 ];
@@ -21,12 +21,12 @@ function formatBytes(bytes) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
-function getFileIcon(name = '', type = '') {
-  if (type === 'image' || /\.(png|jpe?g|gif|webp|svg)$/i.test(name)) return '🖼️';
-  if (/\.(csv|tsv|xlsx?|json)$/i.test(name)) return '📊';
-  if (/\.(docx?|pdf|rtf)$/i.test(name)) return '📄';
-  if (/\.(js|jsx|ts|tsx|py|html|css|json|xml|sh|sql|yml|yaml)$/i.test(name)) return '📝';
-  return '📎';
+function getFileBadge(name = '', type = '') {
+  if (type === 'image' || /\.(png|jpe?g|gif|webp|svg)$/i.test(name)) return 'IMG';
+  if (/\.(csv|tsv|xlsx?|json)$/i.test(name)) return 'DATA';
+  if (/\.(docx?|pdf|rtf)$/i.test(name)) return 'DOC';
+  if (/\.(js|jsx|ts|tsx|py|html|css|json|xml|sh|sql|yml|yaml)$/i.test(name)) return 'CODE';
+  return 'FILE';
 }
 
 function readTextFile(file) {
@@ -70,16 +70,16 @@ export function PragnaChatSidebar() {
     {
       id: 'welcome',
       role: 'assistant',
-      content: `Hello! I am **Pragna**, your AI writing copilot.
+      content: `Hello! I am **Pragna**, your document intelligence copilot.
 
 I can help you:
-- **Add Images & Files** directly into your document or analyze them in chat
-- **Draft & Generate** content, proposals, or entire articles
-- **Edit & Polish** selected text with custom instructions
-- **Summarize & Extract** key findings, tables, or action items
-- **Research the Live Web** with verifiable citations
+- **Embed Media & Files** directly into your document or analyze them
+- **Draft & Generate** sections, proposals, or full articles
+- **Edit & Polish** selected text with precise instructions
+- **Summarize & Extract** structured tables or action items
+- **Research the Live Web** with grounded citations
 
-Attach files/images below or ask me anything!`,
+Ask me anything or attach files below.`,
       html: '',
       timestamp: new Date(),
     },
@@ -196,13 +196,13 @@ Attach files/images below or ask me anything!`,
           editor.chain().focus().insertContent(`<p><img src="${src}" alt="${alt || 'Image'}" width="480" /></p>`).run();
         }
       }
-      toast('✓ Image inserted into document', 'success');
+      toast('Image inserted into document', 'success');
       return true;
     } catch (err) {
       console.warn('setImage warning, trying HTML insertContent fallback:', err);
       try {
         editor.chain().focus().insertContent(`<p><img src="${src}" alt="${alt || 'Image'}" width="480" /></p>`).run();
-        toast('✓ Image inserted into document', 'success');
+        toast('Image inserted into document', 'success');
         return true;
       } catch (err2) {
         console.error('Error inserting image:', err2);
@@ -227,7 +227,7 @@ Attach files/images below or ask me anything!`,
         toast('No insertable content found in this file', 'info');
         return;
       }
-      toast(`✓ Inserted content from ${att.name}`, 'success');
+      toast(`Inserted content from ${att.name}`, 'success');
     } catch (err) {
       console.error('Error inserting file content:', err);
       toast('Failed to insert content', 'error');
@@ -258,7 +258,6 @@ Attach files/images below or ask me anything!`,
         };
         setAttachments((prev) => [...prev, attObj]);
 
-        // Attempt server upload for permanent URL
         try {
           const res = await uploadApi.image(file);
           if (res && res.url) {
@@ -356,7 +355,6 @@ Attach files/images below or ask me anything!`,
     const hasAttachments = currentAttachments.length > 0;
     const hasImages = currentAttachments.some((a) => a.type === 'image');
 
-    // Check if the user's intent is to insert the attached images/files into the document
     const isInsertOnlyIntent =
       hasAttachments &&
       (!promptToSend ||
@@ -367,7 +365,7 @@ Attach files/images below or ask me anything!`,
     const userMsg = {
       id: userMessageId,
       role: 'user',
-      content: promptToSend || (hasImages ? 'Add attached image(s) to document' : `[Attached ${currentAttachments.length} file(s)]`),
+      content: promptToSend || (hasImages ? 'Add attached image(s) to document' : `Attached ${currentAttachments.length} item(s)`),
       attachments: currentAttachments,
       timestamp: new Date(),
     };
@@ -378,7 +376,6 @@ Attach files/images below or ask me anything!`,
     setAttachments([]);
     if (textareaRef.current) textareaRef.current.value = '';
 
-    // If intent is purely to add/insert into the document, execute immediately with zero latency
     if (isInsertOnlyIntent) {
       let anyInserted = false;
       const insertedSummary = [];
@@ -403,8 +400,8 @@ Attach files/images below or ask me anything!`,
         const assistantMsg = {
           id: `assistant-${Date.now()}`,
           role: 'assistant',
-          content: `✓ **Added directly to your document!**\n\n${imgItems.map((a) => `![${a.name}](${a.url})`).join('\n\n')}\n\n*Inserted at your current cursor position.*`,
-          html: `<p><strong>✓ Added directly to your document!</strong></p>${imgItems.map((a) => `<p><img src="${a.url}" alt="${a.name}" style="max-width:100%; border-radius:4px; margin:4px 0;" /></p>`).join('')}<p style="font-size:11px; color:var(--text-secondary); margin-top:4px;"><em>Inserted at your current cursor position in the document.</em></p>`,
+          content: `**Added to document.**\n\n${imgItems.map((a) => `![${a.name}](${a.url})`).join('\n\n')}\n\n*Inserted at cursor position.*`,
+          html: `<p><strong>Added to document.</strong></p>${imgItems.map((a) => `<p><img src="${a.url}" alt="${a.name}" style="max-width:100%; border-radius:4px; margin:4px 0;" /></p>`).join('')}<p style="font-size:11px; color:var(--text-secondary); margin-top:4px;"><em>Inserted at current cursor position.</em></p>`,
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, assistantMsg]);
@@ -413,7 +410,6 @@ Attach files/images below or ask me anything!`,
       }
     }
 
-    // If user prompt mentions adding/inserting alongside other instructions, insert the images now as well
     if (hasImages && /\b(add|insert|put|place|embed)\b/i.test(promptToSend)) {
       for (const att of currentAttachments) {
         if (att.type === 'image') {
@@ -483,7 +479,7 @@ Attach files/images below or ask me anything!`,
         {
           id: `error-${Date.now()}`,
           role: 'assistant',
-          content: `⚠️ **Error:** ${err.message || 'Unable to communicate with Pragna AI.'}`,
+          content: `**Error:** ${err.message || 'Unable to communicate with Pragna AI.'}`,
           html: '',
           isError: true,
           timestamp: new Date(),
@@ -520,18 +516,18 @@ Attach files/images below or ask me anything!`,
           .deleteRange({ from: range.from, to: range.to })
           .insertContentAt(range.from, htmlContent)
           .run();
-        toast('✓ Replaced selection in document', 'success');
+        toast('Replaced selection in document', 'success');
       } else if (isDocEmpty || msg.targetScope === 'document') {
         editor.chain().focus().setContent(htmlContent).run();
-        toast(isDocEmpty ? '✓ Inserted into blank document' : '✓ Replaced document content', 'success');
+        toast(isDocEmpty ? 'Inserted into blank document' : 'Replaced document content', 'success');
       } else {
         editor.chain().focus().insertContent(htmlContent).run();
-        toast('✓ Inserted into document', 'success');
+        toast('Inserted into document', 'success');
       }
     } catch (err) {
       console.error('Edit execution error:', err);
       editor.chain().focus().setContent(htmlContent).run();
-      toast('✓ Applied to document', 'success');
+      toast('Applied to document', 'success');
     }
   };
 
@@ -539,7 +535,7 @@ Attach files/images below or ask me anything!`,
     if (!editor) return;
     const htmlContent = msg.html || markdownToHtml(msg.content);
     editor.chain().focus().insertContent(htmlContent).run();
-    toast('✓ Inserted at cursor', 'success');
+    toast('Inserted at cursor', 'success');
   };
 
   const handleCopyText = (content) => {
@@ -567,7 +563,7 @@ Attach files/images below or ask me anything!`,
     return (
       <button
         onClick={toggleCopilot}
-        title="Open Pragna Copilot"
+        title="Open Pragna"
         style={{
           position: 'fixed',
           right: 0,
@@ -575,30 +571,30 @@ Attach files/images below or ask me anything!`,
           transform: 'translateY(-50%)',
           zIndex: 1000,
           background: 'var(--bg-surface)',
-          border: '1px solid var(--gold-border)',
+          border: '1px solid var(--border)',
           borderRight: 'none',
-          borderRadius: '6px 0 0 6px',
-          padding: '8px 6px',
-          color: 'var(--gold)',
+          borderRadius: '8px 0 0 8px',
+          padding: '10px 7px',
+          color: 'var(--text-primary)',
           cursor: 'pointer',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           gap: 6,
-          boxShadow: '-3px 0 12px rgba(0,0,0,0.3)',
-          transition: 'all 0.15s ease',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+          transition: 'all 0.15s cubic-bezier(0.34, 1.56, 0.64, 1)',
         }}
         onMouseEnter={(e) => {
           e.currentTarget.style.background = 'var(--bg-elevated)';
-          e.currentTarget.style.boxShadow = '-4px 0 16px rgba(212,175,55,0.2)';
+          e.currentTarget.style.borderColor = 'var(--gold-border)';
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.background = 'var(--bg-surface)';
-          e.currentTarget.style.boxShadow = '-3px 0 12px rgba(0,0,0,0.3)';
+          e.currentTarget.style.borderColor = 'var(--border)';
         }}
       >
-        <span style={{ fontSize: 14 }}>✦</span>
-        <span style={{ writingMode: 'vertical-rl', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em' }}>
+        <span style={{ fontSize: 13, color: 'var(--gold)' }}>✦</span>
+        <span style={{ writingMode: 'vertical-rl', fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', color: 'var(--text-secondary)' }}>
           PRAGNA
         </span>
       </button>
@@ -623,9 +619,9 @@ Attach files/images below or ask me anything!`,
         }
       }}
       style={{
-        width: 360,
-        minWidth: 320,
-        maxWidth: 420,
+        width: 380,
+        minWidth: 340,
+        maxWidth: 440,
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
@@ -643,7 +639,7 @@ Attach files/images below or ask me anything!`,
           style={{
             position: 'absolute',
             inset: 0,
-            background: 'rgba(20, 20, 20, 0.9)',
+            background: 'rgba(10, 10, 10, 0.92)',
             border: '2px dashed var(--gold)',
             zIndex: 1000,
             display: 'flex',
@@ -651,15 +647,15 @@ Attach files/images below or ask me anything!`,
             alignItems: 'center',
             justifyContent: 'center',
             gap: 8,
-            color: 'var(--gold)',
-            backdropFilter: 'blur(3px)',
+            color: 'var(--text-primary)',
+            backdropFilter: 'blur(8px)',
             pointerEvents: 'none',
           }}
         >
-          <span style={{ fontSize: 32 }}>📂</span>
-          <span style={{ fontSize: 14, fontWeight: 700 }}>Drop Images or Files Here</span>
-          <span style={{ fontSize: 10, color: 'var(--text-secondary)' }}>
-            Attach to chat or insert directly into document
+          <span style={{ fontSize: 18, color: 'var(--gold)' }}>✦</span>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>Drop files to attach</span>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+            Images, documents, or data sheets
           </span>
         </div>
       )}
@@ -670,23 +666,23 @@ Attach files/images below or ask me anything!`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '8px 12px',
+          padding: '0 12px',
           borderBottom: '1px solid var(--border)',
           background: 'var(--bg-surface)',
-          height: 38,
+          height: 42,
           boxSizing: 'border-box',
         }}
       >
         {/* Brand */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 14, color: 'var(--gold)', lineHeight: 1 }}>✦</span>
-          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '0.02em' }}>
-            Pragna Copilot
+          <span style={{ fontSize: 13, color: 'var(--gold)', lineHeight: 1 }}>✦</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '0.02em' }}>
+            Pragna
           </span>
         </div>
 
         {/* Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {/* Web Search Toggle */}
           <button
             onClick={() => setWebSearchEnabled(!webSearchEnabled)}
@@ -695,19 +691,19 @@ Attach files/images below or ask me anything!`,
               background: webSearchEnabled ? 'var(--gold)' : 'var(--bg-elevated)',
               color: webSearchEnabled ? 'var(--text-on-gold)' : 'var(--text-secondary)',
               border: `1px solid ${webSearchEnabled ? 'var(--gold)' : 'var(--border)'}`,
-              borderRadius: 3,
-              padding: '2px 6px',
+              borderRadius: 4,
+              padding: '3px 8px',
               fontSize: 10,
               fontWeight: 600,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: 3,
+              gap: 4,
               transition: 'all 0.12s ease',
             }}
           >
-            <span>🌐</span>
-            <span>{webSearchEnabled ? 'ON' : 'OFF'}</span>
+            <span style={{ opacity: 0.8 }}>Web</span>
+            <span style={{ fontSize: 9, opacity: 0.9 }}>{webSearchEnabled ? 'ON' : 'OFF'}</span>
           </button>
 
           {/* Clear */}
@@ -718,13 +714,16 @@ Attach files/images below or ask me anything!`,
               background: 'transparent',
               color: 'var(--text-muted)',
               border: 'none',
-              padding: '2px 4px',
+              padding: '4px 6px',
               fontSize: 11,
               cursor: 'pointer',
-              borderRadius: 3,
+              borderRadius: 4,
+              transition: 'color 0.12s ease',
             }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; }}
           >
-            🗑️
+            Clear
           </button>
 
           {/* Close */}
@@ -735,11 +734,17 @@ Attach files/images below or ask me anything!`,
               background: 'transparent',
               color: 'var(--text-muted)',
               border: 'none',
-              padding: '2px 5px',
-              fontSize: 12,
+              padding: '4px 6px',
+              fontSize: 13,
               cursor: 'pointer',
-              borderRadius: 3,
+              borderRadius: 4,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              lineHeight: 1,
             }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; }}
           >
             ✕
           </button>
@@ -752,24 +757,25 @@ Attach files/images below or ask me anything!`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '4px 12px',
+          padding: '6px 12px',
           background: 'var(--bg-elevated)',
           borderBottom: '1px solid var(--border)',
-          fontSize: 10,
+          fontSize: 11,
           color: 'var(--text-muted)',
-          minHeight: 24,
           boxSizing: 'border-box',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          <span style={{ color: 'var(--gold)' }}>📎</span>
-          <span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: 9, color: 'var(--gold)', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+            Context
+          </span>
+          <span style={{ color: 'var(--text-secondary)' }}>
             {hasSelection ? `Selection (${wordCount} words)` : `Document (${wordCount} words)`}
           </span>
         </div>
 
-        <span style={{ fontSize: 9, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-          {scope === 'selection' ? 'Selection' : 'Document'}
+        <span style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          {scope === 'selection' ? 'Focused' : 'Active'}
         </span>
       </div>
 
@@ -778,10 +784,10 @@ Attach files/images below or ask me anything!`,
         style={{
           flex: 1,
           overflowY: 'auto',
-          padding: '10px 12px',
+          padding: '12px',
           display: 'flex',
           flexDirection: 'column',
-          gap: 10,
+          gap: 12,
         }}
       >
         {messages.map((msg) => {
@@ -798,29 +804,29 @@ Attach files/images below or ask me anything!`,
             >
               <div
                 style={{
-                  fontSize: 9,
+                  fontSize: 10,
                   color: 'var(--text-muted)',
-                  marginBottom: 2,
+                  marginBottom: 3,
                   padding: '0 2px',
                   fontWeight: 600,
+                  letterSpacing: '0.02em',
                 }}
               >
-                {isUser ? 'You' : '✦ Pragna'}
+                {isUser ? 'You' : 'Pragna'}
               </div>
 
               {/* Message Bubble */}
               <div
                 style={{
                   maxWidth: '92%',
-                  padding: '8px 11px',
-                  borderRadius: isUser ? '8px 8px 1px 8px' : '8px 8px 8px 1px',
-                  background: isUser ? 'rgba(212,175,55,0.14)' : 'var(--bg-elevated)',
+                  padding: '10px 12px',
+                  borderRadius: 6,
+                  background: isUser ? 'rgba(201, 168, 76, 0.12)' : 'var(--bg-elevated)',
                   border: `1px solid ${isUser ? 'var(--gold-border)' : 'var(--border)'}`,
                   color: 'var(--text-primary)',
                   fontSize: 12,
-                  lineHeight: 1.5,
+                  lineHeight: 1.55,
                   wordBreak: 'break-word',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
                 }}
               >
                 {/* Text Content */}
@@ -833,26 +839,26 @@ Attach files/images below or ask me anything!`,
                       __html: msg.html || markdownToHtml(msg.content),
                     }}
                     style={{
-                      '& p': { margin: '0 0 5px 0' },
-                      '& h1, & h2, & h3': { fontSize: 12, color: 'var(--gold)', margin: '5px 0 2px' },
-                      '& ul, & ol': { paddingLeft: 14, margin: '2px 0 5px 0' },
-                      '& li': { marginBottom: 2 },
-                      '& pre': { background: '#0a0a0a', padding: 6, borderRadius: 3, overflowX: 'auto', border: '1px solid var(--border)' },
-                      '& code': { fontFamily: 'monospace', fontSize: 11, background: 'rgba(255,255,255,0.06)', padding: '1px 3px', borderRadius: 2 },
+                      '& p': { margin: '0 0 6px 0' },
+                      '& h1, & h2, & h3': { fontSize: 12, color: 'var(--gold)', margin: '6px 0 3px', fontWeight: 600 },
+                      '& ul, & ol': { paddingLeft: 16, margin: '4px 0 6px 0' },
+                      '& li': { marginBottom: 3 },
+                      '& pre': { background: '#0a0a0a', padding: 8, borderRadius: 4, overflowX: 'auto', border: '1px solid var(--border)' },
+                      '& code': { fontFamily: 'var(--font-mono)', fontSize: 11, background: 'rgba(255,255,255,0.06)', padding: '1px 4px', borderRadius: 3 },
                     }}
                   />
                 )}
 
                 {/* Render Attachments in User Message */}
                 {isUser && msg.attachments && msg.attachments.length > 0 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: msg.content ? 6 : 0 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: msg.content ? 8 : 0 }}>
                     {msg.attachments.map((att) => {
                       const isImg = att.type === 'image';
                       return (
                         <div
                           key={att.id}
                           style={{
-                            background: 'rgba(0,0,0,0.25)',
+                            background: 'rgba(0,0,0,0.3)',
                             border: '1px solid var(--border)',
                             borderRadius: 4,
                             padding: 6,
@@ -872,41 +878,40 @@ Attach files/images below or ask me anything!`,
                                   maxWidth: '100%',
                                   maxHeight: 140,
                                   objectFit: 'contain',
-                                  borderRadius: 3,
+                                  borderRadius: 4,
                                   display: 'block',
-                                  marginBottom: 4,
+                                  marginBottom: 6,
                                 }}
                               />
                               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
-                                <span style={{ fontSize: 9, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 120 }}>
+                                <span style={{ fontSize: 10, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }}>
                                   {att.name}
                                 </span>
                                 <button
                                   onClick={() => handleInsertImage(att.uploadedUrl || att.previewUrl, att.name)}
-                                  title="Insert image into document at current cursor"
+                                  title="Insert image into document"
                                   style={{
                                     background: 'var(--gold)',
                                     color: 'var(--text-on-gold)',
-                                    border: '1px solid var(--gold-border)',
+                                    border: 'none',
                                     borderRadius: 3,
-                                    padding: '2px 6px',
-                                    fontSize: 9,
-                                    fontWeight: 700,
+                                    padding: '2px 7px',
+                                    fontSize: 10,
+                                    fontWeight: 600,
                                     cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 3,
                                   }}
                                 >
-                                  <span>Insert in Doc</span>
+                                  Insert in Doc
                                 </button>
                               </div>
                             </div>
                           ) : (
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 4, overflow: 'hidden' }}>
-                                <span>{getFileIcon(att.name, att.type)}</span>
-                                <span style={{ fontSize: 10, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 110 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
+                                <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 4px', borderRadius: 2, background: 'var(--bg-elevated)', color: 'var(--gold)' }}>
+                                  {getFileBadge(att.name, att.type)}
+                                </span>
+                                <span style={{ fontSize: 11, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 120 }}>
                                   {att.name}
                                 </span>
                               </div>
@@ -916,16 +921,16 @@ Attach files/images below or ask me anything!`,
                                 style={{
                                   background: 'var(--gold)',
                                   color: 'var(--text-on-gold)',
-                                  border: '1px solid var(--gold-border)',
+                                  border: 'none',
                                   borderRadius: 3,
-                                  padding: '2px 6px',
-                                  fontSize: 9,
-                                  fontWeight: 700,
+                                  padding: '2px 7px',
+                                  fontSize: 10,
+                                  fontWeight: 600,
                                   cursor: 'pointer',
                                   whiteSpace: 'nowrap',
                                 }}
                               >
-                                <span>Insert Content</span>
+                                Insert Content
                               </button>
                             </div>
                           )}
@@ -935,14 +940,14 @@ Attach files/images below or ask me anything!`,
                   </div>
                 )}
 
-                {/* Detect Images in Assistant Message and offer Insert buttons */}
+                {/* Detect Images in Assistant Message */}
                 {!isUser && (() => {
                   const detectedImgs = extractImagesFromMessage(msg.content, msg.html);
                   if (!detectedImgs.length) return null;
                   return (
-                    <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px solid var(--border)' }}>
-                      <div style={{ fontSize: 9, color: 'var(--gold)', fontWeight: 600, marginBottom: 3 }}>
-                        🖼️ Images in response:
+                    <div style={{ marginTop: 8, paddingTop: 6, borderTop: '1px solid var(--border)' }}>
+                      <div style={{ fontSize: 10, color: 'var(--gold)', fontWeight: 600, marginBottom: 4 }}>
+                        Images in response:
                       </div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                         {detectedImgs.map((img, i) => (
@@ -954,16 +959,16 @@ Attach files/images below or ask me anything!`,
                               background: 'var(--bg-surface)',
                               color: 'var(--text-primary)',
                               border: '1px solid var(--gold-border)',
-                              borderRadius: 3,
-                              padding: '2px 6px',
-                              fontSize: 9,
+                              borderRadius: 4,
+                              padding: '3px 8px',
+                              fontSize: 10,
                               cursor: 'pointer',
                               display: 'flex',
                               alignItems: 'center',
-                              gap: 3,
+                              gap: 4,
                             }}
                           >
-                            <span>➕ Insert Image {detectedImgs.length > 1 ? `#${i + 1}` : 'in Doc'}</span>
+                            Insert Image {detectedImgs.length > 1 ? `#${i + 1}` : 'in Doc'}
                           </button>
                         ))}
                       </div>
@@ -973,15 +978,15 @@ Attach files/images below or ask me anything!`,
 
                 {/* Sources */}
                 {msg.sources && msg.sources.length > 0 && (
-                  <div style={{ marginTop: 6, paddingTop: 5, borderTop: '1px solid var(--border)', fontSize: 9 }}>
-                    <div style={{ fontWeight: 600, color: 'var(--gold)', marginBottom: 2 }}>🌐 Sources:</div>
+                  <div style={{ marginTop: 8, paddingTop: 6, borderTop: '1px solid var(--border)', fontSize: 10 }}>
+                    <div style={{ fontWeight: 600, color: 'var(--gold)', marginBottom: 3 }}>Sources:</div>
                     {msg.sources.map((s, idx) => (
                       <a
                         key={idx}
                         href={s.url}
                         target="_blank"
                         rel="noreferrer"
-                        style={{ display: 'block', color: 'var(--gold)', textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                        style={{ display: 'block', color: 'var(--gold)', textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 2 }}
                       >
                         [{idx + 1}] {s.title}
                       </a>
@@ -1000,17 +1005,17 @@ Attach files/images below or ask me anything!`,
                       background: 'var(--gold)',
                       color: 'var(--text-on-gold)',
                       border: '1px solid var(--gold-border)',
-                      borderRadius: 3,
-                      padding: '2px 7px',
+                      borderRadius: 4,
+                      padding: '2px 8px',
                       fontSize: 10,
-                      fontWeight: 700,
+                      fontWeight: 600,
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: 3,
+                      gap: 4,
                     }}
                   >
-                    <span>⚡ Replace</span>
+                    Replace
                   </button>
 
                   <button
@@ -1020,13 +1025,13 @@ Attach files/images below or ask me anything!`,
                       background: 'var(--bg-elevated)',
                       color: 'var(--text-secondary)',
                       border: '1px solid var(--border)',
-                      borderRadius: 3,
-                      padding: '2px 6px',
+                      borderRadius: 4,
+                      padding: '2px 8px',
                       fontSize: 10,
                       cursor: 'pointer',
                     }}
                   >
-                    <span>Insert</span>
+                    Insert
                   </button>
 
                   <button
@@ -1036,13 +1041,13 @@ Attach files/images below or ask me anything!`,
                       background: 'transparent',
                       color: 'var(--text-muted)',
                       border: '1px solid var(--border)',
-                      borderRadius: 3,
-                      padding: '2px 5px',
+                      borderRadius: 4,
+                      padding: '2px 6px',
                       fontSize: 10,
                       cursor: 'pointer',
                     }}
                   >
-                    📋
+                    Copy
                   </button>
                 </div>
               )}
@@ -1051,9 +1056,9 @@ Attach files/images below or ask me anything!`,
         })}
 
         {loading && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 6px', color: 'var(--gold)', fontSize: 11, fontStyle: 'italic' }}>
-            <span>✦</span>
-            <span>Pragna is writing...</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 6px', color: 'var(--gold)', fontSize: 11 }}>
+            <span style={{ fontSize: 12 }}>✦</span>
+            <span>Pragna is generating...</span>
           </div>
         )}
 
@@ -1064,10 +1069,10 @@ Attach files/images below or ask me anything!`,
       <div
         style={{
           display: 'flex',
-          gap: 4,
+          gap: 5,
           overflowX: 'auto',
-          padding: '5px 8px',
-          background: 'var(--bg-elevated)',
+          padding: '6px 10px',
+          background: 'var(--bg-surface)',
           borderTop: '1px solid var(--border)',
           whiteSpace: 'nowrap',
         }}
@@ -1078,14 +1083,28 @@ Attach files/images below or ask me anything!`,
             onClick={() => handleSendMessage(qp.prompt)}
             disabled={loading}
             style={{
-              background: 'var(--bg-surface)',
+              background: 'var(--bg-elevated)',
               color: 'var(--text-secondary)',
               border: '1px solid var(--border)',
-              borderRadius: 10,
-              padding: '2px 7px',
+              borderRadius: 4,
+              padding: '3px 8px',
               fontSize: 10,
+              fontWeight: 500,
               cursor: loading ? 'not-allowed' : 'pointer',
               opacity: loading ? 0.6 : 1,
+              transition: 'all 0.12s ease',
+            }}
+            onMouseEnter={(e) => {
+              if (!loading) {
+                e.currentTarget.style.borderColor = 'var(--gold-border)';
+                e.currentTarget.style.color = 'var(--text-primary)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!loading) {
+                e.currentTarget.style.borderColor = 'var(--border)';
+                e.currentTarget.style.color = 'var(--text-secondary)';
+              }
             }}
           >
             {qp.label}
@@ -1100,7 +1119,7 @@ Attach files/images below or ask me anything!`,
             display: 'flex',
             gap: 6,
             overflowX: 'auto',
-            padding: '6px 8px',
+            padding: '6px 10px',
             background: 'var(--bg-elevated)',
             borderTop: '1px solid var(--border)',
             alignItems: 'center',
@@ -1118,7 +1137,7 @@ Attach files/images below or ask me anything!`,
                   background: 'var(--bg-surface)',
                   border: '1px solid var(--border)',
                   borderRadius: 4,
-                  padding: '3px 6px',
+                  padding: '4px 6px',
                   fontSize: 10,
                   flexShrink: 0,
                   maxWidth: 240,
@@ -1128,14 +1147,16 @@ Attach files/images below or ask me anything!`,
                   <img
                     src={att.previewUrl}
                     alt={att.name}
-                    style={{ width: 28, height: 28, objectFit: 'cover', borderRadius: 3, border: '1px solid var(--border)' }}
+                    style={{ width: 26, height: 26, objectFit: 'cover', borderRadius: 3, border: '1px solid var(--border)' }}
                   />
                 ) : (
-                  <span style={{ fontSize: 14 }}>{getFileIcon(att.name, att.type)}</span>
+                  <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 4px', borderRadius: 2, background: 'var(--bg-elevated)', color: 'var(--gold)' }}>
+                    {getFileBadge(att.name, att.type)}
+                  </span>
                 )}
 
                 <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: 95 }}>
+                  <span style={{ fontWeight: 500, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: 95 }}>
                     {att.name}
                   </span>
                   <span style={{ fontSize: 8, color: 'var(--text-muted)' }}>
@@ -1143,23 +1164,23 @@ Attach files/images below or ask me anything!`,
                   </span>
                 </div>
 
-                {/* Quick Insert into Document button directly on attachment chip */}
+                {/* Quick Insert into Document button */}
                 <button
                   onClick={() => (isImg ? handleInsertImage(att.uploadedUrl || att.previewUrl, att.name) : handleInsertFile(att))}
-                  title="Insert directly into document at current cursor"
+                  title="Insert directly into document"
                   style={{
                     background: 'var(--gold)',
                     color: 'var(--text-on-gold)',
                     border: 'none',
                     borderRadius: 3,
-                    padding: '2px 5px',
+                    padding: '2px 6px',
                     fontSize: 9,
-                    fontWeight: 700,
+                    fontWeight: 600,
                     cursor: 'pointer',
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {isImg ? '➕ Insert' : '📥 Insert'}
+                  Insert
                 </button>
 
                 {/* Remove attachment */}
@@ -1171,7 +1192,7 @@ Attach files/images below or ask me anything!`,
                     border: 'none',
                     color: 'var(--text-muted)',
                     cursor: 'pointer',
-                    padding: '1px 2px',
+                    padding: '1px 3px',
                     fontSize: 11,
                     lineHeight: 1,
                   }}
@@ -1190,13 +1211,13 @@ Attach files/images below or ask me anything!`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '4px 8px',
+          padding: '5px 10px',
           background: 'var(--bg-surface)',
           borderTop: '1px solid var(--border)',
-          fontSize: 10,
+          fontSize: 11,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {/* Hidden file & image inputs */}
           <input
             ref={fileInputRef}
@@ -1224,42 +1245,48 @@ Attach files/images below or ask me anything!`,
           {/* Attach File Button */}
           <button
             onClick={() => fileInputRef.current?.click()}
-            title="Attach document or data file (.docx, .pdf, .txt, .csv, .json, etc.)"
+            title="Attach document or data file"
             style={{
               background: 'var(--bg-elevated)',
               color: 'var(--text-secondary)',
               border: '1px solid var(--border)',
-              borderRadius: 3,
-              padding: '3px 7px',
+              borderRadius: 4,
+              padding: '3px 8px',
               fontSize: 10,
+              fontWeight: 500,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: 3,
+              gap: 4,
+              transition: 'all 0.12s ease',
             }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--gold-border)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
           >
-            <span>📎</span>
             <span>Attach File</span>
           </button>
 
           {/* Add Image Button */}
           <button
             onClick={() => imageInputRef.current?.click()}
-            title="Upload and insert image (.png, .jpg, .svg, .webp, etc.)"
+            title="Upload and insert image"
             style={{
               background: 'var(--bg-elevated)',
               color: 'var(--text-secondary)',
               border: '1px solid var(--border)',
-              borderRadius: 3,
-              padding: '3px 7px',
+              borderRadius: 4,
+              padding: '3px 8px',
               fontSize: 10,
+              fontWeight: 500,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: 3,
+              gap: 4,
+              transition: 'all 0.12s ease',
             }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--gold-border)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
           >
-            <span>🖼️</span>
             <span>Add Image</span>
           </button>
 
@@ -1271,22 +1298,23 @@ Attach files/images below or ask me anything!`,
               background: showUrlInput ? 'var(--gold)' : 'var(--bg-elevated)',
               color: showUrlInput ? 'var(--text-on-gold)' : 'var(--text-secondary)',
               border: `1px solid ${showUrlInput ? 'var(--gold-border)' : 'var(--border)'}`,
-              borderRadius: 3,
-              padding: '3px 7px',
+              borderRadius: 4,
+              padding: '3px 8px',
               fontSize: 10,
+              fontWeight: 500,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: 3,
+              gap: 4,
+              transition: 'all 0.12s ease',
             }}
           >
-            <span>🔗</span>
             <span>Image URL</span>
           </button>
         </div>
 
         {uploadingFiles && (
-          <span style={{ fontSize: 9, color: 'var(--gold)', fontStyle: 'italic' }}>
+          <span style={{ fontSize: 10, color: 'var(--gold)' }}>
             Uploading...
           </span>
         )}
@@ -1296,11 +1324,11 @@ Attach files/images below or ask me anything!`,
       {showUrlInput && (
         <div
           style={{
-            padding: '6px 8px',
+            padding: '6px 10px',
             background: 'var(--bg-elevated)',
             borderTop: '1px solid var(--border)',
             display: 'flex',
-            gap: 4,
+            gap: 5,
             alignItems: 'center',
           }}
         >
@@ -1312,9 +1340,9 @@ Attach files/images below or ask me anything!`,
             autoFocus
             style={{
               flex: 1,
-              padding: '4px 6px',
-              fontSize: 10,
-              borderRadius: 3,
+              padding: '5px 8px',
+              fontSize: 11,
+              borderRadius: 4,
               border: '1px solid var(--border)',
               background: 'var(--bg-surface)',
               color: 'var(--text-primary)',
@@ -1334,16 +1362,16 @@ Attach files/images below or ask me anything!`,
             style={{
               background: 'var(--gold)',
               color: 'var(--text-on-gold)',
-              border: '1px solid var(--gold-border)',
-              borderRadius: 3,
-              padding: '3px 7px',
+              border: 'none',
+              borderRadius: 4,
+              padding: '4px 8px',
               fontSize: 10,
               fontWeight: 600,
               cursor: imageUrlValue.trim() ? 'pointer' : 'not-allowed',
               opacity: imageUrlValue.trim() ? 1 : 0.6,
             }}
           >
-            ➕ Insert
+            Insert
           </button>
           <button
             onClick={handleAttachUrlImage}
@@ -1353,14 +1381,14 @@ Attach files/images below or ask me anything!`,
               background: 'var(--bg-surface)',
               color: 'var(--text-secondary)',
               border: '1px solid var(--border)',
-              borderRadius: 3,
-              padding: '3px 7px',
+              borderRadius: 4,
+              padding: '4px 8px',
               fontSize: 10,
               cursor: imageUrlValue.trim() ? 'pointer' : 'not-allowed',
               opacity: imageUrlValue.trim() ? 1 : 0.6,
             }}
           >
-            💬 Attach
+            Attach
           </button>
           <button
             onClick={() => {
@@ -1371,8 +1399,9 @@ Attach files/images below or ask me anything!`,
               background: 'transparent',
               color: 'var(--text-muted)',
               border: 'none',
-              fontSize: 11,
+              fontSize: 12,
               cursor: 'pointer',
+              padding: '2px 4px',
             }}
           >
             ✕
@@ -1383,11 +1412,11 @@ Attach files/images below or ask me anything!`,
       {/* Input Box */}
       <div
         style={{
-          padding: '6px 8px',
+          padding: '8px 10px 10px',
           background: 'var(--bg-surface)',
           borderTop: '1px solid var(--border)',
           display: 'flex',
-          gap: 5,
+          gap: 6,
           alignItems: 'flex-end',
         }}
       >
@@ -1401,12 +1430,12 @@ Attach files/images below or ask me anything!`,
               processFiles(e.clipboardData.files);
             }
           }}
-          placeholder="Ask Pragna, prompt to draft/edit, or attach files/images..."
+          placeholder="Ask Pragna, draft, edit, or attach files..."
           rows={2}
           style={{
             flex: 1,
-            padding: '6px 8px',
-            borderRadius: 3,
+            padding: '7px 9px',
+            borderRadius: 5,
             border: '1px solid var(--border)',
             background: 'var(--bg-elevated)',
             color: 'var(--text-primary)',
@@ -1414,7 +1443,7 @@ Attach files/images below or ask me anything!`,
             fontFamily: 'var(--font-ui)',
             outline: 'none',
             resize: 'none',
-            lineHeight: 1.35,
+            lineHeight: 1.4,
           }}
         />
 
@@ -1423,18 +1452,19 @@ Attach files/images below or ask me anything!`,
           disabled={loading}
           title="Send message"
           style={{
-            height: 32,
-            padding: '0 10px',
+            height: 34,
+            padding: '0 12px',
             background: !loading ? 'var(--gold)' : 'var(--bg-elevated)',
             color: !loading ? 'var(--text-on-gold)' : 'var(--text-muted)',
             border: `1px solid ${!loading ? 'var(--gold-border)' : 'var(--border)'}`,
-            borderRadius: 3,
-            fontSize: 11,
+            borderRadius: 5,
+            fontSize: 12,
             fontWeight: 600,
             cursor: !loading ? 'pointer' : 'not-allowed',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            transition: 'all 0.12s ease',
           }}
         >
           ➔

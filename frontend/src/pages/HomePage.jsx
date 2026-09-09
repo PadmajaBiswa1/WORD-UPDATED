@@ -673,6 +673,8 @@ export function HomePage() {
   const [saveAsFormat, setSaveAsFormat] = useState('etherx');
   const [saveAsLocation, setSaveAsLocation] = useState('cloud');
   const [saveAsBusy, setSaveAsBusy] = useState(false);
+  const [exportFormat, setExportFormat] = useState('pdf');
+  const [exportBusy, setExportBusy] = useState(false);
   const [refreshTick, setRefreshTick] = useState(0); // Force re-render for time updates
 
   // AI panel state
@@ -1035,8 +1037,19 @@ export function HomePage() {
 
     if (key === 'save') {
       if (!selectedDoc) return toast('Select a document first', 'info');
+
+      // Pull live content from the editor store if this doc is currently open
+      const editorStoreState = (() => {
+        try {
+          return useDocumentStore.getState();
+        } catch { return null; }
+      })();
+      const isCurrentlyOpen = editorStoreState?.id === selectedDoc.id || currentEditorId === selectedDoc.id;
+      const liveTitle = isCurrentlyOpen ? (currentEditorTitle || selectedDoc.title) : selectedDoc.title;
+      const liveContent = isCurrentlyOpen ? (currentEditorContent || selectedDoc.content || '') : (selectedDoc.content || '');
+
       if (selectedDoc.localOnly) {
-        const localDoc = { ...selectedDoc, updatedAt: new Date().toISOString(), localOnly: true };
+        const localDoc = { ...selectedDoc, title: liveTitle, content: liveContent, updatedAt: new Date().toISOString(), localOnly: true };
         const next = upsertLocalDoc(localDoc);
         setDocs(next);
         setSelectedDocId(localDoc.id);
@@ -1045,18 +1058,16 @@ export function HomePage() {
         return;
       }
       try {
-        await documentApi.save(selectedDoc.id, { title: selectedDoc.title, content: selectedDoc.content || '' });
-        // Add to docs list after successful save
+        await documentApi.save(selectedDoc.id, { title: liveTitle, content: liveContent });
         setDocs((prev) => {
           const exists = prev.some((d) => d.id === selectedDoc.id);
-          if (exists) {
-            return prev.map((d) => d.id === selectedDoc.id ? { ...selectedDoc, updatedAt: new Date().toISOString() } : d);
-          }
-          return [{ ...selectedDoc, updatedAt: new Date().toISOString() }, ...prev];
+          const updated = { ...selectedDoc, title: liveTitle, content: liveContent, updatedAt: new Date().toISOString() };
+          if (exists) return prev.map((d) => d.id === selectedDoc.id ? updated : d);
+          return [updated, ...prev];
         });
-        toast('Document saved and added to recent list', 'success');
+        toast('Document saved', 'success');
       } catch {
-        const localDoc = { ...selectedDoc, id: `local-${Date.now()}`, updatedAt: new Date().toISOString(), localOnly: true };
+        const localDoc = { ...selectedDoc, title: liveTitle, content: liveContent, id: `local-${Date.now()}`, updatedAt: new Date().toISOString(), localOnly: true };
         const next = upsertLocalDoc(localDoc);
         setDocs(next);
         setSelectedDocId(localDoc.id);
@@ -1083,9 +1094,11 @@ export function HomePage() {
     }
   }
 
-  async function exportSelectedDoc() {
+  async function exportSelectedDoc(fmtOverride) {
     if (!selectedDoc) return toast('Select a document first', 'info');
-    const fmt = (window.prompt('Export format: html, pdf, docx', 'html') || 'html').toLowerCase();
+    if (exportBusy) return;
+    const fmt = (fmtOverride || exportFormat || 'pdf').toLowerCase();
+    setExportBusy(true);
     const exportLocally = async () => {
       if (fmt === 'docx') {
         await exportToDocx(selectedDoc.title, selectedDoc.content || '<p></p>');
@@ -1122,7 +1135,7 @@ export function HomePage() {
             ? await exportApi.docx(selectedDoc.id)
             : await exportApi.html(selectedDoc.id);
 
-      if (!blob) {
+      if (!blob || blob.size === 0) {
         await exportLocally();
         toast(`Exported as ${fmt.toUpperCase()}`, 'success');
         return;
@@ -1131,9 +1144,12 @@ export function HomePage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
+      a.style.display = 'none';
       a.download = `${selectedDoc.title}.${fmt === 'pdf' || fmt === 'docx' ? fmt : 'html'}`;
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
+      // Defer cleanup so the browser has time to start the download
+      setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 1000);
       toast('Export complete', 'success');
     } catch {
       try {
@@ -1144,11 +1160,15 @@ export function HomePage() {
         const url = URL.createObjectURL(fallback);
         const a = document.createElement('a');
         a.href = url;
+        a.style.display = 'none';
         a.download = `${selectedDoc.title}.html`;
+        document.body.appendChild(a);
         a.click();
-        URL.revokeObjectURL(url);
+        setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 1000);
         toast('Cloud export failed, exported HTML locally', 'warning');
       }
+    } finally {
+      setExportBusy(false);
     }
   }
 
@@ -1158,8 +1178,14 @@ export function HomePage() {
       const targetDoc = await ensureCloudDocForShare(selectedDoc);
       const response = await documentApi.share(targetDoc.id, { role: 'viewer' });
       const link = response?.shareUrl || buildSharedUrl(targetDoc.id);
-      await navigator.clipboard.writeText(link);
-      toast('Share link copied', 'success');
+      // Use copyTextToClipboard which has the execCommand fallback
+      const copied = await copyTextToClipboard(link);
+      if (copied) {
+        toast('Share link copied to clipboard', 'success');
+      } else {
+        window.prompt('Copy this share link:', link);
+        toast('Share link ready — copy from the dialog', 'info');
+      }
     } catch {
       if (selectedDoc.localOnly) {
         toast('Unable to create a cloud share link right now', 'error');
@@ -1867,14 +1893,44 @@ export function HomePage() {
               </button>
             )}
             {activeMenu === 'share' && (
-              <button style={styles.primaryActionBtn} onClick={shareSelectedDoc}>
-                Copy share link for selected document
-              </button>
+              <div style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 8px 0' }}>
+                  Generate a shareable link for the selected document. Select the document in the list below first.
+                </p>
+                <button style={styles.primaryActionBtn} onClick={shareSelectedDoc} disabled={!selectedDoc}>
+                  {selectedDoc ? `Copy share link for "${selectedDoc.title}"` : 'Select a document below first'}
+                </button>
+              </div>
             )}
             {activeMenu === 'export' && (
-              <button style={styles.primaryActionBtn} onClick={exportSelectedDoc}>
-                Export selected document
-              </button>
+              <div style={{ marginBottom: 16 }}>
+                <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 10px 0' }}>
+                  Choose a format and export the selected document.
+                </p>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                  {[{ key: 'pdf', label: 'PDF' }, { key: 'docx', label: 'Word (.docx)' }, { key: 'html', label: 'HTML' }].map((f) => (
+                    <button
+                      key={f.key}
+                      style={{
+                        ...styles.secondaryActionBtn,
+                        background: exportFormat === f.key ? 'var(--bg-hover)' : 'transparent',
+                        borderColor: exportFormat === f.key ? 'var(--border-gold)' : 'var(--border)',
+                        color: exportFormat === f.key ? 'var(--text-gold)' : 'var(--text-secondary)',
+                      }}
+                      onClick={() => setExportFormat(f.key)}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  style={{ ...styles.primaryActionBtn, ...(exportBusy ? { opacity: 0.6, cursor: 'not-allowed' } : {}) }}
+                  onClick={() => exportSelectedDoc(exportFormat)}
+                  disabled={exportBusy || !selectedDoc}
+                >
+                  {exportBusy ? <><LoadingIcon />Exporting…</> : `Export as ${exportFormat.toUpperCase()}`}
+                </button>
+              </div>
             )}
             <input
               value={search}

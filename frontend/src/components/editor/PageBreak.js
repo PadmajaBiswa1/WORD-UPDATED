@@ -74,7 +74,11 @@ function getContentHeightPx() {
   return Math.max(1, metrics.contentHeight - (PAGE_BORDER_WIDTH * 2));
 }
 
-function paginateDocument(view) {
+function getNodeHash(node) {
+  try { return JSON.stringify(node.toJSON()); } catch { return String(node.nodeSize); }
+}
+
+function paginateDocument(view, heightCache) {
   if (!view?.state?.doc || view.isDestroyed) return false;
 
   const { doc, schema } = view.state;
@@ -134,7 +138,21 @@ function paginateDocument(view) {
       continue;
     }
 
-    const nodeHeight = Math.max(1, getNodeHeight(view, node, dom));
+    // Use height cache to avoid re-measuring unchanged blocks
+    let nodeHeight;
+    if (heightCache) {
+      const cacheKey = String(current.pos);
+      const hash = getNodeHash(node);
+      const cached = heightCache.get(cacheKey);
+      if (cached && cached.hash === hash) {
+        nodeHeight = cached.height;
+      } else {
+        nodeHeight = Math.max(1, getNodeHeight(view, node, dom));
+        heightCache.set(cacheKey, { hash, height: nodeHeight });
+      }
+    } else {
+      nodeHeight = Math.max(1, getNodeHeight(view, node, dom));
+    }
     const isHeading = ['heading'].includes(node.type.name);
     
     // Heading margins (Word presets converted to pixels @ 96dpi)
@@ -466,14 +484,21 @@ export const PageBreak = Node.create({
       new Plugin({
         key: AUTO_PAGINATION_KEY,
         view: () => {
-          let frameId = null;
+          let debounceTimer = null;
+          // Cache: pos (string) -> { nodeHash, height }
+          // nodeHash is a cheap fingerprint of the node JSON to detect changes.
+          const heightCache = new Map();
 
-          const schedule = (view) => {
-            if (frameId !== null) cancelAnimationFrame(frameId);
-            frameId = requestAnimationFrame(() => {
-              frameId = null;
-              paginateDocument(view);
-            });
+          const getNodeHash = (node) => {
+            try { return JSON.stringify(node.toJSON()); } catch { return String(node.nodeSize); }
+          };
+
+          const schedule = (view, force = false) => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+              debounceTimer = null;
+              paginateDocument(view, force ? null : heightCache);
+            }, 200);
           };
 
           const storeUnsubscribe = useUIStore.subscribe((state, prevState) => {
@@ -483,21 +508,23 @@ export const PageBreak = Node.create({
               state.pageOrientation !== prevState.pageOrientation ||
               state.pageMargin !== prevState.pageMargin
             ) {
-              // Re-paginate on zoom/page-size/margin change.
-              // We access the editor view via the plugin's own view reference.
-              schedule(view);
+              // Page size / zoom change: bust the entire height cache
+              heightCache.clear();
+              schedule(view, true);
             }
           });
 
           return {
             update(view, prevState) {
               if (!view?.state) return;
-              if (view.state.doc === prevState.doc && view.state.selection === prevState.selection) return;
+              // Skip if only the selection changed — no content was modified
+              if (view.state.doc === prevState.doc) return;
               schedule(view);
             },
             destroy() {
-              if (frameId !== null) cancelAnimationFrame(frameId);
+              clearTimeout(debounceTimer);
               storeUnsubscribe();
+              heightCache.clear();
             },
           };
         },
