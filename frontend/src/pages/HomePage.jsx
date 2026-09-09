@@ -88,6 +88,7 @@ const START_TEMPLATES = [
 const SAVE_AS_FORMATS = [
   { key: 'etherx', label: 'EtherX Document (.ethex)' },
   { key: 'docx', label: 'Word Document (.docx)' },
+  { key: 'pdf', label: 'PDF Document (.pdf)' },
   { key: 'html', label: 'Web Page (.html)' },
 ];
 
@@ -1281,6 +1282,21 @@ export function HomePage() {
         if (pickerResult !== true) {
           if (saveAsFormat === 'docx') {
             await exportToDocx(finalName, content);
+          } else if (saveAsFormat === 'pdf') {
+            const frame = document.createElement('div');
+            frame.style.position = 'fixed';
+            frame.style.left = '-10000px';
+            frame.style.top = '0';
+            frame.style.width = '794px';
+            frame.style.background = '#ffffff';
+            frame.style.padding = '40px';
+            frame.innerHTML = content || '<p></p>';
+            document.body.appendChild(frame);
+            try {
+              await exportToPdf(finalName, frame);
+            } finally {
+              frame.remove();
+            }
           } else if (saveAsFormat === 'html') {
             exportToHtml(finalName, content);
           } else {
@@ -1290,7 +1306,7 @@ export function HomePage() {
 
         const destination = wantsLocalFile
           ? (saveAsLocation === 'browse' ? 'the selected folder' : 'your computer')
-          : 'your computer because Word/Web formats are file exports';
+          : 'your computer because file exports are saved locally';
         toast(`Saved to ${destination}`, 'success');
         setActiveMenu('home');
         return;
@@ -1850,6 +1866,7 @@ export function HomePage() {
                       <div style={styles.saveAsInputHint}>
                         {saveAsFormat === 'etherx' && 'Native EtherX format - recommended for editing'}
                         {saveAsFormat === 'docx' && 'Microsoft Word format - compatible with Word'}
+                        {saveAsFormat === 'pdf' && 'PDF Document - ideal for printing and sharing'}
                         {saveAsFormat === 'html' && 'Web format - for viewing in browsers'}
                       </div>
                     </div>
