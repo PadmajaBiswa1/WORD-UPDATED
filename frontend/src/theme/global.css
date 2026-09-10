@@ -389,6 +389,71 @@ body {
   height: 0 !important;
 }
 
+/* ── 3-Row Ribbon Group Styling (flex-column + wrap model) ── */
+.ribbon-group-content {
+  height: 82px;
+  max-height: 82px;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  overflow: visible;
+}
+
+/* Multi-row column wrappers (used across tabs for 3-row button columns) */
+.ribbon-group-content > div[style*="column"],
+.ribbon-group-content > div[style*="Column"],
+.ribbon-group-content > div[data-stacked="true"],
+.ribbon-group-content > [data-col="true"] {
+  height: 82px !important;
+  max-height: 82px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  flex-wrap: wrap !important;
+  align-content: flex-start !important;
+  gap: 2px 4px !important;
+  flex-shrink: 0 !important;
+  box-sizing: border-box !important;
+}
+
+/* Standard ribbon buttons inside column wrappers (3 × 25px + 2 × 2px = 79px <= 82px) */
+.ribbon-group-content > div[style*="column"] button,
+.ribbon-group-content > div[style*="Column"] button,
+.ribbon-group-content > div[data-stacked="true"] button,
+.ribbon-group-content > [data-col="true"] button {
+  height: 25px;
+  max-height: 25px;
+  padding: 1px 7px;
+  font-size: 11px;
+  white-space: nowrap;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.ribbon-group-content > div[style*="column"] > div,
+.ribbon-group-content > div[style*="Column"] > div,
+.ribbon-group-content > div[data-stacked="true"] > div,
+.ribbon-group-content > [data-col="true"] > div {
+  height: 25px;
+  max-height: 25px;
+  flex-shrink: 0;
+}
+
+/* Hero buttons span all 3 rows */
+.ribbon-group-content [data-hero="true"],
+.ribbon-group-content button[data-hero="true"] {
+  height: 80px !important;
+  max-height: 80px !important;
+  align-self: stretch;
+  align-items: center;
+}
+.ribbon-group-content [data-hero="true"] button,
+.ribbon-group-content [data-hero="true"] > div > button {
+  height: 100% !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  gap: 2px !important;
+}
+
 ::selection { background: rgba(212,175,55,0.28); color: inherit; }
 :focus-visible { outline: 1.5px solid var(--gold); outline-offset: 2px; }
 
@@ -653,10 +718,22 @@ body {
   background: rgba(244, 67, 54, 0.1);
 }
 
-.ProseMirror.etherx-show-formatting p::after {
-  content: '¶';
-  color: var(--text-muted);
+.ProseMirror.etherx-show-formatting p::after,
+.ProseMirror.etherx-show-formatting h1::after,
+.ProseMirror.etherx-show-formatting h2::after,
+.ProseMirror.etherx-show-formatting h3::after,
+.ProseMirror.etherx-show-formatting h4::after,
+.ProseMirror.etherx-show-formatting h5::after,
+.ProseMirror.etherx-show-formatting h6::after,
+.ProseMirror.etherx-show-formatting li::after,
+.ProseMirror.etherx-show-formatting blockquote::after {
+  content: ' ¶';
+  color: var(--gold, #c9a84c);
+  opacity: 0.55;
   font-size: 11px;
+  font-family: var(--font-ui, sans-serif);
+  user-select: none;
+  pointer-events: none;
   margin-left: 4px;
 }
 
@@ -1110,4 +1187,110 @@ body {
 .etherx-index-link:hover {
   color: var(--gold) !important;
   text-decoration: underline !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Responsive Mobile & Stretch Ribbon Layout Rules
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Ribbon row is always a full-width horizontally scrollable rail with touch momentum */
+.ribbon-main-row {
+  width: 100% !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  -webkit-overflow-scrolling: touch !important;
+  scrollbar-width: none !important;
+}
+.ribbon-main-row::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* On mobile / tablet screens (<= 900px), ribbon stretches 100% and groups never hide */
+@media (max-width: 900px) {
+  /* Ensure all ribbon groups are visible and stretch in a continuous touch rail */
+  .ribbon-main-row > * {
+    display: flex !important;
+    flex-shrink: 0 !important;
+  }
+  .ribbon-more-btn-wrap {
+    display: none !important;
+  }
+  .ribbon-overflow-popover {
+    display: none !important;
+  }
+
+  /* TitleBar collapses non-essential text */
+  .titlebar-autosave-label {
+    display: none !important;
+  }
+  .titlebar-collab-btn {
+    display: none !important;
+  }
+  .titlebar-comments-btn {
+    display: none !important;
+  }
+  .titlebar-editing-btn {
+    display: none !important;
+  }
+  .titlebar-import-btn {
+    display: none !important;
+  }
+
+  /* Tab strip actions (search & shortcuts) hide so tabs stretch across 100% */
+  .ribbon-tab-actions {
+    display: none !important;
+  }
+
+  /* Sidebars: drawer overlay mode when opened on mobile */
+  .pragna-sidebar-container {
+    position: fixed !important;
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    z-index: 3000 !important;
+    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.7) !important;
+  }
+  .page-sidebar-container {
+    position: fixed !important;
+    top: 70px !important;
+    left: 0 !important;
+    bottom: 22px !important;
+    width: 180px !important;
+    z-index: 2500 !important;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.7) !important;
+  }
+
+  /* Status bar clean up on mobile */
+  .status-bar-lang,
+  .status-bar-views,
+  .status-bar-sep-lang,
+  .status-bar-sep-views,
+  .status-bar-collab,
+  .status-bar-sep-collab {
+    display: none !important;
+  }
+
+  /* Canvas padding on mobile */
+  #editor-scroll-area {
+    padding-left: 6px !important;
+    padding-right: 6px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .status-bar-slider {
+    display: none !important;
+  }
+  .titlebar-logout-btn {
+    padding: 0 5px !important;
+    font-size: 11px !important;
+  }
+  .titlebar-share-btn {
+    padding: 0 7px !important;
+    font-size: 11px !important;
+  }
 }

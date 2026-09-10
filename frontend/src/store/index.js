@@ -380,7 +380,7 @@ export const useUIStore = create((set) => ({
     }
     set({ autoSaveEnabled: !!enabled });
   },
-  sidebarOpen: true,
+  sidebarOpen: typeof window !== 'undefined' ? window.innerWidth > 900 : true,
   fullscreen: false,
   ribbonCollapsed: false,
   zoom: 100,
@@ -400,7 +400,7 @@ export const useUIStore = create((set) => ({
   drawOpacity: 0.4,
   watermarkText: '',
 
-  copilotOpen: true,
+  copilotOpen: typeof window !== 'undefined' ? window.innerWidth > 1024 : true,
   toggleCopilot: () => set((s) => ({ copilotOpen: !s.copilotOpen })),
   setCopilotOpen: (open) => set({ copilotOpen: !!open }),
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
@@ -408,6 +408,9 @@ export const useUIStore = create((set) => ({
   toggleRibbon: () => set((s) => ({ ribbonCollapsed: !s.ribbonCollapsed })),
   toggleRuler: () => set((s) => ({ rulerVisible: !s.rulerVisible })),
   toggleGridlines: () => set((s) => ({ gridlinesVisible: !s.gridlinesVisible })),
+  showFormattingMarks: false,
+  toggleFormattingMarks: () => set((s) => ({ showFormattingMarks: !s.showFormattingMarks })),
+  setShowFormattingMarks: (v) => set({ showFormattingMarks: !!v }),
   setZoom: (z) => set({ zoom: Math.min(200, Math.max(25, z)) }),
   setActiveTab: (t) => set({ activeTab: t }),
   setActivePage: (p) => set({ activePage: p }),
@@ -425,7 +428,7 @@ export const useUIStore = create((set) => ({
   dialogs: {
     insertImage: false, insertTable: false, insertLink: false,
     insertChart: false, insertShape: false, insertSymbol: false,
-    findReplace: false, versionHistory: false, exportDoc: false,
+    findReplace: false, goTo: false, versionHistory: false, exportDoc: false,
     shareDoc: false, drawing: false, templates: false,
     pageSetup: false, comments: false,
     lineSpacing: false, shading: false, borders: false, dictate: false,

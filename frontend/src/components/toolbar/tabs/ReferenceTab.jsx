@@ -325,55 +325,72 @@ export function ReferenceTab() {
     toast('Researcher opened', 'success');
   };
 
+  const col = { display: 'flex', flexDirection: 'column', flexWrap: 'wrap', maxHeight: 82, height: 82, gap: 2, alignContent: 'flex-start' };
+  const btn = { height: 25, display: 'inline-flex', alignItems: 'center', flexShrink: 0 };
+
   return (
     <>
       <RibbonGroup label="Table of Contents">
-        <Tooltip text="Table of Contents"><Button onMouseDown={keepSelectionOnMouseDown} onClick={insertToc}>≡ Contents</Button></Tooltip>
-        <Tooltip text="Add Text"><Button onMouseDown={keepSelectionOnMouseDown} onClick={addTextToToc}>+ Add Text</Button></Tooltip>
-        <Tooltip text="Update Table"><Button onMouseDown={keepSelectionOnMouseDown} onClick={updateToc}>↻ Update</Button></Tooltip>
+        <div style={col}>
+          <Tooltip text="Table of Contents"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={insertToc}>≡ Contents</Button></Tooltip>
+          <Tooltip text="Add Text"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={addTextToToc}>+ Add Text</Button></Tooltip>
+          <Tooltip text="Update Table"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={updateToc}>↻ Update</Button></Tooltip>
+        </div>
       </RibbonGroup>
 
       <RibbonGroup label="Footnotes">
-        <Tooltip text="Insert Footnote" shortcut="Alt+Ctrl+F"><Button onMouseDown={keepSelectionOnMouseDown} onClick={() => insertHtml('<p><sup>[1]</sup> Footnote: Footnote text</p>')}>¹ Footnote</Button></Tooltip>
-        <Tooltip text="Insert Endnote" shortcut="Alt+Ctrl+D"><Button onMouseDown={keepSelectionOnMouseDown} onClick={() => insertHtml('<p><sup>[a]</sup> Endnote: Endnote text</p>')}>¹ Endnote</Button></Tooltip>
-        <Tooltip text="Next Footnote"><Button onMouseDown={keepSelectionOnMouseDown} onClick={jumpToNextFootnote}>→ Next</Button></Tooltip>
-        <Tooltip text="Show Notes"><Button onMouseDown={keepSelectionOnMouseDown} onClick={toggleNotesVisibility}>👁 Show</Button></Tooltip>
+        <div style={col}>
+          <Tooltip text="Insert Footnote" shortcut="Alt+Ctrl+F"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={() => insertHtml('<p><sup>[1]</sup> Footnote: Footnote text</p>')}>¹ Footnote</Button></Tooltip>
+          <Tooltip text="Insert Endnote" shortcut="Alt+Ctrl+D"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={() => insertHtml('<p><sup>[a]</sup> Endnote: Endnote text</p>')}>¹ Endnote</Button></Tooltip>
+          <Tooltip text="Next Footnote"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={jumpToNextFootnote}>→ Next</Button></Tooltip>
+          <Tooltip text="Show Notes"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={toggleNotesVisibility}>👁 Show</Button></Tooltip>
+        </div>
       </RibbonGroup>
 
       <RibbonGroup label="Citations & Bibliography">
-        <Tooltip text="Insert Citation"><Button onMouseDown={keepSelectionOnMouseDown} onClick={insertCitation}>❝ Citation</Button></Tooltip>
-        <Tooltip text="Manage Sources"><Button onMouseDown={keepSelectionOnMouseDown} onClick={manageSources}>📚 Sources</Button></Tooltip>
-        <Tooltip text="Style"><Button onMouseDown={keepSelectionOnMouseDown} onClick={() => openDialog('insertCitation')}>APA Style</Button></Tooltip>
-        <Tooltip text="Bibliography"><Button onMouseDown={keepSelectionOnMouseDown} onClick={insertBibliography}>📖 Bibliography</Button></Tooltip>
-        <Tooltip text="AI Citation Fact-Checking"><Button onMouseDown={keepSelectionOnMouseDown} onClick={() => openDialog('citationFactCheck')}>🛡 Fact-Check</Button></Tooltip>
+        <div style={col}>
+          <Tooltip text="Insert Citation"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={insertCitation}>❝ Citation</Button></Tooltip>
+          <Tooltip text="Manage Sources"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={manageSources}>📚 Sources</Button></Tooltip>
+          <Tooltip text="Style"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={() => openDialog('insertCitation')}>APA Style</Button></Tooltip>
+          <Tooltip text="Bibliography"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={insertBibliography}>📖 Biblio</Button></Tooltip>
+          <Tooltip text="AI Citation Fact-Checking"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={() => openDialog('citationFactCheck')}>🛡 Fact-Check</Button></Tooltip>
+        </div>
       </RibbonGroup>
 
       <RibbonGroup label="Captions">
-        <Tooltip text="Insert Caption (Figure or Table)"><Button onMouseDown={keepSelectionOnMouseDown} onClick={insertCaption}>🏷 Caption</Button></Tooltip>
-        <Tooltip text="Insert Table of Figures"><Button onMouseDown={keepSelectionOnMouseDown} onClick={insertTableOfFigures}>≡ Figures</Button></Tooltip>
-        <Tooltip text="Insert Table of Tables"><Button onMouseDown={keepSelectionOnMouseDown} onClick={insertTableOfTables}>≡ Tables</Button></Tooltip>
-        <Tooltip text="Update Tables of Figures / Tables"><Button onMouseDown={keepSelectionOnMouseDown} onClick={updateCaptionsTable}>↻ Update</Button></Tooltip>
-        <Tooltip text="Cross-reference"><Button onMouseDown={keepSelectionOnMouseDown} onClick={() => {
-          const picked = selectedText(editor) || (window.prompt('Cross-reference label', 'Reference') || 'Reference');
-          run(() => editor.chain().insertContent(`[See: ${picked}]`).run());
-        }}>⇒ Cross-ref</Button></Tooltip>
+        <div style={col}>
+          <Tooltip text="Insert Caption (Figure or Table)"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={insertCaption}>🏷 Caption</Button></Tooltip>
+          <Tooltip text="Insert Table of Figures"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={insertTableOfFigures}>≡ Figures</Button></Tooltip>
+          <Tooltip text="Insert Table of Tables"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={insertTableOfTables}>≡ Tables</Button></Tooltip>
+          <Tooltip text="Update Tables of Figures / Tables"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={updateCaptionsTable}>↻ Update</Button></Tooltip>
+          <Tooltip text="Cross-reference"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={() => {
+            const picked = selectedText(editor) || (window.prompt('Cross-reference label', 'Reference') || 'Reference');
+            run(() => editor.chain().insertContent(`[See: ${picked}]`).run());
+          }}>⇒ Cross-ref</Button></Tooltip>
+        </div>
       </RibbonGroup>
 
       <RibbonGroup label="Index">
-        <Tooltip text="Mark Selected Text for Index"><Button onMouseDown={keepSelectionOnMouseDown} onClick={markIndexEntry}>✎ Mark Entry</Button></Tooltip>
-        <Tooltip text="Insert Alphabetical Index (A-Z)"><Button onMouseDown={keepSelectionOnMouseDown} onClick={insertIndex}>≡ Index</Button></Tooltip>
-        <Tooltip text="Update Index"><Button onMouseDown={keepSelectionOnMouseDown} onClick={updateIndex}>↻ Update</Button></Tooltip>
+        <div style={col}>
+          <Tooltip text="Mark Selected Text for Index"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={markIndexEntry}>✎ Mark Entry</Button></Tooltip>
+          <Tooltip text="Insert Alphabetical Index (A-Z)"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={insertIndex}>≡ Index</Button></Tooltip>
+          <Tooltip text="Update Index"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={updateIndex}>↻ Update</Button></Tooltip>
+        </div>
       </RibbonGroup>
 
       <RibbonGroup label="Table of Authorities">
-        <Tooltip text="Mark Citation"><Button onMouseDown={keepSelectionOnMouseDown} onClick={markCitation}>✎ Mark</Button></Tooltip>
-        <Tooltip text="Insert Table of Authorities"><Button onMouseDown={keepSelectionOnMouseDown} onClick={insertAuthorities}>≡ Authorities</Button></Tooltip>
-        <Tooltip text="Update Table"><Button onMouseDown={keepSelectionOnMouseDown} onClick={updateAuthorities}>↻ Update</Button></Tooltip>
+        <div style={col}>
+          <Tooltip text="Mark Citation"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={markCitation}>✎ Mark</Button></Tooltip>
+          <Tooltip text="Insert Table of Authorities"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={insertAuthorities}>≡ Authorities</Button></Tooltip>
+          <Tooltip text="Update Table"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={updateAuthorities}>↻ Update</Button></Tooltip>
+        </div>
       </RibbonGroup>
 
       <RibbonGroup label="Research">
-        <Tooltip text="Researcher"><Button onMouseDown={keepSelectionOnMouseDown} onClick={openResearcher}>🔬 Researcher</Button></Tooltip>
-        <Tooltip text="Smart Lookup"><Button onMouseDown={keepSelectionOnMouseDown} onClick={smartLookup}>🔍 Lookup</Button></Tooltip>
+        <div style={col}>
+          <Tooltip text="Researcher"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={openResearcher}>🔬 Researcher</Button></Tooltip>
+          <Tooltip text="Smart Lookup"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={smartLookup}>🔍 Lookup</Button></Tooltip>
+        </div>
       </RibbonGroup>
     </>
   );

@@ -180,44 +180,58 @@ export function MailingsTab() {
     toast('Print preview opened for current recipient', 'success');
   });
 
+  const col = { display: 'flex', flexDirection: 'column', flexWrap: 'wrap', maxHeight: 82, height: 82, gap: 2, alignContent: 'flex-start' };
+  const mbtn = { height: 25, display: 'inline-flex', alignItems: 'center', flexShrink: 0, whiteSpace: 'nowrap', fontSize: 11, padding: '0 6px' };
+
   return (
     <>
       <RibbonGroup label="Create">
-        <Tooltip text="Envelopes"><Button onClick={() => openDialog('envelopes')}>✉ Envelopes</Button></Tooltip>
-        <Tooltip text="Labels"><Button onClick={() => openDialog('labels')}>🏷 Labels</Button></Tooltip>
+        <div style={col}>
+          <Tooltip text="Envelopes"><Button style={mbtn} onClick={() => openDialog('envelopes')}>✉ Envelopes</Button></Tooltip>
+          <Tooltip text="Labels"><Button style={mbtn} onClick={() => openDialog('labels')}>🏷 Labels</Button></Tooltip>
+        </div>
       </RibbonGroup>
 
       <RibbonGroup label="Start Mail Merge">
-        <Tooltip text="Start Mail Merge"><Button onClick={startMailMerge}>⊞ Start Merge</Button></Tooltip>
-        <Tooltip text="Select Recipients"><Button onClick={() => openDialog('selectRecipients')}>👥 Recipients</Button></Tooltip>
-        <Tooltip text="Edit Recipient List"><Button onClick={() => openDialog('editRecipients')}>✎ Edit List</Button></Tooltip>
+        <div style={col}>
+          <Tooltip text="Start Mail Merge"><Button style={mbtn} onClick={startMailMerge}>⊞ Start Merge</Button></Tooltip>
+          <Tooltip text="Select Recipients"><Button style={mbtn} onClick={() => openDialog('selectRecipients')}>👥 Recipients</Button></Tooltip>
+          <Tooltip text="Edit Recipient List"><Button style={mbtn} onClick={() => openDialog('editRecipients')}>✎ Edit List</Button></Tooltip>
+        </div>
       </RibbonGroup>
 
       <RibbonGroup label="Write & Insert Fields">
-        <Tooltip text="Highlight Merge Fields"><Button onClick={highlightFields}>🖍 Highlight</Button></Tooltip>
-        <Tooltip text="Address Block"><Button onClick={() => insertHtml('<div style="border:1px solid #cfcfcf;padding:10px 12px;">{{FirstName}} {{LastName}}<br />{{Address}}<br />{{City}}, {{State}} {{Zip}}</div>')}>📮 Address</Button></Tooltip>
-        <Tooltip text="Greeting Line"><Button onClick={() => openDialog('greetingLine')}>👋 Greeting</Button></Tooltip>
-        <Tooltip text="Insert Merge Field"><Button onClick={() => openDialog('insertMergeField')}>⊞ Field</Button></Tooltip>
-        <Tooltip text="Rules"><Button onClick={insertRule}>⚙ Rules</Button></Tooltip>
-        <Tooltip text="Match Fields"><Button onClick={insertMatchTemplate}>⇔ Match</Button></Tooltip>
-        <Tooltip text="Update Labels"><Button onClick={() => openDialog('labels')}>↻ Update</Button></Tooltip>
+        <div style={col}>
+          <Tooltip text="Highlight Merge Fields"><Button style={mbtn} onClick={highlightFields}>🖍 Highlight</Button></Tooltip>
+          <Tooltip text="Address Block"><Button style={mbtn} onClick={() => insertHtml('<div style="border:1px solid #cfcfcf;padding:10px 12px;">{{FirstName}} {{LastName}}<br />{{Address}}<br />{{City}}, {{State}} {{Zip}}</div>')}>📮 Address</Button></Tooltip>
+          <Tooltip text="Greeting Line"><Button style={mbtn} onClick={() => openDialog('greetingLine')}>👋 Greeting</Button></Tooltip>
+          <Tooltip text="Insert Merge Field"><Button style={mbtn} onClick={() => openDialog('insertMergeField')}>⊞ Field</Button></Tooltip>
+          <Tooltip text="Rules"><Button style={mbtn} onClick={insertRule}>⚙ Rules</Button></Tooltip>
+          <Tooltip text="Match Fields"><Button style={mbtn} onClick={insertMatchTemplate}>⇔ Match</Button></Tooltip>
+          <Tooltip text="Update Labels"><Button style={mbtn} onClick={() => openDialog('labels')}>↻ Update</Button></Tooltip>
+        </div>
       </RibbonGroup>
 
       <RibbonGroup label="Preview Results">
-        <Tooltip text="Preview Results"><Button onClick={() => openDialog('finishMerge')}>👁 Preview</Button></Tooltip>
-        <Tooltip text="First Record"><Button onClick={() => navigateRecipient('first')}>|◀</Button></Tooltip>
-        <Tooltip text="Previous Record"><Button onClick={() => navigateRecipient('prev')}>◀</Button></Tooltip>
-        <Tooltip text="Next Record"><Button onClick={() => navigateRecipient('next')}>▶</Button></Tooltip>
-        <Tooltip text="Last Record"><Button onClick={() => navigateRecipient('last')}>▶|</Button></Tooltip>
-        <Tooltip text="Find Recipient"><Button onClick={findRecipient}>🔍 Find</Button></Tooltip>
-        <Tooltip text="Auto Check for Errors"><Button onClick={checkMergeErrors}>✓ Check</Button></Tooltip>
+        <div style={col}>
+          <Tooltip text="Preview Results"><Button style={mbtn} onClick={() => openDialog('finishMerge')}>👁 Preview</Button></Tooltip>
+          <Tooltip text="First Record"><Button style={mbtn} onClick={() => navigateRecipient('first')}>|◀</Button></Tooltip>
+          <Tooltip text="Previous Record"><Button style={mbtn} onClick={() => navigateRecipient('prev')}>◀</Button></Tooltip>
+          <Tooltip text="Next Record"><Button style={mbtn} onClick={() => navigateRecipient('next')}>▶</Button></Tooltip>
+          <Tooltip text="Last Record"><Button style={mbtn} onClick={() => navigateRecipient('last')}>▶|</Button></Tooltip>
+          <Tooltip text="Find Recipient"><Button style={mbtn} onClick={findRecipient}>🔍 Find</Button></Tooltip>
+          <Tooltip text="Auto Check for Errors"><Button style={mbtn} onClick={checkMergeErrors}>✓ Check</Button></Tooltip>
+        </div>
       </RibbonGroup>
 
       <RibbonGroup label="Finish">
-        <Tooltip text="Finish & Merge"><Button onClick={() => openDialog('finishMerge')}>✓ Finish</Button></Tooltip>
-        <Tooltip text="Merge to Email"><Button onClick={mergeToEmail}>📧 Email</Button></Tooltip>
-        <Tooltip text="Merge to Printer"><Button onClick={mergeToPrint}>🖨 Print</Button></Tooltip>
+        <div style={col}>
+          <Tooltip text="Finish & Merge"><Button style={mbtn} onClick={() => openDialog('finishMerge')}>✓ Finish</Button></Tooltip>
+          <Tooltip text="Merge to Email"><Button style={mbtn} onClick={mergeToEmail}>📧 Email</Button></Tooltip>
+          <Tooltip text="Merge to Printer"><Button style={mbtn} onClick={mergeToPrint}>🖨 Print</Button></Tooltip>
+        </div>
       </RibbonGroup>
     </>
   );
 }
+

@@ -701,6 +701,7 @@ Ask me anything or attach files below.`,
           processFiles(e.dataTransfer.files);
         }
       }}
+      className="pragna-sidebar-container"
       style={{
         width: 380,
         minWidth: 340,

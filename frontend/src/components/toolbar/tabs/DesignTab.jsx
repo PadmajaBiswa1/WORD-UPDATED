@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useUIStore, useEditorStore, useDocumentStore } from '@/store';
 import { Modal, Button, Label, Stack, Input } from '@/components/ui';
 import { runImageTextCapture, runSmartSuggestions } from '@/utils/smartFeatures';
+import { RibbonGroup } from '../RibbonGroup';
 
 const CARET = String.fromCharCode(9662);
 const DESIGN_DEFAULT_KEY = 'etherx-design-default';
@@ -350,66 +351,66 @@ export function DesignTab() {
   return (
     <>
       {/* ── Group 1: Document Formatting (Themes) ── */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'stretch',
-          gap: 8,
-          borderRight: '1px solid var(--ribbon-divider)',
-          padding: '5px 8px 0 8px',
-          flexShrink: 0,
-        }}
-      >
-        {/* Themes Button */}
-        <button
-          onClick={() => {
-            const next = ((THEMES.findIndex(t => t.accent === design.accent) + 1) % THEMES.length);
-            handleApplyTheme(THEMES[next]);
-          }}
-          style={{
-            width: 50,
-            height: 68,
-            border: '1px solid var(--ribbon-divider)',
-            background: 'var(--ribbon-surface-2)',
-            cursor: 'pointer',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 3,
-            color: 'var(--ribbon-ink)',
-            fontFamily: 'var(--font-ui)',
-            padding: 0,
-            borderRadius: 2,
-            flexShrink: 0,
-          }}
-        >
-          <div
+      <RibbonGroup label="Document Formatting">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button
+            onClick={() => {
+              const next = ((THEMES.findIndex(t => t.accent === design.accent) + 1) % THEMES.length);
+              handleApplyTheme(THEMES[next]);
+            }}
             style={{
-              width: 26,
-              height: 26,
+              width: 48,
+              height: 78,
               border: '1px solid var(--ribbon-divider)',
-              background: '#fff',
-              color: '#000',
-              display: 'grid',
-              placeItems: 'center',
-              fontSize: 9,
-              fontWeight: 700,
+              background: 'var(--ribbon-surface-2)',
+              cursor: 'pointer',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 2,
+              color: 'var(--ribbon-ink)',
+              fontFamily: 'var(--font-ui)',
+              padding: 0,
               borderRadius: 2,
+              flexShrink: 0,
             }}
           >
-            Aa
-          </div>
-          <span style={{ fontSize: 11 }}>Themes</span>
-          <span style={{ fontSize: 9, marginTop: -4 }}>{CARET}</span>
-        </button>
+            <div
+              style={{
+                width: 24,
+                height: 24,
+                border: '1px solid var(--ribbon-divider)',
+                background: '#fff',
+                color: '#000',
+                display: 'grid',
+                placeItems: 'center',
+                fontSize: 9,
+                fontWeight: 700,
+                borderRadius: 2,
+              }}
+            >
+              Aa
+            </div>
+            <span style={{ fontSize: 11 }}>Themes</span>
+            <span style={{ fontSize: 8 }}>{CARET}</span>
+          </button>
 
-        {/* 10 Theme Preview Cards Strip — horizontally scrollable */}
-        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', paddingBottom: 3, minWidth: 0, flex: 1 }}>
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 5, marginTop: 1,
-            overflowX: 'auto', overflowY: 'hidden', scrollbarWidth: 'none',
-          }}>
+          {/* Theme Preview Cards Strip — spreads out on desktop */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              overflowX: 'auto',
+              maxWidth: 'min(900px, 50vw)',
+              minWidth: 168,
+              flex: '1 1 auto',
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+              padding: '1px 0',
+            }}
+          >
             {THEMES.map((theme, idx) => {
               const active = design.accent === theme.accent && (design.headingFont === theme.font || design.font === theme.font);
               return (
@@ -417,9 +418,9 @@ export function DesignTab() {
                   key={`${theme.name}-${idx}`}
                   onClick={() => handleApplyTheme(theme)}
                   style={{
-                    width: 80,
-                    minWidth: 80,
-                    height: 66,
+                    width: 78,
+                    minWidth: 78,
+                    height: 64,
                     border: active ? '1.5px solid var(--gold)' : '1px solid var(--ribbon-divider)',
                     background: '#ffffff',
                     cursor: 'pointer',
@@ -433,9 +434,9 @@ export function DesignTab() {
                   <div
                     style={{
                       borderBottom: '1px solid #d2d2d2',
-                      padding: '4px 4px 2px 4px',
+                      padding: '3px 4px 1px 4px',
                       fontFamily: `${theme.font}, serif`,
-                      fontSize: 12,
+                      fontSize: 11,
                       color: theme.accent,
                       lineHeight: 1,
                       fontWeight: 400,
@@ -443,215 +444,166 @@ export function DesignTab() {
                   >
                     {theme.name}
                   </div>
-                  <div style={{ padding: '3px 4px 0 4px', fontSize: 7, color: '#4d4d4d', lineHeight: 1.12 }}>
-                    <div style={{ color: theme.heading, fontWeight: 700, marginBottom: 1.5 }}>HEADING 1</div>
-                    <div style={{ opacity: 0.9 }}>On the insert tab, the galleries include items</div>
-                    <div style={{ opacity: 0.9 }}>that are designed to coordinate with the</div>
+                  <div style={{ padding: '2px 4px 0 4px', fontSize: 6.5, color: '#4d4d4d', lineHeight: 1.1 }}>
+                    <div style={{ color: theme.heading, fontWeight: 700, marginBottom: 1 }}>HEADING 1</div>
+                    <div style={{ opacity: 0.9 }}>Galleries coordinate with</div>
                   </div>
                 </button>
               );
             })}
-
-            <button
-              onClick={() => {
-                const palette = ['#c9a84c', '#d4af37', '#b8941e', '#a67c1f', '#e0c36f'];
-                const current = design.accent || '#c9a84c';
-                const idx = palette.indexOf(current);
-                const next = palette[(idx + 1 + palette.length) % palette.length];
-                setDesign({ accent: next, heading: next });
-                toast(`Theme accent: ${next}`, 'success');
-              }}
-              title="More themes"
-              style={{
-                width: 18,
-                height: 66,
-                border: '1px solid var(--ribbon-divider)',
-                background: 'var(--ribbon-surface-2)',
-                color: 'var(--ribbon-ink)',
-                cursor: 'pointer',
-                fontSize: 11,
-                padding: 0,
-                borderRadius: 2,
-                flexShrink: 0,
-              }}
-            >
-              {CARET}
-            </button>
           </div>
 
-          <div
+          <button
+            onClick={() => {
+              const palette = ['#c9a84c', '#d4af37', '#b8941e', '#a67c1f', '#e0c36f'];
+              const current = design.accent || '#c9a84c';
+              const idx = palette.indexOf(current);
+              const next = palette[(idx + 1 + palette.length) % palette.length];
+              setDesign({ accent: next, heading: next });
+              toast(`Theme accent: ${next}`, 'success');
+            }}
+            title="More themes"
             style={{
-              textAlign: 'center',
-              fontSize: 12,
+              width: 16,
+              height: 64,
+              border: '1px solid var(--ribbon-divider)',
+              background: 'var(--ribbon-surface-2)',
               color: 'var(--ribbon-ink)',
-              fontFamily: 'var(--font-ui)',
-              marginTop: 2,
+              cursor: 'pointer',
+              fontSize: 10,
+              padding: 0,
+              borderRadius: 2,
+              flexShrink: 0,
             }}
           >
-            Document Formatting
-          </div>
+            {CARET}
+          </button>
         </div>
-      </div>
+      </RibbonGroup>
 
       {/* ── Group 2: Design Controls ── */}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          borderRight: '1px solid var(--ribbon-divider)',
-          padding: '5px 10px 3px 10px',
-          minWidth: 340,
-          flexShrink: 0,
-        }}
-      >
-        <div style={{ display: 'flex', gap: 18 }}>
-          {/* Colors Dropdown */}
-          <button
-            data-design-trigger="true"
-            onClick={(e) => openPopover('colors', e)}
-            style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, color: 'var(--ribbon-ink)' }}
-          >
-            <div
-              style={{
-                width: 26,
-                height: 26,
-                border: '1px solid var(--ribbon-divider)',
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                background: '#fff',
-                borderRadius: 2,
-                overflow: 'hidden',
-              }}
-            >
-              <div style={{ background: design.accent || '#c9a84c' }} />
-              <div style={{ background: design.heading || '#d4af37' }} />
-              <div style={{ background: '#b8941e' }} />
-              <div style={{ background: '#e0c36f' }} />
-            </div>
-            <div style={{ fontSize: 11, marginTop: 1 }}>Colors {CARET}</div>
-          </button>
-
-          {/* Fonts Dropdown */}
-          <button
-            data-design-trigger="true"
-            onClick={(e) => openPopover('fonts', e)}
-            style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, color: 'var(--ribbon-ink)' }}
-          >
-            <div
-              style={{
-                width: 26,
-                height: 26,
-                border: '1px solid var(--ribbon-divider)',
-                display: 'grid',
-                placeItems: 'center',
-                background: '#fff',
-                color: '#000',
-                borderRadius: 2,
-              }}
-            >
-              <span style={{ fontSize: 18, lineHeight: 1 }}>A</span>
-            </div>
-            <div style={{ fontSize: 11, marginTop: 1 }}>Fonts {CARET}</div>
-          </button>
-
-          {/* Spacing, Effects, Set as Default stacked */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 1 }}>
+      <RibbonGroup label="Design">
+        <div data-stacked="true" style={{ display: 'flex', flexDirection: 'column', gap: 2, height: 78, justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 24 }}>
             <button
               data-design-trigger="true"
-              onClick={(e) => openPopover('spacing', e)}
-              style={{
-                border: 'none',
-                background: 'transparent',
-                cursor: 'pointer',
-                textAlign: 'left',
-                color: 'var(--ribbon-ink)',
-                padding: 0,
-              }}
+              onClick={(e) => openPopover('colors', e)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, color: 'var(--ribbon-ink)', fontSize: 11 }}
             >
-              <span style={{ fontSize: 19, marginRight: 5 }}>|||</span>
-              <span style={{ fontSize: 11, verticalAlign: 'middle' }}>Paragraph Spacing {CARET}</span>
+              <div
+                style={{
+                  width: 16,
+                  height: 16,
+                  border: '1px solid var(--ribbon-divider)',
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  background: '#fff',
+                  borderRadius: 2,
+                  overflow: 'hidden',
+                }}
+              >
+                <div style={{ background: design.accent || '#c9a84c' }} />
+                <div style={{ background: design.heading || '#d4af37' }} />
+                <div style={{ background: '#b8941e' }} />
+                <div style={{ background: '#e0c36f' }} />
+              </div>
+              <span>Colors {CARET}</span>
             </button>
-
             <button
               data-design-trigger="true"
               onClick={(e) => openPopover('effects', e)}
-              style={{
-                border: 'none',
-                background: 'transparent',
-                cursor: 'pointer',
-                textAlign: 'left',
-                color: 'var(--ribbon-ink)',
-                padding: 0,
-              }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, color: 'var(--ribbon-ink)', fontSize: 11 }}
             >
               <span
                 style={{
                   display: 'inline-block',
-                  width: 17,
-                  height: 17,
+                  width: 14,
+                  height: 14,
                   border: '2px solid var(--gold)',
                   borderRadius: '50%',
-                  marginRight: 6,
-                  verticalAlign: 'middle',
                 }}
               />
-              <span style={{ fontSize: 11, verticalAlign: 'middle' }}>Effects {CARET}</span>
+              <span>Effects {CARET}</span>
             </button>
+          </div>
 
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 24 }}>
+            <button
+              data-design-trigger="true"
+              onClick={(e) => openPopover('fonts', e)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, color: 'var(--ribbon-ink)', fontSize: 11 }}
+            >
+              <div
+                style={{
+                  width: 16,
+                  height: 16,
+                  border: '1px solid var(--ribbon-divider)',
+                  display: 'grid',
+                  placeItems: 'center',
+                  background: '#fff',
+                  color: '#000',
+                  borderRadius: 2,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  lineHeight: 1,
+                }}
+              >
+                A
+              </div>
+              <span>Fonts {CARET}</span>
+            </button>
             <button
               onClick={handleSetAsDefault}
-              style={{
-                border: 'none',
-                background: 'transparent',
-                cursor: 'pointer',
-                padding: 0,
-                textAlign: 'left',
-                color: 'var(--ribbon-ink)',
-              }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, color: 'var(--ribbon-ink)', fontSize: 11 }}
             >
               <span
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  width: 18,
-                  height: 18,
-                  border: '2px solid #d4af37',
+                  width: 14,
+                  height: 14,
+                  border: '1.5px solid #d4af37',
                   borderRadius: '50%',
                   color: '#d4af37',
-                  fontSize: 12,
+                  fontSize: 10,
                   fontWeight: 700,
-                  marginRight: 6,
-                  verticalAlign: 'middle',
                 }}
               >
                 ✓
               </span>
-              <span style={{ fontSize: 11, marginLeft: 8, verticalAlign: 'middle' }}>Set as Default</span>
+              <span>Set Default</span>
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 24 }}>
+            <button
+              data-design-trigger="true"
+              onClick={(e) => openPopover('spacing', e)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, color: 'var(--ribbon-ink)', fontSize: 11 }}
+            >
+              <span style={{ fontSize: 14, letterSpacing: -1 }}>|||</span>
+              <span>Paragraph Spacing {CARET}</span>
             </button>
           </div>
         </div>
-
-        <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--ribbon-ink)', fontFamily: 'var(--font-ui)' }}>Design</div>
-      </div>
+      </RibbonGroup>
 
       {/* ── Table Styles Gallery ── */}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          borderRight: '1px solid var(--ribbon-divider)',
-          padding: '5px 10px 3px 10px',
-          minWidth: 0,
-          flex: 1,
-        }}
-      >
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 6, marginTop: 1,
-          overflowX: 'auto', overflowY: 'hidden', scrollbarWidth: 'none',
-        }}>
+      <RibbonGroup label="Table Styles">
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            overflowX: 'auto',
+            maxWidth: 400,
+            flex: '0 1 auto',
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
+            padding: '1px 0',
+          }}
+        >
           {TABLE_STYLES.map((ts) => (
             <button
               key={ts.id}
@@ -660,29 +612,20 @@ export function DesignTab() {
               style={{
                 width: 72,
                 minWidth: 72,
-                height: 66,
+                height: 64,
                 flexShrink: 0,
                 border: '1px solid var(--ribbon-divider)',
                 borderRadius: 2,
                 background: 'var(--ribbon-surface-2, #18181b)',
                 cursor: 'pointer',
-                padding: '4px 3px',
+                padding: '3px 3px',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
                 fontFamily: 'var(--font-ui)',
                 boxShadow: 'none',
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = 'var(--gold)';
-                e.currentTarget.style.transform = 'translateY(-1px)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'var(--ribbon-divider)';
-                e.currentTarget.style.transform = 'none';
-              }}
             >
-              {/* Mini Table Visual Preview */}
               <div
                 style={{
                   width: '100%',
@@ -694,36 +637,22 @@ export function DesignTab() {
                   border: ts.border,
                 }}
               >
-                {/* Header row */}
-                <div
-                  style={{
-                    height: 12,
-                    background: ts.headerBg,
-                    display: 'flex',
-                    borderBottom: ts.border,
-                  }}
-                >
-                  <div style={{ flex: 1, borderRight: ts.border }} />
+                <div style={{ height: 12, background: ts.headerBg, display: 'flex', borderBottom: ts.border }}>
                   <div style={{ flex: 1, borderRight: ts.border }} />
                   <div style={{ flex: 1 }} />
                 </div>
-                {/* Body row 1 */}
                 <div style={{ height: 12, display: 'flex', borderBottom: ts.border }}>
                   <div style={{ flex: 1, borderRight: ts.border }} />
-                  <div style={{ flex: 1, borderRight: ts.border }} />
                   <div style={{ flex: 1 }} />
                 </div>
-                {/* Body row 2 */}
                 <div style={{ height: 12, display: 'flex', background: ts.stripeBg }}>
-                  <div style={{ flex: 1, borderRight: ts.border }} />
                   <div style={{ flex: 1, borderRight: ts.border }} />
                   <div style={{ flex: 1 }} />
                 </div>
               </div>
-              {/* Table Name */}
               <div
                 style={{
-                  fontSize: 9,
+                  fontSize: 8.5,
                   fontWeight: 600,
                   color: 'var(--ribbon-ink)',
                   textAlign: 'center',
@@ -738,182 +667,136 @@ export function DesignTab() {
             </button>
           ))}
         </div>
-        <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--ribbon-ink)', fontFamily: 'var(--font-ui)' }}>
-          Table Styles
-        </div>
-      </div>
+      </RibbonGroup>
 
       {/* ── Group 3: Smart Features ── */}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          borderRight: '1px solid var(--ribbon-divider)',
-          padding: '5px 10px 3px 10px',
-          minWidth: 210,
-          flexShrink: 0,
-        }}
-      >
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-          <button
-            onClick={toggleVoiceTyping}
-            style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, color: isDictating ? '#ef4444' : 'var(--ribbon-ink)' }}
-          >
-            <div style={{ fontSize: 20, lineHeight: 1 }}>{isDictating ? '🔴' : '🎤'}</div>
-            <div style={{ fontSize: 11, marginTop: 2 }}>{isDictating ? 'Listening...' : 'Voice Typing'}</div>
-          </button>
+      <RibbonGroup label="Smart Features">
+        <div data-stacked="true" style={{ display: 'flex', flexDirection: 'column', gap: 2, height: 78, justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 24 }}>
+            <button
+              onClick={toggleVoiceTyping}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, color: isDictating ? '#ef4444' : 'var(--ribbon-ink)', fontSize: 11 }}
+            >
+              <span>{isDictating ? '🔴' : '🎤'}</span>
+              <span>{isDictating ? 'Listening...' : 'Voice Typing'}</span>
+            </button>
+            <button
+              onClick={handleStopRead}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, color: 'var(--ribbon-ink)', fontSize: 11 }}
+            >
+              <span>🔇</span>
+              <span>Stop</span>
+            </button>
+          </div>
 
-          <button
-            onClick={toggleReadAloud}
-            style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, color: isSpeaking ? 'var(--gold)' : 'var(--ribbon-ink)' }}
-          >
-            <div style={{ fontSize: 20, lineHeight: 1 }}>🔊</div>
-            <div style={{ fontSize: 11, marginTop: 2 }}>{isSpeaking ? 'Reading...' : 'Text-to-Speech'}</div>
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 24 }}>
+            <button
+              onClick={toggleReadAloud}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, color: isSpeaking ? 'var(--gold)' : 'var(--ribbon-ink)', fontSize: 11 }}
+            >
+              <span>🔊</span>
+              <span>{isSpeaking ? 'Reading...' : 'TTS'}</span>
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab('draw');
+                toast('Switched to Draw / Inking tab', 'info');
+              }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, color: 'var(--ribbon-ink)', fontSize: 11 }}
+            >
+              <span>✍</span>
+              <span>Handwriting</span>
+            </button>
+          </div>
 
-          <button
-            onClick={handleStopRead}
-            style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, color: 'var(--ribbon-ink)' }}
-          >
-            <div style={{ fontSize: 20, lineHeight: 1 }}>🔇</div>
-            <div style={{ fontSize: 11, marginTop: 2 }}>Stop Read</div>
-          </button>
-
-          <button
-            onClick={() => {
-              setActiveTab('draw');
-              toast('Switched to Draw / Inking tab', 'info');
-            }}
-            style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, color: 'var(--ribbon-ink)' }}
-          >
-            <div style={{ fontSize: 20, lineHeight: 1 }}>✍</div>
-            <div style={{ fontSize: 11, marginTop: 2 }}>Handwriting</div>
-          </button>
-
-          <button
-            onClick={() => runSmartSuggestions({ editor, toast })}
-            style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, color: 'var(--ribbon-ink)' }}
-          >
-            <div style={{ fontSize: 20, lineHeight: 1 }}>✨</div>
-            <div style={{ fontSize: 11, marginTop: 2 }}>Suggestions</div>
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 24 }}>
+            <button
+              onClick={() => runSmartSuggestions({ editor, toast })}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, color: 'var(--ribbon-ink)', fontSize: 11 }}
+            >
+              <span>✨</span>
+              <span>Suggestions</span>
+            </button>
+          </div>
         </div>
-
-        <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--ribbon-ink)', fontFamily: 'var(--font-ui)' }}>Smart Features</div>
-      </div>
+      </RibbonGroup>
 
       {/* ── Group 4: Page Background ── */}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          padding: '5px 12px 3px 12px',
-          minWidth: 190,
-          flexShrink: 0,
-        }}
-      >
-        <div style={{ display: 'flex', gap: 16 }}>
-          {/* Watermark */}
+      <RibbonGroup label="Page Background">
+        <div data-stacked="true" style={{ display: 'flex', flexDirection: 'column', gap: 2, height: 78, justifyContent: 'space-between' }}>
           <button
             data-design-trigger="true"
             onClick={(e) => openPopover('watermark', e)}
-            style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, color: 'var(--ribbon-ink)' }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, color: 'var(--ribbon-ink)', fontSize: 11, height: 24 }}
           >
             <div
               style={{
-                width: 24,
-                height: 28,
-                border: '2px solid #8f3d3d',
-                borderTop: '1px solid #8f3d3d',
+                width: 14,
+                height: 16,
+                border: '1.5px solid #8f3d3d',
                 background: '#ffffff',
-                transform: 'skew(-8deg)',
-                margin: '0 auto',
-                position: 'relative',
+                transform: 'skew(-6deg)',
               }}
-            >
-              <div style={{ position: 'absolute', top: 8, left: 1, right: 1, height: 2, background: '#dca0a0' }} />
-            </div>
-            <div style={{ fontSize: 11, marginTop: 3 }}>Watermark</div>
-            <div style={{ fontSize: 10 }}>{CARET}</div>
+            />
+            <span>Watermark {CARET}</span>
           </button>
 
-          {/* Page Color */}
           <button
             data-design-trigger="true"
             onClick={(e) => openPopover('pageColor', e)}
-            style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, color: 'var(--ribbon-ink)' }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, color: 'var(--ribbon-ink)', fontSize: 11, height: 24 }}
           >
             <div
               style={{
-                width: 24,
-                height: 28,
+                width: 14,
+                height: 14,
                 border: '1px solid var(--border)',
                 background: design.pageColor || '#1a1a1a',
-                margin: '0 auto',
                 borderRadius: 2,
               }}
             />
-            <div style={{ fontSize: 11, marginTop: 3 }}>Page Color</div>
-            <div style={{ fontSize: 10 }}>{CARET}</div>
+            <span>Page Color {CARET}</span>
           </button>
 
-          {/* Page Border */}
           <button
             onClick={() => setBorderModalOpen(true)}
-            style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, color: 'var(--ribbon-ink)' }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, color: 'var(--ribbon-ink)', fontSize: 11, height: 24 }}
           >
             <div
               style={{
-                width: 24,
-                height: 28,
+                width: 14,
+                height: 14,
                 border: '2px solid var(--gold)',
                 background: 'transparent',
-                margin: '0 auto',
                 borderRadius: 2,
               }}
             />
-            <div style={{ fontSize: 11, marginTop: 3 }}>Page Border</div>
-            <div style={{ fontSize: 10 }}>{CARET}</div>
+            <span>Page Border {CARET}</span>
           </button>
         </div>
-
-        <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--ribbon-ink)', fontFamily: 'var(--font-ui)' }}>Page Background</div>
-      </div>
+      </RibbonGroup>
 
       {/* ── Group 5: Document Security & Master Structure ── */}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          borderRight: 'none',
-          padding: '5px 10px 3px 10px',
-          minWidth: 150,
-          flexShrink: 0,
-        }}
-      >
-        <div style={{ display: 'flex', gap: 16, alignItems: 'center', justifyContent: 'center', flex: 1, padding: '0 4px' }}>
+      <RibbonGroup label="Protection">
+        <div data-stacked="true" style={{ display: 'flex', flexDirection: 'column', gap: 2, height: 78, justifyContent: 'space-between' }}>
           <button
             onClick={() => openDialog('security')}
-            style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, color: 'var(--ribbon-ink)', textAlign: 'center' }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, color: 'var(--ribbon-ink)', fontSize: 11, height: 24 }}
             title="Document Password & Encryption"
           >
-            <div style={{ fontSize: 20, margin: '0 auto 2px' }}>🔒</div>
-            <div style={{ fontSize: 11 }}>Security</div>
+            <span style={{ fontSize: 14 }}>🔒</span>
+            <span>Security</span>
           </button>
           <button
             onClick={() => openDialog('masterDoc')}
-            style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, color: 'var(--ribbon-ink)', textAlign: 'center' }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, color: 'var(--ribbon-ink)', fontSize: 11, height: 24 }}
             title="Master Document & Subdocuments"
           >
-            <div style={{ fontSize: 20, margin: '0 auto 2px' }}>📑</div>
-            <div style={{ fontSize: 11 }}>Master Doc</div>
+            <span style={{ fontSize: 14 }}>📑</span>
+            <span>Master Doc</span>
           </button>
         </div>
-        <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--ribbon-ink)', fontFamily: 'var(--font-ui)' }}>Protection</div>
-      </div>
+      </RibbonGroup>
 
       {/* ── PORTAL: REAL POPOVERS ── */}
       {activePopover && createPortal(

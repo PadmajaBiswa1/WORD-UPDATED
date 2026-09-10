@@ -123,13 +123,18 @@ export function PageSidebar() {
   const hasTyping = typingNames.length > 0;
 
   return (
-    <div style={{
-      width: 160, flexShrink: 0,
-      background: 'var(--bg-sidebar)',
-      borderRight: '1px solid var(--border)',
-      display: 'flex', flexDirection: 'column',
-      overflow: 'hidden',
-    }}>
+    <div
+      className="page-sidebar-container"
+      style={{
+        width: 160,
+        flexShrink: 0,
+        background: 'var(--bg-sidebar)',
+        borderRight: '1px solid var(--border)',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}
+    >
       <div style={{
         padding: '10px 12px 8px', borderBottom: '1px solid var(--border)',
         fontFamily: 'var(--font-ui)', fontSize: 10,
@@ -138,7 +143,27 @@ export function PageSidebar() {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
         <span>Pages</span>
-        <span style={{ color: '#d4af37' }}>{pageCount}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ color: '#d4af37' }}>{pageCount}</span>
+          <button
+            type="button"
+            onClick={() => useUIStore.getState().toggleSidebar()}
+            aria-label="Close Pages Sidebar"
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--text-muted)',
+              cursor: 'pointer',
+              fontSize: 12,
+              padding: '0 2px',
+              lineHeight: 1,
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--gold)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; }}
+          >
+            ✕
+          </button>
+        </div>
       </div>
 
       {hasTyping ? (

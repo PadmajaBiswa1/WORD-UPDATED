@@ -10,6 +10,7 @@ import { Insert3DModelDialog } from './Insert3DModelDialog';
 import { ScreenshotDialog }    from './ScreenshotDialog';
 import { ImportDocxDialog }    from './ImportDocxDialog';
 import { FindReplaceDialog }   from './FindReplaceDialog';
+import { GoToDialog }          from './GoToDialog';
 import { ExportDialog }        from './ExportDialog';
 import { ShareDialog }         from './ShareDialog';
 import { VersionHistoryDialog} from './VersionHistoryDialog';
@@ -76,6 +77,7 @@ export function DialogManager() {
       {dialogs.insertShape    && <InsertShapeDialog />}
       {dialogs.insertSymbol   && <InsertSymbolDialog />}
       {dialogs.findReplace    && <FindReplaceDialog />}
+      {dialogs.goTo           && <GoToDialog />}
       {dialogs.exportDoc      && <ExportDialog />}
       {dialogs.shareDoc       && <ShareDialog />}
       {dialogs.versionHistory && <VersionHistoryDialog />}
