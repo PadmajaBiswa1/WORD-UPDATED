@@ -14,6 +14,14 @@ function Root() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => setShowSplash(false), 2800);
+
+    // Register Service Worker in production / supported environments
+    if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+      navigator.serviceWorker
+        .register('/sw.js')
+        .catch((err) => console.debug('SW registration skipped:', err?.message));
+    }
+
     return () => window.clearTimeout(timer);
   }, []);
 

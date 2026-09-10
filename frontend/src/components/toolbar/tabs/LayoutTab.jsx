@@ -35,7 +35,7 @@ function selectedImageElement() {
 
 function Group({ title, children, width }) {
   return (
-    <div style={{ ...styles.group, width }}>
+    <div style={{ ...styles.group, maxWidth: width, minWidth: 0 }}>
       <div style={styles.groupBody}>{children}</div>
       <div style={styles.groupTitle}>{title}</div>
     </div>
@@ -105,6 +105,7 @@ export function LayoutTab() {
     sidebarOpen,
     toggleSidebar,
     toast,
+    openDialog,
   } = useUIStore();
 
   const [lineNumbersOn, setLineNumbersOn] = useState(false);
@@ -314,7 +315,7 @@ export function LayoutTab() {
   };
 
   return (
-    <div style={styles.root}>
+    <>
       <Group title="Page Setup" width={430}>
         <OptionPicker
           label="Margins"
@@ -439,7 +440,12 @@ export function LayoutTab() {
         <TinyAction text="Group ▼" onClick={() => toast('Grouping is limited in this editor', 'info')} />
         <TinyAction text="Rotate ▼" onClick={rotateImage} />
       </Group>
-    </div>
+
+      <Group title="Structure & Security" width={210}>
+        <IconTextButton icon="📑" text="Master Doc" onClick={() => openDialog('masterDoc')} />
+        <IconTextButton icon="🔒" text="Security" onClick={() => openDialog('security')} />
+      </Group>
+    </>
   );
 }
 

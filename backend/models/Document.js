@@ -3,39 +3,121 @@ const mongoose = require('mongoose');
 const documentSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true, index: true },
   title: { type: String, default: 'Untitled Document' },
+  contentFormatVersion: { type: Number, default: 2 },
+  contentJson: { type: mongoose.Schema.Types.Mixed, default: null },
   content: { type: String, default: '<p></p>' },
   owner: {
     id: { type: String },
     name: { type: String },
-    email: { type: String }
+    email: { type: String },
   },
   sharedWith: [
     {
       id: { type: String },
       email: { type: String },
-      role: { type: String, default: 'viewer' },
-      sharedAt: { type: String }
-    }
+      role: {
+        type: String,
+        enum: ['owner', 'editor', 'commenter', 'viewer'],
+        default: 'viewer',
+      },
+      sharedAt: { type: String },
+    },
   ],
   shareLinkEnabled: { type: Boolean, default: false },
   versions: [
     {
       id: { type: String },
       snapshot: { type: String },
+      contentJson: { type: mongoose.Schema.Types.Mixed, default: null },
+      revision: { type: Number },
       savedAt: { type: String },
-      label: { type: String }
-    }
+      label: { type: String },
+    },
   ],
   comments: [
     {
-      id: { type: Number },
+      id: { type: mongoose.Schema.Types.Mixed },
+      threadId: { type: String },
+      parentId: { type: String, default: null },
       text: { type: String },
-      author: { type: String },
+      body: { type: String },
+      author: { type: mongoose.Schema.Types.Mixed },
+      anchor: {
+        nodeId: { type: String },
+        from: { type: Number },
+        to: { type: Number },
+        quotedText: { type: String },
+      },
+      mentions: [
+        {
+          userId: { type: String },
+          displayName: { type: String },
+        },
+      ],
       resolved: { type: Boolean, default: false },
-      createdAt: { type: String }
-    }
+      createdAt: { type: String },
+      updatedAt: { type: String },
+    },
   ],
   trackChanges: { type: Boolean, default: false },
+  styles: [
+    {
+      id: { type: String },
+      name: { type: String },
+      type: { type: String },
+      attributes: { type: mongoose.Schema.Types.Mixed },
+    },
+  ],
+  references: {
+    citations: [{ type: mongoose.Schema.Types.Mixed }],
+    captions: [{ type: mongoose.Schema.Types.Mixed }],
+    indexEntries: [{ type: mongoose.Schema.Types.Mixed }],
+  },
+  security: {
+    protected: { type: Boolean, default: false },
+    keyVersion: { type: Number, default: 1 },
+    kdf: { type: String, default: 'PBKDF2' },
+    salt: { type: String, default: '' },
+    nonce: { type: String, default: '' },
+    authTag: { type: String, default: '' },
+    encryptedPayload: { type: String, default: '' },
+  },
+  aiProfile: {
+    tone: { type: String, default: 'balanced' },
+    audience: { type: String, default: 'general' },
+    responseStyle: { type: String, default: 'concise' },
+    preferredTerms: [{ type: String }],
+    forbiddenTerms: [{ type: String }],
+    instructions: { type: String, default: '' },
+  },
+  accessPolicy: {
+    allowDownload: { type: Boolean, default: true },
+    allowComments: { type: Boolean, default: true },
+    allowCopy: { type: Boolean, default: true },
+  },
+  documentParts: [
+    {
+      partId: { type: String },
+      partType: { type: String, default: 'subdocument' },
+      title: { type: String, default: '' },
+      linkedDocumentId: { type: String },
+      includeMode: { type: String, default: 'linked' },
+      order: { type: Number, default: 0 },
+    },
+  ],
+  signatures: [
+    {
+      fieldId: { type: String },
+      signer: { type: mongoose.Schema.Types.Mixed },
+      signature: { type: String },
+      publicKey: { type: String },
+      contentHash: { type: String },
+      status: { type: String, default: 'valid' },
+      signedAt: { type: String },
+      verifiedAt: { type: String },
+      reason: { type: String },
+    },
+  ],
   design: {
     pageColor: { type: String, default: '#fdfbf7' },
     pageColorMode: { type: String, default: 'theme' },
@@ -50,7 +132,7 @@ const documentSchema = new mongoose.Schema({
     subtle: { type: String, default: '#444444' },
     font: { type: String, default: 'Crimson Pro' },
     spacing: { type: String, default: '1.7' },
-    effect: { type: String, default: 'none' }
+    effect: { type: String, default: 'none' },
   },
   headerFooter: {
     headerText: { type: String, default: '' },
@@ -59,12 +141,12 @@ const documentSchema = new mongoose.Schema({
     footerAlign: { type: String, default: 'Center' },
     pageNumberEnabled: { type: Boolean, default: false },
     pageNumberStyle: { type: String, default: 'bottom-center' },
-    pageNumberStart: { type: Number, default: 1 }
+    pageNumberStart: { type: Number, default: 1 },
   },
   revision: { type: Number, default: 0 },
   ipfsHash: { type: String, default: null },
   ipfsGatewayUrl: { type: String, default: null },
-  ipfsPinnedAt: { type: String, default: null }
+  ipfsPinnedAt: { type: String, default: null },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Document', documentSchema);

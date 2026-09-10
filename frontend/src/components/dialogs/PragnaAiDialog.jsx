@@ -164,18 +164,34 @@ How can I assist with your document today?`,
       }
     } catch (err) {
       console.error('Pragna Chat Error:', err);
-      toast('Chat error: ' + err.message, 'error');
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `error-${Date.now()}`,
-          role: 'assistant',
-          content: `⚠️ **Error:** ${err.message || 'Unable to communicate with Pragna AI. Please verify network or Ollama connection.'}`,
-          html: '',
-          isError: true,
-          timestamp: new Date(),
-        },
-      ]);
+      const isConfigError = String(err.message || '').includes('No Ollama API keys') || String(err.message || '').includes('not configured');
+      if (isConfigError) {
+        toast('AI assistant not configured. Please check backend .env', 'error');
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `error-${Date.now()}`,
+            role: 'assistant',
+            content: `⚠️ **AI Assistant Not Configured**\n\nPragna AI requires Ollama API keys in the backend environment. Please check your backend \`.env\` settings.`,
+            html: '',
+            isError: true,
+            timestamp: new Date(),
+          },
+        ]);
+      } else {
+        toast('Chat error: ' + err.message, 'error');
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `error-${Date.now()}`,
+            role: 'assistant',
+            content: `⚠️ **Error:** ${err.message || 'Unable to communicate with Pragna AI. Please verify network or Ollama connection.'}`,
+            html: '',
+            isError: true,
+            timestamp: new Date(),
+          },
+        ]);
+      }
     } finally {
       setLoading(false);
     }

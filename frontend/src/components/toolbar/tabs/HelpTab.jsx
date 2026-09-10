@@ -20,7 +20,8 @@ export function HelpTab() {
     <>
       <RibbonGroup label="Help">
         <Tooltip text="Help & Tutorials"><Button onClick={() => openDialog('help')}>? Help</Button></Tooltip>
-        <Tooltip text="Keyboard Shortcuts"><Button onClick={() => openDialog('commandMap')}>⌨ Shortcuts</Button></Tooltip>
+        <Tooltip text="Keyboard Shortcuts Map"><Button onClick={() => openDialog('commandMap')}>⌨ Shortcuts</Button></Tooltip>
+        <Tooltip text="Remap Keyboard Shortcuts"><Button onClick={() => openDialog('shortcuts')}>⚙ Remap Keys</Button></Tooltip>
         <Tooltip text="Contact Support"><Button onClick={() => window.open('mailto:support@etherx.app?subject=EtherX%20Word%20Support', '_blank')}>📞 Support</Button></Tooltip>
         <Tooltip text="Feedback"><Button onClick={() => window.open('mailto:feedback@etherx.app?subject=EtherX%20Word%20Feedback', '_blank')}>💬 Feedback</Button></Tooltip>
       </RibbonGroup>

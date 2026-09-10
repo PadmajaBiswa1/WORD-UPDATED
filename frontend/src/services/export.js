@@ -187,3 +187,8 @@ export async function exportToDocx(title, html) {
   const buffer = await buildDocxBlob(html);
   saveAs(buffer, `${sanitize(title)}.docx`);
 }
+
+/* ── Markdown & EPUB ──────────────────────────────────────────── */
+export { exportToMarkdown } from './markdownExport';
+export { exportToEpub } from './epubExport';
+

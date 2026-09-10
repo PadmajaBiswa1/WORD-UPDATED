@@ -10,6 +10,7 @@ const documentRoutes = require('./routes/documents');
 const templateRoutes = require('./routes/templates');
 const uploadRoutes = require('./routes/upload');
 const aiRoutes = require('./routes/ai');
+const notificationRoutes = require('./routes/notifications');
 
 // Initialize services
 console.log('🔧 Initializing services...');
@@ -88,6 +89,7 @@ app.use('/api/documents', documentRoutes);
 app.use('/api/templates', templateRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // =====================================================
 // STATIC UPLOADS
@@ -127,7 +129,7 @@ app.use('/api', (req, res) => {
 // Render provides process.env.PORT automatically.
 // Locally, it will fall back to port 3001.
 
-const PORT = Number(process.env.PORT || 3001);
+const PORT = Number(process.env.PORT || 5000);
 
 app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);

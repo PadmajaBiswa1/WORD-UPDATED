@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useUIStore, useDocumentStore, useEditorStore } from '@/store';
 import { Modal, Button, Stack } from '@/components/ui';
-import { exportToHtml, exportToPdf, exportToDocx } from '@/services/export';
+import { exportToHtml, exportToPdf, exportToDocx, exportToMarkdown, exportToEpub } from '@/services/export';
 
 const OPTIONS = [
-  { id: 'pdf',  icon: '📄', label: 'PDF Document',  desc: 'Best for printing & sharing' },
-  { id: 'docx', icon: '📝', label: 'Word Document', desc: 'Open in Microsoft Word' },
-  { id: 'html', icon: '🌐', label: 'Web Page',      desc: 'HTML file for browsers' },
+  { id: 'pdf',      icon: '📄', label: 'PDF Document',   desc: 'Best for printing & sharing' },
+  { id: 'docx',     icon: '📝', label: 'Word Document',  desc: 'Open in Microsoft Word' },
+  { id: 'html',     icon: '🌐', label: 'Web Page',       desc: 'HTML file for browsers' },
+  { id: 'markdown', icon: '📋', label: 'Markdown (.md)', desc: 'Plain text with lightweight formatting' },
+  { id: 'epub',     icon: '📚', label: 'EPUB (.epub)',   desc: 'Standard e-book reader format' },
 ];
 
 export function ExportDialog() {
@@ -20,7 +22,11 @@ export function ExportDialog() {
     try {
       const html = editor?.getHTML() || '';
       if (type === 'html') exportToHtml(title, html);
-      else if (type === 'pdf') {
+      else if (type === 'markdown' || type === 'md') {
+        exportToMarkdown(title, html);
+      } else if (type === 'epub') {
+        await exportToEpub(title, html);
+      } else if (type === 'pdf') {
         const el = document.getElementById('document-page-0') ||
                    document.querySelector('.page') ||
                    document.querySelector('.document-page') ||

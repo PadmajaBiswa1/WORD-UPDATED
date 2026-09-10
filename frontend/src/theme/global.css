@@ -378,15 +378,25 @@ body {
 ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--gold); }
 
+/* ── Ribbon scroll — hide scrollbar to prevent layout shift ── */
+.ribbon-scroll {
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none !important; /* IE/Edge */
+}
+.ribbon-scroll::-webkit-scrollbar {
+  display: none !important; /* Chrome / Safari */
+  width: 0 !important;
+  height: 0 !important;
+}
+
 ::selection { background: rgba(212,175,55,0.28); color: inherit; }
 :focus-visible { outline: 1.5px solid var(--gold); outline-offset: 2px; }
 
 /* ══ Tiptap / ProseMirror — matches Microsoft Word "Normal" style exactly ══ */
 .ProseMirror {
-  font-family: 'Crimson Pro', Georgia, serif;
+  font-family: var(--design-font, 'Crimson Pro', Georgia, serif);
   font-size: 12pt;
-  /* Word "Normal" line spacing = Multiple 1.15 */
-  line-height: 1.15;
+  line-height: var(--design-spacing, 1.6);
   color: var(--text-doc);
   min-height: 100%;
   outline: none;
@@ -412,8 +422,8 @@ body {
 .ProseMirror h4,
 .ProseMirror h5,
 .ProseMirror h6 {
-  color: var(--design-heading, var(--text-doc));
-  font-family: var(--design-heading-font, inherit);
+  color: var(--design-heading, var(--gold));
+  font-family: var(--design-heading-font, 'Cinzel', serif);
 }
 
 .ProseMirror.etherx-line-numbers {
@@ -507,41 +517,43 @@ body {
    We keep Cinzel for EtherX's distinctive look at the correct pt sizes.
    ────────────────────────────────────────────────────────────────────── */
 .ProseMirror h1 {
-  font-family: 'Cinzel', serif;
+  font-family: var(--design-heading-font, 'Cinzel', serif);
   font-size: 16pt;
   font-weight: 700;
   line-height: 1.15;
-  color: var(--text-doc);
+  color: var(--design-heading, var(--text-doc));
   letter-spacing: .02em;
   word-wrap: break-word;
   margin-top: 24pt;
   margin-bottom: 6pt;
 }
 .ProseMirror h2 {
-  font-family: 'Cinzel', serif;
+  font-family: var(--design-heading-font, 'Cinzel', serif);
   font-size: 13pt;
   font-weight: 600;
   line-height: 1.15;
-  color: var(--text-doc);
+  color: var(--design-heading, var(--text-doc));
   word-wrap: break-word;
   margin-top: 14pt;
   margin-bottom: 4pt;
 }
 .ProseMirror h3 {
-  font-family: 'Cinzel', serif;
+  font-family: var(--design-heading-font, 'Cinzel', serif);
   font-size: 11pt;
   font-weight: 600;
   line-height: 1.15;
-  color: var(--text-doc);
+  color: var(--design-heading, var(--text-doc));
   word-wrap: break-word;
   margin-top: 14pt;
   margin-bottom: 2pt;
 }
 .ProseMirror h4 {
+  font-family: var(--design-heading-font, 'Cinzel', serif);
   font-size: 11pt;
   font-weight: 600;
   font-style: italic;
   line-height: 1.15;
+  color: var(--design-heading, var(--text-doc));
   margin-top: 10pt;
   margin-bottom: 2pt;
   word-wrap: break-word;
@@ -793,4 +805,309 @@ body {
 
 .ribbon-scroll::-webkit-scrollbar {
   display: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   EtherX Word — Multilevel Numbering
+   ═══════════════════════════════════════════════════════════════ */
+.ProseMirror ol.multilevel-numeric {
+  counter-reset: ml-counter;
+  list-style-type: none;
+  padding-left: 28px;
+}
+.ProseMirror ol.multilevel-numeric ol {
+  counter-reset: ml-counter;
+  list-style-type: none;
+  padding-left: 28px;
+}
+.ProseMirror ol.multilevel-numeric li {
+  counter-increment: ml-counter;
+  position: relative;
+  list-style-type: none;
+}
+.ProseMirror ol.multilevel-numeric li::before {
+  content: counters(ml-counter, ".") " ";
+  font-weight: 600;
+  color: var(--design-heading, var(--gold));
+  margin-right: 6px;
+  display: inline-block;
+  min-width: 1.2em;
+}
+
+.ProseMirror ol.multilevel-alpha {
+  list-style-type: decimal;
+  padding-left: 32px;
+}
+.ProseMirror ol.multilevel-alpha ol {
+  list-style-type: lower-alpha;
+  padding-left: 28px;
+}
+.ProseMirror ol.multilevel-alpha ol ol {
+  list-style-type: lower-roman;
+  padding-left: 28px;
+}
+.ProseMirror ol.multilevel-alpha ol ol ol {
+  list-style-type: upper-alpha;
+  padding-left: 28px;
+}
+
+.ProseMirror ol.multilevel-legal {
+  counter-reset: legal-counter;
+  list-style-type: none;
+  padding-left: 28px;
+}
+.ProseMirror ol.multilevel-legal ol {
+  counter-reset: legal-counter;
+  list-style-type: none;
+  padding-left: 28px;
+}
+.ProseMirror ol.multilevel-legal li {
+  counter-increment: legal-counter;
+  position: relative;
+  list-style-type: none;
+}
+.ProseMirror ol.multilevel-legal li::before {
+  content: "§ " counters(legal-counter, ".") " ";
+  font-weight: 600;
+  color: var(--design-heading, var(--gold));
+  margin-right: 6px;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   EtherX Word — Table Themes Gallery
+   ═══════════════════════════════════════════════════════════════ */
+/* 1. Grid Table 1 Light */
+.ProseMirror table.table-theme-grid,
+.ProseMirror table[data-theme="table-theme-grid"] {
+  border: 1.5px solid #888888;
+  border-collapse: collapse;
+}
+.ProseMirror table.table-theme-grid th,
+.ProseMirror table[data-theme="table-theme-grid"] th {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid #888888;
+  color: var(--text-primary);
+  font-weight: 700;
+  padding: 8px 12px;
+}
+.ProseMirror table.table-theme-grid td,
+.ProseMirror table[data-theme="table-theme-grid"] td {
+  border: 1px solid #666666;
+  padding: 7px 12px;
+}
+
+/* 2. Grid Table 2 Accent 1 */
+.ProseMirror table.table-theme-accent,
+.ProseMirror table[data-theme="table-theme-accent"] {
+  border: 2px solid var(--gold);
+  border-collapse: collapse;
+}
+.ProseMirror table.table-theme-accent th,
+.ProseMirror table[data-theme="table-theme-accent"] th {
+  background: var(--gold);
+  border: 1px solid var(--gold);
+  color: #000000;
+  font-weight: 700;
+  padding: 8px 12px;
+}
+.ProseMirror table.table-theme-accent td,
+.ProseMirror table[data-theme="table-theme-accent"] td {
+  border: 1px solid rgba(201, 168, 76, 0.4);
+  padding: 7px 12px;
+}
+.ProseMirror table.table-theme-accent tr:nth-child(even) td,
+.ProseMirror table[data-theme="table-theme-accent"] tr:nth-child(even) td {
+  background: rgba(201, 168, 76, 0.08);
+}
+
+/* 3. Dark Header Shaded */
+.ProseMirror table.table-theme-dark-header,
+.ProseMirror table[data-theme="table-theme-dark-header"] {
+  border: 1px solid #333333;
+  border-collapse: collapse;
+}
+.ProseMirror table.table-theme-dark-header th,
+.ProseMirror table[data-theme="table-theme-dark-header"] th {
+  background: #18181b;
+  border: 1px solid #27272a;
+  color: #fafafa;
+  font-weight: 700;
+  padding: 9px 12px;
+  border-bottom: 2px solid var(--gold);
+}
+.ProseMirror table.table-theme-dark-header td,
+.ProseMirror table[data-theme="table-theme-dark-header"] td {
+  border: 1px solid #27272a;
+  padding: 7px 12px;
+}
+.ProseMirror table.table-theme-dark-header tr:nth-child(even) td,
+.ProseMirror table[data-theme="table-theme-dark-header"] tr:nth-child(even) td {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* 4. Striped Rows */
+.ProseMirror table.table-theme-striped,
+.ProseMirror table[data-theme="table-theme-striped"] {
+  border: 1px solid var(--border);
+  border-collapse: collapse;
+}
+.ProseMirror table.table-theme-striped th,
+.ProseMirror table[data-theme="table-theme-striped"] th {
+  background: rgba(201, 168, 76, 0.18);
+  border-bottom: 2px solid var(--gold);
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  color: var(--gold);
+  font-weight: 700;
+  padding: 8px 12px;
+}
+.ProseMirror table.table-theme-striped td,
+.ProseMirror table[data-theme="table-theme-striped"] td {
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  border-left: none;
+  border-right: none;
+  padding: 7px 12px;
+}
+.ProseMirror table.table-theme-striped tr:nth-child(even) td,
+.ProseMirror table[data-theme="table-theme-striped"] tr:nth-child(even) td {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* 5. Elegant Minimalist */
+.ProseMirror table.table-theme-minimalist,
+.ProseMirror table[data-theme="table-theme-minimalist"] {
+  border-top: 2px solid var(--text-primary);
+  border-bottom: 2px solid var(--text-primary);
+  border-left: none;
+  border-right: none;
+  border-collapse: collapse;
+}
+.ProseMirror table.table-theme-minimalist th,
+.ProseMirror table[data-theme="table-theme-minimalist"] th {
+  border-top: none;
+  border-bottom: 1px solid var(--text-primary);
+  border-left: none;
+  border-right: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-weight: 700;
+  font-family: inherit;
+  padding: 9px 14px;
+}
+.ProseMirror table.table-theme-minimalist td,
+.ProseMirror table[data-theme="table-theme-minimalist"] td {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: none;
+  border-right: none;
+  padding: 8px 14px;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   EtherX Word — Table of Figures / Tables & Index
+   ═══════════════════════════════════════════════════════════════ */
+.etherx-tof, .etherx-tot {
+  margin: 1.5em 0;
+  padding: 14px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+}
+.etherx-tof h2, .etherx-tot h2 {
+  font-size: 14pt;
+  margin-top: 0 !important;
+  margin-bottom: 10px !important;
+  color: var(--gold);
+}
+.etherx-tof-list, .etherx-tot-list {
+  list-style: none !important;
+  padding: 0 !important;
+  margin: 8px 0 0 0 !important;
+}
+.etherx-tof-item, .etherx-tot-item {
+  display: flex !important;
+  align-items: baseline !important;
+  margin-bottom: 6px !important;
+  font-size: 12pt;
+}
+.etherx-tof-item a, .etherx-tot-item a {
+  display: flex !important;
+  align-items: baseline !important;
+  width: 100% !important;
+  color: var(--text-primary) !important;
+  text-decoration: none !important;
+  cursor: pointer;
+}
+.etherx-tof-item a:hover, .etherx-tot-item a:hover {
+  color: var(--gold) !important;
+}
+.etherx-tof-dots, .etherx-tot-dots {
+  flex: 1;
+  border-bottom: 1px dotted var(--text-muted);
+  margin: 0 8px;
+  min-width: 24px;
+}
+.etherx-tof-page, .etherx-tot-page {
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* Index Section */
+.etherx-index-section {
+  margin: 2em 0;
+  padding: 18px 22px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+}
+.etherx-index-section h2 {
+  font-size: 16pt;
+  margin-top: 0 !important;
+  margin-bottom: 12px !important;
+  color: var(--gold);
+}
+.etherx-index-columns {
+  column-count: 2;
+  column-gap: 36px;
+  margin-top: 12px;
+}
+@media (max-width: 600px) {
+  .etherx-index-columns {
+    column-count: 1;
+  }
+}
+.etherx-index-group {
+  break-inside: avoid;
+  margin-bottom: 16px;
+}
+.etherx-index-letter {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--gold);
+  border-bottom: 1.5px solid var(--border-gold);
+  padding-bottom: 2px;
+  margin-bottom: 6px;
+}
+.etherx-index-list {
+  list-style: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+.etherx-index-item {
+  display: flex !important;
+  align-items: baseline !important;
+  justify-content: space-between !important;
+  padding: 3px 0 !important;
+  font-size: 12pt;
+}
+.etherx-index-link {
+  color: var(--text-primary) !important;
+  text-decoration: none !important;
+  cursor: pointer;
+}
+.etherx-index-link:hover {
+  color: var(--gold) !important;
+  text-decoration: underline !important;
 }

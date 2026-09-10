@@ -97,19 +97,120 @@ const templates = [
     id: 'invoice',
     title: 'Invoice',
     category: 'Finance',
-    description: 'Simple invoice with bill-to details and line items.',
+    description: 'Professional invoice with bill-to details, line items, and payment instructions.',
     content: `
-<h1>Invoice</h1>
-<p><strong>Invoice No.:</strong> INV-2026-001</p>
-<p><strong>Bill To:</strong> Client Name</p>
-<table>
-  <thead><tr><th>Description</th><th>Qty</th><th>Unit Price</th><th>Amount</th></tr></thead>
+<table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
   <tbody>
-    <tr><td>Service or product</td><td>1</td><td>$100.00</td><td>$100.00</td></tr>
+    <tr>
+      <td style="border: none; padding: 0; vertical-align: top;">
+        <h1 style="margin: 0; font-size: 32px; font-weight: bold;">INVOICE</h1>
+        <p style="margin: 5px 0; font-size: 14px; color: #d4af37;"><strong>#INV-2026-001</strong></p>
+      </td>
+      <td style="border: none; padding: 0; text-align: right; vertical-align: top;">
+        <h2 style="margin: 0; font-size: 16px; font-weight: bold; text-align: right;">Your Business Name</h2>
+        <p style="margin: 5px 0; font-size: 13px; text-align: right;">123 Your Street, City, State ZIP</p>
+        <p style="margin: 5px 0; font-size: 13px; text-align: right;">billing@business.com • (555) 000-0000</p>
+      </td>
+    </tr>
   </tbody>
 </table>
-<p><strong>Total Due:</strong> $100.00</p>
-<p>Payment due within 30 days. Thank you for your business.</p>`,
+
+<table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
+  <tbody>
+    <tr>
+      <td style="border: none; padding: 0; vertical-align: top; width: 60%;">
+        <p style="margin: 0; font-size: 12px; font-weight: bold; color: #666;">BILL TO</p>
+        <p style="margin: 5px 0 0 0; font-size: 13px;"><strong>Client Full Name</strong></p>
+        <p style="margin: 5px 0; font-size: 13px;">Client Company Inc.</p>
+        <p style="margin: 5px 0; font-size: 13px;">456 Client Street, City, State ZIP</p>
+        <p style="margin: 5px 0; font-size: 13px;">client@company.com</p>
+      </td>
+      <td style="border: none; padding: 0; vertical-align: top; width: 40%; text-align: right;">
+        <p style="margin: 5px 0; font-size: 13px; text-align: right;"><strong>Invoice No.:</strong> <span style="color: #d4af37;">INV-2026-001</span></p>
+        <p style="margin: 5px 0; font-size: 13px; text-align: right;"><strong>Invoice Date:</strong> <span style="color: #d4af37;">April 22, 2026</span></p>
+        <p style="margin: 5px 0; font-size: 13px; text-align: right;"><strong>Due Date:</strong> <span style="color: #d4af37;">May 22, 2026</span></p>
+        <p style="margin: 5px 0; font-size: 13px; text-align: right;"><strong>Status:</strong> <span style="color: #d4af37; font-weight: bold;">UNPAID</span></p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+  <thead>
+    <tr style="border-bottom: 2px solid #333;">
+      <th style="text-align: left; padding: 8px; font-size: 12px; color: #666; font-weight: bold;">DESCRIPTION</th>
+      <th style="text-align: center; padding: 8px; font-size: 12px; color: #666; font-weight: bold;">QTY</th>
+      <th style="text-align: right; padding: 8px; font-size: 12px; color: #666; font-weight: bold;">UNIT PRICE</th>
+      <th style="text-align: right; padding: 8px; font-size: 12px; color: #666; font-weight: bold;">AMOUNT</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style="border-bottom: 1px solid #ddd;">
+      <td style="padding: 10px; font-size: 13px; text-align: left;">Service or Product Name</td>
+      <td style="text-align: center; padding: 10px; font-size: 13px;">1</td>
+      <td style="text-align: right; padding: 10px; font-size: 13px;">$1,200.00</td>
+      <td style="text-align: right; padding: 10px; font-size: 13px;">$1,200.00</td>
+    </tr>
+    <tr style="border-bottom: 1px solid #ddd;">
+      <td style="padding: 10px; font-size: 13px; text-align: left;">Consulting Hours (Design)</td>
+      <td style="text-align: center; padding: 10px; font-size: 13px;">4</td>
+      <td style="text-align: right; padding: 10px; font-size: 13px;">$150.00</td>
+      <td style="text-align: right; padding: 10px; font-size: 13px;">$600.00</td>
+    </tr>
+    <tr style="border-bottom: 1px solid #ddd;">
+      <td style="padding: 10px; font-size: 13px; text-align: left;">Additional Service Item</td>
+      <td style="text-align: center; padding: 10px; font-size: 13px;">1</td>
+      <td style="text-align: right; padding: 10px; font-size: 13px;">$350.00</td>
+      <td style="text-align: right; padding: 10px; font-size: 13px;">$350.00</td>
+    </tr>
+  </tbody>
+</table>
+
+<table style="width: 100%; border-collapse: collapse; margin: 20px 0 30px 0;">
+  <tbody>
+    <tr>
+      <td style="border: none; width: 60%;"></td>
+      <td style="border: none; width: 40%; text-align: right;">
+        <table style="width: 100%; border-collapse: collapse;">
+          <tbody>
+            <tr style="border-bottom: 1px solid #ddd;">
+              <td style="padding: 8px 0; font-size: 13px; text-align: left;"><strong>Subtotal</strong></td>
+              <td style="padding: 8px 0; font-size: 13px; text-align: right;">$2,150.00</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #ddd;">
+              <td style="padding: 8px 0; font-size: 13px; text-align: left;"><strong>Tax (GST 18%)</strong></td>
+              <td style="padding: 8px 0; font-size: 13px; text-align: right;">$387.00</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; font-size: 14px; text-align: left; color: #d4af37;"><strong>Total Due</strong></td>
+              <td style="padding: 8px 0; font-size: 14px; text-align: right; font-weight: bold; color: #d4af37;">$2,537.00</td>
+            </tr>
+          </tbody>
+        </table>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<table style="width: 100%; border-collapse: collapse; margin-top: 30px; border-top: 1px solid #ccc;">
+  <tbody>
+    <tr>
+      <td style="border: none; padding: 20px 20px 0 0; vertical-align: top; width: 50%;">
+        <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: bold; color: #666; text-align: left;">PAYMENT INSTRUCTIONS</p>
+        <p style="margin: 3px 0; font-size: 12px; text-align: left;">Bank Transfer: Your Bank Name</p>
+        <p style="margin: 3px 0; font-size: 12px; text-align: left;">Account Name: Your Business Name</p>
+        <p style="margin: 3px 0; font-size: 12px; text-align: left;">Account No.: XXXX-XXXX-XXXX</p>
+        <p style="margin: 3px 0; font-size: 12px; text-align: left;">IFSC / Routing: XXXXXXXX</p>
+        <p style="margin: 3px 0; font-size: 12px; text-align: left;">Or pay via: razorpay.com/your-link</p>
+      </td>
+      <td style="border: none; padding: 20px 0 0 20px; vertical-align: top; width: 50%;">
+        <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: bold; color: #666; text-align: left;">TERMS & NOTES</p>
+        <p style="margin: 3px 0; font-size: 12px; text-align: left; line-height: 1.5;">Payment due within 30 days of invoice date. Late payments are subject to a 1.5% monthly interest charge. Thank you for your business — we appreciate the partnership!</p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+    `,
   },
 ];
 

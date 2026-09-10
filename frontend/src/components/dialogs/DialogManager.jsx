@@ -35,6 +35,9 @@ import {
   InsertCitationDialog,
   ManageSourcesDialog,
   BibliographyDialog,
+  TableOfFiguresDialog,
+  TableOfTablesDialog,
+  IndexDialog,
 } from './ReferenceDialogs';
 import {
   MailMergeDialog,
@@ -46,6 +49,17 @@ import {
   LabelsDialog,
   PreviewMergeDialog,
 } from './MailingsDialogs';
+
+import { SecurityDialog }       from './SecurityDialog';
+import { DigitalSignatureDialog } from './DigitalSignatureDialog';
+import { ReadabilityDialog }    from './ReadabilityDialog';
+import { BuildingBlocksDialog } from './BuildingBlocksDialog';
+import { ShortcutRemapDialog }  from './ShortcutRemapDialog';
+import { MergeConflictDialog }  from './MergeConflictDialog';
+import { MasterDocumentDialog } from './MasterDocumentDialog';
+import { StyleInspectorDialog } from './StyleInspectorDialog';
+import { ClipboardHistoryDrawer } from './ClipboardHistoryDrawer';
+import { CitationFactCheckDialog } from './CitationFactCheckDialog';
 
 export function DialogManager() {
   const { dialogs } = useUIStore();
@@ -80,6 +94,9 @@ export function DialogManager() {
       {dialogs.compareDocuments && <CompareDocumentsDialog />}
       {dialogs.restrictEditing && <RestrictEditingDialog />}
       {dialogs.tableOfContents && <TableOfContentsDialog />}
+      {dialogs.tableOfFigures  && <TableOfFiguresDialog />}
+      {dialogs.tableOfTables   && <TableOfTablesDialog />}
+      {dialogs.insertIndex     && <IndexDialog />}
       {dialogs.insertCitation  && <InsertCitationDialog />}
       {dialogs.manageSources   && <ManageSourcesDialog />}
       {dialogs.bibliography    && <BibliographyDialog />}
@@ -92,6 +109,16 @@ export function DialogManager() {
       {dialogs.labels          && <LabelsDialog />}
       {dialogs.finishMerge     && <PreviewMergeDialog />}
       {dialogs.pragnaAi        && <PragnaAiDialog />}
+      {dialogs.security       && <SecurityDialog />}
+      {dialogs.digitalSignature && <DigitalSignatureDialog />}
+      {dialogs.readability    && <ReadabilityDialog />}
+      {dialogs.buildingBlocks && <BuildingBlocksDialog />}
+      {dialogs.shortcuts      && <ShortcutRemapDialog />}
+      {dialogs.mergeConflict  && <MergeConflictDialog />}
+      {dialogs.masterDoc      && <MasterDocumentDialog />}
+      {dialogs.styleInspector && <StyleInspectorDialog />}
+      {dialogs.clipboardHistory && <ClipboardHistoryDrawer />}
+      {dialogs.citationFactCheck && <CitationFactCheckDialog />}
     </>
   );
 }

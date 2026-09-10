@@ -198,6 +198,8 @@ export function FloatingFormatToolbar({ editor, scrollContainerRef }) {
     // On scroll/resize, re-measure the selection bounds (don't use stale anchor)
     const handleWindowInteraction = () => {
       if (!mounted || !anchor) return;
+      setTextColorOpen(false);
+      setHighlightColorOpen(false);
       // Re-measure selection to get updated viewport-relative coords
       const nextAnchor = getSelectionBounds(editor);
       if (nextAnchor) {
@@ -378,22 +380,94 @@ export function FloatingFormatToolbar({ editor, scrollContainerRef }) {
 
         <Divider vertical />
 
-        <Tooltip text="Text Color">
-          <Button style={SWATCH_BUTTON_STYLE} active={textColorOpen} onClick={() => setTextColorOpen((value) => !value)}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-              <span style={{ width: 12, height: 12, borderRadius: 999, background: currentTextColor || '#111111', border: '1px solid var(--border)' }} />
-              A
-            </span>
-          </Button>
-        </Tooltip>
-        <Tooltip text="Highlight Color">
-          <Button style={SWATCH_BUTTON_STYLE} active={highlightColorOpen} onClick={() => setHighlightColorOpen((value) => !value)}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-              <span style={{ width: 12, height: 12, borderRadius: 3, background: currentHighlight || '#fff59d', border: '1px solid var(--border)' }} />
-              H
-            </span>
-          </Button>
-        </Tooltip>
+        <div style={{ position: 'relative' }}>
+          <Tooltip text="Text Color">
+            <Button
+              style={SWATCH_BUTTON_STYLE}
+              active={textColorOpen}
+              onClick={() => {
+                setHighlightColorOpen(false);
+                setTextColorOpen((value) => !value);
+              }}
+            >
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <span style={{ width: 12, height: 12, borderRadius: 999, background: currentTextColor || '#111111', border: '1px solid var(--border)' }} />
+                A
+              </span>
+            </Button>
+          </Tooltip>
+          {textColorOpen && (
+            <div
+              data-format-palette="true"
+              style={{
+                position: 'absolute',
+                ...(position.top > window.innerHeight - 160 ? { bottom: 'calc(100% + 8px)' } : { top: 'calc(100% + 8px)' }),
+                left: '50%',
+                transform: 'translateX(-50%)',
+                zIndex: 10000,
+                padding: 10,
+                borderRadius: 8,
+                border: '1px solid var(--border-gold)',
+                background: 'rgba(24, 24, 24, 0.98)',
+                boxShadow: '0 12px 32px rgba(0, 0, 0, 0.6)',
+                backdropFilter: 'blur(12px)',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, 1fr)',
+                gap: 8,
+                minWidth: 140,
+              }}
+            >
+              {TEXT_COLORS.map((color) => (
+                <ColorSwatch key={color} color={color} onSelect={applyTextColor} size={22} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div style={{ position: 'relative' }}>
+          <Tooltip text="Highlight Color">
+            <Button
+              style={SWATCH_BUTTON_STYLE}
+              active={highlightColorOpen}
+              onClick={() => {
+                setTextColorOpen(false);
+                setHighlightColorOpen((value) => !value);
+              }}
+            >
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <span style={{ width: 12, height: 12, borderRadius: 3, background: currentHighlight || '#fff59d', border: '1px solid var(--border)' }} />
+                H
+              </span>
+            </Button>
+          </Tooltip>
+          {highlightColorOpen && (
+            <div
+              data-format-palette="true"
+              style={{
+                position: 'absolute',
+                ...(position.top > window.innerHeight - 160 ? { bottom: 'calc(100% + 8px)' } : { top: 'calc(100% + 8px)' }),
+                left: '50%',
+                transform: 'translateX(-50%)',
+                zIndex: 10000,
+                padding: 10,
+                borderRadius: 8,
+                border: '1px solid var(--border-gold)',
+                background: 'rgba(24, 24, 24, 0.98)',
+                boxShadow: '0 12px 32px rgba(0, 0, 0, 0.6)',
+                backdropFilter: 'blur(12px)',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, 1fr)',
+                gap: 8,
+                minWidth: 140,
+              }}
+            >
+              {HIGHLIGHT_COLORS.map((color) => (
+                <ColorSwatch key={color} color={color} onSelect={applyHighlightColor} size={22} />
+              ))}
+            </div>
+          )}
+        </div>
+
         <Tooltip text="Clear Formatting">
           <Button style={{ ...BUTTON_STYLE, minWidth: 56 }} onClick={clearFormatting}>Clear</Button>
         </Tooltip>
@@ -431,54 +505,6 @@ export function FloatingFormatToolbar({ editor, scrollContainerRef }) {
             style={{ height: 34, fontSize: 13 }}
           />
         </Tooltip>
-
-        {textColorOpen && (
-          <div
-            data-format-palette="true"
-            style={{
-              position: 'absolute',
-              top: 'calc(100% + 8px)',
-              left: 12,
-              zIndex: 1,
-              padding: 10,
-              borderRadius: 8,
-              border: '1px solid var(--border)',
-              background: 'var(--bg-surface)',
-              boxShadow: 'var(--shadow-md)',
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: 8,
-            }}
-          >
-            {TEXT_COLORS.map((color) => (
-              <ColorSwatch key={color} color={color} onSelect={applyTextColor} size={22} />
-            ))}
-          </div>
-        )}
-
-        {highlightColorOpen && (
-          <div
-            data-format-palette="true"
-            style={{
-              position: 'absolute',
-              top: 'calc(100% + 8px)',
-              left: 120,
-              zIndex: 1,
-              padding: 10,
-              borderRadius: 8,
-              border: '1px solid var(--border)',
-              background: 'var(--bg-surface)',
-              boxShadow: 'var(--shadow-md)',
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: 8,
-            }}
-          >
-            {HIGHLIGHT_COLORS.map((color) => (
-              <ColorSwatch key={color} color={color} onSelect={applyHighlightColor} size={22} />
-            ))}
-          </div>
-        )}
       </div>
     </div>,
     document.body,

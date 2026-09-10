@@ -29,6 +29,7 @@ import Superscript from '@tiptap/extension-superscript';
 import FontFamily from '@tiptap/extension-font-family';
 import Blockquote from '@tiptap/extension-blockquote';
 import { PageBreak } from '@/components/editor/PageBreak';
+import { ProductivityExtension } from '@/services/productivityExtension';
 import { useEditorStore, useDocumentStore, useUIStore } from '@/store';
 
 const LANGUAGE_KEY = 'etherx-language';
@@ -159,6 +160,23 @@ const BlockStyle = Extension.create({
           },
         },
       },
+      {
+        types: ['table', 'orderedList', 'bulletList', 'paragraph', 'heading'],
+        attributes: {
+          class: {
+            default: null,
+            parseHTML: (element) => element.getAttribute('class'),
+            renderHTML: (attributes) =>
+              attributes.class ? { class: attributes.class } : {},
+          },
+          theme: {
+            default: null,
+            parseHTML: (element) => element.getAttribute('data-theme') || null,
+            renderHTML: (attributes) =>
+              attributes.theme ? { 'data-theme': attributes.theme } : {},
+          },
+        },
+      },
     ];
   },
 });
@@ -233,7 +251,35 @@ export function useEditorSetup() {
       },
     }),
     Underline,
-    TextAlign.configure({ types: ['heading', 'paragraph', 'blockquote'] }),
+    TextAlign.extend({
+      addGlobalAttributes() {
+        return [
+          {
+            types: this.options.types,
+            attributes: {
+              textAlign: {
+                default: this.options.defaultAlignment,
+                parseHTML: (element) => {
+                  if (element.style?.textAlign) return element.style.textAlign;
+                  if (element.getAttribute?.('align')) return element.getAttribute('align');
+                  const parentAlign = element.closest?.('[style*="text-align"]')?.style?.textAlign;
+                  if (parentAlign) return parentAlign;
+                  const parentAttr = element.closest?.('[align]')?.getAttribute?.('align');
+                  if (parentAttr) return parentAttr;
+                  return null;
+                },
+                renderHTML: (attributes) => {
+                  if (!attributes.textAlign || attributes.textAlign === this.options.defaultAlignment) {
+                    return {};
+                  }
+                  return { style: `text-align: ${attributes.textAlign}` };
+                },
+              },
+            },
+          },
+        ];
+      },
+    }).configure({ types: ['heading', 'paragraph', 'blockquote', 'tableCell', 'tableHeader'] }),
     TextStyle,
     Color,
     FontFamily,
@@ -255,6 +301,7 @@ export function useEditorSetup() {
     BlockStyle,
     Insertion,
     Deletion,
+    ProductivityExtension,
   ], []);
 
   const editor = useTiptap({

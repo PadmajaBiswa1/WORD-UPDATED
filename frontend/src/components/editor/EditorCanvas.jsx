@@ -27,9 +27,10 @@ function getThemePageColor() {
 
 function getResolvedPageFill(design = {}) {
   const color = normalizeColor(design.pageColor);
-  if (design.pageColorMode === 'custom') return color || 'var(--bg-page)';
-  if (design.pageColorMode === 'theme' || !color || isThemeDefaultPageColor(color)) return 'var(--bg-page)';
-  return color;
+  if (color && (design.pageColorMode === 'custom' || !isThemeDefaultPageColor(color))) {
+    return color;
+  }
+  return color || 'var(--bg-page)';
 }
 
 function colorFromString(seed = '') {
@@ -155,6 +156,10 @@ export function EditorCanvas() {
       proseEl.style.fontFamily = `'${bodyFont}', serif`;
       proseEl.style.lineHeight = lineSpacing;
       proseEl.style.setProperty('--design-paragraph-gap', `${paragraphGap.toFixed(2)}em`);
+      proseEl.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach((h) => {
+        h.style.fontFamily = `'${headingFont}', serif`;
+        h.style.color = headingColor;
+      });
     }
 
     if (design.effect === 'soft') {

@@ -1,5 +1,5 @@
 // ── Layout Tab ───────────────────────────────────────────────
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useUIStore, useEditorStore } from '@/store';
 import { Button, Tooltip, Select } from '@/components/ui';
 import { RibbonGroup } from '../RibbonGroup';
@@ -372,6 +372,7 @@ export function LayoutTab() {
 // ── Review Tab ───────────────────────────────────────────────
 import { useDocumentStore, useUIStore as useUI } from '@/store';
 import { runDictation, runImageTextCapture, runReadAloud, runSmartSuggestions } from '@/utils/smartFeatures';
+import { parseVoiceCommand, executeVoiceCommand } from '@/services/voiceCommands';
 
 const MARKUP_OPTIONS = [
   { value: 'all', label: 'All Markup' },
@@ -396,6 +397,105 @@ export function ReviewTab() {
   const [markupMode, setMarkupMode] = useState('all');
   const [hideInk, setHideInk] = useState(false);
   const [commentCursor, setCommentCursor] = useState(-1);
+  const [voiceActive, setVoiceActive] = useState(false);
+  const [voiceMode, setVoiceMode] = useState(null); // 'command' | 'typing'
+  const voiceRecRef = useRef(null);
+
+  const stopVoice = () => {
+    if (voiceRecRef.current) {
+      try { voiceRecRef.current.stop(); } catch {}
+      voiceRecRef.current = null;
+    }
+    setVoiceActive(false);
+    setVoiceMode(null);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (voiceRecRef.current) {
+        try { voiceRecRef.current.stop(); } catch {}
+      }
+    };
+  }, []);
+
+  const startVoice = (mode) => {
+    if (voiceActive && voiceMode === mode) {
+      stopVoice();
+      toast('Voice listening stopped', 'info');
+      return;
+    }
+    stopVoice();
+
+    const SpeechRecognitionApi = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognitionApi) {
+      const mockInput = window.prompt(
+        mode === 'command'
+          ? 'Browser speech recognition not detected. Type a voice command to execute (e.g. "make bold", "heading 1", "new paragraph", "insert table", "undo", "redo", "select all", "align center", "bullet list", "add comment"):'
+          : 'Browser speech recognition not detected. Type dictation text or command:'
+      );
+      if (mockInput) {
+        const res = parseVoiceCommand(mockInput);
+        if (res.matched) {
+          executeVoiceCommand(mockInput, { editor, uiStore: { openDialog } });
+          toast(`🎙 Voice Command executed: ${res.command.label}`, 'success');
+        } else if (mode === 'typing') {
+          editor?.chain().focus().insertContent(`${mockInput} `).run();
+          toast(`🎤 Typed: "${mockInput}"`, 'info');
+        } else {
+          toast(`Voice command not recognized: "${mockInput}"`, 'warning');
+        }
+      }
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognitionApi();
+      recognition.continuous = true;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => {
+        setVoiceActive(true);
+        setVoiceMode(mode);
+        toast(mode === 'command' ? '🎙 Voice Commands active — listening for editing commands…' : '🎤 Voice Typing active — speak to dictate or command…', 'info');
+      };
+
+      recognition.onresult = (event) => {
+        const lastIndex = event.results.length - 1;
+        const transcript = event.results[lastIndex][0]?.transcript || '';
+        if (!transcript.trim()) return;
+
+        const cmdResult = parseVoiceCommand(transcript);
+        if (cmdResult.matched) {
+          executeVoiceCommand(transcript, { editor, uiStore: { openDialog } });
+          toast(`🎙 Voice Command: ${cmdResult.command.label}`, 'success');
+        } else if (mode === 'typing') {
+          editor?.chain().focus().insertContent(`${transcript.trim()} `).run();
+          toast(`🎤 Voice Typing: "${transcript.trim()}"`, 'info');
+        } else {
+          toast(`Heard: "${transcript.trim()}" (no matching voice command)`, 'info');
+        }
+      };
+
+      recognition.onerror = (e) => {
+        console.warn('Voice recognition error:', e.error);
+        if (e.error !== 'no-speech') {
+          toast(`Voice recognition: ${e.error || 'error'}`, 'warning');
+        }
+      };
+
+      recognition.onend = () => {
+        setVoiceActive(false);
+        setVoiceMode(null);
+      };
+
+      recognition.start();
+      voiceRecRef.current = recognition;
+    } catch (err) {
+      console.error(err);
+      toast('Failed to start speech recognition: ' + err.message, 'error');
+    }
+  };
 
   useEffect(() => {
     const root = getEditorRoot();
@@ -657,6 +757,9 @@ export function ReviewTab() {
         <Tooltip text="Spelling & Grammar" shortcut="F7">
           <Button active={spellCheck} onClick={handleSpellCheck}>ABC✓ Spelling</Button>
         </Tooltip>
+        <Tooltip text="Readability Dashboard & Clarity Metrics">
+          <Button onClick={() => openDialog('readability')}>📊 Readability</Button>
+        </Tooltip>
         <Tooltip text="Thesaurus"><Button onClick={openThesaurus}>📖 Thesaurus</Button></Tooltip>
         <Tooltip text="Word Count"><Button onClick={handleWordCount}>123 Word Count</Button></Tooltip>
         <Tooltip text="Read Aloud"><Button onClick={handleReadAloud}>🔊 Read Aloud</Button></Tooltip>
@@ -709,7 +812,22 @@ export function ReviewTab() {
       </RibbonGroup>
 
       <RibbonGroup label="Smart Features">
-        <Tooltip text="Voice Typing"><Button onClick={() => runDictation({ editor, toast })}>🎤 Voice Typing</Button></Tooltip>
+        <Tooltip text="Voice Commands & Speech Control">
+          <Button
+            active={voiceActive && voiceMode === 'command'}
+            onClick={() => startVoice('command')}
+          >
+            {voiceActive && voiceMode === 'command' ? '🔴 Stop Voice' : '🎙 Voice Commands'}
+          </Button>
+        </Tooltip>
+        <Tooltip text="Voice Typing (Dictation + Commands)">
+          <Button
+            active={voiceActive && voiceMode === 'typing'}
+            onClick={() => startVoice('typing')}
+          >
+            {voiceActive && voiceMode === 'typing' ? '🔴 Stop Typing' : '🎤 Voice Typing'}
+          </Button>
+        </Tooltip>
         <Tooltip text="Text-to-Speech"><Button onClick={() => runReadAloud({ editor, toast })}>🔊 TTS</Button></Tooltip>
         <Tooltip text="Stop Reading"><Button onClick={() => { if (window.speechSynthesis) { window.speechSynthesis.cancel(); toast('Read aloud stopped', 'info'); } }}>🔇 Stop TTS</Button></Tooltip>
         <Tooltip text="OCR (Image to Text)"><Button onClick={() => runImageTextCapture({ editor, toast, mode: 'ocr' })}>🧾 OCR</Button></Tooltip>
@@ -729,6 +847,7 @@ export function ViewTab() {
     rulerVisible, toggleRuler,
     gridlinesVisible, toggleGridlines,
     toast,
+    openDialog,
   } = useUIStore();
   const [viewMode, setViewMode] = useState('print');
   const [focusMode, setFocusMode] = useState(false);
@@ -873,6 +992,11 @@ export function ViewTab() {
           
           toast('Split view opened - synchronized preview', 'success');
         }}>⊟ Split</Button></Tooltip>
+      </RibbonGroup>
+
+      <RibbonGroup label="Structure & Security">
+        <Tooltip text="Master Document & Subdocuments"><Button onClick={() => openDialog('masterDoc')}>📑 Master Doc</Button></Tooltip>
+        <Tooltip text="Security & Protection"><Button onClick={() => openDialog('security')}>🔒 Security</Button></Tooltip>
       </RibbonGroup>
 
       <RibbonGroup label="Macros">

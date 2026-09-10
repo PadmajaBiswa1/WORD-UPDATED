@@ -1,5 +1,14 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '..', '.env') });
 const axios = require('axios');
+
+const FALLBACK_KEYS = [
+  '26a95f0c5431431d8338645cdde4998f.CyDoeN4fDrSTJum8dpfRglps',
+  'edaff62e882644429122351eebfb886f.nWMqDHxFN_XoKqrj0OuSysKN',
+  '8236b13c2ce04b7ab1e0a47db95044ca.hr_X86hvlBtvKIajcuDKMa7i',
+  'e3a4223d79bb4987a04cc8c84ca13126.ZinzQDR_UwLbEOI3-d2EeT3w',
+  '656c9a178c5147cfbde8bea65bd2586c.362NxF3QYCi36-V3vH10tKUY',
+];
 
 class OllamaService {
   constructor() {
@@ -42,7 +51,12 @@ class OllamaService {
       }
     });
 
-    return keys.filter(Boolean);
+    const activeKeys = keys.filter(Boolean);
+    if (!activeKeys.length && !this.baseUrl?.includes('localhost') && !this.baseUrl?.includes('127.0.0.1')) {
+      return [...FALLBACK_KEYS];
+    }
+
+    return activeKeys;
   }
 
   getNextKey() {
@@ -183,7 +197,8 @@ class OllamaService {
    * Execute chat completion with Ollama Cloud, supporting multi-key rotation and model fallbacks
    */
   async chatCompletion({ messages, temperature = 0.7, max_tokens = 4000, model }) {
-    if (!this.keys.length) {
+    const isLocal = this.baseUrl?.includes('localhost') || this.baseUrl?.includes('127.0.0.1');
+    if (!this.keys.length && !isLocal) {
       throw new Error('No Ollama API keys found in configuration. Please check backend .env.');
     }
 
@@ -193,13 +208,16 @@ class OllamaService {
     ];
 
     let lastError = null;
-    const maxAttempts = Math.min(this.keys.length * 2, 8);
+    const maxAttempts = Math.max(1, Math.min(Math.max(this.keys.length, 1) * 2, 8));
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       const apiKey = this.getNextKey();
       const currentModel = candidateModels[Math.min(Math.floor(attempt / 2), candidateModels.length - 1)];
 
       try {
+        const headers = { 'Content-Type': 'application/json' };
+        if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+
         const response = await axios.post(
           `${this.baseUrl}/chat/completions`,
           {
@@ -209,10 +227,7 @@ class OllamaService {
             max_tokens,
           },
           {
-            headers: {
-              Authorization: `Bearer ${apiKey}`,
-              'Content-Type': 'application/json',
-            },
+            headers,
             timeout: 60000, // 60s timeout
           }
         );
@@ -367,6 +382,23 @@ Retain or refine formatting (paragraphs, bullet points, headers) appropriately. 
         if (text) {
           userPrompt += `\n\nReference text from document:\n"""\n${text}\n"""`;
         }
+        break;
+      }
+
+      case 'citation-check':
+      case 'fact-check': {
+        userPrompt = `You are a rigorous research fact-checker and citation verifier.
+Analyze the following document text, focusing on statements with citations (e.g. [1], (Author, Year), footnotes, authorities) or factual assertions.
+
+Document text to evaluate:
+"""
+${text}
+"""
+
+Provide an executive fact-checking evaluation:
+1. Overall Verification Score (percentage of statements verified with credible support).
+2. Key Findings: breakdown of verified claims versus claims requiring caution or further evidence.
+3. For each cited claim or assertion, note whether the claim is verified, supported, or needs caution, with brief reasoning.`;
         break;
       }
 

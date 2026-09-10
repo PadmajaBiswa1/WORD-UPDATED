@@ -1,13 +1,13 @@
 const router = require('express').Router();
 const { createDocument, sanitizeUser } = require('../lib/documentStore');
+const { extractUserFromRequest } = require('../middleware/auth');
 const { getTemplate, listTemplates } = require('../lib/templates');
 
 function requestUser(req) {
-  return sanitizeUser({
-    id: req.get('X-EtherX-User-Id') || req.body?.user?.id,
-    name: req.get('X-EtherX-User-Name') || req.body?.user?.name,
-    email: req.get('X-EtherX-User-Email') || req.body?.user?.email,
-  });
+  if (req.user && req.user.id && req.isAuthenticated) {
+    return sanitizeUser(req.user);
+  }
+  return sanitizeUser(extractUserFromRequest(req));
 }
 
 router.get('/', (_req, res) => {

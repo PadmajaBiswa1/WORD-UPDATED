@@ -37,14 +37,27 @@ export function InsertTab() {
     toast('Drop cap applied', 'success');
   };
 
-  const insertSignatureLine = () => {
+  const insertSignatureField = () => {
+    const fieldId = `sig-${Date.now()}`;
     insertHtml(`
-      <div style="margin:18px 0 10px 0;max-width:320px;">
-        <div style="border-bottom:1px solid #444;height:16px;"></div>
-        <div style="font-size:11px;color:#666;margin-top:4px;">Signature</div>
+      <div id="${fieldId}" data-signature-field="true" style="border: 2px dashed #c9a84c; border-radius: 6px; padding: 14px 18px; margin: 16px 0; max-width: 380px; background: rgba(212,175,55,0.05);">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(212,175,55,0.3); padding-bottom: 6px; margin-bottom: 10px;">
+          <span style="font-size: 11px; font-weight: 700; color: #c9a84c; text-transform: uppercase; letter-spacing: 0.05em;">Digital Signature Field</span>
+          <span style="font-size: 10px; background: #22c55e; color: #fff; padding: 1px 6px; border-radius: 999px;">PENDING SIGNATURE</span>
+        </div>
+        <div style="font-size: 12px; color: #aaa; margin-bottom: 16px;">Click or sign digitally with Web Crypto key</div>
+        <div style="border-bottom: 1px solid #777; width: 100%; height: 20px;"></div>
+        <div style="display: flex; justify-content: space-between; font-size: 10px; color: #888; margin-top: 4px;">
+          <span>Authorized Signatory</span>
+          <span>Date: ________________</span>
+        </div>
       </div>
     `);
-    toast('Signature line inserted', 'success');
+    toast('Digital signature field inserted', 'success');
+  };
+
+  const insertSignatureLine = () => {
+    insertSignatureField();
   };
 
   const insertEsignFields = () => {
@@ -113,6 +126,17 @@ export function InsertTab() {
     if (kind === 'page') {
       return <div style={{ ...base, width: 24, height: 26 }}><div style={{ position: 'absolute', left: 4, top: 3, width: 14, height: 18, border: '1px solid #c9a84c', background: 'transparent' }} /><div style={{ position: 'absolute', left: 2, top: 12, width: 18, height: 1, background: '#e7cd7a', borderStyle: 'dashed' }} /></div>;
     }
+    if (kind === 'signature') {
+      return (
+        <div style={{ ...base, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#22c55e' }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <path d="m9 15 2 2 4-4" />
+          </svg>
+        </div>
+      );
+    }
     return <div style={base} />;
   };
 
@@ -134,7 +158,7 @@ export function InsertTab() {
   const label = (t, dd = false) => <span style={{ fontSize: 12, lineHeight: 1.05, textAlign: 'center' }}>{t}{dd ? ' v' : ''}</span>;
 
   return (
-    <div style={wrap}>
+    <>
       <div style={group}>
         <div style={cmds}>
           <button style={cmdStyle} onClick={() => run(() => editor.chain().focus().insertPageBreak().run())}>
@@ -194,7 +218,7 @@ export function InsertTab() {
         <div style={footer}>Header & Footer</div>
       </div>
 
-      <div style={{ ...group, minWidth: 330 }}>
+      <div style={group}>
         <div style={cmds}>
           <button
             style={cmdStyle}
@@ -213,8 +237,8 @@ export function InsertTab() {
           >
             {iconBox('picture')}{label('Text Box', true)}
           </button>
-          <button style={cmdStyle} onClick={insertQuickPart}>{iconBox('picture')}{label('Quick Parts', true)}</button>
-          <button style={cmdStyle} onClick={() => insertSignatureLine()}>{iconBox('picture')}{label('Signature Line', true)}</button>
+          <button style={cmdStyle} onClick={() => openDialog('buildingBlocks')}>{iconBox('picture')}{label('Quick Parts', true)}</button>
+          <button style={cmdStyle} onClick={insertSignatureField}>{iconBox('picture')}{label('Signature Field')}</button>
           <button style={cmdStyle} onClick={() => openDialog('wordArt')}>{iconBox('picture')}{label('WordArt', true)}</button>
           <button style={cmdStyle} onClick={insertDropCap}>{iconBox('picture')}{label('Drop Cap', true)}</button>
           <button style={cmdStyle} onClick={() => insertHtml(new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }))}>{iconBox('picture')}{label('Date & Time', true)}</button>
@@ -230,12 +254,23 @@ export function InsertTab() {
         <div style={footer}>Symbols</div>
       </div>
 
-      <div style={{ ...group, borderRight: 'none', minWidth: 120 }}>
+      <div style={{ ...group, borderRight: 'none' }}>
         <div style={cmds}>
-          <button style={{ ...cmdStyle, width: 98 }} onClick={insertEsignFields}>{iconBox('picture')}{label('eSignature fields')}</button>
+          <button style={{ ...cmdStyle, width: 72 }} onClick={() => openDialog('digitalSignature')}>
+            {iconBox('signature')}
+            {label('Digital Sign')}
+          </button>
+          <button style={{ ...cmdStyle, width: 66 }} onClick={insertSignatureField}>
+            {iconBox('picture')}
+            {label('Sig Field')}
+          </button>
+          <button style={{ ...cmdStyle, width: 66 }} onClick={insertEsignFields}>
+            {iconBox('table')}
+            {label('eSign Table')}
+          </button>
         </div>
-        <div style={footer}>eSignature</div>
+        <div style={footer}>Digital Signatures</div>
       </div>
-    </div>
+    </>
   );
 }

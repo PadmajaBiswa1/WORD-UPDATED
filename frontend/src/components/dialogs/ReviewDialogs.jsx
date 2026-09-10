@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useDocumentStore, useEditorStore, useUIStore } from '@/store';
+import { useDocumentStore, useEditorStore, useUIStore, useProductivityStore } from '@/store';
 import { Button, Input, Label, Modal, Select, Stack } from '@/components/ui';
 
 const LANGUAGE_KEY = 'etherx-language';
@@ -253,7 +253,17 @@ export function AccessibilityDialog() {
 export function LanguageDialog() {
   const { closeDialog, toast } = useUIStore();
   const { editor, spellCheck, toggleSpellCheck, setFontFamily } = useEditorStore();
+  const { customDictionary = [], addToCustomDictionary, removeFromCustomDictionary } = useProductivityStore();
   const [language, setLanguage] = useState(loadLanguage());
+  const [newWord, setNewWord] = useState('');
+
+  const handleAddWord = () => {
+    const trimmed = newWord.trim().toLowerCase();
+    if (!trimmed) return;
+    addToCustomDictionary(trimmed);
+    setNewWord('');
+    toast(`Added "${trimmed}" to custom dictionary`, 'success');
+  };
 
   const applyLanguage = () => {
     if (editor?.view?.dom) {
@@ -272,7 +282,7 @@ export function LanguageDialog() {
   };
 
   return (
-    <Modal title="Language" onClose={() => closeDialog('language')} width={420}>
+    <Modal title="Language & Proofing Dictionary" onClose={() => closeDialog('language')} width={460}>
       <Stack gap={14}>
         <div>
           <Label>Document Language</Label>
@@ -282,7 +292,52 @@ export function LanguageDialog() {
           <input type="checkbox" checked={spellCheck} onChange={toggleSpellCheck} style={{ accentColor: 'var(--gold)' }} />
           Enable spell check for this document
         </label>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+
+        {/* Custom Dictionary section */}
+        <div style={{ borderTop: '1px solid var(--border)', paddingTop: 10 }}>
+          <Label>Custom Dictionary (Ignored by Spellcheck)</Label>
+          <div style={{ display: 'flex', gap: 6, marginBottom: 8, marginTop: 4 }}>
+            <Input
+              value={newWord}
+              onChange={setNewWord}
+              placeholder="Add word to dictionary…"
+              onKeyDown={(e) => { if (e.key === 'Enter') handleAddWord(); }}
+            />
+            <Button size="xs" variant="primary" onClick={handleAddWord}>＋ Add</Button>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, maxHeight: 100, overflowY: 'auto' }}>
+            {customDictionary.length === 0 ? (
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>No custom words added yet.</span>
+            ) : (
+              customDictionary.map((word) => (
+                <span
+                  key={word}
+                  style={{
+                    background: 'var(--bg-elevated)',
+                    border: '1px solid var(--border)',
+                    padding: '2px 8px',
+                    borderRadius: 12,
+                    fontSize: 11,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
+                >
+                  {word}
+                  <button
+                    onClick={() => { removeFromCustomDictionary(word); toast(`Removed "${word}" from dictionary`, 'info'); }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0, fontSize: 13, lineHeight: 1 }}
+                    title="Remove word"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', paddingTop: 6, borderTop: '1px solid var(--border)' }}>
           <Button variant="outline" onClick={() => { setLanguage('en-US'); toast('Language reset to English (US)', 'info'); }}>Reset</Button>
           <Button variant="primary" onClick={applyLanguage}>Apply</Button>
         </div>
