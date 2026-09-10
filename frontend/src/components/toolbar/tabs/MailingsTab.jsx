@@ -26,6 +26,83 @@ function mergeDocumentHtml(html, recipient) {
   return String(html || '').replace(mergeTokenRegex, (_, key) => String(recipient?.[key] ?? `{{${key}}}`));
 }
 
+function HeroBtn({ icon, label, onClick, title }) {
+  return (
+    <Tooltip text={title || label}>
+      <button
+        onClick={onClick}
+        style={{
+          border: '1px solid transparent',
+          background: 'transparent',
+          borderRadius: 3,
+          cursor: 'pointer',
+          color: 'var(--text-primary)',
+          minWidth: 64,
+          height: 74,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 4,
+          padding: '4px 6px',
+          fontFamily: 'var(--font-ui)',
+          fontSize: 11,
+          transition: 'background 0.1s, border-color 0.1s',
+          whiteSpace: 'nowrap',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = 'var(--bg-hover)';
+          e.currentTarget.style.borderColor = 'var(--border)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'transparent';
+          e.currentTarget.style.borderColor = 'transparent';
+        }}
+      >
+        <span style={{ fontSize: 22, lineHeight: 1 }}>{icon}</span>
+        <span style={{ fontSize: 11, lineHeight: 1.1, textAlign: 'center' }}>{label}</span>
+      </button>
+    </Tooltip>
+  );
+}
+
+function MiniAction({ icon, text, onClick, title }) {
+  return (
+    <Tooltip text={title || text}>
+      <button
+        onClick={onClick}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 5,
+          height: 22,
+          padding: '0 6px',
+          fontSize: 11,
+          fontFamily: 'var(--font-ui)',
+          border: '1px solid transparent',
+          borderRadius: 2,
+          background: 'transparent',
+          color: 'var(--text-primary)',
+          cursor: 'pointer',
+          whiteSpace: 'nowrap',
+          transition: 'background 0.1s, border-color 0.1s',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = 'var(--bg-hover)';
+          e.currentTarget.style.borderColor = 'var(--border)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'transparent';
+          e.currentTarget.style.borderColor = 'transparent';
+        }}
+      >
+        {icon && <span style={{ fontSize: 12, lineHeight: 1 }}>{icon}</span>}
+        <span>{text}</span>
+      </button>
+    </Tooltip>
+  );
+}
+
 export function MailingsTab() {
   const { toast, openDialog } = useUIStore();
   const { editor } = useEditorStore();
@@ -180,55 +257,64 @@ export function MailingsTab() {
     toast('Print preview opened for current recipient', 'success');
   });
 
-  const col = { display: 'flex', flexDirection: 'column', flexWrap: 'wrap', maxHeight: 82, height: 82, gap: 2, alignContent: 'flex-start' };
-  const mbtn = { height: 25, display: 'inline-flex', alignItems: 'center', flexShrink: 0, whiteSpace: 'nowrap', fontSize: 11, padding: '0 6px' };
-
   return (
     <>
       <RibbonGroup label="Create">
-        <div style={col}>
-          <Tooltip text="Envelopes"><Button style={mbtn} onClick={() => openDialog('envelopes')}>✉ Envelopes</Button></Tooltip>
-          <Tooltip text="Labels"><Button style={mbtn} onClick={() => openDialog('labels')}>🏷 Labels</Button></Tooltip>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <HeroBtn icon="✉" label="Envelopes" title="Create Envelopes" onClick={() => openDialog('envelopes')} />
+          <HeroBtn icon="🏷" label="Labels" title="Create Mailing Labels" onClick={() => openDialog('labels')} />
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Start Mail Merge">
-        <div style={col}>
-          <Tooltip text="Start Mail Merge"><Button style={mbtn} onClick={startMailMerge}>⊞ Start Merge</Button></Tooltip>
-          <Tooltip text="Select Recipients"><Button style={mbtn} onClick={() => openDialog('selectRecipients')}>👥 Recipients</Button></Tooltip>
-          <Tooltip text="Edit Recipient List"><Button style={mbtn} onClick={() => openDialog('editRecipients')}>✎ Edit List</Button></Tooltip>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <HeroBtn icon="⊞" label="Start Merge" title="Start Mail Merge" onClick={startMailMerge} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
+            <MiniAction icon="👥" text="Select Recipients" title="Select or Import Recipients" onClick={() => openDialog('selectRecipients')} />
+            <MiniAction icon="✎" text="Edit Recipient List" title="Edit Recipient List" onClick={() => openDialog('editRecipients')} />
+          </div>
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Write & Insert Fields">
-        <div style={col}>
-          <Tooltip text="Highlight Merge Fields"><Button style={mbtn} onClick={highlightFields}>🖍 Highlight</Button></Tooltip>
-          <Tooltip text="Address Block"><Button style={mbtn} onClick={() => insertHtml('<div style="border:1px solid #cfcfcf;padding:10px 12px;">{{FirstName}} {{LastName}}<br />{{Address}}<br />{{City}}, {{State}} {{Zip}}</div>')}>📮 Address</Button></Tooltip>
-          <Tooltip text="Greeting Line"><Button style={mbtn} onClick={() => openDialog('greetingLine')}>👋 Greeting</Button></Tooltip>
-          <Tooltip text="Insert Merge Field"><Button style={mbtn} onClick={() => openDialog('insertMergeField')}>⊞ Field</Button></Tooltip>
-          <Tooltip text="Rules"><Button style={mbtn} onClick={insertRule}>⚙ Rules</Button></Tooltip>
-          <Tooltip text="Match Fields"><Button style={mbtn} onClick={insertMatchTemplate}>⇔ Match</Button></Tooltip>
-          <Tooltip text="Update Labels"><Button style={mbtn} onClick={() => openDialog('labels')}>↻ Update</Button></Tooltip>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <HeroBtn icon="🖍" label="Highlight" title="Highlight Merge Fields" onClick={highlightFields} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
+            <MiniAction icon="📮" text="Address Block" title="Insert Address Block" onClick={() => insertHtml('<div style="border:1px solid #cfcfcf;padding:10px 12px;">{{FirstName}} {{LastName}}<br />{{Address}}<br />{{City}}, {{State}} {{Zip}}</div>')} />
+            <MiniAction icon="👋" text="Greeting Line" title="Insert Greeting Line" onClick={() => openDialog('greetingLine')} />
+            <MiniAction icon="⊞" text="Insert Field ▾" title="Insert Merge Field" onClick={() => openDialog('insertMergeField')} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
+            <MiniAction icon="⚙" text="Rules ▾" title="Insert Word Fields / Rules" onClick={insertRule} />
+            <MiniAction icon="⇔" text="Match Fields" title="Match Database Fields" onClick={insertMatchTemplate} />
+            <MiniAction icon="↻" text="Update Labels" title="Update All Labels" onClick={() => openDialog('labels')} />
+          </div>
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Preview Results">
-        <div style={col}>
-          <Tooltip text="Preview Results"><Button style={mbtn} onClick={() => openDialog('finishMerge')}>👁 Preview</Button></Tooltip>
-          <Tooltip text="First Record"><Button style={mbtn} onClick={() => navigateRecipient('first')}>|◀</Button></Tooltip>
-          <Tooltip text="Previous Record"><Button style={mbtn} onClick={() => navigateRecipient('prev')}>◀</Button></Tooltip>
-          <Tooltip text="Next Record"><Button style={mbtn} onClick={() => navigateRecipient('next')}>▶</Button></Tooltip>
-          <Tooltip text="Last Record"><Button style={mbtn} onClick={() => navigateRecipient('last')}>▶|</Button></Tooltip>
-          <Tooltip text="Find Recipient"><Button style={mbtn} onClick={findRecipient}>🔍 Find</Button></Tooltip>
-          <Tooltip text="Auto Check for Errors"><Button style={mbtn} onClick={checkMergeErrors}>✓ Check</Button></Tooltip>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <HeroBtn icon="👁" label="Preview" title="Preview Results" onClick={() => openDialog('finishMerge')} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Button style={{ height: 22, padding: '0 4px', fontSize: 10 }} onClick={() => navigateRecipient('first')}>|◀</Button>
+              <Button style={{ height: 22, padding: '0 4px', fontSize: 10 }} onClick={() => navigateRecipient('prev')}>◀</Button>
+              <Button style={{ height: 22, padding: '0 4px', fontSize: 10 }} onClick={() => navigateRecipient('next')}>▶</Button>
+              <Button style={{ height: 22, padding: '0 4px', fontSize: 10 }} onClick={() => navigateRecipient('last')}>▶|</Button>
+            </div>
+            <MiniAction icon="🔍" text="Find Recipient" title="Find Recipient in List" onClick={findRecipient} />
+            <MiniAction icon="✓" text="Auto Check" title="Auto Check for Merge Errors" onClick={checkMergeErrors} />
+          </div>
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Finish">
-        <div style={col}>
-          <Tooltip text="Finish & Merge"><Button style={mbtn} onClick={() => openDialog('finishMerge')}>✓ Finish</Button></Tooltip>
-          <Tooltip text="Merge to Email"><Button style={mbtn} onClick={mergeToEmail}>📧 Email</Button></Tooltip>
-          <Tooltip text="Merge to Printer"><Button style={mbtn} onClick={mergeToPrint}>🖨 Print</Button></Tooltip>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <HeroBtn icon="✓" label="Finish & Merge" title="Finish & Merge Documents" onClick={() => openDialog('finishMerge')} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
+            <MiniAction icon="📧" text="Merge to Email" title="Send Email Messages" onClick={mergeToEmail} />
+            <MiniAction icon="🖨" text="Merge to Print" title="Print Documents" onClick={mergeToPrint} />
+          </div>
         </div>
       </RibbonGroup>
     </>

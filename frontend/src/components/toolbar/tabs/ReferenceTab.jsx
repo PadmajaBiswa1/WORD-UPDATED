@@ -325,71 +325,161 @@ export function ReferenceTab() {
     toast('Researcher opened', 'success');
   };
 
-  const col = { display: 'flex', flexDirection: 'column', flexWrap: 'wrap', maxHeight: 82, height: 82, gap: 2, alignContent: 'flex-start' };
-  const btn = { height: 25, display: 'inline-flex', alignItems: 'center', flexShrink: 0 };
+function HeroBtn({ icon, label, onClick, onMouseDown, title, shortcut }) {
+  return (
+    <Tooltip text={title || label} shortcut={shortcut}>
+      <button
+        onMouseDown={onMouseDown}
+        onClick={onClick}
+        style={{
+          border: '1px solid transparent',
+          background: 'transparent',
+          borderRadius: 3,
+          cursor: 'pointer',
+          color: 'var(--text-primary)',
+          minWidth: 64,
+          height: 74,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 4,
+          padding: '4px 6px',
+          fontFamily: 'var(--font-ui)',
+          fontSize: 11,
+          transition: 'background 0.1s, border-color 0.1s',
+          whiteSpace: 'nowrap',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = 'var(--bg-hover)';
+          e.currentTarget.style.borderColor = 'var(--border)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'transparent';
+          e.currentTarget.style.borderColor = 'transparent';
+        }}
+      >
+        <span style={{ fontSize: 22, lineHeight: 1 }}>{icon}</span>
+        <span style={{ fontSize: 11, lineHeight: 1.1, textAlign: 'center' }}>{label}</span>
+      </button>
+    </Tooltip>
+  );
+}
+
+function MiniAction({ icon, text, onClick, onMouseDown, title, shortcut }) {
+  return (
+    <Tooltip text={title || text} shortcut={shortcut}>
+      <button
+        onMouseDown={onMouseDown}
+        onClick={onClick}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 5,
+          height: 22,
+          padding: '0 6px',
+          fontSize: 11,
+          fontFamily: 'var(--font-ui)',
+          border: '1px solid transparent',
+          borderRadius: 2,
+          background: 'transparent',
+          color: 'var(--text-primary)',
+          cursor: 'pointer',
+          whiteSpace: 'nowrap',
+          transition: 'background 0.1s, border-color 0.1s',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = 'var(--bg-hover)';
+          e.currentTarget.style.borderColor = 'var(--border)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'transparent';
+          e.currentTarget.style.borderColor = 'transparent';
+        }}
+      >
+        {icon && <span style={{ fontSize: 12, lineHeight: 1 }}>{icon}</span>}
+        <span>{text}</span>
+      </button>
+    </Tooltip>
+  );
+}
 
   return (
     <>
       <RibbonGroup label="Table of Contents">
-        <div style={col}>
-          <Tooltip text="Table of Contents"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={insertToc}>≡ Contents</Button></Tooltip>
-          <Tooltip text="Add Text"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={addTextToToc}>+ Add Text</Button></Tooltip>
-          <Tooltip text="Update Table"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={updateToc}>↻ Update</Button></Tooltip>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <HeroBtn icon="📑" label="Contents" title="Insert Table of Contents" onMouseDown={keepSelectionOnMouseDown} onClick={insertToc} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
+            <MiniAction icon="＋" text="Add Text ▾" title="Add Text to Outline" onMouseDown={keepSelectionOnMouseDown} onClick={addTextToToc} />
+            <MiniAction icon="↻" text="Update Table" title="Update Table of Contents" onMouseDown={keepSelectionOnMouseDown} onClick={updateToc} />
+          </div>
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Footnotes">
-        <div style={col}>
-          <Tooltip text="Insert Footnote" shortcut="Alt+Ctrl+F"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={() => insertHtml('<p><sup>[1]</sup> Footnote: Footnote text</p>')}>¹ Footnote</Button></Tooltip>
-          <Tooltip text="Insert Endnote" shortcut="Alt+Ctrl+D"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={() => insertHtml('<p><sup>[a]</sup> Endnote: Endnote text</p>')}>¹ Endnote</Button></Tooltip>
-          <Tooltip text="Next Footnote"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={jumpToNextFootnote}>→ Next</Button></Tooltip>
-          <Tooltip text="Show Notes"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={toggleNotesVisibility}>👁 Show</Button></Tooltip>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <HeroBtn icon="📝" label="Footnote" title="Insert Footnote" shortcut="Alt+Ctrl+F" onMouseDown={keepSelectionOnMouseDown} onClick={() => insertHtml('<p><sup>[1]</sup> Footnote: Footnote text</p>')} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
+            <MiniAction icon="¹" text="Insert Endnote" shortcut="Alt+Ctrl+D" onMouseDown={keepSelectionOnMouseDown} onClick={() => insertHtml('<p><sup>[a]</sup> Endnote: Endnote text</p>')} />
+            <MiniAction icon="→" text="Next Footnote ▾" onMouseDown={keepSelectionOnMouseDown} onClick={jumpToNextFootnote} />
+            <MiniAction icon="👁" text={notesVisible ? 'Hide Notes' : 'Show Notes'} onMouseDown={keepSelectionOnMouseDown} onClick={toggleNotesVisibility} />
+          </div>
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Citations & Bibliography">
-        <div style={col}>
-          <Tooltip text="Insert Citation"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={insertCitation}>❝ Citation</Button></Tooltip>
-          <Tooltip text="Manage Sources"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={manageSources}>📚 Sources</Button></Tooltip>
-          <Tooltip text="Style"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={() => openDialog('insertCitation')}>APA Style</Button></Tooltip>
-          <Tooltip text="Bibliography"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={insertBibliography}>📖 Biblio</Button></Tooltip>
-          <Tooltip text="AI Citation Fact-Checking"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={() => openDialog('citationFactCheck')}>🛡 Fact-Check</Button></Tooltip>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <HeroBtn icon="❝" label="Citation" title="Insert Citation" onMouseDown={keepSelectionOnMouseDown} onClick={insertCitation} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
+            <MiniAction icon="📚" text="Manage Sources" onMouseDown={keepSelectionOnMouseDown} onClick={manageSources} />
+            <MiniAction icon="🏷" text="Style: APA ▾" onMouseDown={keepSelectionOnMouseDown} onClick={() => openDialog('insertCitation')} />
+            <MiniAction icon="📖" text="Bibliography ▾" onMouseDown={keepSelectionOnMouseDown} onClick={insertBibliography} />
+          </div>
+          <HeroBtn icon="🛡" label="Fact-Check" title="AI Citation Fact-Checking" onMouseDown={keepSelectionOnMouseDown} onClick={() => openDialog('citationFactCheck')} />
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Captions">
-        <div style={col}>
-          <Tooltip text="Insert Caption (Figure or Table)"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={insertCaption}>🏷 Caption</Button></Tooltip>
-          <Tooltip text="Insert Table of Figures"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={insertTableOfFigures}>≡ Figures</Button></Tooltip>
-          <Tooltip text="Insert Table of Tables"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={insertTableOfTables}>≡ Tables</Button></Tooltip>
-          <Tooltip text="Update Tables of Figures / Tables"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={updateCaptionsTable}>↻ Update</Button></Tooltip>
-          <Tooltip text="Cross-reference"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={() => {
-            const picked = selectedText(editor) || (window.prompt('Cross-reference label', 'Reference') || 'Reference');
-            run(() => editor.chain().insertContent(`[See: ${picked}]`).run());
-          }}>⇒ Cross-ref</Button></Tooltip>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <HeroBtn icon="🏷" label="Caption" title="Insert Caption (Figure or Table)" onMouseDown={keepSelectionOnMouseDown} onClick={insertCaption} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
+            <MiniAction icon="≡" text="Figures Table" title="Insert Table of Figures" onMouseDown={keepSelectionOnMouseDown} onClick={insertTableOfFigures} />
+            <MiniAction icon="≡" text="Tables Table" title="Insert Table of Tables" onMouseDown={keepSelectionOnMouseDown} onClick={insertTableOfTables} />
+            <MiniAction icon="⇒" text="Cross-reference" onMouseDown={keepSelectionOnMouseDown} onClick={() => {
+              const picked = selectedText(editor) || (window.prompt('Cross-reference label', 'Reference') || 'Reference');
+              run(() => editor.chain().insertContent(`[See: ${picked}]`).run());
+            }} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
+            <MiniAction icon="↻" text="Update Table" title="Update Tables of Figures / Tables" onMouseDown={keepSelectionOnMouseDown} onClick={updateCaptionsTable} />
+          </div>
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Index">
-        <div style={col}>
-          <Tooltip text="Mark Selected Text for Index"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={markIndexEntry}>✎ Mark Entry</Button></Tooltip>
-          <Tooltip text="Insert Alphabetical Index (A-Z)"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={insertIndex}>≡ Index</Button></Tooltip>
-          <Tooltip text="Update Index"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={updateIndex}>↻ Update</Button></Tooltip>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <HeroBtn icon="✎" label="Mark Entry" title="Mark Selected Text for Index" onMouseDown={keepSelectionOnMouseDown} onClick={markIndexEntry} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
+            <MiniAction icon="≡" text="Insert Index" title="Insert Alphabetical Index (A-Z)" onMouseDown={keepSelectionOnMouseDown} onClick={insertIndex} />
+            <MiniAction icon="↻" text="Update Index" title="Update Index" onMouseDown={keepSelectionOnMouseDown} onClick={updateIndex} />
+          </div>
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Table of Authorities">
-        <div style={col}>
-          <Tooltip text="Mark Citation"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={markCitation}>✎ Mark</Button></Tooltip>
-          <Tooltip text="Insert Table of Authorities"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={insertAuthorities}>≡ Authorities</Button></Tooltip>
-          <Tooltip text="Update Table"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={updateAuthorities}>↻ Update</Button></Tooltip>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <HeroBtn icon="⚖" label="Mark" title="Mark Citation for Authorities" onMouseDown={keepSelectionOnMouseDown} onClick={markCitation} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
+            <MiniAction icon="≡" text="Insert Authorities" onMouseDown={keepSelectionOnMouseDown} onClick={insertAuthorities} />
+            <MiniAction icon="↻" text="Update Table" onMouseDown={keepSelectionOnMouseDown} onClick={updateAuthorities} />
+          </div>
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Research">
-        <div style={col}>
-          <Tooltip text="Researcher"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={openResearcher}>🔬 Researcher</Button></Tooltip>
-          <Tooltip text="Smart Lookup"><Button style={btn} onMouseDown={keepSelectionOnMouseDown} onClick={smartLookup}>🔍 Lookup</Button></Tooltip>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <HeroBtn icon="🔬" label="Researcher" title="Academic Researcher" onMouseDown={keepSelectionOnMouseDown} onClick={openResearcher} />
+          <HeroBtn icon="🔍" label="Lookup" title="Smart Web Lookup" onMouseDown={keepSelectionOnMouseDown} onClick={smartLookup} />
         </div>
       </RibbonGroup>
     </>
