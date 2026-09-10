@@ -135,91 +135,116 @@ export function DrawTab() {
     toast(`Ink replay ${next + 1}/${drawings.length}`, 'success');
   };
 
+  const col = { display: 'flex', flexDirection: 'column', flexWrap: 'wrap', maxHeight: 82, height: 82, gap: 2, alignContent: 'flex-start' };
+
   return (
     <>
       <RibbonGroup label="Drawing Tools">
-        <Tooltip text="Undo"><Button style={iconBtnStyle()} onClick={() => run(() => editor.chain().undo().run())}>↶</Button></Tooltip>
-        <Tooltip text="Redo"><Button style={iconBtnStyle()} onClick={() => run(() => editor.chain().redo().run())}>↷</Button></Tooltip>
-        <Tooltip text="Select"><Button style={iconBtnStyle(drawTool === 'select')} onClick={() => activateTool('select')}>↖</Button></Tooltip>
-        <Tooltip text="Lasso Select"><Button style={iconBtnStyle()} onClick={() => run(() => editor.chain().selectAll().run())}>◌</Button></Tooltip>
-        <Tooltip text="Eraser"><Button style={iconBtnStyle(drawTool === 'eraser')} onClick={() => activateTool('eraser', true)}>⌫</Button></Tooltip>
-        <Tooltip text="Pencil"><Button style={iconBtnStyle(drawTool === 'pencil')} onClick={() => activateTool('pencil', true)}>✎</Button></Tooltip>
-        <Tooltip text="Pen"><Button style={iconBtnStyle(drawTool === 'pen')} onClick={() => activateTool('pen', true)}>✒</Button></Tooltip>
-        <Tooltip text="Highlighter"><Button style={iconBtnStyle(drawTool === 'highlighter')} onClick={() => activateTool('highlighter', true)}>▮</Button></Tooltip>
+        <div style={col}>
+          <Tooltip text="Undo"><Button style={iconBtnStyle()} onClick={() => run(() => editor.chain().undo().run())}>↶</Button></Tooltip>
+          <Tooltip text="Redo"><Button style={iconBtnStyle()} onClick={() => run(() => editor.chain().redo().run())}>↷</Button></Tooltip>
+          <Tooltip text="Select"><Button style={iconBtnStyle(drawTool === 'select')} onClick={() => activateTool('select')}>↖</Button></Tooltip>
+          <Tooltip text="Lasso Select"><Button style={iconBtnStyle()} onClick={() => run(() => editor.chain().selectAll().run())}>◌</Button></Tooltip>
+          <Tooltip text="Eraser"><Button style={iconBtnStyle(drawTool === 'eraser')} onClick={() => activateTool('eraser', true)}>⌫</Button></Tooltip>
+          <Tooltip text="Pencil"><Button style={iconBtnStyle(drawTool === 'pencil')} onClick={() => activateTool('pencil', true)}>✎</Button></Tooltip>
+          <Tooltip text="Pen"><Button style={iconBtnStyle(drawTool === 'pen')} onClick={() => activateTool('pen', true)}>✒</Button></Tooltip>
+          <Tooltip text="Highlighter"><Button style={iconBtnStyle(drawTool === 'highlighter')} onClick={() => activateTool('highlighter', true)}>▮</Button></Tooltip>
+        </div>
       </RibbonGroup>
 
       <RibbonGroup label="Pens">
-        {pens.map((pen) => (
-          <Tooltip key={pen.id} text={pen.label}>
-            <Button
-              style={{
-                ...iconBtnStyle(drawColor === pen.color),
-                borderBottom: `4px solid ${pen.color}`,
-                width: 26,
-              }}
-              onClick={() => selectPen(pen)}
-            >
-              ✎
-            </Button>
-          </Tooltip>
-        ))}
-        <Tooltip text="Add Pen"><Button style={{ ...iconBtnStyle(), width: 44 }} onClick={addPen}>+ Add</Button></Tooltip>
+        <div style={col}>
+          {pens.map((pen) => (
+            <Tooltip key={pen.id} text={pen.label}>
+              <Button
+                style={{
+                  ...iconBtnStyle(drawColor === pen.color),
+                  borderBottom: `4px solid ${pen.color}`,
+                  width: 26,
+                  height: 26,
+                }}
+                onClick={() => selectPen(pen)}
+              >
+                ✎
+              </Button>
+            </Tooltip>
+          ))}
+          <Tooltip text="Add Pen"><Button style={{ ...iconBtnStyle(), width: 44, height: 26 }} onClick={addPen}>+ Add</Button></Tooltip>
+        </div>
       </RibbonGroup>
 
       <RibbonGroup label="Thickness">
-        {THICKNESS_PRESETS.map((t) => (
-          <Tooltip key={t.px} text={t.label}>
-            <Button
-              style={{
-                ...iconBtnStyle(drawSize === t.px),
-                width: 52,
-                fontSize: 10,
-              }}
-              onClick={() => { setDrawSize(t.px); toast(`Ink thickness: ${t.label}`, 'info'); }}
-            >
-              {t.label}
-            </Button>
-          </Tooltip>
-        ))}
+        <div style={col}>
+          {THICKNESS_PRESETS.map((t) => (
+            <Tooltip key={t.px} text={t.label}>
+              <Button
+                style={{
+                  ...iconBtnStyle(drawSize === t.px),
+                  width: 52,
+                  height: 26,
+                  fontSize: 10,
+                }}
+                onClick={() => { setDrawSize(t.px); toast(`Ink thickness: ${t.label}`, 'info'); }}
+              >
+                {t.label}
+              </Button>
+            </Tooltip>
+          ))}
+        </div>
       </RibbonGroup>
 
       <RibbonGroup label="Stencils">
-        <Tooltip text="Ruler"><Button style={iconBtnStyle(rulerVisible)} onClick={() => { toggleRuler(); toast(rulerVisible ? 'Ruler hidden' : 'Ruler shown', 'info'); }}>📏</Button></Tooltip>
+        <div style={col}>
+          <Tooltip text="Ruler"><Button style={{ ...iconBtnStyle(rulerVisible), height: 26 }} onClick={() => { toggleRuler(); toast(rulerVisible ? 'Ruler hidden' : 'Ruler shown', 'info'); }}>📏</Button></Tooltip>
+        </div>
       </RibbonGroup>
 
       <RibbonGroup label="Edit">
-        <Tooltip text="Format Background"><Button style={{ ...iconBtnStyle(), width: 58 }} onClick={formatBackground}>Background</Button></Tooltip>
+        <div style={col}>
+          <Tooltip text="Format Background"><Button style={{ ...iconBtnStyle(), width: 58, height: 26 }} onClick={formatBackground}>Background</Button></Tooltip>
+        </div>
       </RibbonGroup>
 
       <RibbonGroup label="Highlighter">
-        {HIGHLIGHT_OPACITY.map((o) => (
-          <Tooltip key={o.label} text={`Opacity ${o.label}`}>
-            <Button
-              style={{ ...iconBtnStyle(Math.abs(drawOpacity - o.value) < 0.01), width: 42, fontSize: 10 }}
-              onClick={() => { setDrawOpacity(o.value); toast(`Highlighter opacity: ${o.label}`, 'info'); }}
-            >
-              {o.label}
-            </Button>
-          </Tooltip>
-        ))}
+        <div style={col}>
+          {HIGHLIGHT_OPACITY.map((o) => (
+            <Tooltip key={o.label} text={`Opacity ${o.label}`}>
+              <Button
+                style={{ ...iconBtnStyle(Math.abs(drawOpacity - o.value) < 0.01), width: 42, height: 26, fontSize: 10 }}
+                onClick={() => { setDrawOpacity(o.value); toast(`Highlighter opacity: ${o.label}`, 'info'); }}
+              >
+                {o.label}
+              </Button>
+            </Tooltip>
+          ))}
+        </div>
       </RibbonGroup>
 
       <RibbonGroup label="Convert">
-        <Tooltip text="Ink to Shape"><Button style={{ ...iconBtnStyle(), width: 56 }} onClick={() => openDialog('insertShape')}>Shape</Button></Tooltip>
-        <Tooltip text="Ink to Math"><Button style={{ ...iconBtnStyle(), width: 52 }} onClick={() => openDialog('equation')}>Math</Button></Tooltip>
+        <div style={col}>
+          <Tooltip text="Ink to Shape"><Button style={{ ...iconBtnStyle(), width: 56, height: 26 }} onClick={() => openDialog('insertShape')}>Shape</Button></Tooltip>
+          <Tooltip text="Ink to Math"><Button style={{ ...iconBtnStyle(), width: 52, height: 26 }} onClick={() => openDialog('equation')}>Math</Button></Tooltip>
+        </div>
       </RibbonGroup>
 
       <RibbonGroup label="Insert">
-        <Tooltip text="Drawing Canvas"><Button style={{ ...iconBtnStyle(), width: 66 }} onClick={() => openDialog('drawing')}>Canvas</Button></Tooltip>
+        <div style={col}>
+          <Tooltip text="Drawing Canvas"><Button style={{ ...iconBtnStyle(), width: 66, height: 26 }} onClick={() => openDialog('drawing')}>Canvas</Button></Tooltip>
+        </div>
       </RibbonGroup>
 
       <RibbonGroup label="Replay">
-        <Tooltip text="Ink Replay"><Button style={{ ...iconBtnStyle(), width: 60 }} onClick={replayInk}>Replay</Button></Tooltip>
+        <div style={col}>
+          <Tooltip text="Ink Replay"><Button style={{ ...iconBtnStyle(), width: 60, height: 26 }} onClick={replayInk}>Replay</Button></Tooltip>
+        </div>
       </RibbonGroup>
 
       <RibbonGroup label="Help">
-        <Tooltip text="Ink Help"><Button style={{ ...iconBtnStyle(), width: 48 }} onClick={() => window.open('https://support.microsoft.com/en-us/office/draw-and-write-with-ink-in-office', '_blank', 'noopener,noreferrer')}>?</Button></Tooltip>
+        <div style={col}>
+          <Tooltip text="Ink Help"><Button style={{ ...iconBtnStyle(), width: 48, height: 26 }} onClick={() => window.open('https://support.microsoft.com/en-us/office/draw-and-write-with-ink-in-office', '_blank', 'noopener,noreferrer')}>?</Button></Tooltip>
+        </div>
       </RibbonGroup>
     </>
   );
 }
+

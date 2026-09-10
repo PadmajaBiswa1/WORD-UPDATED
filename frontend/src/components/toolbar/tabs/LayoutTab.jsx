@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useDocumentStore, useEditorStore, useUIStore } from '@/store';
 import { PAGE_SIZES, MARGIN_MAP, getLayoutMetrics } from '@/utils/pageLayout';
+import { RibbonGroup } from '../RibbonGroup';
 
 const INDENT_CM = [0, 0.5, 1, 1.5, 2, 2.5, 3];
 const SPACING_PT = [0, 3, 6, 8, 10, 12, 18, 24, 30];
@@ -33,12 +34,11 @@ function selectedImageElement() {
   return document.querySelector('.ProseMirror img.ProseMirror-selectednode') || document.querySelector('.ProseMirror .ProseMirror-selectednode img');
 }
 
-function Group({ title, children, width }) {
+function Group({ title, children }) {
   return (
-    <div style={{ ...styles.group, maxWidth: width, minWidth: 0 }}>
-      <div style={styles.groupBody}>{children}</div>
-      <div style={styles.groupTitle}>{title}</div>
-    </div>
+    <RibbonGroup label={title}>
+      {children}
+    </RibbonGroup>
   );
 }
 
@@ -51,13 +51,37 @@ function IconTextButton({ icon, text, onClick, active, disabled }) {
       }}
       onClick={onClick}
       style={{
-        ...styles.iconTextBtn,
-        ...(active ? styles.iconTextBtnActive : null),
-        ...(disabled ? styles.iconTextBtnDisabled : null),
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 5,
+        height: 24,
+        padding: '0 7px',
+        fontSize: 11,
+        fontFamily: 'var(--font-ui)',
+        border: active ? '1px solid var(--border-gold)' : '1px solid transparent',
+        borderRadius: 2,
+        background: active ? 'var(--bg-hover)' : 'transparent',
+        color: active ? 'var(--text-gold)' : 'var(--text-primary)',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.45 : 1,
+        whiteSpace: 'nowrap',
+        transition: 'background 0.1s, border-color 0.1s',
+      }}
+      onMouseEnter={(e) => {
+        if (!disabled && !active) {
+          e.currentTarget.style.background = 'var(--bg-hover)';
+          e.currentTarget.style.borderColor = 'var(--border)';
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!disabled && !active) {
+          e.currentTarget.style.background = 'transparent';
+          e.currentTarget.style.borderColor = 'transparent';
+        }
       }}
     >
-      <div style={styles.icon}>{icon}</div>
-      <div style={styles.label}>{text}</div>
+      <span style={{ fontSize: 13, lineHeight: 1 }}>{icon}</span>
+      <span style={{ fontSize: 11 }}>{text}</span>
     </button>
   );
 }
@@ -70,18 +94,71 @@ function TinyAction({ text, onClick, disabled }) {
       }}
       onClick={onClick}
       disabled={disabled}
-      style={{ ...styles.tinyAction, ...(disabled ? styles.iconTextBtnDisabled : null) }}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        height: 24,
+        padding: '0 6px',
+        fontSize: 11,
+        fontFamily: 'var(--font-ui)',
+        border: '1px solid var(--border)',
+        borderRadius: 2,
+        background: 'var(--bg-elevated)',
+        color: 'var(--text-secondary)',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.45 : 1,
+        whiteSpace: 'nowrap',
+      }}
+      onMouseEnter={(e) => {
+        if (!disabled) {
+          e.currentTarget.style.background = 'var(--bg-hover)';
+          e.currentTarget.style.borderColor = 'var(--border-gold)';
+          e.currentTarget.style.color = 'var(--gold)';
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!disabled) {
+          e.currentTarget.style.background = 'var(--bg-elevated)';
+          e.currentTarget.style.borderColor = 'var(--border)';
+          e.currentTarget.style.color = 'var(--text-secondary)';
+        }
+      }}
     >
       {text}
     </button>
   );
 }
 
-function OptionPicker({ label, value, options, onChange, width = 122 }) {
+function OptionPicker({ label, value, options, onChange, width = 84, icon }) {
   return (
-    <div style={styles.optionPickerWrap}>
-      <span style={styles.optionPickerLabel}>{label}</span>
-      <select value={value} onChange={(e) => onChange(e.target.value)} style={{ ...styles.optionPickerSelect, width }}>
+    <div style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 4,
+      height: 24,
+      fontSize: 11,
+      fontFamily: 'var(--font-ui)',
+      whiteSpace: 'nowrap',
+    }}>
+      {icon && <span style={{ fontSize: 13, lineHeight: 1 }}>{icon}</span>}
+      <span style={{ fontSize: 11, color: 'var(--text-secondary)', minWidth: 42 }}>{label}:</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={{
+          height: 22,
+          padding: '0 4px',
+          fontSize: 11,
+          fontFamily: 'var(--font-ui)',
+          background: 'var(--bg-elevated)',
+          color: 'var(--text-primary)',
+          border: '1px solid var(--border)',
+          borderRadius: 2,
+          width,
+          cursor: 'pointer',
+          outline: 'none',
+        }}
+      >
         {options.map((opt) => (
           <option key={`${label}-${opt.value || 'blank'}`} value={opt.value}>{opt.label}</option>
         ))}
@@ -89,6 +166,79 @@ function OptionPicker({ label, value, options, onChange, width = 122 }) {
     </div>
   );
 }
+
+function PageSetupControl({ icon, label, value, options, onChange, width = 94 }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        gap: 5,
+        padding: '5px 8px',
+        background: 'rgba(255, 255, 255, 0.02)',
+        border: '1px solid var(--border)',
+        borderRadius: 4,
+        height: 74,
+        boxSizing: 'border-box',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 5,
+          fontSize: 10.5,
+          fontWeight: 600,
+          color: 'var(--text-secondary)',
+          letterSpacing: '0.04em',
+          textTransform: 'uppercase',
+          userSelect: 'none',
+        }}
+      >
+        <span style={{ fontSize: 13, lineHeight: 1, color: 'var(--gold, #c9a84c)' }}>{icon}</span>
+        <span>{label}</span>
+      </div>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={{
+          height: 25,
+          width,
+          padding: '0 6px',
+          fontSize: 11,
+          fontFamily: 'var(--font-ui)',
+          background: 'var(--bg-elevated)',
+          color: 'var(--text-primary)',
+          border: '1px solid var(--border)',
+          borderRadius: 3,
+          cursor: 'pointer',
+          outline: 'none',
+        }}
+      >
+        {options.map((opt) => (
+          <option key={`${label}-${opt.value || 'blank'}`} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+const metricSelectStyle = {
+  height: 22,
+  width: 74,
+  padding: '0 4px',
+  fontSize: 11,
+  fontFamily: 'var(--font-ui)',
+  background: 'var(--bg-elevated)',
+  color: 'var(--text-primary)',
+  border: '1px solid var(--border)',
+  borderRadius: 3,
+  cursor: 'pointer',
+  outline: 'none',
+};
 
 export function LayoutTab() {
   const { editor } = useEditorStore();
@@ -316,134 +466,348 @@ export function LayoutTab() {
 
   return (
     <>
-      <Group title="Page Setup" width={430}>
-        <OptionPicker
-          label="Margins"
-          value={pageMargin}
-          options={[
-            { value: 'normal', label: 'Normal' },
-            { value: 'narrow', label: 'Narrow' },
-            { value: 'moderate', label: 'Moderate' },
-            { value: 'wide', label: 'Wide' },
-          ]}
-          onChange={(next) => {
-            setPageMargin(next);
-            toast(`Margins: ${next}`, 'success');
-          }}
-          width={98}
-        />
-        <IconTextButton icon="▯" text="Orientation" onClick={() => {
-          const next = pageOrientation === 'portrait' ? 'landscape' : 'portrait';
-          setPageOrientation(next);
-        }} active={pageOrientation === 'landscape'} />
-        <OptionPicker
-          label="Size"
-          value={pageSize}
-          options={[
-            { value: 'a4', label: 'A4' },
-            { value: 'letter', label: 'Letter' },
-            { value: 'legal', label: 'Legal' },
-            { value: 'a3', label: 'A3' },
-          ]}
-          onChange={(next) => {
-            setPageSize(next);
-            toast(`Size: ${(PAGE_SIZES[next] || PAGE_SIZES.a4).label}`, 'success');
-          }}
-          width={92}
-        />
-        <OptionPicker
-          label="Columns"
-          value={String(pageColumns)}
-          options={[
-            { value: '1', label: 'One' },
-            { value: '2', label: 'Two' },
-            { value: '3', label: 'Three' },
-          ]}
-          onChange={(next) => {
-            const c = Number(next);
-            setPageColumns(c);
-            toast(`Columns: ${c}`, 'success');
-          }}
-          width={96}
-        />
-        <OptionPicker
-          label="Breaks"
-          value={breakAction}
-          options={BREAK_OPTIONS}
-          onChange={insertSelectedBreak}
-          width={178}
-        />
-        <TinyAction text="Line Numbers ▼" onClick={toggleLineNumbers} />
-        <TinyAction text="Hyphenation ▼" onClick={toggleHyphenation} />
-      </Group>
+      <Group title="Page Setup">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <PageSetupControl
+            icon="📄"
+            label="Margins"
+            value={pageMargin}
+            options={[
+              { value: 'normal', label: 'Normal' },
+              { value: 'narrow', label: 'Narrow' },
+              { value: 'moderate', label: 'Moderate' },
+              { value: 'wide', label: 'Wide' },
+            ]}
+            onChange={(next) => {
+              setPageMargin(next);
+              toast(`Margins: ${next}`, 'success');
+            }}
+            width={94}
+          />
+          <PageSetupControl
+            icon="↕"
+            label="Orientation"
+            value={pageOrientation}
+            options={[
+              { value: 'portrait', label: 'Portrait' },
+              { value: 'landscape', label: 'Landscape' },
+            ]}
+            onChange={(next) => {
+              setPageOrientation(next);
+              toast(`Orientation: ${next}`, 'success');
+            }}
+            width={94}
+          />
+          <PageSetupControl
+            icon="📏"
+            label="Size"
+            value={pageSize}
+            options={[
+              { value: 'a4', label: 'A4' },
+              { value: 'letter', label: 'Letter' },
+              { value: 'legal', label: 'Legal' },
+              { value: 'a3', label: 'A3' },
+            ]}
+            onChange={(next) => {
+              setPageSize(next);
+              toast(`Size: ${(PAGE_SIZES[next] || PAGE_SIZES.a4).label}`, 'success');
+            }}
+            width={88}
+          />
+          <PageSetupControl
+            icon="☵"
+            label="Columns"
+            value={String(pageColumns)}
+            options={[
+              { value: '1', label: 'One' },
+              { value: '2', label: 'Two' },
+              { value: '3', label: 'Three' },
+            ]}
+            onChange={(next) => {
+              const c = Number(next);
+              setPageColumns(c);
+              toast(`Columns: ${c}`, 'success');
+            }}
+            width={80}
+          />
 
-      <Group title="Paragraph" width={360}>
-        <div style={styles.metricCol}>
-          <div style={styles.metricLabel}>Indent</div>
-          <div style={styles.metricRow}>
-            <span style={styles.metricText}>Left:</span>
-            <select value={String(indentLeftCm)} onChange={(e) => {
-              const n = Number(e.target.value);
-              setIndentLeftCm(n);
-              applyParagraphLayout({ indentLeftCm: n });
-            }} style={styles.metricSelect}>
-              {INDENT_CM.map((v) => <option key={`left-${v}`} value={String(v)}>{v} cm</option>)}
-            </select>
-          </div>
-          <div style={styles.metricRow}>
-            <span style={styles.metricText}>Right:</span>
-            <select value={String(indentRightCm)} onChange={(e) => {
-              const n = Number(e.target.value);
-              setIndentRightCm(n);
-              applyParagraphLayout({ indentRightCm: n });
-            }} style={styles.metricSelect}>
-              {INDENT_CM.map((v) => <option key={`right-${v}`} value={String(v)}>{v} cm</option>)}
-            </select>
+          {/* Stacked Breaks, Line Numbers, Hyphenation */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontSize: 13, color: 'var(--gold, #c9a84c)' }}>⊞</span>
+              <select
+                value={breakAction}
+                onChange={(e) => insertSelectedBreak(e.target.value)}
+                style={{
+                  height: 22,
+                  width: 96,
+                  padding: '0 4px',
+                  fontSize: 11,
+                  fontFamily: 'var(--font-ui)',
+                  background: 'var(--bg-elevated)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 3,
+                  cursor: 'pointer',
+                  outline: 'none',
+                }}
+              >
+                {BREAK_OPTIONS.map((opt) => (
+                  <option key={`break-${opt.value || 'empty'}`} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+            <button
+              onClick={toggleLineNumbers}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                height: 22,
+                padding: '0 6px',
+                fontSize: 11,
+                fontFamily: 'var(--font-ui)',
+                border: lineNumbersOn ? '1px solid var(--border-gold)' : '1px solid var(--border)',
+                background: lineNumbersOn ? 'var(--bg-hover)' : 'var(--bg-elevated)',
+                color: lineNumbersOn ? 'var(--gold)' : 'var(--text-secondary)',
+                borderRadius: 3,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <span style={{ fontSize: 11, fontWeight: 700 }}>#</span>
+              <span>Line Numbers {lineNumbersOn ? '✓' : '▾'}</span>
+            </button>
+            <button
+              onClick={toggleHyphenation}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                height: 22,
+                padding: '0 6px',
+                fontSize: 11,
+                fontFamily: 'var(--font-ui)',
+                border: hyphenationOn ? '1px solid var(--border-gold)' : '1px solid var(--border)',
+                background: hyphenationOn ? 'var(--bg-hover)' : 'var(--bg-elevated)',
+                color: hyphenationOn ? 'var(--gold)' : 'var(--text-secondary)',
+                borderRadius: 3,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <span style={{ fontSize: 12 }}>―</span>
+              <span>Hyphenation {hyphenationOn ? '✓' : '▾'}</span>
+            </button>
           </div>
         </div>
+      </Group>
 
-        <div style={styles.metricCol}>
-          <div style={styles.metricLabel}>Spacing</div>
-          <div style={styles.metricRow}>
-            <span style={styles.metricText}>Before:</span>
-            <select value={String(spacingBeforePt)} onChange={(e) => {
-              const n = Number(e.target.value);
-              setSpacingBeforePt(n);
-              applyParagraphLayout({ spacingBeforePt: n });
-            }} style={styles.metricSelect}>
-              {SPACING_PT.map((v) => <option key={`before-${v}`} value={String(v)}>{v} pt</option>)}
-            </select>
+      <Group title="Paragraph">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 74 }}>
+          {/* Indent Box */}
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              gap: 5,
+              padding: '5px 10px',
+              background: 'rgba(255, 255, 255, 0.02)',
+              border: '1px solid var(--border)',
+              borderRadius: 4,
+              height: 74,
+              boxSizing: 'border-box',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                fontSize: 10.5,
+                fontWeight: 600,
+                color: 'var(--text-secondary)',
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+              }}
+            >
+              <span style={{ fontSize: 13, lineHeight: 1, color: 'var(--gold, #c9a84c)' }}>⇤</span>
+              <span>Indent</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
+              <span style={{ color: 'var(--text-muted)', width: 38 }}>Left:</span>
+              <select
+                value={String(indentLeftCm)}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  setIndentLeftCm(n);
+                  applyParagraphLayout({ indentLeftCm: n });
+                }}
+                style={metricSelectStyle}
+              >
+                {INDENT_CM.map((v) => <option key={`left-${v}`} value={String(v)}>{v} cm</option>)}
+              </select>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
+              <span style={{ color: 'var(--text-muted)', width: 38 }}>Right:</span>
+              <select
+                value={String(indentRightCm)}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  setIndentRightCm(n);
+                  applyParagraphLayout({ indentRightCm: n });
+                }}
+                style={metricSelectStyle}
+              >
+                {INDENT_CM.map((v) => <option key={`right-${v}`} value={String(v)}>{v} cm</option>)}
+              </select>
+            </div>
           </div>
-          <div style={styles.metricRow}>
-            <span style={styles.metricText}>After:</span>
-            <select value={String(spacingAfterPt)} onChange={(e) => {
-              const n = Number(e.target.value);
-              setSpacingAfterPt(n);
-              applyParagraphLayout({ spacingAfterPt: n });
-            }} style={styles.metricSelect}>
-              {SPACING_PT.map((v) => <option key={`after-${v}`} value={String(v)}>{v} pt</option>)}
-            </select>
+
+          {/* Spacing Box */}
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              gap: 5,
+              padding: '5px 10px',
+              background: 'rgba(255, 255, 255, 0.02)',
+              border: '1px solid var(--border)',
+              borderRadius: 4,
+              height: 74,
+              boxSizing: 'border-box',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                fontSize: 10.5,
+                fontWeight: 600,
+                color: 'var(--text-secondary)',
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+              }}
+            >
+              <span style={{ fontSize: 13, lineHeight: 1, color: 'var(--gold, #c9a84c)' }}>⇕</span>
+              <span>Spacing</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
+              <span style={{ color: 'var(--text-muted)', width: 44 }}>Before:</span>
+              <select
+                value={String(spacingBeforePt)}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  setSpacingBeforePt(n);
+                  applyParagraphLayout({ spacingBeforePt: n });
+                }}
+                style={metricSelectStyle}
+              >
+                {SPACING_PT.map((v) => <option key={`before-${v}`} value={String(v)}>{v} pt</option>)}
+              </select>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
+              <span style={{ color: 'var(--text-muted)', width: 44 }}>After:</span>
+              <select
+                value={String(spacingAfterPt)}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  setSpacingAfterPt(n);
+                  applyParagraphLayout({ spacingAfterPt: n });
+                }}
+                style={metricSelectStyle}
+              >
+                {SPACING_PT.map((v) => <option key={`after-${v}`} value={String(v)}>{v} pt</option>)}
+              </select>
+            </div>
           </div>
         </div>
       </Group>
 
-      <Group title="Arrange" width={470}>
-        <IconTextButton icon="▧" text="Position" onClick={() => alignImage('center')} />
-        <IconTextButton icon="≋" text="Wrap Text" onClick={wrapText} />
-        <IconTextButton icon="＋" text="Size Up" onClick={() => resizeSelectedImage('up')} />
-        <IconTextButton icon="－" text="Size Down" onClick={() => resizeSelectedImage('down')} />
-        <IconTextButton icon="🗑" text="Remove" onClick={removeSelectedImage} />
-        <IconTextButton icon="▰" text="Bring Forward" onClick={() => layerImage('up')} />
-        <IconTextButton icon="▱" text="Send Backward" onClick={() => layerImage('down')} />
-        <IconTextButton icon="⌖" text="Selection Pane" onClick={toggleSidebar} active={sidebarOpen} />
-        <TinyAction text="Align ▼" onClick={() => alignImage('left')} />
-        <TinyAction text="Group ▼" onClick={() => toast('Grouping is limited in this editor', 'info')} />
-        <TinyAction text="Rotate ▼" onClick={rotateImage} />
+      <Group title="Arrange">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 74 }}>
+          {/* Col 1: Placement */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
+            <IconTextButton icon="▧" text="Position" onClick={() => alignImage('center')} />
+            <IconTextButton icon="≋" text="Wrap Text" onClick={wrapText} />
+            <IconTextButton icon="⌖" text="Selection Pane" onClick={toggleSidebar} active={sidebarOpen} />
+          </div>
+
+          {/* Col 2: Layering & Align */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
+            <IconTextButton icon="▰" text="Bring Forward" onClick={() => layerImage('up')} />
+            <IconTextButton icon="▱" text="Send Backward" onClick={() => layerImage('down')} />
+            <TinyAction text="Align Left ▾" onClick={() => alignImage('left')} />
+          </div>
+
+          {/* Col 3: Transform & Remove */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
+            <TinyAction text="Rotate 15° ▾" onClick={rotateImage} />
+            <div style={{ display: 'flex', gap: 3 }}>
+              <IconTextButton icon="＋" text="Size +" onClick={() => resizeSelectedImage('up')} />
+              <IconTextButton icon="－" text="Size -" onClick={() => resizeSelectedImage('down')} />
+            </div>
+            <IconTextButton icon="🗑" text="Remove Image" onClick={removeSelectedImage} />
+          </div>
+        </div>
       </Group>
 
-      <Group title="Structure & Security" width={210}>
-        <IconTextButton icon="📑" text="Master Doc" onClick={() => openDialog('masterDoc')} />
-        <IconTextButton icon="🔒" text="Security" onClick={() => openDialog('security')} />
+      <Group title="Structure & Security">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 74 }}>
+          <button
+            onClick={() => openDialog('masterDoc')}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 4,
+              width: 68,
+              height: 70,
+              background: 'transparent',
+              border: '1px solid transparent',
+              borderRadius: 4,
+              cursor: 'pointer',
+              color: 'var(--text-primary)',
+              fontFamily: 'var(--font-ui)',
+              fontSize: 11,
+              transition: 'background 0.1s, border-color 0.1s',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'transparent'; }}
+          >
+            <span style={{ fontSize: 22, lineHeight: 1 }}>📑</span>
+            <span>Master Doc</span>
+          </button>
+          <button
+            onClick={() => openDialog('security')}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 4,
+              width: 68,
+              height: 70,
+              background: 'transparent',
+              border: '1px solid transparent',
+              borderRadius: 4,
+              cursor: 'pointer',
+              color: 'var(--text-primary)',
+              fontFamily: 'var(--font-ui)',
+              fontSize: 11,
+              transition: 'background 0.1s, border-color 0.1s',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'transparent'; }}
+          >
+            <span style={{ fontSize: 22, lineHeight: 1 }}>🔒</span>
+            <span>Security</span>
+          </button>
+        </div>
       </Group>
     </>
   );

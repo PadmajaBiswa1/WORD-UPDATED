@@ -68,6 +68,21 @@ export function Divider({ vertical = false }) {
   );
 }
 
+const isMacPlatform = typeof navigator !== 'undefined' && (
+  /Mac|iPod|iPhone|iPad/.test(navigator.platform || '') ||
+  /Macintosh|MacIntel|MacPPC|Mac68K/.test(navigator.userAgent || '') ||
+  navigator.userAgentData?.platform === 'macOS'
+);
+
+function formatTooltipShortcut(shortcut = '') {
+  if (!shortcut) return '';
+  const raw = String(shortcut).replace(/^\(|\)$/g, '').trim();
+  if (isMacPlatform) {
+    return raw.replace(/Ctrl\+/gi, 'Cmd+').replace(/Alt\+/gi, 'Option+');
+  }
+  return raw;
+}
+
 /* ── Tooltip ────────────────────────────────────────────────── */
 export function Tooltip({ children, text, shortcut, placement = 'top', delay = 450 }) {
   const [show, setShow] = useState(false);
@@ -98,6 +113,8 @@ export function Tooltip({ children, text, shortcut, placement = 'top', delay = 4
 
   useEffect(() => () => clearTimeout(timerRef.current), []);
 
+  const displayShortcut = shortcut ? formatTooltipShortcut(shortcut) : null;
+
   return (
     <div
       ref={triggerRef}
@@ -127,7 +144,11 @@ export function Tooltip({ children, text, shortcut, placement = 'top', delay = 4
           }}
         >
           {text}
-          {shortcut && <span style={{ color: 'var(--gold)', marginLeft: 6, fontSize: '10px' }}>{shortcut}</span>}
+          {displayShortcut && (
+            <span style={{ color: 'var(--gold)', marginLeft: 6, fontSize: '10px' }}>
+              ({displayShortcut})
+            </span>
+          )}
         </div>,
         document.body,
       )}

@@ -144,12 +144,11 @@ export function HomeTab() {
     formatPainterMarks,
     setFormatPainterMarks,
   } = useEditorStore();
-  const { openDialog, toast, openPragna } = useUIStore();
+  const { openDialog, toast, openPragna, showFormattingMarks, toggleFormattingMarks } = useUIStore();
   const { applyFontSize } = useFontFormattingControls(editor);
   const painterActive = useRef(false);
   const [showTextColors, setShowTextColors] = useState(false);
   const [showHighlightColors, setShowHighlightColors] = useState(false);
-  const [showFormattingMarks, setShowFormattingMarks] = useState(false);
   const [textPalettePos, setTextPalettePos] = useState({ top: 0, left: 0 });
   const [highlightPalettePos, setHighlightPalettePos] = useState({ top: 0, left: 0 });
   const [showMultilevelPicker, setShowMultilevelPicker] = useState(false);
@@ -266,12 +265,6 @@ export function HomeTab() {
     document.addEventListener('mousedown', closeOnOutside);
     return () => document.removeEventListener('mousedown', closeOnOutside);
   }, []);
-
-  useEffect(() => {
-    if (!editor?.view?.dom) return;
-    editor.view.dom.classList.toggle('etherx-show-formatting', showFormattingMarks);
-    return () => editor.view.dom.classList.remove('etherx-show-formatting');
-  }, [editor, showFormattingMarks]);
 
   if (!editor) return null;
 
@@ -475,10 +468,6 @@ export function HomeTab() {
     toast(`Line spacing: ${next}`, 'success');
   };
 
-  const toggleFormattingMarks = () => {
-    setShowFormattingMarks((v) => !v);
-  };
-
   const activeStyle = () => {
     if (!editor) return 'normal';
     if (editor.isActive('code')) return 'code';
@@ -626,14 +615,16 @@ export function HomeTab() {
             <Button
               onClick={handlePaste}
               style={{
-                width: 50,
-                height: 60,
+                width: 48,
+                height: 78,
                 background: 'var(--bg-elevated)',
                 border: '1px solid var(--border)',
                 color: 'var(--text-primary)',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: 1,
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 2,
                 fontSize: 11,
               }}
             >
@@ -641,77 +632,84 @@ export function HomeTab() {
               <span>Paste</span>
             </Button>
           </Tooltip>
-          <Tooltip text="Clipboard History (Drawer of past clips)">
+          <div data-stacked="true" style={{ display: 'flex', flexDirection: 'column', gap: 2, height: 78, justifyContent: 'space-between' }}>
+            <Tooltip text="Cut" shortcut="Ctrl+X">
+              <Button style={{ ...toolBtn, width: 80, height: 24, justifyContent: 'flex-start', padding: '0 6px' }} onClick={handleCut}>✂ Cut</Button>
+            </Tooltip>
+            <Tooltip text="Copy" shortcut="Ctrl+C">
+              <Button style={{ ...toolBtn, width: 80, height: 24, justifyContent: 'flex-start', padding: '0 6px' }} onClick={handleCopy}>📄 Copy</Button>
+            </Tooltip>
+            <Tooltip text="Format Painter">
+              <Button
+                style={{ ...toolBtn, width: 80, height: 24, justifyContent: 'flex-start', padding: '0 6px', color: formatPainterMarks ? 'var(--text-gold)' : 'var(--text-primary)' }}
+                active={!!formatPainterMarks}
+                onClick={handleFormatPainter}
+              >
+                🖌 Paint
+              </Button>
+            </Tooltip>
+          </div>
+          <Tooltip text="Clipboard History">
             <Button
               onClick={() => openDialog('clipboardHistory')}
               style={{
-                width: 52,
-                height: 60,
+                width: 46,
+                height: 78,
                 background: 'var(--bg-elevated)',
                 border: '1px solid var(--border)',
                 color: 'var(--text-primary)',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: 1,
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 2,
                 fontSize: 11,
               }}
             >
-              <span style={{ fontSize: 19 }}>⏱</span>
+              <span style={{ fontSize: 18 }}>⏱</span>
               <span>History</span>
             </Button>
           </Tooltip>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Tooltip text="Cut" shortcut="Ctrl+X">
-              <Button style={{ ...toolBtn, width: 84, justifyContent: 'flex-start', padding: '0 6px' }} onClick={handleCut}>✂ Cut</Button>
-            </Tooltip>
-            <Tooltip text="Copy" shortcut="Ctrl+C">
-              <Button style={{ ...toolBtn, width: 84, justifyContent: 'flex-start', padding: '0 6px' }} onClick={handleCopy}>📄 Copy</Button>
-            </Tooltip>
-            <Tooltip text="Format Painter">
-              <Button
-                style={{ ...toolBtn, width: 110, justifyContent: 'flex-start', padding: '0 6px', color: formatPainterMarks ? 'var(--text-gold)' : 'var(--text-primary)' }}
-                active={!!formatPainterMarks}
-                onClick={handleFormatPainter}
-              >
-                🖌 Format Painter
-              </Button>
-            </Tooltip>
-          </div>
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Font">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+        <div data-stacked="true" style={{ display: 'flex', flexDirection: 'column', gap: 2, height: 78, justifyContent: 'space-between' }}>
+          {/* Row 1: Font picker, Size, Grow, Shrink */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 2, height: 24 }}>
             <FontFormattingControls
               editor={editor}
               fontFamily={fontFamily}
               fontSize={fontSize}
-              familyWidth={138}
-              sizeWidth={52}
+              familyWidth={116}
+              sizeWidth={42}
             />
-            <Tooltip text="Grow Font (Ctrl+])"><Button style={toolBtn} onClick={growFont}>A^</Button></Tooltip>
-            <Tooltip text="Shrink Font (Ctrl+[)"><Button style={toolBtn} onClick={shrinkFont}>Av</Button></Tooltip>
-            <Tooltip text="Change Case"><Button style={{ ...toolBtn, width: 30 }} onClick={changeCase}>Aa</Button></Tooltip>
-            <Tooltip text="Clear Formatting"><Button style={{ ...toolBtn, width: 30 }} onClick={() => run(() => editor.chain().clearNodes().unsetAllMarks().run())}>A</Button></Tooltip>
+            <Tooltip text="Increase Font Size" shortcut="Ctrl+Shift+>"><Button style={{ ...toolBtn, width: 22 }} onClick={growFont}>A^</Button></Tooltip>
+            <Tooltip text="Decrease Font Size" shortcut="Ctrl+Shift+<"><Button style={{ ...toolBtn, width: 22 }} onClick={shrinkFont}>Av</Button></Tooltip>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-            <Tooltip text="Bold" shortcut="Ctrl+B"><Button style={toolBtn} active={editor.isActive('bold')} onClick={() => run(() => editor.chain().toggleBold().run())}><b style={{ fontFamily: 'serif' }}>B</b></Button></Tooltip>
-            <Tooltip text="Italic" shortcut="Ctrl+I"><Button style={toolBtn} active={editor.isActive('italic')} onClick={() => run(() => editor.chain().toggleItalic().run())}><i style={{ fontFamily: 'serif' }}>I</i></Button></Tooltip>
-            <Tooltip text="Underline" shortcut="Ctrl+U"><Button style={toolBtn} active={editor.isActive('underline')} onClick={() => run(() => editor.chain().toggleUnderline().run())}><u>U</u></Button></Tooltip>
-            <Tooltip text="Strikethrough"><Button style={toolBtn} active={editor.isActive('strike')} onClick={() => run(() => editor.chain().toggleStrike().run())}>ab</Button></Tooltip>
-            <Tooltip text="Subscript"><Button style={toolBtn} active={editor.isActive('subscript')} onClick={() => run(() => editor.chain().toggleSubscript().run())}>x2</Button></Tooltip>
-            <Tooltip text="Superscript"><Button style={toolBtn} active={editor.isActive('superscript')} onClick={() => run(() => editor.chain().toggleSuperscript().run())}>x2</Button></Tooltip>
+          {/* Row 2: Basic formatting */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 2, height: 24 }}>
+            <Tooltip text="Bold" shortcut="Ctrl+B"><Button style={{ ...toolBtn, width: 24 }} active={editor.isActive('bold')} onClick={() => run(() => editor.chain().toggleBold().run())}><b style={{ fontFamily: 'serif' }}>B</b></Button></Tooltip>
+            <Tooltip text="Italic" shortcut="Ctrl+I"><Button style={{ ...toolBtn, width: 24 }} active={editor.isActive('italic')} onClick={() => run(() => editor.chain().toggleItalic().run())}><i style={{ fontFamily: 'serif' }}>I</i></Button></Tooltip>
+            <Tooltip text="Underline" shortcut="Ctrl+U"><Button style={{ ...toolBtn, width: 24 }} active={editor.isActive('underline')} onClick={() => run(() => editor.chain().toggleUnderline().run())}><u>U</u></Button></Tooltip>
+            <Tooltip text="Strikethrough"><Button style={{ ...toolBtn, width: 24 }} active={editor.isActive('strike')} onClick={() => run(() => editor.chain().toggleStrike().run())}>ab</Button></Tooltip>
+            <Tooltip text="Subscript" shortcut="Ctrl+="><Button style={{ ...toolBtn, width: 24 }} active={editor.isActive('subscript')} onClick={() => run(() => editor.chain().toggleSubscript().run())}>x2</Button></Tooltip>
+            <Tooltip text="Superscript" shortcut="Ctrl+Shift+="><Button style={{ ...toolBtn, width: 24 }} active={editor.isActive('superscript')} onClick={() => run(() => editor.chain().toggleSuperscript().run())}>x2</Button></Tooltip>
+          </div>
+          {/* Row 3: Colors & Special formatting */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 2, height: 24 }}>
+            <Tooltip text="Change Case"><Button style={{ ...toolBtn, width: 24 }} onClick={changeCase}>Aa</Button></Tooltip>
+            <Tooltip text="Clear Formatting" shortcut="Ctrl+Space"><Button style={{ ...toolBtn, width: 24 }} onClick={() => run(() => editor.chain().clearNodes().unsetAllMarks().run())}>A</Button></Tooltip>
             <Divider vertical />
             <Tooltip text="Text Highlight Color">
               <div data-home-color-trigger="true">
                 <Button
-                  style={{ ...toolBtn, width: 36, fontWeight: 700, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, padding: '2px 0' }}
+                  style={{ ...toolBtn, width: 30, fontWeight: 700, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, padding: '2px 0' }}
                   onClick={openHighlightPalette}
                   title="Text Highlight Color"
                 >
-                  <span style={{ fontSize: 11, lineHeight: 1 }}>ab</span>
-                  <span style={{ width: 18, height: 3, borderRadius: 1, background: activeHighlight, border: '0.5px solid rgba(255,255,255,0.25)' }} />
+                  <span style={{ fontSize: 10, lineHeight: 1 }}>ab</span>
+                  <span style={{ width: 14, height: 2.5, borderRadius: 1, background: activeHighlight, border: '0.5px solid rgba(255,255,255,0.25)' }} />
                 </Button>
               </div>
             </Tooltip>
@@ -719,12 +717,12 @@ export function HomeTab() {
             <Tooltip text="Text Color">
               <div data-home-color-trigger="true">
                 <Button
-                  style={{ ...toolBtn, width: 34, fontWeight: 700, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, padding: '2px 0' }}
+                  style={{ ...toolBtn, width: 28, fontWeight: 700, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, padding: '2px 0' }}
                   onClick={openTextPalette}
                   title="Text Color"
                 >
-                  <span style={{ fontSize: 12, lineHeight: 1 }}>A</span>
-                  <span style={{ width: 18, height: 3, borderRadius: 1, background: activeTextColor, border: '0.5px solid rgba(255,255,255,0.25)' }} />
+                  <span style={{ fontSize: 11, lineHeight: 1 }}>A</span>
+                  <span style={{ width: 14, height: 2.5, borderRadius: 1, background: activeTextColor, border: '0.5px solid rgba(255,255,255,0.25)' }} />
                 </Button>
               </div>
             </Tooltip>
@@ -733,31 +731,40 @@ export function HomeTab() {
       </RibbonGroup>
 
       <RibbonGroup label="Paragraph">
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2, width: 136 }}>
-          <Tooltip text="Align Left" shortcut="Ctrl+L"><Button style={toolBtn} active={editor.isActive({ textAlign: 'left' })} onClick={() => run(() => editor.chain().setTextAlign('left').run())}>≡</Button></Tooltip>
-          <Tooltip text="Center" shortcut="Ctrl+E"><Button style={toolBtn} active={editor.isActive({ textAlign: 'center' })} onClick={() => run(() => editor.chain().setTextAlign('center').run())}>≣</Button></Tooltip>
-          <Tooltip text="Align Right" shortcut="Ctrl+R"><Button style={toolBtn} active={editor.isActive({ textAlign: 'right' })} onClick={() => run(() => editor.chain().setTextAlign('right').run())}>≡</Button></Tooltip>
-          <Tooltip text="Justify"><Button style={toolBtn} active={editor.isActive({ textAlign: 'justify' })} onClick={() => run(() => editor.chain().setTextAlign('justify').run())}>☰</Button></Tooltip>
-          <Tooltip text="Bullet List"><Button style={toolBtn} active={editor.isActive('bulletList')} onClick={() => run(() => editor.chain().toggleBulletList().run())}>•≡</Button></Tooltip>
-          <Tooltip text="Ordered List"><Button style={toolBtn} active={editor.isActive('orderedList')} onClick={() => run(() => editor.chain().toggleOrderedList().run())}>1≡</Button></Tooltip>
-          <Tooltip text="Multilevel Numbering (1. -> 1.1 or 1. -> a. -> i.)">
-            <div data-multilevel-trigger="true" style={{ display: 'inline-block' }}>
-              <Button
-                style={{ ...toolBtn, width: 34, fontSize: 10, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}
-                active={Boolean(editor.isActive('orderedList') && editor.getAttributes('orderedList')?.class?.startsWith('multilevel'))}
-                onClick={openMultilevelPicker}
-              >
-                <span>1.a</span>
-                <span style={{ fontSize: 7 }}>▼</span>
-              </Button>
-            </div>
-          </Tooltip>
-          <Tooltip text="Task List"><Button style={toolBtn} active={editor.isActive('taskList')} onClick={() => run(() => editor.chain().toggleTaskList().run())}>☑</Button></Tooltip>
-          <Tooltip text="Blockquote" shortcut="Ctrl+Shift+B"><Button style={toolBtn} active={editor.isActive('blockquote')} onClick={() => run(() => editor.chain().toggleBlockquote().run())}>"</Button></Tooltip>
-          <Tooltip text="Decrease Indent"><Button style={toolBtn} onClick={outdent}>←</Button></Tooltip>
-          <Tooltip text="Increase Indent"><Button style={toolBtn} onClick={indent}>→</Button></Tooltip>
-          <Tooltip text="Line Spacing"><Button style={toolBtn} onClick={cycleLineSpacing}>↕</Button></Tooltip>
-          <Tooltip text="Show Formatting Marks"><Button style={toolBtn} active={showFormattingMarks} onClick={toggleFormattingMarks}>¶</Button></Tooltip>
+        <div data-stacked="true" style={{ display: 'flex', flexDirection: 'column', gap: 2, height: 78, justifyContent: 'space-between' }}>
+          {/* Row 1: Alignment */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 2, height: 24 }}>
+            <Tooltip text="Align Left" shortcut="Ctrl+L"><Button style={{ ...toolBtn, width: 24 }} active={editor.isActive({ textAlign: 'left' })} onClick={() => run(() => editor.chain().setTextAlign('left').run())}>≡</Button></Tooltip>
+            <Tooltip text="Center" shortcut="Ctrl+E"><Button style={{ ...toolBtn, width: 24 }} active={editor.isActive({ textAlign: 'center' })} onClick={() => run(() => editor.chain().setTextAlign('center').run())}>≣</Button></Tooltip>
+            <Tooltip text="Align Right" shortcut="Ctrl+R"><Button style={{ ...toolBtn, width: 24 }} active={editor.isActive({ textAlign: 'right' })} onClick={() => run(() => editor.chain().setTextAlign('right').run())}>≡</Button></Tooltip>
+            <Tooltip text="Justify" shortcut="Ctrl+J"><Button style={{ ...toolBtn, width: 24 }} active={editor.isActive({ textAlign: 'justify' })} onClick={() => run(() => editor.chain().setTextAlign('justify').run())}>☰</Button></Tooltip>
+            <Tooltip text="Show Formatting Marks" shortcut="Ctrl+Shift+8"><Button style={{ ...toolBtn, width: 24 }} active={showFormattingMarks} onClick={toggleFormattingMarks}>¶</Button></Tooltip>
+          </div>
+          {/* Row 2: Lists */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 2, height: 24 }}>
+            <Tooltip text="Bullet List" shortcut="Ctrl+Shift+L"><Button style={{ ...toolBtn, width: 24 }} active={editor.isActive('bulletList')} onClick={() => run(() => editor.chain().toggleBulletList().run())}>•≡</Button></Tooltip>
+            <Tooltip text="Ordered List"><Button style={{ ...toolBtn, width: 24 }} active={editor.isActive('orderedList')} onClick={() => run(() => editor.chain().toggleOrderedList().run())}>1≡</Button></Tooltip>
+            <Tooltip text="Multilevel Numbering">
+              <div data-multilevel-trigger="true" style={{ display: 'inline-block' }}>
+                <Button
+                  style={{ ...toolBtn, width: 28, fontSize: 10, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}
+                  active={Boolean(editor.isActive('orderedList') && editor.getAttributes('orderedList')?.class?.startsWith('multilevel'))}
+                  onClick={openMultilevelPicker}
+                >
+                  <span>1.a</span>
+                  <span style={{ fontSize: 7 }}>▼</span>
+                </Button>
+              </div>
+            </Tooltip>
+            <Tooltip text="Task List"><Button style={{ ...toolBtn, width: 24 }} active={editor.isActive('taskList')} onClick={() => run(() => editor.chain().toggleTaskList().run())}>☑</Button></Tooltip>
+            <Tooltip text="Blockquote" shortcut="Ctrl+Shift+B"><Button style={{ ...toolBtn, width: 24 }} active={editor.isActive('blockquote')} onClick={() => run(() => editor.chain().toggleBlockquote().run())}>"</Button></Tooltip>
+          </div>
+          {/* Row 3: Indents & Spacing */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 2, height: 24 }}>
+            <Tooltip text="Decrease Indent"><Button style={{ ...toolBtn, width: 24 }} onClick={outdent}>←</Button></Tooltip>
+            <Tooltip text="Increase Indent"><Button style={{ ...toolBtn, width: 24 }} onClick={indent}>→</Button></Tooltip>
+            <Tooltip text="Line Spacing"><Button style={{ ...toolBtn, width: 24 }} onClick={cycleLineSpacing}>↕</Button></Tooltip>
+          </div>
         </div>
       </RibbonGroup>
 
@@ -772,14 +779,16 @@ export function HomeTab() {
             ◀
           </Button>
 
-          {/* Horizontally Scrollable Styles Strip */}
+          {/* Horizontally Scrollable Styles Strip — spreads out on desktop */}
           <div
             ref={stylesStripRef}
             style={{
               display: 'flex',
-              gap: 4,
+              gap: 6,
               overflowX: 'auto',
-              maxWidth: 340,
+              maxWidth: 'min(880px, 48vw)',
+              minWidth: 172,
+              flex: '1 1 auto',
               scrollbarWidth: 'none',
               msOverflowStyle: 'none',
               padding: '1px 0',
@@ -871,7 +880,7 @@ export function HomeTab() {
             <button
               onClick={() => openDialog('styleInspector')}
               style={{
-                width: 64,
+                width: 60,
                 height: 62,
                 border: '1px solid var(--border)',
                 borderRadius: 2,
@@ -896,7 +905,7 @@ export function HomeTab() {
                 e.currentTarget.style.color = 'var(--text-secondary)';
               }}
             >
-              <span style={{ fontSize: 18 }}>🔍</span>
+              <span style={{ fontSize: 16 }}>🔍</span>
               <span style={{ fontSize: 10, fontWeight: 600 }}>Inspector</span>
             </button>
           </Tooltip>
@@ -904,24 +913,24 @@ export function HomeTab() {
       </RibbonGroup>
 
       <RibbonGroup label="Editing">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Tooltip text="Undo" shortcut="Ctrl+Z"><Button style={{ ...toolBtn, width: 28 }} disabled={!editor.can().undo()} onClick={() => run(() => editor.chain().undo().run())}>↩</Button></Tooltip>
-          <Tooltip text="Redo" shortcut="Ctrl+Y"><Button style={{ ...toolBtn, width: 28 }} disabled={!editor.can().redo()} onClick={() => run(() => editor.chain().redo().run())}>↪</Button></Tooltip>
-          <Divider vertical />
-          <Tooltip text="Find & Replace" shortcut="Ctrl+H"><Button style={{ ...toolBtn, width: 68 }} onClick={() => openDialog('findReplace')}>Find</Button></Tooltip>
-          <Tooltip text="Select All" shortcut="Ctrl+A"><Button style={{ ...toolBtn, width: 68 }} onClick={() => run(() => editor.chain().selectAll().run())}>Select</Button></Tooltip>
+        <div data-stacked="true" style={{ display: 'flex', flexDirection: 'column', gap: 2, height: 78, justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', gap: 2, height: 24 }}>
+            <Tooltip text="Undo" shortcut="Ctrl+Z"><Button style={{ ...toolBtn, width: 34 }} disabled={!editor.can().undo()} onClick={() => run(() => editor.chain().undo().run())}>↩</Button></Tooltip>
+            <Tooltip text="Redo" shortcut="Ctrl+Y"><Button style={{ ...toolBtn, width: 34 }} disabled={!editor.can().redo()} onClick={() => run(() => editor.chain().redo().run())}>↪</Button></Tooltip>
+          </div>
+          <Tooltip text="Find & Replace" shortcut="Ctrl+H"><Button style={{ ...toolBtn, width: 70, height: 24, fontSize: 11, justifyContent: 'flex-start', padding: '0 6px' }} onClick={() => openDialog('findReplace')}>🔍 Find</Button></Tooltip>
+          <Tooltip text="Select All" shortcut="Ctrl+A"><Button style={{ ...toolBtn, width: 70, height: 24, fontSize: 11, justifyContent: 'flex-start', padding: '0 6px' }} onClick={() => run(() => editor.chain().selectAll().run())}>▢ Select</Button></Tooltip>
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Pragna">
         <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-          {/* Clean MS Word-style Copilot Button */}
           <Tooltip text="Open Pragna Writing Copilot (Alt+I)">
             <button
               onClick={handlePragnaClick}
               style={{
-                width: 62,
-                height: 56,
+                width: 58,
+                height: 78,
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
@@ -964,13 +973,14 @@ export function HomeTab() {
         <Tooltip text="Get Help">
           <Button
             style={{
-              width: 72,
-              height: 52,
+              width: 52,
+              height: 78,
               flexDirection: 'column',
               background: 'var(--bg-elevated)',
               color: 'var(--text-primary)',
               border: '1px solid var(--border)',
               fontSize: 11,
+              gap: 2,
             }}
             onClick={() => openDialog('help')}
           >

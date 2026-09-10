@@ -18,20 +18,28 @@ export function StatusBar() {
       <Stat label="Page" value={`${currentPage} of ${pageCount}`} />
       <Sep />
       <Stat label="" value={`${(wordCount || 0).toLocaleString()} words`} />
-      <Sep />
-      <Stat label="" value={`${status}${collaborators.length ? ` • ${collaborators.length} collaborator${collaborators.length === 1 ? '' : 's'}` : ''}`} />
-      <Sep />
-      <Stat label="" value="English (United States)" />
+      <span className="status-bar-sep-collab"><Sep /></span>
+      <span className="status-bar-collab">
+        <Stat label="" value={`${status}${collaborators.length ? ` • ${collaborators.length} collaborator${collaborators.length === 1 ? '' : 's'}` : ''}`} />
+      </span>
+      <span className="status-bar-sep-lang"><Sep /></span>
+      <span className="status-bar-lang">
+        <Stat label="" value="English (United States)" />
+      </span>
       <div style={{ flex: 1 }} />
       <span style={{ ...statusDot, background: connected ? 'var(--gold)' : 'var(--text-muted)' }} />
-      <button style={viewBtn} onMouseEnter={onHover} onMouseLeave={onLeave}>▤</button>
-      <button style={viewBtn} onMouseEnter={onHover} onMouseLeave={onLeave}>▦</button>
-      <button style={viewBtn} onMouseEnter={onHover} onMouseLeave={onLeave}>▥</button>
-      <Sep />
+      <span className="status-bar-views">
+        <button style={viewBtn} onMouseEnter={onHover} onMouseLeave={onLeave}>▤</button>
+        <button style={viewBtn} onMouseEnter={onHover} onMouseLeave={onLeave}>▦</button>
+        <button style={viewBtn} onMouseEnter={onHover} onMouseLeave={onLeave}>▥</button>
+      </span>
+      <span className="status-bar-sep-views"><Sep /></span>
       <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
         <button onClick={() => setZoom(zoom - 10)} style={zoomBtn} onMouseEnter={onHover} onMouseLeave={onLeave}>−</button>
-        <input type="range" min={25} max={200} value={zoom} onChange={(e) => setZoom(+e.target.value)}
-          style={{ width: 86, accentColor: 'var(--gold)', cursor: 'pointer' }} />
+        <span className="status-bar-slider">
+          <input type="range" min={25} max={200} value={zoom} onChange={(e) => setZoom(+e.target.value)}
+            style={{ width: 86, accentColor: 'var(--gold)', cursor: 'pointer' }} />
+        </span>
         <button onClick={() => setZoom(zoom + 10)} style={zoomBtn} onMouseEnter={onHover} onMouseLeave={onLeave}>+</button>
         <button onClick={() => setZoom(100)} style={{ ...zoomBtn, minWidth: 38, color: 'var(--text-primary)' }} onMouseEnter={onHover} onMouseLeave={onLeave}>{zoom}%</button>
       </div>

@@ -4,7 +4,7 @@
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
-import { useProductivityStore, useEditorStore, useDocumentStore, useUIStore } from '@/store';
+import { useProductivityStore, useEditorStore, useDocumentStore, useUIStore } from '../store/index.js';
 
 export const autoCorrectPluginKey = new PluginKey('etherx-autocorrect');
 export const customDictPluginKey = new PluginKey('etherx-custom-dictionary');
@@ -97,6 +97,45 @@ export function executeShortcutCommand(commandId, context = {}) {
       return true;
     case 'cmd-buildingblocks':
       uiStore.openDialog('buildingBlocks');
+      return true;
+    case 'cmd-align-left':
+      editor?.chain().focus().setTextAlign('left').run();
+      return true;
+    case 'cmd-align-center':
+      editor?.chain().focus().setTextAlign('center').run();
+      return true;
+    case 'cmd-align-right':
+      editor?.chain().focus().setTextAlign('right').run();
+      return true;
+    case 'cmd-align-justify':
+      editor?.chain().focus().setTextAlign('justify').run();
+      return true;
+    case 'cmd-clear-formatting':
+      editor?.chain().focus().unsetAllMarks().run();
+      return true;
+    case 'cmd-subscript':
+      editor?.chain().focus().toggleSubscript().run();
+      return true;
+    case 'cmd-superscript':
+      editor?.chain().focus().toggleSuperscript().run();
+      return true;
+    case 'cmd-bullet-list':
+      editor?.chain().focus().toggleBulletList().run();
+      return true;
+    case 'cmd-page-break':
+      editor?.chain().focus().insertPageBreak().run();
+      return true;
+    case 'cmd-goto':
+      uiStore.openDialog('goTo');
+      return true;
+    case 'cmd-formatting-marks':
+      uiStore.toggleFormattingMarks?.();
+      return true;
+    case 'cmd-save':
+      if (typeof context.onSave === 'function') context.onSave();
+      return true;
+    case 'cmd-print':
+      window.print();
       return true;
     case 'cmd-copilot':
       uiStore.openPragna(editor && !editor.state.selection.empty ? 'edit' : 'ask');

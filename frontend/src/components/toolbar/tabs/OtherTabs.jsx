@@ -284,86 +284,175 @@ export function LayoutTab() {
     toast('Image/shape removed', 'success');
   };
 
+  const col = { display: 'flex', flexDirection: 'column', flexWrap: 'wrap', maxHeight: 82, height: 82, gap: 2, alignContent: 'flex-start' };
+  const rbtn = { height: 25, display: 'inline-flex', alignItems: 'center', fontSize: 11, padding: '0 6px', border: '1px solid transparent', background: 'transparent', borderRadius: 2, cursor: 'pointer', color: 'var(--ribbon-ink)', fontFamily: 'var(--font-ui)', whiteSpace: 'nowrap', flexShrink: 0 };
+
   return (
     <>
       <RibbonGroup label="Page Setup">
-        <Tooltip text="Margins">
-          <Select width={90} options={MARGIN_OPTIONS} value={pageMargin}
-            onChange={(v) => { setPageMargin(v); apply({ margin: v }); toast(`Margins: ${v}`, 'success'); }}
-            title="Margins" />
-        </Tooltip>
-        <Tooltip text="Portrait">
-          <Button active={pageOrientation === 'portrait'}
-            onClick={() => { setPageOrientation('portrait'); apply({ orientation: 'portrait' }); }}>↕ Portrait</Button>
-        </Tooltip>
-        <Tooltip text="Landscape">
-          <Button active={pageOrientation === 'landscape'}
-            onClick={() => { setPageOrientation('landscape'); apply({ orientation: 'landscape' }); }}>↔ Landscape</Button>
-        </Tooltip>
-        <Tooltip text="Page Size">
-          <Select width={80} options={SIZE_OPTIONS} value={pageSize}
-            onChange={(v) => { setPageSize(v); apply({ size: v }); toast(`Size: ${v.toUpperCase()}`, 'success'); }}
-            title="Size" />
-        </Tooltip>
-        <Tooltip text="Columns">
-          <Select width={84} options={COLUMN_OPTIONS} value={String(pageColumns)}
-            onChange={(v) => { const c = Number(v); setPageColumns(c); apply({ columns: c }); toast(`Columns: ${v}`, 'success'); }}
-            title="Columns" />
-        </Tooltip>
-        <Tooltip text="Page Break (Ctrl+Enter)">
-          <Button onClick={insertBreak}>⊞ Breaks</Button>
-        </Tooltip>
-        <Tooltip text="Line Numbers">
-          <Button active={lineNumbersOn} onClick={toggleLineNumbers}># Lines</Button>
-        </Tooltip>
-        <Tooltip text="Auto Hyphenation">
-          <Button active={hyphenationOn} onClick={toggleHyphenation}>- Hyphen</Button>
-        </Tooltip>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {/* Margins */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, width: 90 }}>
+            <span style={{ fontSize: 18, color: 'var(--gold)', lineHeight: 1 }}>📄</span>
+            <span style={{ fontSize: 9.5, color: 'var(--text-secondary)', fontWeight: 600, letterSpacing: '0.04em' }}>MARGINS</span>
+            <Select
+              width={90}
+              options={MARGIN_OPTIONS}
+              value={pageMargin}
+              onChange={(v) => { setPageMargin(v); apply({ margin: v }); toast(`Margins: ${v}`, 'success'); }}
+              title="Page Margins"
+            />
+          </div>
+
+          {/* Orientation */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, width: 92 }}>
+            <span style={{ fontSize: 18, color: 'var(--gold)', lineHeight: 1 }}>↕</span>
+            <span style={{ fontSize: 9.5, color: 'var(--text-secondary)', fontWeight: 600, letterSpacing: '0.04em' }}>ORIENTATION</span>
+            <div style={{ display: 'flex', gap: 2 }}>
+              <Button
+                style={{ ...rbtn, height: 24, padding: '0 6px', fontSize: 10 }}
+                active={pageOrientation === 'portrait'}
+                onClick={() => { setPageOrientation('portrait'); apply({ orientation: 'portrait' }); toast('Orientation: Portrait', 'success'); }}
+                title="Portrait"
+              >
+                Port.
+              </Button>
+              <Button
+                style={{ ...rbtn, height: 24, padding: '0 6px', fontSize: 10 }}
+                active={pageOrientation === 'landscape'}
+                onClick={() => { setPageOrientation('landscape'); apply({ orientation: 'landscape' }); toast('Orientation: Landscape', 'success'); }}
+                title="Landscape"
+              >
+                Land.
+              </Button>
+            </div>
+          </div>
+
+          {/* Page Size */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, width: 80 }}>
+            <span style={{ fontSize: 18, color: 'var(--gold)', lineHeight: 1 }}>📏</span>
+            <span style={{ fontSize: 9.5, color: 'var(--text-secondary)', fontWeight: 600, letterSpacing: '0.04em' }}>SIZE</span>
+            <Select
+              width={80}
+              options={SIZE_OPTIONS}
+              value={pageSize}
+              onChange={(v) => { setPageSize(v); apply({ size: v }); toast(`Size: ${v.toUpperCase()}`, 'success'); }}
+              title="Paper Size"
+            />
+          </div>
+
+          {/* Columns */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, width: 80 }}>
+            <span style={{ fontSize: 18, color: 'var(--gold)', lineHeight: 1 }}>☵</span>
+            <span style={{ fontSize: 9.5, color: 'var(--text-secondary)', fontWeight: 600, letterSpacing: '0.04em' }}>COLUMNS</span>
+            <Select
+              width={80}
+              options={COLUMN_OPTIONS}
+              value={String(pageColumns)}
+              onChange={(v) => { const c = Number(v); setPageColumns(c); apply({ columns: c }); toast(`Columns: ${v}`, 'success'); }}
+              title="Columns"
+            />
+          </div>
+
+          {/* Breaks, Line Numbers, Hyphenation */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, height: 82, justifyContent: 'space-between', paddingLeft: 6, borderLeft: '1px solid var(--border)' }}>
+            <Tooltip text="Insert Page Break (Ctrl+Enter)">
+              <Button style={{ ...rbtn, height: 24, justifyContent: 'flex-start', padding: '0 6px' }} onClick={insertBreak}>
+                ⊞ Breaks
+              </Button>
+            </Tooltip>
+            <Tooltip text="Toggle Line Numbers">
+              <Button style={{ ...rbtn, height: 24, justifyContent: 'flex-start', padding: '0 6px' }} active={lineNumbersOn} onClick={toggleLineNumbers}>
+                # Lines
+              </Button>
+            </Tooltip>
+            <Tooltip text="Toggle Automatic Hyphenation">
+              <Button style={{ ...rbtn, height: 24, justifyContent: 'flex-start', padding: '0 6px' }} active={hyphenationOn} onClick={toggleHyphenation}>
+                ― Hyphen
+              </Button>
+            </Tooltip>
+          </div>
+        </div>
       </RibbonGroup>
 
       <RibbonGroup label="Paragraph">
-        <span style={{ fontSize: 11, color: 'var(--text-secondary)', fontFamily: 'var(--font-ui)' }}>Left:</span>
-        <Select width={72}
-          value={String(indentLeftCm)}
-          options={INDENT_OPTIONS.map((v) => ({ value: String(v), label: `${v} cm` }))}
-          onChange={(v) => { const n = Number(v); setIndentLeftCm(n); applyParagraphLayout({ indentLeftCm: n }); }}
-          title="Indent Left"
-        />
-        <span style={{ fontSize: 11, color: 'var(--text-secondary)', fontFamily: 'var(--font-ui)' }}>Right:</span>
-        <Select width={72}
-          value={String(indentRightCm)}
-          options={INDENT_OPTIONS.map((v) => ({ value: String(v), label: `${v} cm` }))}
-          onChange={(v) => { const n = Number(v); setIndentRightCm(n); applyParagraphLayout({ indentRightCm: n }); }}
-          title="Indent Right"
-        />
-        <span style={{ fontSize: 11, color: 'var(--text-secondary)', fontFamily: 'var(--font-ui)' }}>Before:</span>
-        <Select width={72}
-          value={String(spacingBeforePt)}
-          options={SPACING_OPTIONS.map((v) => ({ value: String(v), label: `${v} pt` }))}
-          onChange={(v) => { const n = Number(v); setSpacingBeforePt(n); applyParagraphLayout({ spacingBeforePt: n }); }}
-          title="Spacing Before"
-        />
-        <span style={{ fontSize: 11, color: 'var(--text-secondary)', fontFamily: 'var(--font-ui)' }}>After:</span>
-        <Select width={72}
-          value={String(spacingAfterPt)}
-          options={SPACING_OPTIONS.map((v) => ({ value: String(v), label: `${v} pt` }))}
-          onChange={(v) => { const n = Number(v); setSpacingAfterPt(n); applyParagraphLayout({ spacingAfterPt: n }); }}
-          title="Spacing After"
-        />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          {/* Indent column */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 80, justifyContent: 'center' }}>
+            <div style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span>⇤</span>
+              <span>INDENT</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 11, color: 'var(--text-secondary)', width: 34 }}>Left:</span>
+              <Select
+                width={74}
+                value={String(indentLeftCm)}
+                options={INDENT_OPTIONS.map((v) => ({ value: String(v), label: `${v} cm` }))}
+                onChange={(v) => { const n = Number(v); setIndentLeftCm(n); applyParagraphLayout({ indentLeftCm: n }); }}
+                title="Indent Left"
+              />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 11, color: 'var(--text-secondary)', width: 34 }}>Right:</span>
+              <Select
+                width={74}
+                value={String(indentRightCm)}
+                options={INDENT_OPTIONS.map((v) => ({ value: String(v), label: `${v} cm` }))}
+                onChange={(v) => { const n = Number(v); setIndentRightCm(n); applyParagraphLayout({ indentRightCm: n }); }}
+                title="Indent Right"
+              />
+            </div>
+          </div>
+
+          {/* Spacing column */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 80, justifyContent: 'center', paddingLeft: 10, borderLeft: '1px solid var(--border)' }}>
+            <div style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span>⇕</span>
+              <span>SPACING</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 11, color: 'var(--text-secondary)', width: 42 }}>Before:</span>
+              <Select
+                width={74}
+                value={String(spacingBeforePt)}
+                options={SPACING_OPTIONS.map((v) => ({ value: String(v), label: `${v} pt` }))}
+                onChange={(v) => { const n = Number(v); setSpacingBeforePt(n); applyParagraphLayout({ spacingBeforePt: n }); }}
+                title="Spacing Before"
+              />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 11, color: 'var(--text-secondary)', width: 42 }}>After:</span>
+              <Select
+                width={74}
+                value={String(spacingAfterPt)}
+                options={SPACING_OPTIONS.map((v) => ({ value: String(v), label: `${v} pt` }))}
+                onChange={(v) => { const n = Number(v); setSpacingAfterPt(n); applyParagraphLayout({ spacingAfterPt: n }); }}
+                title="Spacing After"
+              />
+            </div>
+          </div>
+        </div>
       </RibbonGroup>
 
       <RibbonGroup label="Arrange">
-        <Tooltip text="Position"><Button onClick={() => alignImage('center')}>⊞ Position</Button></Tooltip>
-        <Tooltip text="Wrap Text"><Button onClick={wrapText}>☰ Wrap</Button></Tooltip>
-        <Tooltip text="Increase Size"><Button onClick={() => resizeSelectedImage('up')}>＋ Size</Button></Tooltip>
-        <Tooltip text="Decrease Size"><Button onClick={() => resizeSelectedImage('down')}>－ Size</Button></Tooltip>
-        <Tooltip text="Remove Image/Shape"><Button onClick={removeSelectedImage}>🗑 Remove</Button></Tooltip>
-        <Tooltip text="Bring Forward"><Button onClick={() => layerImage('up')}>↑ Forward</Button></Tooltip>
-        <Tooltip text="Send Backward"><Button onClick={() => layerImage('down')}>↓ Backward</Button></Tooltip>
-        <Tooltip text="Selection Pane"><Button active={sidebarOpen} onClick={() => { toggleSidebar(); }}>⌖ Pane</Button></Tooltip>
-        <Tooltip text="Align Left"><Button onClick={() => alignImage('left')}>⇤ Align</Button></Tooltip>
-        <Tooltip text="Group"><Button onClick={() => toast('Grouping is limited in this editor', 'info')}>⊞ Group</Button></Tooltip>
-        <Tooltip text="Rotate"><Button onClick={rotateImage}>↻ Rotate</Button></Tooltip>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, height: 82, justifyContent: 'space-between' }}>
+            <Tooltip text="Position on page"><Button style={rbtn} onClick={() => alignImage('center')}>⊞ Position</Button></Tooltip>
+            <Tooltip text="Wrap Text around image/shape"><Button style={rbtn} onClick={wrapText}>☰ Wrap Text</Button></Tooltip>
+            <Tooltip text="Selection Pane"><Button style={rbtn} active={sidebarOpen} onClick={() => toggleSidebar()}>⌖ Selection Pane</Button></Tooltip>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, height: 82, justifyContent: 'space-between' }}>
+            <Tooltip text="Bring Forward"><Button style={rbtn} onClick={() => layerImage('up')}>↑ Forward</Button></Tooltip>
+            <Tooltip text="Send Backward"><Button style={rbtn} onClick={() => layerImage('down')}>↓ Backward</Button></Tooltip>
+            <Tooltip text="Align Object"><Button style={rbtn} onClick={() => alignImage('left')}>⇤ Align Left</Button></Tooltip>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, height: 82, justifyContent: 'space-between' }}>
+            <Tooltip text="Rotate 90 degrees"><Button style={rbtn} onClick={rotateImage}>↻ Rotate</Button></Tooltip>
+            <Tooltip text="Increase Size"><Button style={rbtn} onClick={() => resizeSelectedImage('up')}>＋ Enlarge</Button></Tooltip>
+            <Tooltip text="Decrease Size"><Button style={rbtn} onClick={() => resizeSelectedImage('down')}>－ Shrink</Button></Tooltip>
+          </div>
+        </div>
       </RibbonGroup>
     </>
   );
@@ -751,88 +840,111 @@ export function ReviewTab() {
 
   const handleFilterMarkup = (value) => handleMarkupMode(value);
 
+  const rBtn = { height: 25, fontSize: 11, padding: '0 6px', justifyContent: 'flex-start', whiteSpace: 'nowrap', flexShrink: 0 };
+  const col = { display: 'flex', flexDirection: 'column', flexWrap: 'wrap', maxHeight: 82, height: 82, gap: 2, alignContent: 'flex-start' };
+
   return (
     <>
       <RibbonGroup label="Proofing">
-        <Tooltip text="Spelling & Grammar" shortcut="F7">
-          <Button active={spellCheck} onClick={handleSpellCheck}>ABC✓ Spelling</Button>
-        </Tooltip>
-        <Tooltip text="Readability Dashboard & Clarity Metrics">
-          <Button onClick={() => openDialog('readability')}>📊 Readability</Button>
-        </Tooltip>
-        <Tooltip text="Thesaurus"><Button onClick={openThesaurus}>📖 Thesaurus</Button></Tooltip>
-        <Tooltip text="Word Count"><Button onClick={handleWordCount}>123 Word Count</Button></Tooltip>
-        <Tooltip text="Read Aloud"><Button onClick={handleReadAloud}>🔊 Read Aloud</Button></Tooltip>
-        <Tooltip text="Check Accessibility"><Button onClick={handleAccessibility}>♿ Check Accessibility</Button></Tooltip>
+        <div style={col}>
+          <Tooltip text="Spelling & Grammar" shortcut="F7">
+            <Button style={rBtn} active={spellCheck} onClick={handleSpellCheck}>ABC✓ Spell</Button>
+          </Tooltip>
+          <Tooltip text="Readability Dashboard & Clarity Metrics">
+            <Button style={rBtn} onClick={() => openDialog('readability')}>📊 Clarity</Button>
+          </Tooltip>
+          <Tooltip text="Thesaurus"><Button style={rBtn} onClick={openThesaurus}>📖 Thesaurus</Button></Tooltip>
+          <Tooltip text="Word Count"><Button style={rBtn} onClick={handleWordCount}>123 Words</Button></Tooltip>
+          <Tooltip text="Read Aloud"><Button style={rBtn} onClick={handleReadAloud}>🔊 Read</Button></Tooltip>
+          <Tooltip text="Check Accessibility"><Button style={rBtn} onClick={handleAccessibility}>♿ Access</Button></Tooltip>
+        </div>
       </RibbonGroup>
 
       <RibbonGroup label="Language">
-        <Tooltip text="Translate"><Button onClick={translateSelection}>🌐 Translate</Button></Tooltip>
-        <Tooltip text="Language"><Button onClick={handleLanguage}>🗣 Language</Button></Tooltip>
+        <div style={col}>
+          <Tooltip text="Translate"><Button style={rBtn} onClick={translateSelection}>🌐 Translate</Button></Tooltip>
+          <Tooltip text="Language"><Button style={rBtn} onClick={handleLanguage}>🗣 Language</Button></Tooltip>
+        </div>
       </RibbonGroup>
 
       <RibbonGroup label="Comments">
-        <Tooltip text="New Comment"><Button onMouseDown={(e) => e.preventDefault()} onClick={handleNewComment}>💬 New</Button></Tooltip>
-        <Tooltip text="Delete Comment"><Button onClick={removeCurrentComment}>🗑 Delete</Button></Tooltip>
-        <Tooltip text="Previous Comment"><Button onClick={() => stepComment(-1)}>◀ Prev</Button></Tooltip>
-        <Tooltip text="Next Comment"><Button onClick={() => stepComment(1)}>▶ Next</Button></Tooltip>
-        <Tooltip text="Show All Comments"><Button onClick={handleComments}>👁 Show All</Button></Tooltip>
+        <div style={col}>
+          <Tooltip text="New Comment" shortcut="Ctrl+Alt+M"><Button style={rBtn} onMouseDown={(e) => e.preventDefault()} onClick={handleNewComment}>💬 New</Button></Tooltip>
+          <Tooltip text="Delete Comment"><Button style={rBtn} onClick={removeCurrentComment}>🗑 Delete</Button></Tooltip>
+          <Tooltip text="Show All Comments"><Button style={rBtn} onClick={handleComments}>👁 Show All</Button></Tooltip>
+          <Tooltip text="Previous Comment"><Button style={rBtn} onClick={() => stepComment(-1)}>◀ Prev</Button></Tooltip>
+          <Tooltip text="Next Comment"><Button style={rBtn} onClick={() => stepComment(1)}>▶ Next</Button></Tooltip>
+        </div>
       </RibbonGroup>
 
       <RibbonGroup label="Tracking">
-        <Tooltip text="Track Changes — highlights insertions/deletions in the document">
-          <Button active={trackChanges} onClick={toggleTrackChanges}>⊕ Track</Button>
-        </Tooltip>
-        <Tooltip text="Accept Change"><Button onClick={handleAcceptChange}>✓ Accept</Button></Tooltip>
-        <Tooltip text="Reject Change"><Button onClick={handleRejectChange}>✕ Reject</Button></Tooltip>
-        <Tooltip text="Previous Change"><Button onClick={() => announceChange(-1)}>◀ Prev</Button></Tooltip>
-        <Tooltip text="Next Change"><Button onClick={() => announceChange(1)}>▶ Next</Button></Tooltip>
+        <div style={col}>
+          <Tooltip text="Track Changes" shortcut="Ctrl+Shift+E">
+            <Button style={rBtn} active={trackChanges} onClick={toggleTrackChanges}>⊕ Track</Button>
+          </Tooltip>
+          <Tooltip text="Accept Change"><Button style={rBtn} onClick={handleAcceptChange}>✓ Accept</Button></Tooltip>
+          <Tooltip text="Reject Change"><Button style={rBtn} onClick={handleRejectChange}>✕ Reject</Button></Tooltip>
+          <Tooltip text="Previous Change"><Button style={rBtn} onClick={() => announceChange(-1)}>◀ Prev</Button></Tooltip>
+          <Tooltip text="Next Change"><Button style={rBtn} onClick={() => announceChange(1)}>▶ Next</Button></Tooltip>
+        </div>
       </RibbonGroup>
 
       <RibbonGroup label="Markup">
-        <Tooltip text="Filter All Markup">
-          <Select width={122} options={MARKUP_OPTIONS} value={markupMode} onChange={handleFilterMarkup} title="All Markup" />
-        </Tooltip>
-        <Tooltip text="Show Markup"><Button onClick={handleReviewingPane}>☰ Show Markup</Button></Tooltip>
-        <Tooltip text="Reviewing Pane"><Button onClick={handleReviewingPane}>▣ Pane</Button></Tooltip>
+        <div style={col}>
+          <Tooltip text="Filter All Markup">
+            <Select width={108} options={MARKUP_OPTIONS} value={markupMode} onChange={handleFilterMarkup} title="All Markup" />
+          </Tooltip>
+          <Tooltip text="Show Markup"><Button style={rBtn} onClick={handleReviewingPane}>☰ Markup</Button></Tooltip>
+          <Tooltip text="Reviewing Pane"><Button style={rBtn} onClick={handleReviewingPane}>▣ Pane</Button></Tooltip>
+        </div>
       </RibbonGroup>
 
       <RibbonGroup label="Compare">
-        <Tooltip text="Version History"><Button onClick={() => openDialog('versionHistory')}>⏱ History</Button></Tooltip>
-        <Tooltip text="Compare Documents"><Button onClick={handleCompare}>⇔ Compare</Button></Tooltip>
+        <div style={col}>
+          <Tooltip text="Version History"><Button style={rBtn} onClick={() => openDialog('versionHistory')}>⏱ History</Button></Tooltip>
+          <Tooltip text="Compare Documents"><Button style={rBtn} onClick={handleCompare}>⇔ Compare</Button></Tooltip>
+        </div>
       </RibbonGroup>
 
       <RibbonGroup label="Protect">
-        <Tooltip text="Block Authors"><Button onClick={blockAuthors}>👥 Block Authors</Button></Tooltip>
-        <Tooltip text="Restrict Editing"><Button onClick={handleRestrictEditing}>🛡 Restrict</Button></Tooltip>
+        <div style={col}>
+          <Tooltip text="Block Authors"><Button style={rBtn} onClick={blockAuthors}>👥 Protect</Button></Tooltip>
+          <Tooltip text="Restrict Editing"><Button style={rBtn} onClick={handleRestrictEditing}>🛡 Restrict</Button></Tooltip>
+        </div>
       </RibbonGroup>
 
       <RibbonGroup label="Ink">
-        <Tooltip text="Hide Ink"><Button active={hideInk} onClick={handleHideInk}>🖌 Hide Ink</Button></Tooltip>
+        <div style={col}>
+          <Tooltip text="Hide Ink"><Button style={rBtn} active={hideInk} onClick={handleHideInk}>🖌 Hide Ink</Button></Tooltip>
+        </div>
       </RibbonGroup>
 
       <RibbonGroup label="Smart Features">
-        <Tooltip text="Voice Commands & Speech Control">
-          <Button
-            active={voiceActive && voiceMode === 'command'}
-            onClick={() => startVoice('command')}
-          >
-            {voiceActive && voiceMode === 'command' ? '🔴 Stop Voice' : '🎙 Voice Commands'}
-          </Button>
-        </Tooltip>
-        <Tooltip text="Voice Typing (Dictation + Commands)">
-          <Button
-            active={voiceActive && voiceMode === 'typing'}
-            onClick={() => startVoice('typing')}
-          >
-            {voiceActive && voiceMode === 'typing' ? '🔴 Stop Typing' : '🎤 Voice Typing'}
-          </Button>
-        </Tooltip>
-        <Tooltip text="Text-to-Speech"><Button onClick={() => runReadAloud({ editor, toast })}>🔊 TTS</Button></Tooltip>
-        <Tooltip text="Stop Reading"><Button onClick={() => { if (window.speechSynthesis) { window.speechSynthesis.cancel(); toast('Read aloud stopped', 'info'); } }}>🔇 Stop TTS</Button></Tooltip>
-        <Tooltip text="OCR (Image to Text)"><Button onClick={() => runImageTextCapture({ editor, toast, mode: 'ocr' })}>🧾 OCR</Button></Tooltip>
-        <Tooltip text="Handwriting Recognition"><Button onClick={() => runImageTextCapture({ editor, toast, mode: 'handwriting' })}>✍ Handwriting</Button></Tooltip>
-        <Tooltip text="Smart Suggestions"><Button onClick={() => runSmartSuggestions({ editor, toast })}>✨ Suggestions</Button></Tooltip>
+        <div style={col}>
+          <Tooltip text="Voice Commands & Speech Control">
+            <Button
+              style={rBtn}
+              active={voiceActive && voiceMode === 'command'}
+              onClick={() => startVoice('command')}
+            >
+              {voiceActive && voiceMode === 'command' ? '🔴 Stop' : '🎙 Voice'}
+            </Button>
+          </Tooltip>
+          <Tooltip text="Voice Typing (Dictation + Commands)">
+            <Button
+              style={rBtn}
+              active={voiceActive && voiceMode === 'typing'}
+              onClick={() => startVoice('typing')}
+            >
+              {voiceActive && voiceMode === 'typing' ? '🔴 Stop' : '🎤 Dictate'}
+            </Button>
+          </Tooltip>
+          <Tooltip text="Text-to-Speech"><Button style={rBtn} onClick={() => runReadAloud({ editor, toast })}>🔊 Read</Button></Tooltip>
+          <Tooltip text="Stop Reading"><Button style={rBtn} onClick={() => { if (window.speechSynthesis) { window.speechSynthesis.cancel(); toast('Read aloud stopped', 'info'); } }}>🔇 Stop</Button></Tooltip>
+          <Tooltip text="OCR (Image to Text)"><Button style={rBtn} onClick={() => runImageTextCapture({ editor, toast, mode: 'ocr' })}>🧾 OCR</Button></Tooltip>
+          <Tooltip text="Handwriting Recognition"><Button style={rBtn} onClick={() => runImageTextCapture({ editor, toast, mode: 'handwriting' })}>✍ Ink</Button></Tooltip>
+          <Tooltip text="Smart Suggestions"><Button style={rBtn} onClick={() => runSmartSuggestions({ editor, toast })}>✨ Suggest</Button></Tooltip>
+        </div>
       </RibbonGroup>
     </>
   );
@@ -887,136 +999,124 @@ export function ViewTab() {
 
   return (
     <>
-      <RibbonGroup label="Views">
-        <Tooltip text="Print Layout"><Button active={viewMode === 'print'} onClick={() => applyViewMode('print')}>📄 Print</Button></Tooltip>
-        <Tooltip text="Web Layout"><Button active={viewMode === 'web'} onClick={() => applyViewMode('web')}>🌐 Web</Button></Tooltip>
-        <Tooltip text="Outline"><Button active={viewMode === 'outline'} onClick={() => applyViewMode('outline')}>≡ Outline</Button></Tooltip>
-        <Tooltip text="Draft"><Button active={viewMode === 'draft'} onClick={() => applyViewMode('draft')}>📝 Draft</Button></Tooltip>
-        <Tooltip text="Read Mode"><Button active={viewMode === 'read'} onClick={() => applyViewMode('read')}>📖 Read</Button></Tooltip>
-        <Tooltip text="Focus Mode"><Button active={focusMode} onClick={() => {
-          const el = document.getElementById('editor-scroll-area');
-          const next = !focusMode;
-          setFocusMode(next);
-          if (el) el.classList.toggle('etherx-focus-mode', next);
-          toast(next ? 'Focus mode enabled' : 'Focus mode disabled', 'info');
-        }}>🎯 Focus</Button></Tooltip>
-      </RibbonGroup>
+      {(() => {
+        const col = { display: 'flex', flexDirection: 'column', flexWrap: 'wrap', maxHeight: 82, height: 82, gap: 2, alignContent: 'flex-start' };
+        const vbtn = { height: 25, display: 'inline-flex', alignItems: 'center', fontSize: 11, padding: '0 6px', flexShrink: 0, whiteSpace: 'nowrap' };
+        return (
+          <>
+            <RibbonGroup label="Views">
+              <div style={col}>
+                <Tooltip text="Print Layout"><Button style={vbtn} active={viewMode === 'print'} onClick={() => applyViewMode('print')}>📄 Print</Button></Tooltip>
+                <Tooltip text="Web Layout"><Button style={vbtn} active={viewMode === 'web'} onClick={() => applyViewMode('web')}>🌐 Web</Button></Tooltip>
+                <Tooltip text="Outline"><Button style={vbtn} active={viewMode === 'outline'} onClick={() => applyViewMode('outline')}>≡ Outline</Button></Tooltip>
+                <Tooltip text="Draft"><Button style={vbtn} active={viewMode === 'draft'} onClick={() => applyViewMode('draft')}>📝 Draft</Button></Tooltip>
+                <Tooltip text="Read Mode"><Button style={vbtn} active={viewMode === 'read'} onClick={() => applyViewMode('read')}>📖 Read</Button></Tooltip>
+                <Tooltip text="Focus Mode"><Button style={vbtn} active={focusMode} onClick={() => {
+                  const el = document.getElementById('editor-scroll-area');
+                  const next = !focusMode;
+                  setFocusMode(next);
+                  if (el) el.classList.toggle('etherx-focus-mode', next);
+                  toast(next ? 'Focus mode enabled' : 'Focus mode disabled', 'info');
+                }}>🎯 Focus</Button></Tooltip>
+              </div>
+            </RibbonGroup>
 
-      <RibbonGroup label="Show">
-        <Tooltip text="Toggle Page Sidebar"><Button active={sidebarOpen} onClick={toggleSidebar}>⊞ Sidebar</Button></Tooltip>
-        <Tooltip text="Ruler"><Button active={rulerVisible} onClick={handleRuler}>📏 Ruler</Button></Tooltip>
-        <Tooltip text="Gridlines"><Button active={gridlinesVisible} onClick={handleGridlines}>⊞ Grid</Button></Tooltip>
-        <Tooltip text="Navigation Pane"><Button onClick={() => toggleSidebar()}>🧭 Nav Pane</Button></Tooltip>
-      </RibbonGroup>
+            <RibbonGroup label="Show">
+              <div style={col}>
+                <Tooltip text="Toggle Page Sidebar"><Button style={vbtn} active={sidebarOpen} onClick={toggleSidebar}>⊞ Sidebar</Button></Tooltip>
+                <Tooltip text="Ruler"><Button style={vbtn} active={rulerVisible} onClick={handleRuler}>📏 Ruler</Button></Tooltip>
+                <Tooltip text="Gridlines"><Button style={vbtn} active={gridlinesVisible} onClick={handleGridlines}>⊞ Grid</Button></Tooltip>
+                <Tooltip text="Navigation Pane"><Button style={vbtn} onClick={() => toggleSidebar()}>🧭 Nav Pane</Button></Tooltip>
+              </div>
+            </RibbonGroup>
 
-      <RibbonGroup label="Zoom">
-        <Tooltip text="Zoom Out"><Button onClick={() => setZoom(zoom - 10)}>−</Button></Tooltip>
-        <span style={{ fontSize: 12, color: 'var(--text-primary)', fontFamily: 'var(--font-ui)', minWidth: 40, textAlign: 'center' }}>{zoom}%</span>
-        <Tooltip text="Zoom In"><Button onClick={() => setZoom(zoom + 10)}>+</Button></Tooltip>
-        <Tooltip text="100%"><Button onClick={() => setZoom(100)}>100%</Button></Tooltip>
-        <Tooltip text="Fit Page"><Button onClick={() => setZoom(85)}>⊡ Fit</Button></Tooltip>
-        <Tooltip text="Page Width"><Button onClick={() => setZoom(110)}>↔ Width</Button></Tooltip>
-        <Tooltip text="75%"><Button onClick={() => setZoom(75)}>75%</Button></Tooltip>
-      </RibbonGroup>
+            <RibbonGroup label="Zoom">
+              <div style={col}>
+                <Tooltip text="Zoom Out"><Button style={vbtn} onClick={() => setZoom(zoom - 10)}>−</Button></Tooltip>
+                <span style={{ fontSize: 12, color: 'var(--text-primary)', fontFamily: 'var(--font-ui)', minWidth: 36, textAlign: 'center', height: 26, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{zoom}%</span>
+                <Tooltip text="Zoom In"><Button style={vbtn} onClick={() => setZoom(zoom + 10)}>+</Button></Tooltip>
+                <Tooltip text="100%"><Button style={vbtn} onClick={() => setZoom(100)}>100%</Button></Tooltip>
+                <Tooltip text="Fit Page"><Button style={vbtn} onClick={() => setZoom(85)}>⊡ Fit</Button></Tooltip>
+                <Tooltip text="Page Width"><Button style={vbtn} onClick={() => setZoom(110)}>↔ Width</Button></Tooltip>
+                <Tooltip text="75%"><Button style={vbtn} onClick={() => setZoom(75)}>75%</Button></Tooltip>
+              </div>
+            </RibbonGroup>
 
-      <RibbonGroup label="Window">
-        <Tooltip text="New Window — opens document in a new tab">
-          <Button onClick={() => window.open(window.location.href, '_blank')}>⊞ New Window</Button>
-        </Tooltip>
-        <Tooltip text={fullscreen ? 'Exit Fullscreen' : 'Fullscreen'}>
-          <Button onClick={toggleFullscreen}>{fullscreen ? '⤡ Exit Full' : '⤢ Fullscreen'}</Button>
-        </Tooltip>
-        <Tooltip text="Split View"><Button onClick={() => {
-          const left = document.getElementById('editor-scroll-area');
-          if (!left) return;
-          const existing = document.getElementById('etherx-split-preview');
-          if (existing) {
-            existing.remove();
-            toast('Split view closed', 'info');
-            return;
-          }
-          
-          // Create a synchronized split view container
-          const container = document.createElement('div');
-          container.id = 'etherx-split-preview';
-          container.style.flex = '1';
-          container.style.borderLeft = '1px solid var(--border)';
-          container.style.overflow = 'auto';
-          container.style.background = 'var(--bg-primary)';
-          container.style.position = 'relative';
-          
-          // Create a mirror view label
-          const label = document.createElement('div');
-          label.style.position = 'absolute';
-          label.style.top = '0';
-          label.style.left = '0';
-          label.style.right = '0';
-          label.style.padding = '8px 12px';
-          label.style.background = 'var(--ribbon-surface)';
-          label.style.borderBottom = '1px solid var(--border)';
-          label.style.fontSize = '12px';
-          label.style.fontWeight = '600';
-          label.style.color = 'var(--text-muted)';
-          label.style.zIndex = '10';
-          label.textContent = 'Preview';
-          container.appendChild(label);
-          
-          // Create content area
-          const content = document.createElement('div');
-          content.id = 'etherx-split-content';
-          content.style.marginTop = '32px';
-          content.style.padding = '20px';
-          content.style.whiteSpace = 'pre-wrap';
-          content.style.wordWrap = 'break-word';
-          content.style.fontFamily = 'inherit';
-          content.style.fontSize = 'inherit';
-          content.style.lineHeight = 'inherit';
-          container.appendChild(content);
-          
-          left.parentElement?.appendChild(container);
-          
-          // Sync content when editor changes
-          const updatePreview = () => {
-            if (editor) {
-              content.innerText = editor.state.doc.textBetween(0, editor.state.doc.content.size, '\n');
-            }
-          };
-          
-          if (editor) {
-            editor.on('update', updatePreview);
-            updatePreview(); // Initial update
-            
-            // Store editor listener so we can remove it later
-            container.dataset.editorListener = 'true';
-          }
-          
-          toast('Split view opened - synchronized preview', 'success');
-        }}>⊟ Split</Button></Tooltip>
-      </RibbonGroup>
+            <RibbonGroup label="Window">
+              <div style={col}>
+                <Tooltip text="New Window — opens document in a new tab">
+                  <Button style={vbtn} onClick={() => window.open(window.location.href, '_blank')}>⊞ New Window</Button>
+                </Tooltip>
+                <Tooltip text={fullscreen ? 'Exit Fullscreen' : 'Fullscreen'}>
+                  <Button style={vbtn} onClick={toggleFullscreen}>{fullscreen ? '⤡ Exit Full' : '⤢ Fullscreen'}</Button>
+                </Tooltip>
+                <Tooltip text="Split View"><Button style={vbtn} onClick={() => {
+                  const left = document.getElementById('editor-scroll-area');
+                  if (!left) return;
+                  const existing = document.getElementById('etherx-split-preview');
+                  if (existing) {
+                    existing.remove();
+                    toast('Split view closed', 'info');
+                    return;
+                  }
+                  const container = document.createElement('div');
+                  container.id = 'etherx-split-preview';
+                  container.style.flex = '1';
+                  container.style.borderLeft = '1px solid var(--border)';
+                  container.style.overflow = 'auto';
+                  container.style.background = 'var(--bg-primary)';
+                  container.style.position = 'relative';
+                  const lbl = document.createElement('div');
+                  lbl.style.cssText = 'position:absolute;top:0;left:0;right:0;padding:8px 12px;background:var(--ribbon-surface);border-bottom:1px solid var(--border);font-size:12px;font-weight:600;color:var(--text-muted);z-index:10;';
+                  lbl.textContent = 'Preview';
+                  container.appendChild(lbl);
+                  const content = document.createElement('div');
+                  content.id = 'etherx-split-content';
+                  content.style.cssText = 'margin-top:32px;padding:20px;white-space:pre-wrap;word-wrap:break-word;';
+                  container.appendChild(content);
+                  left.parentElement?.appendChild(container);
+                  if (editor) {
+                    const update = () => { content.innerText = editor.state.doc.textBetween(0, editor.state.doc.content.size, '\n'); };
+                    editor.on('update', update);
+                    update();
+                    container.dataset.editorListener = 'true';
+                  }
+                  toast('Split view opened - synchronized preview', 'success');
+                }}>⊟ Split</Button></Tooltip>
+              </div>
+            </RibbonGroup>
 
-      <RibbonGroup label="Structure & Security">
-        <Tooltip text="Master Document & Subdocuments"><Button onClick={() => openDialog('masterDoc')}>📑 Master Doc</Button></Tooltip>
-        <Tooltip text="Security & Protection"><Button onClick={() => openDialog('security')}>🔒 Security</Button></Tooltip>
-      </RibbonGroup>
+            <RibbonGroup label="Structure & Security">
+              <div style={col}>
+                <Tooltip text="Master Document & Subdocuments"><Button style={vbtn} onClick={() => openDialog('masterDoc')}>📑 Master Doc</Button></Tooltip>
+                <Tooltip text="Security & Protection"><Button style={vbtn} onClick={() => openDialog('security')}>🔒 Security</Button></Tooltip>
+              </div>
+            </RibbonGroup>
 
-      <RibbonGroup label="Macros">
-        <Tooltip text="Macros"><Button onClick={() => {
-          const script = window.prompt('Macro command (upper|lower|title)', 'upper');
-          if (!script || !editor) return;
-          const { from, to } = editor.state.selection;
-          if (from === to) {
-            toast('Select text to run macro', 'info');
-            return;
-          }
-          const selected = editor.state.doc.textBetween(from, to, ' ');
-          let transformed = selected;
-          if (script === 'upper') transformed = selected.toUpperCase();
-          if (script === 'lower') transformed = selected.toLowerCase();
-          if (script === 'title') transformed = selected.replace(/\w\S*/g, (w) => w[0].toUpperCase() + w.slice(1).toLowerCase());
-          editor.chain().focus().insertContentAt({ from, to }, transformed).run();
-          toast(`Macro applied: ${script}`, 'success');
-        }}>⚙ Macros</Button></Tooltip>
-      </RibbonGroup>
+            <RibbonGroup label="Macros">
+              <div style={col}>
+                <Tooltip text="Macros"><Button style={vbtn} onClick={() => {
+                  const script = window.prompt('Macro command (upper|lower|title)', 'upper');
+                  if (!script || !editor) return;
+                  const { from, to } = editor.state.selection;
+                  if (from === to) {
+                    toast('Select text to run macro', 'info');
+                    return;
+                  }
+                  const selected = editor.state.doc.textBetween(from, to, ' ');
+                  let transformed = selected;
+                  if (script === 'upper') transformed = selected.toUpperCase();
+                  if (script === 'lower') transformed = selected.toLowerCase();
+                  if (script === 'title') transformed = selected.replace(/\w\S*/g, (w) => w[0].toUpperCase() + w.slice(1).toLowerCase());
+                  editor.chain().focus().insertContentAt({ from, to }, transformed).run();
+                  toast(`Macro applied: ${script}`, 'success');
+                }}>⚙ Macros</Button></Tooltip>
+              </div>
+            </RibbonGroup>
+          </>
+        );
+      })()}
     </>
   );
 }
+
