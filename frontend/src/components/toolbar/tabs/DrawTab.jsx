@@ -25,18 +25,93 @@ const HIGHLIGHT_OPACITY = [
   { value: 0.8, label: '80%' },
 ];
 
-function iconBtnStyle(active = false) {
-  return {
-    width: 30,
-    height: 28,
-    border: active ? '1px solid var(--gold)' : '1px solid var(--border)',
-    background: active ? 'var(--gold-dim)' : 'var(--bg-elevated)',
-    color: 'var(--text-primary)',
-    borderRadius: 2,
-    padding: 0,
-    fontSize: 14,
-    lineHeight: 1,
-  };
+function HeroBtn({ icon, label, onClick, title, active, disabled }) {
+  return (
+    <Tooltip text={title || label}>
+      <button
+        disabled={disabled}
+        onClick={onClick}
+        style={{
+          border: active ? '1px solid var(--border-gold, #c9a84c)' : '1px solid transparent',
+          background: active ? 'var(--bg-hover, rgba(212,175,55,0.1))' : 'transparent',
+          borderRadius: 3,
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          color: active ? 'var(--text-gold, #c9a84c)' : 'var(--text-primary)',
+          minWidth: 58,
+          height: 74,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 4,
+          padding: '4px 6px',
+          fontFamily: 'var(--font-ui)',
+          fontSize: 11,
+          transition: 'background 0.1s, border-color 0.1s',
+          whiteSpace: 'nowrap',
+          opacity: disabled ? 0.45 : 1,
+        }}
+        onMouseEnter={(e) => {
+          if (!disabled && !active) {
+            e.currentTarget.style.background = 'var(--bg-hover)';
+            e.currentTarget.style.borderColor = 'var(--border)';
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!disabled && !active) {
+            e.currentTarget.style.background = 'transparent';
+            e.currentTarget.style.borderColor = 'transparent';
+          }
+        }}
+      >
+        <div style={{ fontSize: 20, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</div>
+        <span style={{ fontSize: 11, lineHeight: 1.1, textAlign: 'center' }}>{label}</span>
+      </button>
+    </Tooltip>
+  );
+}
+
+function MiniAction({ icon, text, onClick, title, active, disabled }) {
+  return (
+    <Tooltip text={title || text}>
+      <button
+        disabled={disabled}
+        onClick={onClick}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 5,
+          height: 22,
+          padding: '0 6px',
+          fontSize: 11,
+          fontFamily: 'var(--font-ui)',
+          border: active ? '1px solid var(--border-gold, #c9a84c)' : '1px solid transparent',
+          borderRadius: 2,
+          background: active ? 'var(--bg-hover)' : 'transparent',
+          color: active ? 'var(--text-gold, #c9a84c)' : 'var(--text-primary)',
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          whiteSpace: 'nowrap',
+          transition: 'background 0.1s, border-color 0.1s',
+          opacity: disabled ? 0.45 : 1,
+        }}
+        onMouseEnter={(e) => {
+          if (!disabled && !active) {
+            e.currentTarget.style.background = 'var(--bg-hover)';
+            e.currentTarget.style.borderColor = 'var(--border)';
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!disabled && !active) {
+            e.currentTarget.style.background = 'transparent';
+            e.currentTarget.style.borderColor = 'transparent';
+          }
+        }}
+      >
+        {icon && <span style={{ fontSize: 12, lineHeight: 1 }}>{icon}</span>}
+        <span>{text}</span>
+      </button>
+    </Tooltip>
+  );
 }
 
 export function DrawTab() {
@@ -59,8 +134,6 @@ export function DrawTab() {
   const [customPens, setCustomPens] = useState([]);
   const [replayIndex, setReplayIndex] = useState(-1);
 
-  const pens = useMemo(() => [...DEFAULT_PENS, ...customPens], [customPens]);
-
   const run = (fn) => {
     if (!editor) {
       toast('Editor is not ready yet', 'info');
@@ -70,33 +143,41 @@ export function DrawTab() {
     editor.view?.focus();
   };
 
+  const pens = useMemo(() => [...DEFAULT_PENS, ...customPens], [customPens]);
+
   const activateTool = (tool, openCanvas = false) => {
     setDrawTool(tool);
-    // Draw tab tool selection should control ink behavior, not text formatting.
-    // Keep existing color/size/opacity and let drawing canvas apply it.
+    toast(`Active tool: ${tool}`, 'info');
     if (openCanvas) openDialog('drawing');
   };
 
   const selectPen = (pen) => {
-    setDrawColor(pen.color);
     setDrawTool(pen.tool);
-    setDrawSize(pen.size || drawSize);
-    setDrawOpacity(typeof pen.opacity === 'number' ? pen.opacity : drawOpacity);
-    toast(`${pen.label} active`, 'success');
+    setDrawColor(pen.color);
+    setDrawSize(pen.size);
+    setDrawOpacity(pen.opacity);
+    toast(`Selected ${pen.label}`, 'info');
     openDialog('drawing');
   };
 
   const addPen = () => {
-    const hex = (window.prompt('Enter pen color in HEX (#RRGGBB)', '#7e57c2') || '').trim();
+    const hex = (window.prompt('Enter hex color (#RRGGBB)', '#7c3aed') || '').trim();
     if (!/^#[0-9a-fA-F]{6}$/.test(hex)) {
       toast('Invalid color format', 'warning');
       return;
     }
-    const id = `custom-${Date.now()}`;
-    const next = { id, color: hex, label: 'Custom Pen', tool: 'pen', size: drawSize, opacity: 1 };
-    setCustomPens((prev) => [...prev, next]);
+    const pen = {
+      id: `pen-${Date.now()}`,
+      color: hex,
+      label: `Pen ${pens.length + 1}`,
+      tool: 'pen',
+      size: 4,
+      opacity: 1,
+    };
+    setCustomPens((prev) => [...prev, pen]);
     setDrawColor(hex);
     setDrawTool('pen');
+    setDrawSize(4);
     setDrawOpacity(1);
     openDialog('drawing');
     toast('Custom pen added', 'success');
@@ -135,116 +216,119 @@ export function DrawTab() {
     toast(`Ink replay ${next + 1}/${drawings.length}`, 'success');
   };
 
-  const col = { display: 'flex', flexDirection: 'column', flexWrap: 'wrap', maxHeight: 82, height: 82, gap: 2, alignContent: 'flex-start' };
-
   return (
     <>
-      <RibbonGroup label="Drawing Tools">
-        <div style={col}>
-          <Tooltip text="Undo"><Button style={iconBtnStyle()} onClick={() => run(() => editor.chain().undo().run())}>↶</Button></Tooltip>
-          <Tooltip text="Redo"><Button style={iconBtnStyle()} onClick={() => run(() => editor.chain().redo().run())}>↷</Button></Tooltip>
-          <Tooltip text="Select"><Button style={iconBtnStyle(drawTool === 'select')} onClick={() => activateTool('select')}>↖</Button></Tooltip>
-          <Tooltip text="Lasso Select"><Button style={iconBtnStyle()} onClick={() => run(() => editor.chain().selectAll().run())}>◌</Button></Tooltip>
-          <Tooltip text="Eraser"><Button style={iconBtnStyle(drawTool === 'eraser')} onClick={() => activateTool('eraser', true)}>⌫</Button></Tooltip>
-          <Tooltip text="Pencil"><Button style={iconBtnStyle(drawTool === 'pencil')} onClick={() => activateTool('pencil', true)}>✎</Button></Tooltip>
-          <Tooltip text="Pen"><Button style={iconBtnStyle(drawTool === 'pen')} onClick={() => activateTool('pen', true)}>✒</Button></Tooltip>
-          <Tooltip text="Highlighter"><Button style={iconBtnStyle(drawTool === 'highlighter')} onClick={() => activateTool('highlighter', true)}>▮</Button></Tooltip>
+      <RibbonGroup label="Tools">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <HeroBtn icon="↖" label="Select" title="Select Tool" active={drawTool === 'select'} onClick={() => activateTool('select')} />
+          <HeroBtn icon="✍" label="Draw" title="Draw with Touch / Pen" active={drawTool === 'pen'} onClick={() => activateTool('pen', true)} />
+          <HeroBtn icon="⌫" label="Eraser" title="Eraser Tool" active={drawTool === 'eraser'} onClick={() => activateTool('eraser', true)} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
+            <MiniAction icon="↶" text="Undo" title="Undo Inking" onClick={() => run(() => editor.chain().undo().run())} />
+            <MiniAction icon="↷" text="Redo" title="Redo Inking" onClick={() => run(() => editor.chain().redo().run())} />
+            <MiniAction icon="◌" text="Lasso" title="Lasso Select" onClick={() => run(() => editor.chain().selectAll().run())} />
+          </div>
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Pens">
-        <div style={col}>
-          {pens.map((pen) => (
-            <Tooltip key={pen.id} text={pen.label}>
-              <Button
-                style={{
-                  ...iconBtnStyle(drawColor === pen.color),
-                  borderBottom: `4px solid ${pen.color}`,
-                  width: 26,
-                  height: 26,
-                }}
-                onClick={() => selectPen(pen)}
-              >
-                ✎
-              </Button>
-            </Tooltip>
-          ))}
-          <Tooltip text="Add Pen"><Button style={{ ...iconBtnStyle(), width: 44, height: 26 }} onClick={addPen}>+ Add</Button></Tooltip>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            {pens.map((pen) => (
+              <Tooltip key={pen.id} text={pen.label}>
+                <button
+                  onClick={() => selectPen(pen)}
+                  style={{
+                    width: 32,
+                    height: 64,
+                    border: drawColor === pen.color ? '1.5px solid var(--gold)' : '1px solid var(--border)',
+                    background: drawColor === pen.color ? 'var(--gold-dim, rgba(212,175,55,0.15))' : 'var(--bg-elevated)',
+                    borderRadius: 3,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '6px 2px 4px 2px',
+                    boxShadow: drawColor === pen.color ? '0 0 6px rgba(212,175,55,0.3)' : 'none',
+                  }}
+                >
+                  <span style={{ fontSize: 16 }}>✎</span>
+                  <div style={{ width: 22, height: 6, borderRadius: 2, background: pen.color }} />
+                </button>
+              </Tooltip>
+            ))}
+          </div>
+          <HeroBtn icon="＋" label="Add Pen" title="Add Custom Color Pen" onClick={addPen} />
         </div>
       </RibbonGroup>
 
-      <RibbonGroup label="Thickness">
-        <div style={col}>
-          {THICKNESS_PRESETS.map((t) => (
-            <Tooltip key={t.px} text={t.label}>
-              <Button
-                style={{
-                  ...iconBtnStyle(drawSize === t.px),
-                  width: 52,
-                  height: 26,
-                  fontSize: 10,
-                }}
-                onClick={() => { setDrawSize(t.px); toast(`Ink thickness: ${t.label}`, 'info'); }}
-              >
-                {t.label}
-              </Button>
-            </Tooltip>
-          ))}
+      <RibbonGroup label="Thickness & Opacity">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 74 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, justifyContent: 'center' }}>
+            <span style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--text-muted)' }}>THICKNESS</span>
+            <div style={{ display: 'flex', gap: 3 }}>
+              {THICKNESS_PRESETS.map((t) => (
+                <Button
+                  key={t.px}
+                  style={{
+                    height: 22,
+                    padding: '0 5px',
+                    fontSize: 10,
+                    border: drawSize === t.px ? '1px solid var(--border-gold)' : undefined,
+                    background: drawSize === t.px ? 'var(--bg-hover)' : undefined,
+                  }}
+                  onClick={() => { setDrawSize(t.px); toast(`Ink thickness: ${t.label}`, 'info'); }}
+                >
+                  {t.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, justifyContent: 'center', paddingLeft: 6, borderLeft: '1px solid var(--border)' }}>
+            <span style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--text-muted)' }}>OPACITY</span>
+            <div style={{ display: 'flex', gap: 3 }}>
+              {HIGHLIGHT_OPACITY.map((o) => (
+                <Button
+                  key={o.label}
+                  style={{
+                    height: 22,
+                    padding: '0 5px',
+                    fontSize: 10,
+                    border: Math.abs(drawOpacity - o.value) < 0.01 ? '1px solid var(--border-gold)' : undefined,
+                    background: Math.abs(drawOpacity - o.value) < 0.01 ? 'var(--bg-hover)' : undefined,
+                  }}
+                  onClick={() => { setDrawOpacity(o.value); toast(`Highlighter opacity: ${o.label}`, 'info'); }}
+                >
+                  {o.label}
+                </Button>
+              ))}
+            </div>
+          </div>
         </div>
       </RibbonGroup>
 
-      <RibbonGroup label="Stencils">
-        <div style={col}>
-          <Tooltip text="Ruler"><Button style={{ ...iconBtnStyle(rulerVisible), height: 26 }} onClick={() => { toggleRuler(); toast(rulerVisible ? 'Ruler hidden' : 'Ruler shown', 'info'); }}>📏</Button></Tooltip>
-        </div>
-      </RibbonGroup>
-
-      <RibbonGroup label="Edit">
-        <div style={col}>
-          <Tooltip text="Format Background"><Button style={{ ...iconBtnStyle(), width: 58, height: 26 }} onClick={formatBackground}>Background</Button></Tooltip>
-        </div>
-      </RibbonGroup>
-
-      <RibbonGroup label="Highlighter">
-        <div style={col}>
-          {HIGHLIGHT_OPACITY.map((o) => (
-            <Tooltip key={o.label} text={`Opacity ${o.label}`}>
-              <Button
-                style={{ ...iconBtnStyle(Math.abs(drawOpacity - o.value) < 0.01), width: 42, height: 26, fontSize: 10 }}
-                onClick={() => { setDrawOpacity(o.value); toast(`Highlighter opacity: ${o.label}`, 'info'); }}
-              >
-                {o.label}
-              </Button>
-            </Tooltip>
-          ))}
+      <RibbonGroup label="Stencils & Canvas">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <HeroBtn icon="📏" label="Ruler" title="Toggle Drawing Ruler" active={rulerVisible} onClick={() => { toggleRuler(); toast(rulerVisible ? 'Ruler hidden' : 'Ruler shown', 'info'); }} />
+          <HeroBtn icon="🖼" label="Canvas" title="Insert Drawing Canvas" onClick={() => openDialog('drawing')} />
+          <HeroBtn icon="🎨" label="Background" title="Format Drawing Background" onClick={formatBackground} />
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Convert">
-        <div style={col}>
-          <Tooltip text="Ink to Shape"><Button style={{ ...iconBtnStyle(), width: 56, height: 26 }} onClick={() => openDialog('insertShape')}>Shape</Button></Tooltip>
-          <Tooltip text="Ink to Math"><Button style={{ ...iconBtnStyle(), width: 52, height: 26 }} onClick={() => openDialog('equation')}>Math</Button></Tooltip>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <HeroBtn icon="⬡" label="To Shape" title="Convert Ink to Shapes" onClick={() => openDialog('insertShape')} />
+          <HeroBtn icon="∑" label="To Math" title="Convert Ink to Math Equations" onClick={() => openDialog('equation')} />
         </div>
       </RibbonGroup>
 
-      <RibbonGroup label="Insert">
-        <div style={col}>
-          <Tooltip text="Drawing Canvas"><Button style={{ ...iconBtnStyle(), width: 66, height: 26 }} onClick={() => openDialog('drawing')}>Canvas</Button></Tooltip>
-        </div>
-      </RibbonGroup>
-
-      <RibbonGroup label="Replay">
-        <div style={col}>
-          <Tooltip text="Ink Replay"><Button style={{ ...iconBtnStyle(), width: 60, height: 26 }} onClick={replayInk}>Replay</Button></Tooltip>
-        </div>
-      </RibbonGroup>
-
-      <RibbonGroup label="Help">
-        <div style={col}>
-          <Tooltip text="Ink Help"><Button style={{ ...iconBtnStyle(), width: 48, height: 26 }} onClick={() => window.open('https://support.microsoft.com/en-us/office/draw-and-write-with-ink-in-office', '_blank', 'noopener,noreferrer')}>?</Button></Tooltip>
+      <RibbonGroup label="Replay & Help">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <HeroBtn icon="↺" label="Replay" title="Replay Ink Strokes" onClick={replayInk} />
+          <HeroBtn icon="❓" label="Help" title="Drawing Help & Reference" onClick={() => window.open('https://support.microsoft.com/en-us/office/draw-and-write-with-ink-in-office', '_blank', 'noopener,noreferrer')} />
         </div>
       </RibbonGroup>
     </>
   );
 }
-
