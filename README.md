@@ -1,19 +1,19 @@
 <div align="center">
 
-# ⚜️ EtherX Word — Sovereign Document Studio
+# EtherX Word — Sovereign Document Studio
 
 <p align="center">
   <strong>A Next-Generation, Web3 & Cloud-Native Word Processor with Microsoft Word-grade Ribbon, Real-time Collaboration, IPFS Decentralized Pinning, and Pragna AI Copilot.</strong>
 </p>
 
 <p align="center">
-  <a href="#-key-features">Key Features</a> •
-  <a href="#-system-architecture">Architecture</a> •
-  <a href="#-tech-stack">Tech Stack</a> •
-  <a href="#-quick-start">Quick Start</a> •
-  <a href="#-docker--minidock-deployment">Deployment</a> •
-  <a href="#-api-reference">API Docs</a> •
-  <a href="#-contributing">Contributing</a>
+  <a href="#key-features">Key Features</a> •
+  <a href="#system-architecture">Architecture</a> •
+  <a href="#tech-stack">Tech Stack</a> •
+  <a href="#quick-start">Quick Start</a> •
+  <a href="#docker--minidock-deployment">Deployment</a> •
+  <a href="#api-reference">API Docs</a> •
+  <a href="#contributing">Contributing</a>
 </p>
 
 <p align="center">
@@ -31,7 +31,7 @@
 
 </div>
 
-## 📖 Overview
+## Overview
 
 **EtherX Word** is an enterprise-grade, luxury dark-themed document processor engineered with the precision of classic desktop word processors (Microsoft Word) and powered by modern web technologies, AI workflows, and decentralized Web3 storage.
 
@@ -39,9 +39,9 @@ Built around a custom **Gold (`#d4af37`) on Obsidian Dark (`#0a0a0a`)** design l
 
 ---
 
-## ✨ Key Features
+## Key Features
 
-### 🎛️ Full-Featured Microsoft Word Ribbon
+### Full-Featured Microsoft Word Ribbon
 - **Home:** Font family, sizing, styling (bold, italics, underline, strike, sub/superscript), color palettes, text alignments, line spacing, list numbering, and quick-style templates.
 - **Insert:** Tables (interactive 8×8 grid picker), image uploads with drag-and-resize, shapes, 3D models, SVG symbols, math equations, charts (Bar/Line/Pie with Chart.js), and video embeds.
 - **Draw:** Canvas freehand pen, neon highlighters, eraser, stroke thickness controls, and color swatches.
@@ -52,7 +52,7 @@ Built around a custom **Gold (`#d4af37`) on Obsidian Dark (`#0a0a0a`)** design l
 
 ---
 
-### 🧠 Pragna AI Copilot & Live Web Grounding
+### Pragna AI Copilot & Live Web Grounding
 - **Generative Writing:** Generate rich proposals, essays, outlines, or reports on command.
 - **Document Optimization:** One-click executive summaries, tone shifting (formal, persuasive, corporate), and grammar correction.
 - **Live Web Citations:** Ask questions and pull factual context directly from the live web into your document.
@@ -60,26 +60,26 @@ Built around a custom **Gold (`#d4af37`) on Obsidian Dark (`#0a0a0a`)** design l
 
 ---
 
-### 🌐 Decentralized Storage & Web3 Sovereign Archiving
+### Decentralized Storage & Web3 Sovereign Archiving
 - **IPFS Pinning via Pinata:** Seal your documents permanently to InterPlanetary File System (IPFS) with cryptographic content addressing (CID).
 - **Verifiable Document Integrity:** Export cryptographic hashes and verify document authenticity without vendor lock-in.
 
 ---
 
-### 🔄 Multi-Format Export & Import Engine
+### Multi-Format Export & Import Engine
 - **Import:** High-fidelity `.docx` document parsing using Mammoth and OCR image-to-text with Tesseract.js.
 - **Export:** Export pixel-perfect `.pdf` (with jsPDF & html2canvas), native `.docx`, standalone `.html`, clean `.md` (Markdown), and standard `.epub` for e-readers.
 
 ---
 
-### 👥 Real-Time Collaboration & Role Security
+### Real-Time Collaboration & Role Security
 - **Multiplayer Editing:** Live cursor tracking, multi-user presence indicators, and synchronized document editing via WebSockets.
 - **Granular Access Control:** Owner, Editor, Commenter, and Viewer security tiers.
 - **Revision History:** Automatic snapshotting, manual version naming, diff viewing, and one-click rollback.
 
 ---
 
-## 🏛️ System Architecture
+## System Architecture
 
 ```mermaid
 graph TD
@@ -103,7 +103,7 @@ useCollaboration  ──► WebSocket room state, remote cursors, presence aware
 
 ---
 
-## 💻 Tech Stack
+## Tech Stack
 
 | Layer | Technologies |
 |---|---|
@@ -121,7 +121,7 @@ useCollaboration  ──► WebSocket room state, remote cursors, presence aware
 
 ---
 
-## 📂 Repository Layout
+## Repository Layout
 
 ```text
 WORD-UPDATED/
@@ -158,7 +158,7 @@ WORD-UPDATED/
 
 ---
 
-## 🚀 Quick Start Guide
+## Quick Start Guide
 
 ### Prerequisites
 - **Node.js**: v18.0.0 or higher
@@ -204,7 +204,7 @@ VITE_API_URL=http://localhost:5053/api
 cd backend
 npm install
 npm run dev
-# 🚀 Backend runs on http://localhost:5053
+# Backend runs on http://localhost:5053
 ```
 
 ### 4. Run Frontend Studio
@@ -212,12 +212,12 @@ npm run dev
 cd ../frontend
 npm install
 npm run dev
-# 🎨 Frontend available at http://localhost:3000
+# Frontend available at http://localhost:3000
 ```
 
 ---
 
-## 🐳 Docker & Container Deployment
+## Docker & Container Deployment
 
 ### Running with Docker Compose
 Run the entire production stack (Frontend, Backend, and optional Cloudflare tunnel) with a single command:
@@ -237,7 +237,7 @@ docker-compose down
 
 ---
 
-## 🔌 API Reference Overview
+## API Reference Overview
 
 | Method | Endpoint | Description | Auth Required |
 |---|---|---|---|
@@ -256,7 +256,7 @@ docker-compose down
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 Contributions make the open-source community an incredible place to learn, inspire, and create. Any contributions you make are **greatly appreciated**!
 
@@ -277,6 +277,6 @@ Contributions make the open-source community an incredible place to learn, inspi
 
 ---
 
-## 📄 License & Attribution
+## License & Attribution
 
 Distributed under the **MIT License**. Created with ❤️ by **[Padmaja Biswal](https://github.com/PadmajaBiswa1)** and contributors.
