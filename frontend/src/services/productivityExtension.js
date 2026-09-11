@@ -5,6 +5,7 @@ import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { useProductivityStore, useEditorStore, useDocumentStore, useUIStore } from '../store/index.js';
+import { printDocument } from '@/utils/printUtils';
 
 export const autoCorrectPluginKey = new PluginKey('etherx-autocorrect');
 export const customDictPluginKey = new PluginKey('etherx-custom-dictionary');
@@ -135,7 +136,7 @@ export function executeShortcutCommand(commandId, context = {}) {
       if (typeof context.onSave === 'function') context.onSave();
       return true;
     case 'cmd-print':
-      window.print();
+      printDocument();
       return true;
     case 'cmd-copilot':
       uiStore.openPragna(editor && !editor.state.selection.empty ? 'edit' : 'ask');

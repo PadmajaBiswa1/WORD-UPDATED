@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Crop, Sparkles, Waves, BoxSelect } from 'lucide-react';
 import { useEditorStore, useUIStore } from '@/store';
 import { Button, Divider, Tooltip, Select } from '@/components/ui';
 import { getSelectedImageElement, isImageSelection } from '@/utils/imageSelection';
+import { isShapeSrc, parseShapeInfo, generateShapeDataUrl, SHAPE_PRESETS } from '@/utils/shapeUtils';
 
 const BORDER_STYLES = [
   { value: 'solid', label: 'Solid' },
@@ -21,8 +23,6 @@ const WRAP_MODES = [
 ];
 
 const TRANSPARENCY_OPTIONS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map(v => ({ value: String(v), label: `${v}%` }));
-
-const ROTATION_OPTIONS = [90, 180, 270, -90, -180, -270].map(v => ({ value: String(v), label: `${v}°` }));
 
 const BG_COLORS = [
   '#000000', '#ffffff', '#ff4d4f', '#fa8c16', '#fadb14',
@@ -48,13 +48,94 @@ const toCssStyle = (obj) => Object.entries(obj)
   .map(([k, v]) => `${k}:${v}`)
   .join(';');
 
-export function PictureFormatTab() {
+function WrapModeDiagram({ mode, active, onClick }) {
+  const diagrams = {
+    inline: (
+      <svg width="28" height="24" viewBox="0 0 28 24" fill="none">
+        <line x1="2" y1="5" x2="26" y2="5" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 1.5" />
+        <rect x="8" y="9" width="12" height="10" rx="1" fill="#2563eb" fillOpacity="0.8" stroke="#1d4ed8" strokeWidth="1" />
+        <line x1="2" y1="14" x2="6" y2="14" stroke="currentColor" strokeWidth="1.5" />
+        <line x1="22" y1="14" x2="26" y2="14" stroke="currentColor" strokeWidth="1.5" />
+        <line x1="2" y1="22" x2="26" y2="22" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 1.5" />
+      </svg>
+    ),
+    left: (
+      <svg width="28" height="24" viewBox="0 0 28 24" fill="none">
+        <rect x="2" y="4" width="11" height="13" rx="1" fill="#2563eb" fillOpacity="0.8" stroke="#1d4ed8" strokeWidth="1" />
+        <line x1="16" y1="6" x2="26" y2="6" stroke="currentColor" strokeWidth="1.5" />
+        <line x1="16" y1="10" x2="26" y2="10" stroke="currentColor" strokeWidth="1.5" />
+        <line x1="16" y1="14" x2="26" y2="14" stroke="currentColor" strokeWidth="1.5" />
+        <line x1="2" y1="20" x2="26" y2="20" stroke="currentColor" strokeWidth="1.5" />
+      </svg>
+    ),
+    right: (
+      <svg width="28" height="24" viewBox="0 0 28 24" fill="none">
+        <rect x="15" y="4" width="11" height="13" rx="1" fill="#2563eb" fillOpacity="0.8" stroke="#1d4ed8" strokeWidth="1" />
+        <line x1="2" y1="6" x2="12" y2="6" stroke="currentColor" strokeWidth="1.5" />
+        <line x1="2" y1="10" x2="12" y2="10" stroke="currentColor" strokeWidth="1.5" />
+        <line x1="2" y1="14" x2="12" y2="14" stroke="currentColor" strokeWidth="1.5" />
+        <line x1="2" y1="20" x2="26" y2="20" stroke="currentColor" strokeWidth="1.5" />
+      </svg>
+    ),
+    behindText: (
+      <svg width="28" height="24" viewBox="0 0 28 24" fill="none">
+        <rect x="6" y="3" width="16" height="16" rx="1" fill="#2563eb" fillOpacity="0.25" stroke="#1d4ed8" strokeWidth="1" strokeDasharray="2 2" />
+        <line x1="2" y1="6" x2="26" y2="6" stroke="currentColor" strokeWidth="1.5" />
+        <line x1="2" y1="11" x2="26" y2="11" stroke="currentColor" strokeWidth="1.5" />
+        <line x1="2" y1="16" x2="26" y2="16" stroke="currentColor" strokeWidth="1.5" />
+        <line x1="2" y1="21" x2="26" y2="21" stroke="currentColor" strokeWidth="1.5" />
+      </svg>
+    ),
+    inFrontOfText: (
+      <svg width="28" height="24" viewBox="0 0 28 24" fill="none">
+        <line x1="2" y1="6" x2="26" y2="6" stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.4" />
+        <line x1="2" y1="11" x2="26" y2="11" stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.4" />
+        <line x1="2" y1="16" x2="26" y2="16" stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.4" />
+        <rect x="6" y="5" width="16" height="14" rx="1" fill="#2563eb" stroke="#1d4ed8" strokeWidth="1" />
+      </svg>
+    ),
+  };
+
+  const labels = {
+    inline: 'In Line',
+    left: 'Square Left',
+    right: 'Square Right',
+    behindText: 'Behind Text',
+    inFrontOfText: 'In Front of Text',
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={labels[mode] || mode}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 38,
+        height: 34,
+        padding: '3px 2px',
+        borderRadius: 4,
+        border: active ? '1.5px solid #2563eb' : '1px solid var(--border)',
+        background: active ? 'rgba(37,99,235,0.15)' : 'var(--bg-elevated)',
+        color: active ? '#2563eb' : 'var(--text-secondary)',
+        cursor: 'pointer',
+        transition: 'all 0.12s ease',
+      }}
+    >
+      {diagrams[mode] || mode}
+    </button>
+  );
+}
+
+export function PictureFormatTab({ mode = 'auto' }) {
+  const isRibbon = mode === 'ribbon';
   const { editor } = useEditorStore();
   const { toast } = useUIStore();
   const [imgWidth, setImgWidth] = useState(240);
   const [imgHeight, setImgHeight] = useState(180);
-  // Draft text for the width/height inputs — lets the user freely type/clear
-  // digits without every keystroke being committed to the actual image.
   const [draftWidth, setDraftWidth] = useState('240');
   const [draftHeight, setDraftHeight] = useState('180');
   const [borderColor, setBorderColor] = useState('#000000');
@@ -64,15 +145,36 @@ export function PictureFormatTab() {
   const [transparency, setTransparency] = useState(0);
   const [wrapMode, setWrapMode] = useState('inline');
 
+  // Live filter adjustments
+  const [brightness, setBrightness] = useState(100);
+  const [contrast, setContrast] = useState(100);
+  const [grayscale, setGrayscale] = useState(0);
+  const [blur, setBlur] = useState(0);
+
+  // Shape detection
+  const [isShape, setIsShape] = useState(false);
+  const [shapeInfo, setShapeInfo] = useState(null);
+  const [shapeDraftText, setShapeDraftText] = useState('');
+
   useEffect(() => {
     if (!editor) return;
     const updateFromSelection = () => {
       const attrs = editor.getAttributes('image') || {};
       const css = parseCssStyle(attrs.style || '');
-      
+
+      const isShapeDetected = isShapeSrc(attrs.src);
+      setIsShape(isShapeDetected);
+      if (isShapeDetected) {
+        const parsed = parseShapeInfo(attrs.src);
+        setShapeInfo(parsed);
+        setShapeDraftText(parsed.text || '');
+      } else {
+        setShapeInfo(null);
+      }
+
       const width = parseInt(String(attrs.width || css.width || '240'), 10) || 240;
       const height = parseInt(String(attrs.height || css.height || '180'), 10) || 180;
-      
+
       setImgWidth(width);
       setImgHeight(height);
       setDraftWidth(String(width));
@@ -81,9 +183,20 @@ export function PictureFormatTab() {
       setBorderThickness(String(parseInt(css.borderWidth, 10) || 1));
       setBorderStyle(css.borderStyle || 'solid');
       setCustomRotation(parseInt(String(attrs.rotate || css.transform?.match(/rotate\(([^)]+)\)/)?.[1] || 0), 10) || 0);
+
       const opacity = Number.parseFloat(css.opacity);
       setTransparency(Number.isFinite(opacity) ? Math.round((1 - Math.max(0, Math.min(1, opacity))) * 100) : 0);
-      
+
+      const filterVal = css.filter || '';
+      const bMatch = filterVal.match(/brightness\((\d+)%\)/);
+      const cMatch = filterVal.match(/contrast\((\d+)%\)/);
+      const gMatch = filterVal.match(/grayscale\((\d+)%\)/);
+      const blMatch = filterVal.match(/blur\((\d+)px\)/);
+      setBrightness(bMatch ? parseInt(bMatch[1], 10) : 100);
+      setContrast(cMatch ? parseInt(cMatch[1], 10) : 100);
+      setGrayscale(gMatch ? parseInt(gMatch[1], 10) : 0);
+      setBlur(blMatch ? parseInt(blMatch[1], 10) : 0);
+
       const img = getSelectedImageElement(editor);
       if (img) {
         const wrap = img.dataset.wrap || (css.float === 'left' ? 'left' : css.float === 'right' ? 'right' : 'inline');
@@ -140,30 +253,14 @@ export function PictureFormatTab() {
   };
 
   const cropImage = () => {
-    withSelectedImage((attrs, css) => {
+    withSelectedImage(() => {
       const img = getSelectedImageElement(editor);
-      if (!img) return;
-      
-      const rect = img.getBoundingClientRect();
-      const crop = window.confirm('Crop image to square aspect ratio? This will resize proportionally.');
-      if (!crop) return;
-      
-      const minDim = Math.round(Math.min(rect.width, rect.height));
-      const newWidth = minDim;
-      const newHeight = minDim;
-      
-      updateImageAttrs({ width: String(newWidth), height: String(newHeight) });
-      setImgWidth(newWidth);
-      setImgHeight(newHeight);
-      setDraftWidth(String(newWidth));
-      setDraftHeight(String(newHeight));
-      toast('Image cropped', 'success');
+      if (img) {
+        window.dispatchEvent(new CustomEvent('open-image-crop-modal', { detail: { img } }));
+      }
     });
   };
 
-  // Commits a width/height value to the actual image. Only called once the
-  // user has finished entering a value (blur / Enter) — never on every keystroke —
-  // so a temporarily empty or partial field never shrinks/hides the image.
   const resizeImage = (dimension, value) => {
     withSelectedImage(() => {
       const numValue = parseInt(value, 10) || 0;
@@ -178,12 +275,9 @@ export function PictureFormatTab() {
         setDraftHeight(String(clamped));
       }
       window.dispatchEvent(new CustomEvent('image-reposition-handles'));
-      toast(`Image ${dimension}: ${clamped}px`, 'success');
     });
   };
 
-  // Called on blur/Enter for the width input. If the field is empty or not a
-  // valid number, revert the displayed text without touching the image at all.
   const commitWidth = () => {
     const trimmed = draftWidth.trim();
     const parsed = parseInt(trimmed, 10);
@@ -194,7 +288,6 @@ export function PictureFormatTab() {
     resizeImage('width', trimmed);
   };
 
-  // Same as commitWidth, for the height input.
   const commitHeight = () => {
     const trimmed = draftHeight.trim();
     const parsed = parseInt(trimmed, 10);
@@ -235,6 +328,68 @@ export function PictureFormatTab() {
       setCustomRotation(normalized);
       toast(`Rotation: ${normalized}°`, 'success');
     });
+  };
+
+  // Live filter preview updates
+  const applyLiveFilter = (b, c, g, bl) => {
+    withSelectedImage(() => {
+      const parts = [];
+      if (b !== 100) parts.push(`brightness(${b}%)`);
+      if (c !== 100) parts.push(`contrast(${c}%)`);
+      if (g > 0) parts.push(`grayscale(${g}%)`);
+      if (bl > 0) parts.push(`blur(${bl}px)`);
+      const filterStr = parts.join(' ') || null;
+      updateImageAttrs({}, { filter: filterStr });
+    });
+  };
+
+  const handleBrightnessChange = (val) => {
+    const num = Number(val);
+    setBrightness(num);
+    applyLiveFilter(num, contrast, grayscale, blur);
+  };
+
+  const handleContrastChange = (val) => {
+    const num = Number(val);
+    setContrast(num);
+    applyLiveFilter(brightness, num, grayscale, blur);
+  };
+
+  const handleGrayscaleChange = (val) => {
+    const num = Number(val);
+    setGrayscale(num);
+    applyLiveFilter(brightness, contrast, num, blur);
+  };
+
+  const handleBlurChange = (val) => {
+    const num = Number(val);
+    setBlur(num);
+    applyLiveFilter(brightness, contrast, grayscale, num);
+  };
+
+  const resetFilters = () => {
+    setBrightness(100);
+    setContrast(100);
+    setGrayscale(0);
+    setBlur(0);
+    updateImageAttrs({}, { filter: null });
+    toast('Filters reset', 'success');
+  };
+
+  // Shape style update
+  const updateShapeProperty = (patch) => {
+    withSelectedImage((attrs) => {
+      if (!shapeInfo) return;
+      const nextInfo = { ...shapeInfo, ...patch };
+      setShapeInfo(nextInfo);
+      const newSrc = generateShapeDataUrl(nextInfo.shapeType, nextInfo);
+      editor.chain().focus().updateAttributes('image', { src: newSrc }).run();
+    });
+  };
+
+  const handleShapeTextChange = (text) => {
+    setShapeDraftText(text);
+    updateShapeProperty({ text });
   };
 
   const applyTransparency = (nextTransparency = transparency) => {
@@ -300,25 +455,22 @@ export function PictureFormatTab() {
   };
 
   const setWrap = (mode) => {
-    withSelectedImage((attrs, css) => {
-      if (!editor) return;
-      
-      if (!getSelectedImageElement(editor)) return;
-      
+    withSelectedImage(() => {
       setWrapMode(mode);
-      
       if (mode === 'inline') {
-        updateImageAttrs({ wrap: mode }, { float: null, display: 'block', margin: '12px auto' });
+        updateImageAttrs({ wrap: mode }, { float: null, display: 'block', margin: '12px auto', position: 'static' });
       } else if (mode === 'left') {
-        updateImageAttrs({ wrap: mode }, { float: 'left', margin: '8px 16px 8px 0' });
+        updateImageAttrs({ wrap: mode }, { float: 'left', margin: '8px 16px 8px 0', position: 'static' });
       } else if (mode === 'right') {
-        updateImageAttrs({ wrap: mode }, { float: 'right', margin: '8px 0 8px 16px' });
-      } else if (mode === 'topAndBottom' || mode === 'behindText') {
-        updateImageAttrs({ wrap: mode }, { display: 'block', margin: '24px auto', position: 'relative' });
+        updateImageAttrs({ wrap: mode }, { float: 'right', margin: '8px 0 8px 16px', position: 'static' });
+      } else if (mode === 'topAndBottom') {
+        updateImageAttrs({ wrap: mode }, { display: 'block', margin: '24px auto', float: null, position: 'static' });
+      } else if (mode === 'behindText') {
+        updateImageAttrs({ wrap: mode }, { position: 'relative', 'z-index': '0', opacity: '0.85' });
       } else if (mode === 'inFrontOfText') {
-        updateImageAttrs({ wrap: mode }, { position: 'absolute', margin: '12px auto' });
+        updateImageAttrs({ wrap: mode }, { position: 'relative', 'z-index': '10' });
       } else if (mode === 'through') {
-        updateImageAttrs({ wrap: mode }, { position: 'absolute', margin: '12px auto' });
+        updateImageAttrs({ wrap: mode }, { float: 'left', margin: '4px 8px' });
       }
       toast(`Wrap: ${mode}`, 'success');
     });
@@ -366,8 +518,12 @@ export function PictureFormatTab() {
       setCustomRotation(0);
       setTransparency(0);
       setWrapMode('inline');
+      setBrightness(100);
+      setContrast(100);
+      setGrayscale(0);
+      setBlur(0);
 
-      toast('Image formatting reset', 'success');
+      toast('Formatting reset', 'success');
     });
   };
 
@@ -410,19 +566,158 @@ export function PictureFormatTab() {
     background: 'var(--bg-elevated)',
     color: 'var(--text-primary)',
     border: '1px solid var(--border)',
-    borderRadius: 2,
+    borderRadius: 4,
     fontSize: 12,
     padding: 0,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
   };
 
-  const controlSections = useMemo(() => [
-    {
-      title: 'Adjust',
+  const controlSections = useMemo(() => {
+    const sections = [];
+
+    if (isShape && shapeInfo) {
+      sections.push({
+        title: 'Shape Styling & Presets',
+        content: (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+            <span style={miniLabel}>Presets</span>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
+              {SHAPE_PRESETS.map((p) => (
+                <button
+                  key={p.name}
+                  type="button"
+                  onClick={() => updateShapeProperty({
+                    fill: p.fill,
+                    stroke: p.stroke,
+                    strokeWidth: p.strokeWidth,
+                    textColor: p.textColor,
+                  })}
+                  style={{
+                    padding: '4px 6px',
+                    borderRadius: 4,
+                    fontSize: 11,
+                    background: p.fill === 'none' ? 'transparent' : p.fill,
+                    color: p.textColor,
+                    border: `1px solid ${p.stroke}`,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    textOverflow: 'ellipsis',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {p.name}
+                </button>
+              ))}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, alignItems: 'center' }}>
+              <div>
+                <span style={miniLabel}>Fill Color</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                  <input
+                    type="color"
+                    value={shapeInfo.fill === 'none' ? '#ffffff' : shapeInfo.fill}
+                    onChange={(e) => updateShapeProperty({ fill: e.target.value })}
+                    style={{ width: 24, height: 24, border: 'none', borderRadius: 4, cursor: 'pointer', padding: 0 }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => updateShapeProperty({ fill: shapeInfo.fill === 'none' ? '#2563eb' : 'none' })}
+                    style={{
+                      fontSize: 10,
+                      padding: '2px 6px',
+                      borderRadius: 4,
+                      border: '1px solid var(--border)',
+                      background: shapeInfo.fill === 'none' ? '#2563eb' : 'var(--bg-surface)',
+                      color: shapeInfo.fill === 'none' ? '#fff' : 'var(--text-primary)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {shapeInfo.fill === 'none' ? 'No Fill ✓' : 'No Fill'}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <span style={miniLabel}>Outline Color</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                  <input
+                    type="color"
+                    value={shapeInfo.stroke}
+                    onChange={(e) => updateShapeProperty({ stroke: e.target.value })}
+                    style={{ width: 24, height: 24, border: 'none', borderRadius: 4, cursor: 'pointer', padding: 0 }}
+                  />
+                  <select
+                    value={shapeInfo.strokeWidth}
+                    onChange={(e) => updateShapeProperty({ strokeWidth: Number(e.target.value) })}
+                    style={{ ...numberInputStyle, width: 50, height: 24, padding: '0 4px', fontSize: 11 }}
+                  >
+                    {[1, 2, 3, 4, 6, 8].map((w) => (
+                      <option key={w} value={w}>{w}px</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={miniLabel}>Text inside Shape</span>
+              <input
+                type="text"
+                value={shapeDraftText}
+                onChange={(e) => handleShapeTextChange(e.target.value)}
+                placeholder="Type text in shape..."
+                style={numberInputStyle}
+              />
+            </div>
+          </div>
+        ),
+      });
+    }
+
+    sections.push({
+      title: 'Size & Crop',
       content: (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-            <Tooltip text="Crop"><Button style={toolBtn} onClick={cropImage}>✂</Button></Tooltip>
-            <Tooltip text="Reset Picture Formatting"><Button style={{ ...toolBtn, width: 80 }} onClick={resetFormatting}>Reset</Button></Tooltip>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {!isShape && (
+              <button
+                type="button"
+                onClick={cropImage}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: '4px 10px',
+                  borderRadius: 4,
+                  fontSize: 12,
+                  border: '1px solid var(--border)',
+                  background: 'var(--bg-surface)',
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                }}
+              >
+                <Crop size={14} style={{ marginRight: 4 }} /> Crop Image
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={resetFormatting}
+              style={{
+                padding: '4px 10px',
+                borderRadius: 4,
+                fontSize: 12,
+                border: '1px solid var(--border)',
+                background: 'var(--bg-surface)',
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+              }}
+            >
+              Reset
+            </button>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -460,66 +755,155 @@ export function PictureFormatTab() {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 6, alignItems: 'end' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <span style={miniLabel}>Custom Rotate</span>
+              <span style={miniLabel}>Rotation</span>
               <input
                 type="number"
                 value={customRotation}
-                onChange={(e) => setCustomRotation(parseInt(e.target.value) || 0)}
+                onChange={(e) => setCustomRotation(parseInt(e.target.value, 10) || 0)}
                 style={numberInputStyle}
                 min={-360}
                 max={360}
               />
             </div>
-            <Button style={{ ...toolBtn, width: 30, height: 26 }} onClick={applyCustomRotation}>°</Button>
+            <Button style={{ ...toolBtn, width: 30, height: 26 }} onClick={applyCustomRotation}>Apply</Button>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-            <Tooltip text="Rotate Left"><Button style={toolBtn} onClick={rotateLeft}>↷</Button></Tooltip>
-            <Tooltip text="Rotate Right"><Button style={toolBtn} onClick={rotateRight}>↻</Button></Tooltip>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Tooltip text="Rotate 90° Left"><Button style={toolBtn} onClick={rotateLeft}>↷</Button></Tooltip>
+            <Tooltip text="Rotate 90° Right"><Button style={toolBtn} onClick={rotateRight}>↻</Button></Tooltip>
           </div>
         </div>
       ),
-    },
-    {
-      title: 'Picture Effects',
-      content: (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-            <Tooltip text="Shadow"><Button style={toolBtn} onClick={addShadow}>⬤</Button></Tooltip>
-            <Tooltip text="Glow"><Button style={toolBtn} onClick={addGlow}>✨</Button></Tooltip>
-            <Tooltip text="Reflection"><Button style={toolBtn} onClick={addReflection}>〰</Button></Tooltip>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={miniLabel}>Transparency</span>
-              <Select
-                value={String(transparency)}
-                onChange={(v) => applyTransparency(v)}
-                options={TRANSPARENCY_OPTIONS}
-                width={78}
-                title="Transparency"
+    });
+
+    if (!isShape) {
+      sections.push({
+        title: 'Adjustments (Live Preview)',
+        content: (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 2 }}>
+                <span style={miniLabel}>Brightness</span>
+                <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{brightness}%</span>
+              </div>
+              <input
+                type="range"
+                min="50"
+                max="180"
+                value={brightness}
+                onChange={(e) => handleBrightnessChange(e.target.value)}
+                style={{ width: '100%', height: 4, cursor: 'pointer' }}
               />
             </div>
+
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 2 }}>
+                <span style={miniLabel}>Contrast</span>
+                <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{contrast}%</span>
+              </div>
+              <input
+                type="range"
+                min="50"
+                max="200"
+                value={contrast}
+                onChange={(e) => handleContrastChange(e.target.value)}
+                style={{ width: '100%', height: 4, cursor: 'pointer' }}
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 2 }}>
+                  <span style={miniLabel}>Grayscale</span>
+                  <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{grayscale}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={grayscale}
+                  onChange={(e) => handleGrayscaleChange(e.target.value)}
+                  style={{ width: '100%', height: 4, cursor: 'pointer' }}
+                />
+              </div>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 2 }}>
+                  <span style={miniLabel}>Blur</span>
+                  <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{blur}px</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="10"
+                  value={blur}
+                  onChange={(e) => handleBlurChange(e.target.value)}
+                  style={{ width: '100%', height: 4, cursor: 'pointer' }}
+                />
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={resetFilters}
+              style={{
+                marginTop: 2,
+                padding: '3px 8px',
+                fontSize: 10,
+                borderRadius: 4,
+                border: '1px solid var(--border)',
+                background: 'transparent',
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+                alignSelf: 'flex-start',
+              }}
+            >
+              Reset Adjustments
+            </button>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <span style={miniLabel}>Border</span>
-            <Select
-              value={borderThickness}
-              onChange={setBorderThickness}
-              options={[1, 2, 3, 4, 5].map(v => ({ value: String(v), label: `${v}px` }))}
-              width={60}
-              title="Border thickness"
-              style={{ fontSize: 12 }}
-            />
-            <Select
-              value={borderStyle}
-              onChange={setBorderStyle}
-              options={BORDER_STYLES}
-              width={82}
-              title="Border style"
-              style={{ fontSize: 12 }}
-            />
-            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+        ),
+      });
+
+      sections.push({
+        title: 'Picture Effects & Border',
+        content: (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <Tooltip text="Shadow"><Button style={toolBtn} onClick={addShadow}><BoxSelect size={14} /></Button></Tooltip>
+              <Tooltip text="Glow"><Button style={toolBtn} onClick={addGlow}><Sparkles size={14} /></Button></Tooltip>
+              <Tooltip text="Reflection"><Button style={toolBtn} onClick={addReflection}><Waves size={14} /></Button></Tooltip>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={miniLabel}>Opacity</span>
+                <Select
+                  value={String(transparency)}
+                  onChange={(v) => applyTransparency(v)}
+                  options={TRANSPARENCY_OPTIONS}
+                  width={68}
+                  title="Transparency"
+                />
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <span style={miniLabel}>Border</span>
+              <Select
+                value={borderThickness}
+                onChange={setBorderThickness}
+                options={[1, 2, 3, 4, 5].map(v => ({ value: String(v), label: `${v}px` }))}
+                width={56}
+                title="Thickness"
+              />
+              <Select
+                value={borderStyle}
+                onChange={setBorderStyle}
+                options={BORDER_STYLES}
+                width={78}
+                title="Style"
+              />
+              <Button style={{ ...toolBtn, width: 48 }} onClick={applyBorder}>Apply</Button>
+            </div>
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
               {BG_COLORS.map((c) => (
                 <button
                   key={c}
+                  type="button"
                   onClick={() => { setBorderColor(c); applyBorder(c, borderThickness, borderStyle); }}
                   style={{
                     width: 16,
@@ -534,93 +918,99 @@ export function PictureFormatTab() {
                 />
               ))}
             </div>
-            <Button style={{ ...toolBtn, width: 60 }} onClick={applyBorder}>Apply</Button>
           </div>
-        </div>
-      ),
-    },
-    {
-      title: 'Layout',
+        ),
+      });
+    }
+
+    sections.push({
+      title: 'Text Wrapping & Layout',
       content: (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+          <div>
+            <span style={miniLabel}>Wrap Mode (Visual)</span>
+            <div style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap' }}>
+              {['inline', 'left', 'right', 'behindText', 'inFrontOfText'].map((mode) => (
+                <WrapModeDiagram
+                  key={mode}
+                  mode={mode}
+                  active={wrapMode === mode}
+                  onClick={() => setWrap(mode)}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={miniLabel}>Align</span>
             <Tooltip text="Align Left"><Button style={toolBtn} onClick={() => alignImage('left')}>⇤</Button></Tooltip>
             <Tooltip text="Align Center"><Button style={toolBtn} onClick={() => alignImage('center')}>⟨⟩</Button></Tooltip>
             <Tooltip text="Align Right"><Button style={toolBtn} onClick={() => alignImage('right')}>⇥</Button></Tooltip>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-            <span style={miniLabel}>Wrap Text</span>
-            <Select
-              value={wrapMode}
-              onChange={setWrap}
-              options={WRAP_MODES}
-              width={136}
-              title="Text wrapping"
-            />
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-            <span style={miniLabel}>Arrange</span>
-            <Tooltip text="Bring Forward"><Button style={toolBtn} onClick={bringForward}>↑</Button></Tooltip>
-            <Tooltip text="Send Backward"><Button style={toolBtn} onClick={sendBackward}>↓</Button></Tooltip>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={miniLabel}>Z-Order</span>
+            <Tooltip text="Bring Forward"><Button style={{ ...toolBtn, width: 'auto', padding: '0 8px' }} onClick={bringForward}>↑ Forward</Button></Tooltip>
+            <Tooltip text="Send Backward"><Button style={{ ...toolBtn, width: 'auto', padding: '0 8px' }} onClick={sendBackward}>↓ Backward</Button></Tooltip>
           </div>
         </div>
       ),
-    },
-  ], [
-    addGlow,
-    addReflection,
-    addShadow,
-    alignImage,
-    applyBorder,
-    applyCustomRotation,
-    applyTransparency,
-    borderStyle,
-    borderThickness,
-    commitHeight,
-    commitWidth,
-    cropImage,
-    customRotation,
-    draftHeight,
+    });
+
+    return sections;
+  }, [
+    isShape,
+    shapeInfo,
+    shapeDraftText,
     draftWidth,
-    imgHeight,
+    draftHeight,
     imgWidth,
-    resetFormatting,
-    rotateLeft,
-    rotateRight,
-    sendBackward,
-    setBorderColor,
-    setBorderStyle,
-    setBorderThickness,
-    setCustomRotation,
-    setImgHeight,
-    setImgWidth,
-    setTransparency,
-    setWrap,
+    imgHeight,
+    customRotation,
+    brightness,
+    contrast,
+    grayscale,
+    blur,
     transparency,
+    borderThickness,
+    borderStyle,
+    borderColor,
     wrapMode,
   ]);
 
   return (
-    <>
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 8,
-          minWidth: 0,
-          width: '100%',
-        }}
-      >
-        {controlSections.map((section) => (
-          <div key={section.title} style={{ ...sectionShell, width: '100%', boxSizing: 'border-box' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
-              <span style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-ui)', textTransform: 'uppercase', letterSpacing: '.08em' }}>{section.title}</span>
-            </div>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: isRibbon ? 'row' : 'column',
+        alignItems: isRibbon ? 'stretch' : 'normal',
+        gap: 8,
+        minWidth: 0,
+        height: isRibbon ? '100%' : 'auto',
+        width: isRibbon ? 'max-content' : '100%',
+      }}
+    >
+      {controlSections.map((section) => (
+        <div
+          key={section.title}
+          style={{
+            ...sectionShell,
+            width: isRibbon ? 'auto' : '100%',
+            height: isRibbon ? '100%' : 'auto',
+            boxSizing: 'border-box',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: isRibbon ? 'space-between' : 'flex-start',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
+            <span style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-ui)', textTransform: 'uppercase', letterSpacing: '.08em', fontWeight: 600 }}>{section.title}</span>
+          </div>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
             {section.content}
           </div>
-        ))}
-      </div>
-    </>
+        </div>
+      ))}
+    </div>
   );
 }

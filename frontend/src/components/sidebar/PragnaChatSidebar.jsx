@@ -1,4 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
+import {
+  Sparkles, Sliders, Globe, Trash2, X, FileText, Settings,
+  AlertTriangle, Paperclip, Image as ImageIcon, Link as LinkIcon, ArrowUp
+} from 'lucide-react';
 import { useUIStore, useEditorStore, useDocumentStore } from '@/store';
 import { markdownToHtml } from '@/services/ai';
 import { aiApi, uploadApi } from '@/services/api';
@@ -676,7 +680,7 @@ Ask me anything or attach files below.`,
           e.currentTarget.style.borderColor = 'var(--border)';
         }}
       >
-        <span style={{ fontSize: 13, color: 'var(--gold)' }}>✦</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', color: 'var(--gold)' }}><Sparkles size={13} strokeWidth={2} /></span>
         <span style={{ writingMode: 'vertical-rl', fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', color: 'var(--text-secondary)' }}>
           PRAGNA
         </span>
@@ -736,7 +740,7 @@ Ask me anything or attach files below.`,
             pointerEvents: 'none',
           }}
         >
-          <span style={{ fontSize: 18, color: 'var(--gold)' }}>✦</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', color: 'var(--gold)' }}><Sparkles size={20} strokeWidth={2} /></span>
           <span style={{ fontSize: 13, fontWeight: 600 }}>Drop files to attach</span>
           <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
             Images, documents, or data sheets
@@ -744,7 +748,7 @@ Ask me anything or attach files below.`,
         </div>
       )}
 
-      {/* Header Bar */}
+      {/* Modern Compact Header Bar */}
       <div
         style={{
           display: 'flex',
@@ -753,20 +757,52 @@ Ask me anything or attach files below.`,
           padding: '0 12px',
           borderBottom: '1px solid var(--border)',
           background: 'var(--bg-surface)',
-          height: 42,
+          height: 44,
           boxSizing: 'border-box',
+          flexShrink: 0,
         }}
       >
         {/* Brand & Tab Toggle */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 13, color: 'var(--gold)', lineHeight: 1 }}>✦</span>
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '0.02em' }}>
-              Pragna
-            </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+            <div
+              style={{
+                width: 22,
+                height: 22,
+                borderRadius: 5,
+                background: 'linear-gradient(135deg, rgba(212,175,55,0.25) 0%, rgba(212,175,55,0.06) 100%)',
+                border: '1px solid rgba(212,175,55,0.4)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--gold)',
+                fontSize: 12,
+                fontWeight: 700,
+                boxShadow: '0 1px 4px rgba(212,175,55,0.12)',
+              }}
+            >
+              <Sparkles size={12} strokeWidth={2} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '0.01em', lineHeight: 1.1 }}>
+                Pragna
+              </span>
+              <span style={{ fontSize: 9, color: 'var(--text-muted)', lineHeight: 1 }}>
+                AI Copilot
+              </span>
+            </div>
           </div>
 
-          <div style={{ display: 'flex', background: 'var(--bg-elevated)', borderRadius: 4, padding: 2, border: '1px solid var(--border)' }}>
+          {/* Segmented Control: Chat vs Directives */}
+          <div
+            style={{
+              display: 'flex',
+              background: 'var(--bg-elevated)',
+              borderRadius: 5,
+              padding: 2,
+              border: '1px solid var(--border)',
+            }}
+          >
             <button
               onClick={() => setActiveSidebarTab('chat')}
               style={{
@@ -778,6 +814,7 @@ Ask me anything or attach files below.`,
                 fontSize: 10,
                 fontWeight: 600,
                 cursor: 'pointer',
+                transition: 'all 0.12s ease',
               }}
             >
               Chat
@@ -796,27 +833,28 @@ Ask me anything or attach files below.`,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 3,
+                transition: 'all 0.12s ease',
               }}
             >
-              <span>🎭</span> Persona
+              <Sliders size={11} strokeWidth={1.75} /> Directives
             </button>
           </div>
         </div>
 
-        {/* Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        {/* Header Right Controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           {/* Web Search Toggle */}
           <button
             onClick={() => setWebSearchEnabled(!webSearchEnabled)}
-            title={`Web Grounding: ${webSearchEnabled ? 'ON' : 'OFF'}`}
+            title={`Web Grounding: ${webSearchEnabled ? 'Enabled (searches web)' : 'Disabled'}`}
             style={{
-              background: webSearchEnabled ? 'var(--gold)' : 'var(--bg-elevated)',
-              color: webSearchEnabled ? 'var(--text-on-gold)' : 'var(--text-secondary)',
-              border: `1px solid ${webSearchEnabled ? 'var(--gold)' : 'var(--border)'}`,
+              background: webSearchEnabled ? 'rgba(212, 175, 55, 0.15)' : 'var(--bg-elevated)',
+              color: webSearchEnabled ? 'var(--gold)' : 'var(--text-secondary)',
+              border: `1px solid ${webSearchEnabled ? 'rgba(212, 175, 55, 0.45)' : 'var(--border)'}`,
               borderRadius: 4,
-              padding: '3px 8px',
+              padding: '3px 7px',
               fontSize: 10,
-              fontWeight: 600,
+              fontWeight: 500,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -824,39 +862,53 @@ Ask me anything or attach files below.`,
               transition: 'all 0.12s ease',
             }}
           >
-            <span style={{ opacity: 0.8 }}>Web</span>
-            <span style={{ fontSize: 9, opacity: 0.9 }}>{webSearchEnabled ? 'ON' : 'OFF'}</span>
+            <Globe size={11} strokeWidth={1.75} />
+            <span>Web</span>
+            <span
+              style={{
+                width: 5,
+                height: 5,
+                borderRadius: '50%',
+                background: webSearchEnabled ? 'var(--gold)' : 'var(--text-muted)',
+                display: 'inline-block',
+              }}
+            />
           </button>
 
-          {/* Clear */}
+          {/* Clear History */}
           <button
             onClick={handleClearChat}
-            title="Clear Chat History"
+            title="Clear Chat Conversation"
             style={{
               background: 'transparent',
               color: 'var(--text-muted)',
               border: 'none',
-              padding: '4px 6px',
-              fontSize: 11,
+              width: 26,
+              height: 26,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 12,
               cursor: 'pointer',
               borderRadius: 4,
-              transition: 'color 0.12s ease',
+              transition: 'all 0.12s ease',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.background = 'var(--bg-hover)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'transparent'; }}
           >
-            Clear
+            <Trash2 size={13} strokeWidth={1.75} />
           </button>
 
-          {/* Close */}
+          {/* Close Panel */}
           <button
             onClick={toggleCopilot}
-            title="Close Panel"
+            title="Close Pragna Copilot"
             style={{
               background: 'transparent',
               color: 'var(--text-muted)',
               border: 'none',
-              padding: '4px 6px',
+              width: 26,
+              height: 26,
               fontSize: 13,
               cursor: 'pointer',
               borderRadius: 4,
@@ -864,48 +916,84 @@ Ask me anything or attach files below.`,
               alignItems: 'center',
               justifyContent: 'center',
               lineHeight: 1,
+              transition: 'all 0.12s ease',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.background = 'var(--bg-hover)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'transparent'; }}
           >
-            ✕
+            <X size={14} strokeWidth={1.75} />
           </button>
         </div>
       </div>
 
-      {/* Context Badge */}
+      {/* Slim Context & Directives Status Strip (Single 27px row) */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '6px 12px',
-          background: 'var(--bg-elevated)',
+          padding: '3px 12px',
+          background: 'var(--bg-app)',
           borderBottom: '1px solid var(--border)',
-          fontSize: 11,
-          color: 'var(--text-muted)',
+          fontSize: 10,
+          minHeight: 27,
           boxSizing: 'border-box',
+          flexShrink: 0,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          <span style={{ fontSize: 9, color: 'var(--gold)', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-            Context
-          </span>
-          <span style={{ color: 'var(--text-secondary)' }}>
-            {hasSelection ? `Selection (${wordCount} words)` : `Document (${wordCount} words)`}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              background: hasSelection ? 'rgba(212, 175, 55, 0.12)' : 'var(--bg-elevated)',
+              border: `1px solid ${hasSelection ? 'rgba(212, 175, 55, 0.35)' : 'var(--border)'}`,
+              color: hasSelection ? 'var(--gold)' : 'var(--text-secondary)',
+              borderRadius: 10,
+              padding: '1px 7px',
+              fontSize: 9.5,
+              fontWeight: 500,
+            }}
+          >
+            <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+              {hasSelection ? <Sparkles size={9} /> : <FileText size={9} />}
+            </span>
+            <span>{hasSelection ? `Selection (${wordCount}w)` : `Document (${wordCount}w)`}</span>
           </span>
         </div>
 
-        <span style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          {scope === 'selection' ? 'Focused' : 'Active'}
-        </span>
+        <button
+          onClick={() => setActiveSidebarTab(activeSidebarTab === 'persona' ? 'chat' : 'persona')}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: 'var(--text-muted)',
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+            fontSize: 10,
+            padding: '2px 4px',
+            borderRadius: 3,
+            transition: 'color 0.12s ease',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--gold)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; }}
+          title="Configure Persona Directives"
+        >
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+            <Sliders size={10} /> {personaTone}
+          </span>
+          <Settings size={10} style={{ opacity: 0.7 }} />
+        </button>
       </div>
 
       {activeSidebarTab === 'persona' ? (
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
             <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gold)', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span>🎭</span> Document AI Persona & Directives
+              <Sliders size={14} /> Document AI Persona & Directives
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
               Configure persistent tone, audience, instructions, and vocabulary enforced by Pragna for this document.
@@ -1098,28 +1186,7 @@ Ask me anything or attach files below.`,
         </div>
       ) : (
         <>
-          {/* Persona Indicator Banner */}
-          <div
-            onClick={() => setActiveSidebarTab('persona')}
-            style={{
-              padding: '5px 12px',
-              background: 'rgba(212,175,55,0.07)',
-              borderBottom: '1px solid var(--border)',
-              fontSize: 10,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              cursor: 'pointer',
-            }}
-            title="Click to customize AI Persona"
-          >
-            <span style={{ color: 'var(--text-gold)', fontWeight: 600 }}>
-              🎭 Active Persona: {personaTone} • {personaAudience}
-            </span>
-            <span style={{ color: 'var(--text-muted)', fontSize: 9 }}>Configure ⚙</span>
-          </div>
-
-      {/* Messages Feed */}
+          {/* Messages Feed */}
       <div
         style={{
           flex: 1,
@@ -1159,14 +1226,15 @@ Ask me anything or attach files below.`,
               <div
                 style={{
                   maxWidth: '92%',
-                  padding: '10px 12px',
-                  borderRadius: 6,
-                  background: isUser ? 'rgba(201, 168, 76, 0.12)' : 'var(--bg-elevated)',
-                  border: `1px solid ${isUser ? 'var(--gold-border)' : 'var(--border)'}`,
+                  padding: '9px 12px',
+                  borderRadius: isUser ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
+                  background: isUser ? 'rgba(212, 175, 55, 0.12)' : 'var(--bg-elevated)',
+                  border: `1px solid ${isUser ? 'rgba(212, 175, 55, 0.35)' : 'var(--border)'}`,
                   color: 'var(--text-primary)',
                   fontSize: 12,
                   lineHeight: 1.55,
                   wordBreak: 'break-word',
+                  boxShadow: isUser ? 'none' : '0 1px 3px rgba(0,0,0,0.06)',
                 }}
               >
                 {/* Text Content */}
@@ -1337,25 +1405,28 @@ Ask me anything or attach files below.`,
 
               {/* Action Buttons */}
               {!isUser && msg.id !== 'welcome' && !msg.isError && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4, paddingLeft: 2 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 5, paddingLeft: 2 }}>
                   <button
                     onClick={() => handleReplaceInDoc(msg)}
-                    title="Apply/Replace directly in document"
+                    title="Replace in document"
                     style={{
-                      background: 'var(--gold)',
-                      color: 'var(--text-on-gold)',
-                      border: '1px solid var(--gold-border)',
+                      background: 'rgba(212, 175, 55, 0.15)',
+                      color: 'var(--gold)',
+                      border: '1px solid rgba(212, 175, 55, 0.35)',
                       borderRadius: 4,
                       padding: '2px 8px',
                       fontSize: 10,
                       fontWeight: 600,
                       cursor: 'pointer',
-                      display: 'flex',
+                      display: 'inline-flex',
                       alignItems: 'center',
-                      gap: 4,
+                      gap: 3,
+                      transition: 'all 0.12s ease',
                     }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--gold)'; e.currentTarget.style.color = 'var(--text-on-gold)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(212, 175, 55, 0.15)'; e.currentTarget.style.color = 'var(--gold)'; }}
                   >
-                    Replace
+                    <span>⇄</span> Replace
                   </button>
 
                   <button
@@ -1368,10 +1439,17 @@ Ask me anything or attach files below.`,
                       borderRadius: 4,
                       padding: '2px 8px',
                       fontSize: 10,
+                      fontWeight: 500,
                       cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 3,
+                      transition: 'all 0.12s ease',
                     }}
+                    onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.borderColor = 'rgba(212,175,55,0.4)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
                   >
-                    Insert
+                    <span>+</span> Insert
                   </button>
 
                   <button
@@ -1385,7 +1463,10 @@ Ask me anything or attach files below.`,
                       padding: '2px 6px',
                       fontSize: 10,
                       cursor: 'pointer',
+                      transition: 'all 0.12s ease',
                     }}
+                    onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; }}
                   >
                     Copy
                   </button>
@@ -1397,7 +1478,7 @@ Ask me anything or attach files below.`,
 
         {loading && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 6px', color: 'var(--gold)', fontSize: 11 }}>
-            <span style={{ fontSize: 12 }}>✦</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center' }}><Sparkles size={12} strokeWidth={2} /></span>
             <span>Pragna is generating...</span>
           </div>
         )}
@@ -1405,16 +1486,17 @@ Ask me anything or attach files below.`,
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Quick Prompt Chips */}
+      {/* Quick Suggestion Chips (Clean Pill Scroll) */}
       <div
         style={{
           display: 'flex',
           gap: 5,
           overflowX: 'auto',
-          padding: '6px 10px',
-          background: 'var(--bg-surface)',
+          padding: '6px 12px',
+          background: 'transparent',
           borderTop: '1px solid var(--border)',
           whiteSpace: 'nowrap',
+          flexShrink: 0,
         }}
       >
         {QUICK_PROMPTS.map((qp, idx) => (
@@ -1426,17 +1508,18 @@ Ask me anything or attach files below.`,
               background: 'var(--bg-elevated)',
               color: 'var(--text-secondary)',
               border: '1px solid var(--border)',
-              borderRadius: 4,
-              padding: '3px 8px',
-              fontSize: 10,
+              borderRadius: 12,
+              padding: '3px 9px',
+              fontSize: 10.5,
               fontWeight: 500,
               cursor: loading ? 'not-allowed' : 'pointer',
               opacity: loading ? 0.6 : 1,
               transition: 'all 0.12s ease',
+              flexShrink: 0,
             }}
             onMouseEnter={(e) => {
               if (!loading) {
-                e.currentTarget.style.borderColor = 'var(--gold-border)';
+                e.currentTarget.style.borderColor = 'rgba(212,175,55,0.45)';
                 e.currentTarget.style.color = 'var(--text-primary)';
               }
             }}
@@ -1452,383 +1535,372 @@ Ask me anything or attach files below.`,
         ))}
       </div>
 
-      {/* Pending Attachments List */}
-      {attachments.length > 0 && (
+      {/* AI Not Configured Alert */}
+      {!aiConfigured && (
         <div
           style={{
-            display: 'flex',
-            gap: 6,
-            overflowX: 'auto',
+            margin: '0 12px 6px',
             padding: '6px 10px',
-            background: 'var(--bg-elevated)',
-            borderTop: '1px solid var(--border)',
+            background: 'rgba(212, 175, 55, 0.1)',
+            border: '1px solid rgba(212, 175, 55, 0.3)',
+            borderRadius: 6,
+            color: 'var(--gold)',
+            fontSize: 10.5,
+            display: 'flex',
             alignItems: 'center',
+            gap: 6,
           }}
         >
-          {attachments.map((att) => {
-            const isImg = att.type === 'image';
-            return (
-              <div
-                key={att.id}
+          <AlertTriangle size={14} />
+          <span><strong>AI assistant not configured.</strong> Check backend .env</span>
+        </div>
+      )}
+
+      {/* Unified Modern Input Card */}
+      <div
+        style={{
+          padding: '6px 12px 12px',
+          background: 'var(--bg-surface)',
+          flexShrink: 0,
+        }}
+      >
+        <div
+          style={{
+            background: 'var(--bg-elevated)',
+            border: '1px solid var(--border)',
+            borderRadius: 8,
+            padding: '8px 10px 6px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+            transition: 'border-color 0.15s ease',
+          }}
+          onFocusCapture={(e) => { e.currentTarget.style.borderColor = 'var(--gold)'; }}
+          onBlurCapture={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; }}
+        >
+          {/* Pending Attachments inside Input Card */}
+          {attachments.length > 0 && (
+            <div
+              style={{
+                display: 'flex',
+                gap: 6,
+                overflowX: 'auto',
+                paddingBottom: 6,
+                borderBottom: '1px solid var(--border)',
+                alignItems: 'center',
+              }}
+            >
+              {attachments.map((att) => {
+                const isImg = att.type === 'image';
+                return (
+                  <div
+                    key={att.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 5,
+                      background: 'var(--bg-surface)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 4,
+                      padding: '3px 6px',
+                      fontSize: 10,
+                      flexShrink: 0,
+                      maxWidth: 220,
+                    }}
+                  >
+                    {isImg ? (
+                      <img
+                        src={att.previewUrl}
+                        alt={att.name}
+                        style={{ width: 22, height: 22, objectFit: 'cover', borderRadius: 3, border: '1px solid var(--border)' }}
+                      />
+                    ) : (
+                      <span style={{ fontSize: 8.5, fontWeight: 700, padding: '1px 4px', borderRadius: 2, background: 'var(--bg-elevated)', color: 'var(--gold)' }}>
+                        {getFileBadge(att.name, att.type)}
+                      </span>
+                    )}
+
+                    <span style={{ fontWeight: 500, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: 100 }}>
+                      {att.name}
+                    </span>
+
+                    <button
+                      onClick={() => setAttachments((prev) => prev.filter((a) => a.id !== att.id))}
+                      title="Remove attachment"
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer',
+                        padding: '1px 3px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        lineHeight: 1,
+                      }}
+                    >
+                      <X size={11} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Web URL Input Bar inside Card */}
+          {showUrlInput && (
+            <div
+              style={{
+                padding: '3px 0 6px',
+                borderBottom: '1px solid var(--border)',
+                display: 'flex',
+                gap: 5,
+                alignItems: 'center',
+              }}
+            >
+              <input
+                type="text"
+                value={imageUrlValue}
+                onChange={(e) => setImageUrlValue(e.target.value)}
+                placeholder="https://example.com/image.png"
+                autoFocus
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  background: 'var(--bg-surface)',
-                  border: '1px solid var(--border)',
+                  flex: 1,
+                  padding: '4px 7px',
+                  fontSize: 11,
                   borderRadius: 4,
-                  padding: '4px 6px',
+                  border: '1px solid var(--border)',
+                  background: 'var(--bg-surface)',
+                  color: 'var(--text-primary)',
+                  outline: 'none',
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleInsertUrlImage();
+                  }
+                }}
+              />
+              <button
+                onClick={handleInsertUrlImage}
+                disabled={!imageUrlValue.trim()}
+                title="Insert image directly into document"
+                style={{
+                  background: 'var(--gold)',
+                  color: 'var(--text-on-gold)',
+                  border: 'none',
+                  borderRadius: 3,
+                  padding: '3px 7px',
                   fontSize: 10,
-                  flexShrink: 0,
-                  maxWidth: 240,
+                  fontWeight: 600,
+                  cursor: imageUrlValue.trim() ? 'pointer' : 'not-allowed',
+                  opacity: imageUrlValue.trim() ? 1 : 0.6,
                 }}
               >
-                {isImg ? (
-                  <img
-                    src={att.previewUrl}
-                    alt={att.name}
-                    style={{ width: 26, height: 26, objectFit: 'cover', borderRadius: 3, border: '1px solid var(--border)' }}
-                  />
-                ) : (
-                  <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 4px', borderRadius: 2, background: 'var(--bg-elevated)', color: 'var(--gold)' }}>
-                    {getFileBadge(att.name, att.type)}
-                  </span>
-                )}
+                Insert
+              </button>
+              <button
+                onClick={handleAttachUrlImage}
+                disabled={!imageUrlValue.trim()}
+                title="Attach image to chat prompt"
+                style={{
+                  background: 'var(--bg-surface)',
+                  color: 'var(--text-secondary)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 3,
+                  padding: '3px 7px',
+                  fontSize: 10,
+                  cursor: imageUrlValue.trim() ? 'pointer' : 'not-allowed',
+                  opacity: imageUrlValue.trim() ? 1 : 0.6,
+                }}
+              >
+                Attach
+              </button>
+              <button
+                onClick={() => {
+                  setShowUrlInput(false);
+                  setImageUrlValue('');
+                }}
+                style={{
+                  background: 'transparent',
+                  color: 'var(--text-muted)',
+                  border: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  cursor: 'pointer',
+                  padding: '2px 4px',
+                }}
+              >
+                <X size={12} />
+              </button>
+            </div>
+          )}
 
-                <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                  <span style={{ fontWeight: 500, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: 95 }}>
-                    {att.name}
-                  </span>
-                  <span style={{ fontSize: 8, color: 'var(--text-muted)' }}>
-                    {formatBytes(att.size)}
-                  </span>
-                </div>
-
-                {/* Quick Insert into Document button */}
-                <button
-                  onClick={() => (isImg ? handleInsertImage(att.uploadedUrl || att.previewUrl, att.name) : handleInsertFile(att))}
-                  title="Insert directly into document"
-                  style={{
-                    background: 'var(--gold)',
-                    color: 'var(--text-on-gold)',
-                    border: 'none',
-                    borderRadius: 3,
-                    padding: '2px 6px',
-                    fontSize: 9,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  Insert
-                </button>
-
-                {/* Remove attachment */}
-                <button
-                  onClick={() => setAttachments((prev) => prev.filter((a) => a.id !== att.id))}
-                  title="Remove attachment"
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: 'var(--text-muted)',
-                    cursor: 'pointer',
-                    padding: '1px 3px',
-                    fontSize: 11,
-                    lineHeight: 1,
-                  }}
-                >
-                  ✕
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Attachment & Action Toolbar */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '5px 10px',
-          background: 'var(--bg-surface)',
-          borderTop: '1px solid var(--border)',
-          fontSize: 11,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {/* Hidden file & image inputs */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept=".txt,.md,.markdown,.json,.csv,.docx,.pdf,.js,.jsx,.ts,.tsx,.py,.html,.css,.xml,.yml,.yaml,.rtf,.log"
-            style={{ display: 'none' }}
-            onChange={(e) => {
-              processFiles(e.target.files);
-              e.target.value = '';
-            }}
-          />
-          <input
-            ref={imageInputRef}
-            type="file"
-            multiple
-            accept="image/*"
-            style={{ display: 'none' }}
-            onChange={(e) => {
-              processFiles(e.target.files);
-              e.target.value = '';
-            }}
-          />
-
-          {/* Attach File Button */}
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            title="Attach document or data file"
-            style={{
-              background: 'var(--bg-elevated)',
-              color: 'var(--text-secondary)',
-              border: '1px solid var(--border)',
-              borderRadius: 4,
-              padding: '3px 8px',
-              fontSize: 10,
-              fontWeight: 500,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-              transition: 'all 0.12s ease',
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--gold-border)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-          >
-            <span>Attach File</span>
-          </button>
-
-          {/* Add Image Button */}
-          <button
-            onClick={() => imageInputRef.current?.click()}
-            title="Upload and insert image"
-            style={{
-              background: 'var(--bg-elevated)',
-              color: 'var(--text-secondary)',
-              border: '1px solid var(--border)',
-              borderRadius: 4,
-              padding: '3px 8px',
-              fontSize: 10,
-              fontWeight: 500,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-              transition: 'all 0.12s ease',
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--gold-border)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
-          >
-            <span>Add Image</span>
-          </button>
-
-          {/* Image by URL */}
-          <button
-            onClick={() => setShowUrlInput(!showUrlInput)}
-            title="Insert image from web URL"
-            style={{
-              background: showUrlInput ? 'var(--gold)' : 'var(--bg-elevated)',
-              color: showUrlInput ? 'var(--text-on-gold)' : 'var(--text-secondary)',
-              border: `1px solid ${showUrlInput ? 'var(--gold-border)' : 'var(--border)'}`,
-              borderRadius: 4,
-              padding: '3px 8px',
-              fontSize: 10,
-              fontWeight: 500,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-              transition: 'all 0.12s ease',
-            }}
-          >
-            <span>Image URL</span>
-          </button>
-        </div>
-
-        {uploadingFiles && (
-          <span style={{ fontSize: 10, color: 'var(--gold)' }}>
-            Uploading...
-          </span>
-        )}
-      </div>
-
-      {/* URL Input Bar */}
-      {showUrlInput && (
-        <div
-          style={{
-            padding: '6px 10px',
-            background: 'var(--bg-elevated)',
-            borderTop: '1px solid var(--border)',
-            display: 'flex',
-            gap: 5,
-            alignItems: 'center',
-          }}
-        >
-          <input
-            type="text"
-            value={imageUrlValue}
-            onChange={(e) => setImageUrlValue(e.target.value)}
-            placeholder="https://example.com/image.png"
-            autoFocus
-            style={{
-              flex: 1,
-              padding: '5px 8px',
-              fontSize: 11,
-              borderRadius: 4,
-              border: '1px solid var(--border)',
-              background: 'var(--bg-surface)',
-              color: 'var(--text-primary)',
-              outline: 'none',
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                handleInsertUrlImage();
+          {/* Textarea */}
+          <textarea
+            ref={textareaRef}
+            value={inputPrompt}
+            onChange={(e) => setInputPrompt(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onPaste={(e) => {
+              if (e.clipboardData?.files?.length) {
+                processFiles(e.clipboardData.files);
               }
             }}
-          />
-          <button
-            onClick={handleInsertUrlImage}
-            disabled={!imageUrlValue.trim()}
-            title="Insert image directly into document"
+            disabled={loading || !aiConfigured}
+            placeholder={!aiConfigured ? "AI assistant not configured. Please check backend .env..." : "Ask Pragna to draft, edit, summarize, or attach files..."}
+            rows={2}
             style={{
-              background: 'var(--gold)',
-              color: 'var(--text-on-gold)',
-              border: 'none',
-              borderRadius: 4,
-              padding: '4px 8px',
-              fontSize: 10,
-              fontWeight: 600,
-              cursor: imageUrlValue.trim() ? 'pointer' : 'not-allowed',
-              opacity: imageUrlValue.trim() ? 1 : 0.6,
-            }}
-          >
-            Insert
-          </button>
-          <button
-            onClick={handleAttachUrlImage}
-            disabled={!imageUrlValue.trim()}
-            title="Attach image to chat"
-            style={{
-              background: 'var(--bg-surface)',
-              color: 'var(--text-secondary)',
-              border: '1px solid var(--border)',
-              borderRadius: 4,
-              padding: '4px 8px',
-              fontSize: 10,
-              cursor: imageUrlValue.trim() ? 'pointer' : 'not-allowed',
-              opacity: imageUrlValue.trim() ? 1 : 0.6,
-            }}
-          >
-            Attach
-          </button>
-          <button
-            onClick={() => {
-              setShowUrlInput(false);
-              setImageUrlValue('');
-            }}
-            style={{
+              width: '100%',
               background: 'transparent',
-              color: 'var(--text-muted)',
               border: 'none',
-              fontSize: 12,
-              cursor: 'pointer',
-              padding: '2px 4px',
+              outline: 'none',
+              color: 'var(--text-primary)',
+              fontSize: 11.5,
+              fontFamily: 'var(--font-ui)',
+              lineHeight: 1.45,
+              resize: 'none',
+              padding: 0,
+              opacity: !aiConfigured ? 0.6 : 1,
+              cursor: !aiConfigured ? 'not-allowed' : 'text',
+            }}
+          />
+
+          {/* Bottom Action Bar inside Card */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingTop: 3,
             }}
           >
-            ✕
-          </button>
+            {/* Left Attachment Buttons */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept=".txt,.md,.markdown,.json,.csv,.docx,.pdf,.js,.jsx,.ts,.tsx,.py,.html,.css,.xml,.yml,.yaml,.rtf,.log"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  processFiles(e.target.files);
+                  e.target.value = '';
+                }}
+              />
+              <input
+                ref={imageInputRef}
+                type="file"
+                multiple
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  processFiles(e.target.files);
+                  e.target.value = '';
+                }}
+              />
+
+              {/* Attach File Button */}
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                title="Attach document or data file (.docx, .pdf, .txt, .csv...)"
+                style={{
+                  background: 'transparent',
+                  color: 'var(--text-secondary)',
+                  border: 'none',
+                  borderRadius: 4,
+                  padding: '3px 6px',
+                  fontSize: 11,
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 3,
+                  transition: 'all 0.12s ease',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.background = 'var(--bg-hover)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.background = 'transparent'; }}
+              >
+                <Paperclip size={13} strokeWidth={1.75} />
+                <span style={{ fontSize: 10 }}>File</span>
+              </button>
+
+              {/* Add Image Button */}
+              <button
+                onClick={() => imageInputRef.current?.click()}
+                title="Upload and insert image"
+                style={{
+                  background: 'transparent',
+                  color: 'var(--text-secondary)',
+                  border: 'none',
+                  borderRadius: 4,
+                  padding: '3px 6px',
+                  fontSize: 11,
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 3,
+                  transition: 'all 0.12s ease',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.background = 'var(--bg-hover)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.background = 'transparent'; }}
+              >
+                <ImageIcon size={13} strokeWidth={1.75} />
+                <span style={{ fontSize: 10 }}>Image</span>
+              </button>
+
+              {/* Image by URL */}
+              <button
+                onClick={() => setShowUrlInput(!showUrlInput)}
+                title="Insert image from web URL"
+                style={{
+                  background: showUrlInput ? 'rgba(212,175,55,0.15)' : 'transparent',
+                  color: showUrlInput ? 'var(--gold)' : 'var(--text-muted)',
+                  border: 'none',
+                  borderRadius: 4,
+                  padding: '3px 6px',
+                  fontSize: 11,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 2,
+                  transition: 'all 0.12s ease',
+                }}
+              >
+                <LinkIcon size={13} strokeWidth={1.75} />
+              </button>
+            </div>
+
+            {/* Right Send Control */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              {uploadingFiles && (
+                <span style={{ fontSize: 9.5, color: 'var(--gold)' }}>Uploading...</span>
+              )}
+              <button
+                onClick={() => handleSendMessage()}
+                disabled={loading || !aiConfigured || (!inputPrompt.trim() && attachments.length === 0)}
+                title={!aiConfigured ? "AI assistant not configured" : "Send message (Enter)"}
+                style={{
+                  width: 26,
+                  height: 26,
+                  background: (!loading && aiConfigured && (inputPrompt.trim() || attachments.length > 0)) ? 'var(--gold)' : 'var(--bg-surface)',
+                  color: (!loading && aiConfigured && (inputPrompt.trim() || attachments.length > 0)) ? 'var(--text-on-gold)' : 'var(--text-muted)',
+                  border: `1px solid ${(!loading && aiConfigured && (inputPrompt.trim() || attachments.length > 0)) ? 'var(--gold-border)' : 'var(--border)'}`,
+                  borderRadius: 5,
+                  cursor: (!loading && aiConfigured && (inputPrompt.trim() || attachments.length > 0)) ? 'pointer' : 'not-allowed',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.15s ease',
+                  boxShadow: (!loading && aiConfigured && (inputPrompt.trim() || attachments.length > 0)) ? '0 1px 4px rgba(212,175,55,0.3)' : 'none',
+                }}
+              >
+                <ArrowUp size={14} strokeWidth={2} />
+              </button>
+            </div>
+          </div>
         </div>
-      )}
-
-      {!aiConfigured && (
-        <div style={{
-          padding: '6px 10px',
-          background: 'rgba(212, 175, 55, 0.1)',
-          borderTop: '1px solid rgba(212, 175, 55, 0.3)',
-          borderBottom: '1px solid rgba(212, 175, 55, 0.15)',
-          color: 'var(--gold)',
-          fontSize: 10.5,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-        }}>
-          <span>⚠️</span>
-          <span><strong>AI assistant not configured.</strong> Please check backend .env</span>
-        </div>
-      )}
-
-      {/* Input Box */}
-      <div
-        style={{
-          padding: '8px 10px 10px',
-          background: 'var(--bg-surface)',
-          borderTop: '1px solid var(--border)',
-          display: 'flex',
-          gap: 6,
-          alignItems: 'flex-end',
-        }}
-      >
-        <textarea
-          ref={textareaRef}
-          value={inputPrompt}
-          onChange={(e) => setInputPrompt(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onPaste={(e) => {
-            if (e.clipboardData?.files?.length) {
-              processFiles(e.clipboardData.files);
-            }
-          }}
-          disabled={loading || !aiConfigured}
-          placeholder={!aiConfigured ? "AI assistant not configured. Please check backend .env..." : "Ask Pragna, draft, edit, or attach files..."}
-          rows={2}
-          style={{
-            flex: 1,
-            padding: '7px 9px',
-            borderRadius: 5,
-            border: '1px solid var(--border)',
-            background: 'var(--bg-elevated)',
-            color: 'var(--text-primary)',
-            fontSize: 11,
-            fontFamily: 'var(--font-ui)',
-            outline: 'none',
-            resize: 'none',
-            lineHeight: 1.4,
-            opacity: !aiConfigured ? 0.6 : 1,
-            cursor: !aiConfigured ? 'not-allowed' : 'text',
-          }}
-        />
-
-        <button
-          onClick={() => handleSendMessage()}
-          disabled={loading || !aiConfigured}
-          title={!aiConfigured ? "AI assistant not configured" : "Send message"}
-          style={{
-            height: 34,
-            padding: '0 12px',
-            background: (!loading && aiConfigured) ? 'var(--gold)' : 'var(--bg-elevated)',
-            color: (!loading && aiConfigured) ? 'var(--text-on-gold)' : 'var(--text-muted)',
-            border: `1px solid ${(!loading && aiConfigured) ? 'var(--gold-border)' : 'var(--border)'}`,
-            borderRadius: 5,
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: (!loading && aiConfigured) ? 'pointer' : 'not-allowed',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'all 0.12s ease',
-          }}
-        >
-          ➔
-        </button>
       </div>
       </>
       )}

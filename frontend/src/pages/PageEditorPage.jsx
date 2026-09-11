@@ -6,13 +6,40 @@ import { PageEditor } from '@/components/editor/PageEditor';
 import { PageStatusBar } from '@/components/editor/PageStatusBar';
 import { DialogManager } from '@/components/dialogs/DialogManager';
 import { ToastContainer } from '@/components/ui/Toast';
-import { useUIStore } from '@/store';
+import { useUIStore, useDocumentStore } from '@/store';
+import { documentApi } from '@/services/api';
+import { upsertLocalDoc } from '@/services/storageFallback';
 
 export function PageEditorPage() {
   const fullscreen = useUIStore((s) => s.fullscreen);
+  const toast = useUIStore((s) => s.toast);
 
-  const handleSave = () => {
-    console.log('Save triggered');
+  const handleSave = async () => {
+    const store = useDocumentStore.getState();
+    const { id, title, content, contentJson, setSaving, setLastSaved, setIsDirty } = store;
+    try {
+      setSaving(true);
+      if (id) {
+        try {
+          await documentApi.save(id, { title, content, contentJson });
+        } catch (err) {
+          console.warn('Backend save deferred to local backup:', err);
+        }
+      }
+      upsertLocalDoc({
+        id: id || 'doc_current',
+        title: title || 'Untitled Document',
+        content: content || '<p></p>',
+        updatedAt: new Date().toISOString(),
+      });
+      setIsDirty(false);
+      setLastSaved(new Date());
+      toast('Document saved', 'success');
+    } catch (err) {
+      toast(`Save failed: ${err.message}`, 'error');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (

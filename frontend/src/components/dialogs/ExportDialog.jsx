@@ -1,14 +1,15 @@
 import { useState } from 'react';
+import { FileText, FileEdit, Globe, FileCode, BookOpen, Loader2, ArrowRight } from 'lucide-react';
 import { useUIStore, useDocumentStore, useEditorStore } from '@/store';
 import { Modal, Button, Stack } from '@/components/ui';
 import { exportToHtml, exportToPdf, exportToDocx, exportToMarkdown, exportToEpub } from '@/services/export';
 
 const OPTIONS = [
-  { id: 'pdf',      icon: '📄', label: 'PDF Document',   desc: 'Best for printing & sharing' },
-  { id: 'docx',     icon: '📝', label: 'Word Document',  desc: 'Open in Microsoft Word' },
-  { id: 'html',     icon: '🌐', label: 'Web Page',       desc: 'HTML file for browsers' },
-  { id: 'markdown', icon: '📋', label: 'Markdown (.md)', desc: 'Plain text with lightweight formatting' },
-  { id: 'epub',     icon: '📚', label: 'EPUB (.epub)',   desc: 'Standard e-book reader format' },
+  { id: 'pdf',      icon: FileText, label: 'PDF Document',   desc: 'Best for printing & sharing' },
+  { id: 'docx',     icon: FileEdit, label: 'Word Document',  desc: 'Open in Microsoft Word' },
+  { id: 'html',     icon: Globe,    label: 'Web Page',       desc: 'HTML file for browsers' },
+  { id: 'markdown', icon: FileCode, label: 'Markdown (.md)', desc: 'Plain text with lightweight formatting' },
+  { id: 'epub',     icon: BookOpen, label: 'EPUB (.epub)',   desc: 'Standard e-book reader format' },
 ];
 
 export function ExportDialog() {
@@ -80,15 +81,23 @@ export function ExportDialog() {
             }}
             onMouseEnter={(e) => { if(!loading) { e.currentTarget.style.borderColor='var(--gold)'; e.currentTarget.style.background='var(--bg-hover)'; } }}
             onMouseLeave={(e) => { e.currentTarget.style.borderColor='var(--border)'; e.currentTarget.style.background='var(--bg-elevated)'; }}>
-            <span style={{ fontSize:28 }}>{opt.icon}</span>
+            <span style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', width:36, height:36, borderRadius:8, background:'rgba(212,175,55,0.1)', color:'var(--gold)', flexShrink:0 }}>
+              <opt.icon size={20} strokeWidth={1.75} />
+            </span>
             <div>
               <div style={{ fontFamily:'var(--font-ui)', fontSize:14, fontWeight:600, color:'var(--text-primary)', marginBottom:2 }}>
                 {loading === opt.id ? 'Exporting…' : opt.label}
               </div>
               <div style={{ fontSize:12, color:'var(--text-muted)', fontFamily:'var(--font-ui)' }}>{opt.desc}</div>
             </div>
-            <div style={{ marginLeft:'auto', color:'var(--gold)', fontSize:18 }}>
-              {loading === opt.id ? <span style={{ animation:'spin 1s linear infinite', display:'inline-block' }}>⟳</span> : '→'}
+            <div style={{ marginLeft:'auto', color:'var(--gold)', display:'inline-flex', alignItems:'center' }}>
+              {loading === opt.id ? (
+                <span style={{ animation:'spin 1s linear infinite', display:'inline-flex', alignItems:'center' }}>
+                  <Loader2 size={18} />
+                </span>
+              ) : (
+                <ArrowRight size={18} />
+              )}
             </div>
           </button>
         ))}

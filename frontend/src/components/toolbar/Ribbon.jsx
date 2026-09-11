@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect, useLayoutEffect, useCallback } from 'react';
+import { Shapes, Image, Keyboard, HelpCircle } from 'lucide-react';
 
 import { useUIStore, useEditorStore } from '@/store';
 import { useNavigate } from 'react-router-dom';
@@ -14,6 +15,9 @@ import { ReviewTab }    from './tabs/ReviewTab';
 import { ViewTab }      from './tabs/ViewTab';
 import { AITab }        from './tabs/AITab';
 import { HelpTab }      from './tabs/HelpTab';
+import { PictureFormatTab } from './tabs/PictureFormatTab';
+import { isImageSelection } from '@/utils/imageSelection';
+import { isShapeSrc } from '@/utils/shapeUtils';
 import { RibbonFeatureSearch } from './RibbonFeatureSearch';
 
 const TABS = [
@@ -30,16 +34,48 @@ const TABS = [
   { id: 'help',      label: 'Help'      },
 ];
 
+const PictureFormatRibbonTab = () => <PictureFormatTab mode="ribbon" />;
+
 const TAB_CONTENT = {
   home: HomeTab, insert: InsertTab, draw: DrawTab, design: DesignTab,
   layout: LayoutTab, reference: ReferenceTab, mailings: MailingsTab,
   review: ReviewTab, view: ViewTab, ai: AITab, help: HelpTab,
+  pictureFormat: PictureFormatRibbonTab,
 };
 
 export function Ribbon() {
   const navigate = useNavigate();
   const location = useLocation();
   const { activeTab, setActiveTab, openDialog } = useUIStore();
+  const { editor } = useEditorStore();
+  const [imageSelected, setImageSelected] = useState(false);
+  const [isShape, setIsShape] = useState(false);
+
+  useEffect(() => {
+    if (!editor) return;
+    const checkSelection = () => {
+      const isImg = isImageSelection(editor);
+      setImageSelected(isImg);
+      if (isImg) {
+        const attrs = editor.getAttributes('image') || {};
+        setIsShape(isShapeSrc(attrs.src));
+      }
+    };
+    checkSelection();
+    editor.on('selectionUpdate', checkSelection);
+    return () => {
+      editor.off('selectionUpdate', checkSelection);
+    };
+  }, [editor]);
+
+  useEffect(() => {
+    const handleOpenEditPanel = () => {
+      setActiveTab('pictureFormat');
+    };
+    window.addEventListener('open-image-edit-panel', handleOpenEditPanel);
+    return () => window.removeEventListener('open-image-edit-panel', handleOpenEditPanel);
+  }, [setActiveTab]);
+
   const Content = TAB_CONTENT[activeTab] || HomeTab;
 
   const ribbonContainerRef = useRef(null);
@@ -74,7 +110,8 @@ export function Ribbon() {
         style={{
           display: 'flex',
           alignItems: 'center',
-          minHeight: 30,
+          height: 34,
+          minHeight: 34,
           borderBottom: '1px solid var(--border)',
           background: 'var(--bg-app)',
           fontFamily: 'var(--font-ui)',
@@ -88,47 +125,130 @@ export function Ribbon() {
             display: 'flex',
             alignItems: 'center',
             flex: 1,
-            padding: '0 8px',
-            gap: 2,
+            padding: '0 10px',
+            gap: 4,
             overflowX: 'auto',
             overflowY: 'hidden',
             minWidth: 0,
+            height: '100%',
           }}
         >
           {TABS.map((t) => {
             const active = t.id === activeTab;
             const isFile = t.id === 'file';
+
+            if (isFile) {
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => onTabClick(t.id)}
+                  style={{
+                    background: 'rgba(212, 175, 55, 0.14)',
+                    border: '1px solid rgba(212, 175, 55, 0.35)',
+                    borderRadius: 4,
+                    color: 'var(--gold)',
+                    fontFamily: 'var(--font-ui)',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    padding: '0 12px',
+                    height: 25,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    outline: 'none',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: 4,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(212, 175, 55, 0.25)';
+                    e.currentTarget.style.borderColor = 'var(--gold)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(212, 175, 55, 0.14)';
+                    e.currentTarget.style.borderColor = 'rgba(212, 175, 55, 0.35)';
+                  }}
+                >
+                  {t.label}
+                </button>
+              );
+            }
+
             return (
               <button
                 key={t.id}
                 onClick={() => onTabClick(t.id)}
                 style={{
-                  background: isFile ? '#1e1400' : active ? 'var(--bg-elevated)' : 'transparent',
-                  border: '1px solid transparent',
-                  borderTop: active ? '2px solid var(--gold)' : '2px solid transparent',
-                  borderRadius: 2,
-                  color: isFile ? 'var(--gold)' : active ? 'var(--text-primary)' : 'var(--gold)',
+                  background: active ? 'var(--bg-surface)' : 'transparent',
+                  border: 'none',
+                  borderBottom: active ? '2px solid var(--gold)' : '2px solid transparent',
+                  borderRadius: '4px 4px 0 0',
+                  color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  fontWeight: active ? 600 : 450,
                   fontFamily: 'var(--font-ui)',
                   fontSize: 12,
-                  padding: '0 12px',
-                  height: 28,
+                  padding: '0 11px',
+                  height: 33,
+                  marginTop: 1,
                   cursor: 'pointer',
-                  transition: 'background 0.1s, border-color 0.1s',
+                  transition: 'all 0.12s ease',
                   outline: 'none',
                   whiteSpace: 'nowrap',
                   flexShrink: 0,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
                 onMouseEnter={(e) => {
-                  if (!active) e.currentTarget.style.background = 'var(--ribbon-hover)';
+                  if (!active) {
+                    e.currentTarget.style.background = 'var(--bg-hover)';
+                    e.currentTarget.style.color = 'var(--text-primary)';
+                  }
                 }}
                 onMouseLeave={(e) => {
-                  if (!active) e.currentTarget.style.background = 'transparent';
+                  if (!active) {
+                    e.currentTarget.style.background = 'transparent';
+                    e.currentTarget.style.color = 'var(--text-secondary)';
+                  }
                 }}
               >
                 {t.label}
               </button>
             );
           })}
+
+          {(imageSelected || activeTab === 'pictureFormat') && (
+            <button
+              onClick={() => onTabClick('pictureFormat')}
+              style={{
+                background: activeTab === 'pictureFormat' ? 'var(--bg-surface)' : 'rgba(59, 130, 246, 0.12)',
+                border: 'none',
+                borderBottom: activeTab === 'pictureFormat' ? '2px solid #2563eb' : '2px solid transparent',
+                borderRadius: '4px 4px 0 0',
+                color: activeTab === 'pictureFormat' ? '#2563eb' : 'var(--text-primary)',
+                fontWeight: 600,
+                fontFamily: 'var(--font-ui)',
+                fontSize: 12,
+                padding: '0 11px',
+                height: 33,
+                marginTop: 1,
+                cursor: 'pointer',
+                transition: 'all 0.12s ease',
+                outline: 'none',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 5,
+              }}
+            >
+              <span style={{ display: 'inline-flex', alignItems: 'center' }}>{isShape ? <Shapes size={14} strokeWidth={1.75} /> : <Image size={14} strokeWidth={1.75} />}</span>
+              <span>{isShape ? 'Shape Format' : 'Picture Format'}</span>
+            </button>
+          )}
         </div>
 
         {/* Feature search bar and quick actions */}
@@ -137,8 +257,9 @@ export function Ribbon() {
           style={{
             display: 'flex',
             alignItems: 'center',
-            height: 30,
-            paddingRight: 6,
+            height: '100%',
+            paddingRight: 8,
+            paddingLeft: 4,
             borderLeft: '1px solid var(--border)',
             background: 'var(--bg-app)',
             flexShrink: 0,
@@ -155,13 +276,18 @@ export function Ribbon() {
               cursor: 'pointer',
               color: 'var(--text-secondary)',
               fontSize: 13,
-              padding: '2px 6px',
-              borderRadius: 2,
+              width: 26,
+              height: 26,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: 4,
+              transition: 'all 0.12s ease',
             }}
             onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--gold)'; e.currentTarget.style.background = 'var(--bg-hover)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.background = 'transparent'; }}
           >
-            ⌨
+            <Keyboard size={14} strokeWidth={1.75} />
           </button>
           <button
             onClick={() => openDialog('help')}
@@ -172,13 +298,18 @@ export function Ribbon() {
               cursor: 'pointer',
               color: 'var(--text-secondary)',
               fontSize: 13,
-              padding: '2px 6px',
-              borderRadius: 2,
+              width: 26,
+              height: 26,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: 4,
+              transition: 'all 0.12s ease',
             }}
             onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--gold)'; e.currentTarget.style.background = 'var(--bg-hover)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.background = 'transparent'; }}
           >
-            ?
+            <HelpCircle size={14} strokeWidth={1.75} />
           </button>
         </div>
 

@@ -1,5 +1,16 @@
 // ── Layout Tab ───────────────────────────────────────────────
 import { useEffect, useState, useRef } from 'react';
+import {
+  SpellCheck, BarChart3, BookOpen, Hash, Accessibility, Volume2,
+  Languages, Globe, MessageSquarePlus, Trash2, Eye, ChevronLeft, ChevronRight,
+  FileDiff, Check, X, PanelLeftClose, History, ArrowLeftRight,
+  ShieldAlert, Users, EyeOff, Mic, Headphones, ScanText, PenTool,
+  Sparkles, Printer, ListTree, FileText, Focus, Ruler, Grid,
+  Compass, LayoutGrid, ZoomIn, Maximize2, MoveHorizontal, ZoomOut,
+  ExternalLink, Columns, Minimize, Maximize, FileCode2, ShieldCheck,
+  Terminal, Zap, CircleDot, ArrowUpDown, WrapText,
+  Layers, Crosshair, ArrowUp, ArrowDown, AlignLeft, RotateCw
+} from 'lucide-react';
 import { useUIStore, useEditorStore } from '@/store';
 import { Button, Tooltip, Select } from '@/components/ui';
 import { RibbonGroup } from '../RibbonGroup';
@@ -293,7 +304,7 @@ export function LayoutTab() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {/* Margins */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, width: 90 }}>
-            <span style={{ fontSize: 18, color: 'var(--gold)', lineHeight: 1 }}>📄</span>
+            <span style={{ fontSize: 18, color: 'var(--gold)', lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><FileText size={18} strokeWidth={1.75} /></span>
             <span style={{ fontSize: 9.5, color: 'var(--text-secondary)', fontWeight: 600, letterSpacing: '0.04em' }}>MARGINS</span>
             <Select
               width={90}
@@ -306,7 +317,7 @@ export function LayoutTab() {
 
           {/* Orientation */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, width: 92 }}>
-            <span style={{ fontSize: 18, color: 'var(--gold)', lineHeight: 1 }}>↕</span>
+            <span style={{ fontSize: 18, color: 'var(--gold)', lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><ArrowUpDown size={18} strokeWidth={1.75} /></span>
             <span style={{ fontSize: 9.5, color: 'var(--text-secondary)', fontWeight: 600, letterSpacing: '0.04em' }}>ORIENTATION</span>
             <div style={{ display: 'flex', gap: 2 }}>
               <Button
@@ -330,7 +341,7 @@ export function LayoutTab() {
 
           {/* Page Size */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, width: 80 }}>
-            <span style={{ fontSize: 18, color: 'var(--gold)', lineHeight: 1 }}>📏</span>
+            <span style={{ fontSize: 18, color: 'var(--gold)', lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Ruler size={18} strokeWidth={1.75} /></span>
             <span style={{ fontSize: 9.5, color: 'var(--text-secondary)', fontWeight: 600, letterSpacing: '0.04em' }}>SIZE</span>
             <Select
               width={80}
@@ -343,7 +354,7 @@ export function LayoutTab() {
 
           {/* Columns */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, width: 80 }}>
-            <span style={{ fontSize: 18, color: 'var(--gold)', lineHeight: 1 }}>☵</span>
+            <span style={{ fontSize: 18, color: 'var(--gold)', lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Columns size={18} strokeWidth={1.75} /></span>
             <span style={{ fontSize: 9.5, color: 'var(--text-secondary)', fontWeight: 600, letterSpacing: '0.04em' }}>COLUMNS</span>
             <Select
               width={80}
@@ -438,19 +449,19 @@ export function LayoutTab() {
       <RibbonGroup label="Arrange">
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2, height: 82, justifyContent: 'space-between' }}>
-            <Tooltip text="Position on page"><Button style={rbtn} onClick={() => alignImage('center')}>⊞ Position</Button></Tooltip>
-            <Tooltip text="Wrap Text around image/shape"><Button style={rbtn} onClick={wrapText}>☰ Wrap Text</Button></Tooltip>
-            <Tooltip text="Selection Pane"><Button style={rbtn} active={sidebarOpen} onClick={() => toggleSidebar()}>⌖ Selection Pane</Button></Tooltip>
+            <Tooltip text="Position on page"><Button style={rbtn} onClick={() => alignImage('center')}><Layers size={13} style={{ marginRight: 4 }} /> Position</Button></Tooltip>
+            <Tooltip text="Wrap Text around image/shape"><Button style={rbtn} onClick={wrapText}><WrapText size={13} style={{ marginRight: 4 }} /> Wrap Text</Button></Tooltip>
+            <Tooltip text="Selection Pane"><Button style={rbtn} active={sidebarOpen} onClick={() => toggleSidebar()}><Crosshair size={13} style={{ marginRight: 4 }} /> Selection Pane</Button></Tooltip>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2, height: 82, justifyContent: 'space-between' }}>
-            <Tooltip text="Bring Forward"><Button style={rbtn} onClick={() => layerImage('up')}>↑ Forward</Button></Tooltip>
-            <Tooltip text="Send Backward"><Button style={rbtn} onClick={() => layerImage('down')}>↓ Backward</Button></Tooltip>
-            <Tooltip text="Align Object"><Button style={rbtn} onClick={() => alignImage('left')}>⇤ Align Left</Button></Tooltip>
+            <Tooltip text="Bring Forward"><Button style={rbtn} onClick={() => layerImage('up')}><ArrowUp size={13} style={{ marginRight: 4 }} /> Forward</Button></Tooltip>
+            <Tooltip text="Send Backward"><Button style={rbtn} onClick={() => layerImage('down')}><ArrowDown size={13} style={{ marginRight: 4 }} /> Backward</Button></Tooltip>
+            <Tooltip text="Align Object"><Button style={rbtn} onClick={() => alignImage('left')}><AlignLeft size={13} style={{ marginRight: 4 }} /> Align Left</Button></Tooltip>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2, height: 82, justifyContent: 'space-between' }}>
-            <Tooltip text="Rotate 90 degrees"><Button style={rbtn} onClick={rotateImage}>↻ Rotate</Button></Tooltip>
-            <Tooltip text="Increase Size"><Button style={rbtn} onClick={() => resizeSelectedImage('up')}>＋ Enlarge</Button></Tooltip>
-            <Tooltip text="Decrease Size"><Button style={rbtn} onClick={() => resizeSelectedImage('down')}>－ Shrink</Button></Tooltip>
+            <Tooltip text="Rotate 90 degrees"><Button style={rbtn} onClick={rotateImage}><RotateCw size={13} style={{ marginRight: 4 }} /> Rotate</Button></Tooltip>
+            <Tooltip text="Increase Size"><Button style={rbtn} onClick={() => resizeSelectedImage('up')}><ZoomIn size={13} style={{ marginRight: 4 }} /> Enlarge</Button></Tooltip>
+            <Tooltip text="Decrease Size"><Button style={rbtn} onClick={() => resizeSelectedImage('down')}><ZoomOut size={13} style={{ marginRight: 4 }} /> Shrink</Button></Tooltip>
           </div>
         </div>
       </RibbonGroup>
@@ -478,6 +489,97 @@ const getSelectedText = (editor) => {
   if (from === to) return editor.state.doc.textBetween(0, editor.state.doc.content.size, ' ');
   return editor.state.doc.textBetween(from, to, ' ');
 };
+
+function HeroBtn({ icon, label, onClick, onMouseDown, title, active, disabled }) {
+  return (
+    <Tooltip text={title || label}>
+      <button
+        disabled={disabled}
+        onMouseDown={onMouseDown}
+        onClick={onClick}
+        style={{
+          border: active ? '1px solid var(--border-gold, #c9a84c)' : '1px solid transparent',
+          background: active ? 'var(--bg-hover, rgba(212,175,55,0.1))' : 'transparent',
+          borderRadius: 3,
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          color: active ? 'var(--text-gold, #c9a84c)' : 'var(--text-primary)',
+          minWidth: 62,
+          height: 74,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 4,
+          padding: '4px 6px',
+          fontFamily: 'var(--font-ui)',
+          fontSize: 11,
+          transition: 'background 0.1s, border-color 0.1s',
+          whiteSpace: 'nowrap',
+          opacity: disabled ? 0.45 : 1,
+        }}
+        onMouseEnter={(e) => {
+          if (!disabled && !active) {
+            e.currentTarget.style.background = 'var(--bg-hover)';
+            e.currentTarget.style.borderColor = 'var(--border)';
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!disabled && !active) {
+            e.currentTarget.style.background = 'transparent';
+            e.currentTarget.style.borderColor = 'transparent';
+          }
+        }}
+      >
+        <div style={{ fontSize: 20, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</div>
+        <span style={{ fontSize: 11, lineHeight: 1.1, textAlign: 'center' }}>{label}</span>
+      </button>
+    </Tooltip>
+  );
+}
+
+function MiniAction({ icon, text, onClick, onMouseDown, title, active, disabled }) {
+  return (
+    <Tooltip text={title || text}>
+      <button
+        disabled={disabled}
+        onMouseDown={onMouseDown}
+        onClick={onClick}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 5,
+          height: 22,
+          padding: '0 6px',
+          fontSize: 11,
+          fontFamily: 'var(--font-ui)',
+          border: active ? '1px solid var(--border-gold, #c9a84c)' : '1px solid transparent',
+          borderRadius: 2,
+          background: active ? 'var(--bg-hover)' : 'transparent',
+          color: active ? 'var(--text-gold, #c9a84c)' : 'var(--text-primary)',
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          whiteSpace: 'nowrap',
+          transition: 'background 0.1s, border-color 0.1s',
+          opacity: disabled ? 0.45 : 1,
+        }}
+        onMouseEnter={(e) => {
+          if (!disabled && !active) {
+            e.currentTarget.style.background = 'var(--bg-hover)';
+            e.currentTarget.style.borderColor = 'var(--border)';
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!disabled && !active) {
+            e.currentTarget.style.background = 'transparent';
+            e.currentTarget.style.borderColor = 'transparent';
+          }
+        }}
+      >
+        {icon && <span style={{ fontSize: 13, lineHeight: 1, display: 'inline-flex', alignItems: 'center' }}>{icon}</span>}
+        <span>{text}</span>
+      </button>
+    </Tooltip>
+  );
+}
 
 export function ReviewTab() {
   const { toggleTrackChanges, trackChanges, addComment, comments, deleteComment } = useDocumentStore();
@@ -840,110 +942,106 @@ export function ReviewTab() {
 
   const handleFilterMarkup = (value) => handleMarkupMode(value);
 
-  const rBtn = { height: 25, fontSize: 11, padding: '0 6px', justifyContent: 'flex-start', whiteSpace: 'nowrap', flexShrink: 0 };
-  const col = { display: 'flex', flexDirection: 'column', flexWrap: 'wrap', maxHeight: 82, height: 82, gap: 2, alignContent: 'flex-start' };
-
   return (
     <>
       <RibbonGroup label="Proofing">
-        <div style={col}>
-          <Tooltip text="Spelling & Grammar" shortcut="F7">
-            <Button style={rBtn} active={spellCheck} onClick={handleSpellCheck}>ABC✓ Spell</Button>
-          </Tooltip>
-          <Tooltip text="Readability Dashboard & Clarity Metrics">
-            <Button style={rBtn} onClick={() => openDialog('readability')}>📊 Clarity</Button>
-          </Tooltip>
-          <Tooltip text="Thesaurus"><Button style={rBtn} onClick={openThesaurus}>📖 Thesaurus</Button></Tooltip>
-          <Tooltip text="Word Count"><Button style={rBtn} onClick={handleWordCount}>123 Words</Button></Tooltip>
-          <Tooltip text="Read Aloud"><Button style={rBtn} onClick={handleReadAloud}>🔊 Read</Button></Tooltip>
-          <Tooltip text="Check Accessibility"><Button style={rBtn} onClick={handleAccessibility}>♿ Access</Button></Tooltip>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <HeroBtn icon={<SpellCheck size={20} strokeWidth={1.75} />} label="Spelling" title="Spelling & Grammar (F7)" active={spellCheck} onClick={handleSpellCheck} />
+          <HeroBtn icon={<BarChart3 size={20} strokeWidth={1.75} />} label="Clarity" title="Readability Dashboard & Clarity Metrics" onClick={() => openDialog('readability')} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
+            <MiniAction icon={<BookOpen size={13} strokeWidth={1.75} />} text="Thesaurus" title="Thesaurus & Synonyms" onClick={openThesaurus} />
+            <MiniAction icon={<Hash size={13} strokeWidth={1.75} />} text="Word Count" title="Word & Character Count" onClick={handleWordCount} />
+            <MiniAction icon={<Accessibility size={13} strokeWidth={1.75} />} text="Check Access" title="Check Accessibility" onClick={handleAccessibility} />
+          </div>
+        </div>
+      </RibbonGroup>
+
+      <RibbonGroup label="Speech">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <HeroBtn icon={<Volume2 size={20} strokeWidth={1.75} />} label="Read Aloud" title="Read Text Aloud" onClick={handleReadAloud} />
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Language">
-        <div style={col}>
-          <Tooltip text="Translate"><Button style={rBtn} onClick={translateSelection}>🌐 Translate</Button></Tooltip>
-          <Tooltip text="Language"><Button style={rBtn} onClick={handleLanguage}>🗣 Language</Button></Tooltip>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <HeroBtn icon={<Languages size={20} strokeWidth={1.75} />} label="Translate" title="Translate Selection" onClick={translateSelection} />
+          <HeroBtn icon={<Globe size={20} strokeWidth={1.75} />} label="Language" title="Set Proofing Language" onClick={handleLanguage} />
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Comments">
-        <div style={col}>
-          <Tooltip text="New Comment" shortcut="Ctrl+Alt+M"><Button style={rBtn} onMouseDown={(e) => e.preventDefault()} onClick={handleNewComment}>💬 New</Button></Tooltip>
-          <Tooltip text="Delete Comment"><Button style={rBtn} onClick={removeCurrentComment}>🗑 Delete</Button></Tooltip>
-          <Tooltip text="Show All Comments"><Button style={rBtn} onClick={handleComments}>👁 Show All</Button></Tooltip>
-          <Tooltip text="Previous Comment"><Button style={rBtn} onClick={() => stepComment(-1)}>◀ Prev</Button></Tooltip>
-          <Tooltip text="Next Comment"><Button style={rBtn} onClick={() => stepComment(1)}>▶ Next</Button></Tooltip>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <HeroBtn icon={<MessageSquarePlus size={20} strokeWidth={1.75} />} label="New Comment" title="New Comment (Ctrl+Alt+M)" onMouseDown={(e) => e.preventDefault()} onClick={handleNewComment} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
+            <MiniAction icon={<Trash2 size={13} strokeWidth={1.75} />} text="Delete Comment" title="Delete Comment" onClick={removeCurrentComment} />
+            <MiniAction icon={<Eye size={13} strokeWidth={1.75} />} text="Show Comments" title="Show All Comments" onClick={handleComments} />
+            <div style={{ display: 'flex', gap: 2 }}>
+              <Button style={{ height: 22, padding: '0 4px', fontSize: 10, display: 'inline-flex', alignItems: 'center', gap: 2 }} onClick={() => stepComment(-1)}><ChevronLeft size={10} strokeWidth={1.75} /> Prev</Button>
+              <Button style={{ height: 22, padding: '0 4px', fontSize: 10, display: 'inline-flex', alignItems: 'center', gap: 2 }} onClick={() => stepComment(1)}>Next <ChevronRight size={10} strokeWidth={1.75} /></Button>
+            </div>
+          </div>
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Tracking">
-        <div style={col}>
-          <Tooltip text="Track Changes" shortcut="Ctrl+Shift+E">
-            <Button style={rBtn} active={trackChanges} onClick={toggleTrackChanges}>⊕ Track</Button>
-          </Tooltip>
-          <Tooltip text="Accept Change"><Button style={rBtn} onClick={handleAcceptChange}>✓ Accept</Button></Tooltip>
-          <Tooltip text="Reject Change"><Button style={rBtn} onClick={handleRejectChange}>✕ Reject</Button></Tooltip>
-          <Tooltip text="Previous Change"><Button style={rBtn} onClick={() => announceChange(-1)}>◀ Prev</Button></Tooltip>
-          <Tooltip text="Next Change"><Button style={rBtn} onClick={() => announceChange(1)}>▶ Next</Button></Tooltip>
-        </div>
-      </RibbonGroup>
-
-      <RibbonGroup label="Markup">
-        <div style={col}>
-          <Tooltip text="Filter All Markup">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <HeroBtn icon={<FileDiff size={20} strokeWidth={1.75} />} label="Track Changes" title="Track Changes (Ctrl+Shift+E)" active={trackChanges} onClick={toggleTrackChanges} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
+            <MiniAction icon={<Check size={13} strokeWidth={1.75} />} text="Accept Change" title="Accept Tracked Change" onClick={handleAcceptChange} />
+            <MiniAction icon={<X size={13} strokeWidth={1.75} />} text="Reject Change" title="Reject Tracked Change" onClick={handleRejectChange} />
+            <div style={{ display: 'flex', gap: 2 }}>
+              <Button style={{ height: 22, padding: '0 4px', fontSize: 10, display: 'inline-flex', alignItems: 'center', gap: 2 }} onClick={() => announceChange(-1)}><ChevronLeft size={10} strokeWidth={1.75} /> Prev</Button>
+              <Button style={{ height: 22, padding: '0 4px', fontSize: 10, display: 'inline-flex', alignItems: 'center', gap: 2 }} onClick={() => announceChange(1)}>Next <ChevronRight size={10} strokeWidth={1.75} /></Button>
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
             <Select width={108} options={MARKUP_OPTIONS} value={markupMode} onChange={handleFilterMarkup} title="All Markup" />
-          </Tooltip>
-          <Tooltip text="Show Markup"><Button style={rBtn} onClick={handleReviewingPane}>☰ Markup</Button></Tooltip>
-          <Tooltip text="Reviewing Pane"><Button style={rBtn} onClick={handleReviewingPane}>▣ Pane</Button></Tooltip>
+            <MiniAction icon={<PanelLeftClose size={13} strokeWidth={1.75} />} text="Reviewing Pane" title="Reviewing Pane" onClick={handleReviewingPane} />
+          </div>
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Compare">
-        <div style={col}>
-          <Tooltip text="Version History"><Button style={rBtn} onClick={() => openDialog('versionHistory')}>⏱ History</Button></Tooltip>
-          <Tooltip text="Compare Documents"><Button style={rBtn} onClick={handleCompare}>⇔ Compare</Button></Tooltip>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <HeroBtn icon={<History size={20} strokeWidth={1.75} />} label="History" title="Version History & Restore" onClick={() => openDialog('versionHistory')} />
+          <HeroBtn icon={<ArrowLeftRight size={20} strokeWidth={1.75} />} label="Compare" title="Compare Documents" onClick={handleCompare} />
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Protect">
-        <div style={col}>
-          <Tooltip text="Block Authors"><Button style={rBtn} onClick={blockAuthors}>👥 Protect</Button></Tooltip>
-          <Tooltip text="Restrict Editing"><Button style={rBtn} onClick={handleRestrictEditing}>🛡 Restrict</Button></Tooltip>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <HeroBtn icon={<ShieldAlert size={20} strokeWidth={1.75} />} label="Restrict" title="Restrict Document Editing" onClick={handleRestrictEditing} />
+          <HeroBtn icon={<Users size={20} strokeWidth={1.75} />} label="Protect" title="Block Authors" onClick={blockAuthors} />
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Ink">
-        <div style={col}>
-          <Tooltip text="Hide Ink"><Button style={rBtn} active={hideInk} onClick={handleHideInk}>🖌 Hide Ink</Button></Tooltip>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <HeroBtn icon={<EyeOff size={20} strokeWidth={1.75} />} label="Hide Ink" title="Hide All Ink" active={hideInk} onClick={handleHideInk} />
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Smart Features">
-        <div style={col}>
-          <Tooltip text="Voice Commands & Speech Control">
-            <Button
-              style={rBtn}
-              active={voiceActive && voiceMode === 'command'}
-              onClick={() => startVoice('command')}
-            >
-              {voiceActive && voiceMode === 'command' ? '🔴 Stop' : '🎙 Voice'}
-            </Button>
-          </Tooltip>
-          <Tooltip text="Voice Typing (Dictation + Commands)">
-            <Button
-              style={rBtn}
-              active={voiceActive && voiceMode === 'typing'}
-              onClick={() => startVoice('typing')}
-            >
-              {voiceActive && voiceMode === 'typing' ? '🔴 Stop' : '🎤 Dictate'}
-            </Button>
-          </Tooltip>
-          <Tooltip text="Text-to-Speech"><Button style={rBtn} onClick={() => runReadAloud({ editor, toast })}>🔊 Read</Button></Tooltip>
-          <Tooltip text="Stop Reading"><Button style={rBtn} onClick={() => { if (window.speechSynthesis) { window.speechSynthesis.cancel(); toast('Read aloud stopped', 'info'); } }}>🔇 Stop</Button></Tooltip>
-          <Tooltip text="OCR (Image to Text)"><Button style={rBtn} onClick={() => runImageTextCapture({ editor, toast, mode: 'ocr' })}>🧾 OCR</Button></Tooltip>
-          <Tooltip text="Handwriting Recognition"><Button style={rBtn} onClick={() => runImageTextCapture({ editor, toast, mode: 'handwriting' })}>✍ Ink</Button></Tooltip>
-          <Tooltip text="Smart Suggestions"><Button style={rBtn} onClick={() => runSmartSuggestions({ editor, toast })}>✨ Suggest</Button></Tooltip>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <HeroBtn
+            icon={<Mic size={20} strokeWidth={1.75} style={voiceActive && voiceMode === 'command' ? { color: '#ef4444' } : undefined} />}
+            label="Voice"
+            title="Voice Commands & Speech Control"
+            active={voiceActive && voiceMode === 'command'}
+            onClick={() => startVoice('command')}
+          />
+          <HeroBtn
+            icon={<Headphones size={20} strokeWidth={1.75} style={voiceActive && voiceMode === 'typing' ? { color: '#ef4444' } : undefined} />}
+            label="Dictate"
+            title="Voice Typing (Dictation + Commands)"
+            active={voiceActive && voiceMode === 'typing'}
+            onClick={() => startVoice('typing')}
+          />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
+            <MiniAction icon={<ScanText size={13} strokeWidth={1.75} />} text="OCR Scan" title="OCR (Image to Text)" onClick={() => runImageTextCapture({ editor, toast, mode: 'ocr' })} />
+            <MiniAction icon={<PenTool size={13} strokeWidth={1.75} />} text="Handwriting" title="Handwriting Recognition" onClick={() => runImageTextCapture({ editor, toast, mode: 'handwriting' })} />
+            <MiniAction icon={<Sparkles size={13} strokeWidth={1.75} />} text="Suggestions" title="Smart Suggestions" onClick={() => runSmartSuggestions({ editor, toast })} />
+          </div>
         </div>
       </RibbonGroup>
     </>
@@ -997,125 +1095,138 @@ export function ViewTab() {
     applyRuler(!rulerVisible);
   };
 
+  const toggleFocus = () => {
+    const el = document.getElementById('editor-scroll-area');
+    const next = !focusMode;
+    setFocusMode(next);
+    if (el) el.classList.toggle('etherx-focus-mode', next);
+    toast(next ? 'Focus mode enabled' : 'Focus mode disabled', 'info');
+  };
+
+  const handleSplit = () => {
+    const left = document.getElementById('editor-scroll-area');
+    if (!left) return;
+    const existing = document.getElementById('etherx-split-preview');
+    if (existing) {
+      existing.remove();
+      toast('Split view closed', 'info');
+      return;
+    }
+    const container = document.createElement('div');
+    container.id = 'etherx-split-preview';
+    container.style.flex = '1';
+    container.style.borderLeft = '1px solid var(--border)';
+    container.style.overflow = 'auto';
+    container.style.background = 'var(--bg-primary)';
+    container.style.position = 'relative';
+    const lbl = document.createElement('div');
+    lbl.style.cssText = 'position:absolute;top:0;left:0;right:0;padding:8px 12px;background:var(--ribbon-surface);border-bottom:1px solid var(--border);font-size:12px;font-weight:600;color:var(--text-muted);z-index:10;';
+    lbl.textContent = 'Preview';
+    container.appendChild(lbl);
+    const content = document.createElement('div');
+    content.id = 'etherx-split-content';
+    content.style.cssText = 'margin-top:32px;padding:20px;white-space:pre-wrap;word-wrap:break-word;';
+    container.appendChild(content);
+    left.parentElement?.appendChild(container);
+    if (editor) {
+      const update = () => { content.innerText = editor.state.doc.textBetween(0, editor.state.doc.content.size, '\n'); };
+      editor.on('update', update);
+      update();
+      container.dataset.editorListener = 'true';
+    }
+    toast('Split view opened - synchronized preview', 'success');
+  };
+
+  const handleMacro = () => {
+    const script = window.prompt('Macro command (upper|lower|title)', 'upper');
+    if (!script || !editor) return;
+    const { from, to } = editor.state.selection;
+    if (from === to) {
+      toast('Select text to run macro', 'info');
+      return;
+    }
+    const selected = editor.state.doc.textBetween(from, to, ' ');
+    let transformed = selected;
+    if (script === 'upper') transformed = selected.toUpperCase();
+    if (script === 'lower') transformed = selected.toLowerCase();
+    if (script === 'title') transformed = selected.replace(/\w\S*/g, (w) => w[0].toUpperCase() + w.slice(1).toLowerCase());
+    editor.chain().focus().insertContentAt({ from, to }, transformed).run();
+    toast(`Macro applied: ${script}`, 'success');
+  };
+
   return (
     <>
-      {(() => {
-        const col = { display: 'flex', flexDirection: 'column', flexWrap: 'wrap', maxHeight: 82, height: 82, gap: 2, alignContent: 'flex-start' };
-        const vbtn = { height: 25, display: 'inline-flex', alignItems: 'center', fontSize: 11, padding: '0 6px', flexShrink: 0, whiteSpace: 'nowrap' };
-        return (
-          <>
-            <RibbonGroup label="Views">
-              <div style={col}>
-                <Tooltip text="Print Layout"><Button style={vbtn} active={viewMode === 'print'} onClick={() => applyViewMode('print')}>📄 Print</Button></Tooltip>
-                <Tooltip text="Web Layout"><Button style={vbtn} active={viewMode === 'web'} onClick={() => applyViewMode('web')}>🌐 Web</Button></Tooltip>
-                <Tooltip text="Outline"><Button style={vbtn} active={viewMode === 'outline'} onClick={() => applyViewMode('outline')}>≡ Outline</Button></Tooltip>
-                <Tooltip text="Draft"><Button style={vbtn} active={viewMode === 'draft'} onClick={() => applyViewMode('draft')}>📝 Draft</Button></Tooltip>
-                <Tooltip text="Read Mode"><Button style={vbtn} active={viewMode === 'read'} onClick={() => applyViewMode('read')}>📖 Read</Button></Tooltip>
-                <Tooltip text="Focus Mode"><Button style={vbtn} active={focusMode} onClick={() => {
-                  const el = document.getElementById('editor-scroll-area');
-                  const next = !focusMode;
-                  setFocusMode(next);
-                  if (el) el.classList.toggle('etherx-focus-mode', next);
-                  toast(next ? 'Focus mode enabled' : 'Focus mode disabled', 'info');
-                }}>🎯 Focus</Button></Tooltip>
-              </div>
-            </RibbonGroup>
+      <RibbonGroup label="Views">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <HeroBtn icon={<Printer size={20} strokeWidth={1.75} />} label="Print" title="Print Layout View" active={viewMode === 'print'} onClick={() => applyViewMode('print')} />
+          <HeroBtn icon={<Globe size={20} strokeWidth={1.75} />} label="Web" title="Web Layout View" active={viewMode === 'web'} onClick={() => applyViewMode('web')} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
+            <MiniAction icon={<ListTree size={13} strokeWidth={1.75} />} text="Outline" title="Outline View" active={viewMode === 'outline'} onClick={() => applyViewMode('outline')} />
+            <MiniAction icon={<FileText size={13} strokeWidth={1.75} />} text="Draft" title="Draft View" active={viewMode === 'draft'} onClick={() => applyViewMode('draft')} />
+            <MiniAction icon={<BookOpen size={13} strokeWidth={1.75} />} text="Read Mode" title="Read Mode" active={viewMode === 'read'} onClick={() => applyViewMode('read')} />
+          </div>
+          <HeroBtn icon={<Focus size={20} strokeWidth={1.75} />} label="Focus" title="Toggle Focus Mode" active={focusMode} onClick={toggleFocus} />
+        </div>
+      </RibbonGroup>
 
-            <RibbonGroup label="Show">
-              <div style={col}>
-                <Tooltip text="Toggle Page Sidebar"><Button style={vbtn} active={sidebarOpen} onClick={toggleSidebar}>⊞ Sidebar</Button></Tooltip>
-                <Tooltip text="Ruler"><Button style={vbtn} active={rulerVisible} onClick={handleRuler}>📏 Ruler</Button></Tooltip>
-                <Tooltip text="Gridlines"><Button style={vbtn} active={gridlinesVisible} onClick={handleGridlines}>⊞ Grid</Button></Tooltip>
-                <Tooltip text="Navigation Pane"><Button style={vbtn} onClick={() => toggleSidebar()}>🧭 Nav Pane</Button></Tooltip>
-              </div>
-            </RibbonGroup>
+      <RibbonGroup label="Show">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <HeroBtn icon={<Ruler size={20} strokeWidth={1.75} />} label="Ruler" title="Toggle Ruler" active={rulerVisible} onClick={handleRuler} />
+          <HeroBtn icon={<Grid size={20} strokeWidth={1.75} />} label="Gridlines" title="Toggle Gridlines" active={gridlinesVisible} onClick={handleGridlines} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
+            <MiniAction icon={<Compass size={13} strokeWidth={1.75} />} text="Nav Pane" title="Navigation Pane" onClick={() => toggleSidebar()} />
+            <MiniAction icon={<LayoutGrid size={13} strokeWidth={1.75} />} text="Thumbnails" title="Toggle Page Sidebar" active={sidebarOpen} onClick={toggleSidebar} />
+          </div>
+        </div>
+      </RibbonGroup>
 
-            <RibbonGroup label="Zoom">
-              <div style={col}>
-                <Tooltip text="Zoom Out"><Button style={vbtn} onClick={() => setZoom(zoom - 10)}>−</Button></Tooltip>
-                <span style={{ fontSize: 12, color: 'var(--text-primary)', fontFamily: 'var(--font-ui)', minWidth: 36, textAlign: 'center', height: 26, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{zoom}%</span>
-                <Tooltip text="Zoom In"><Button style={vbtn} onClick={() => setZoom(zoom + 10)}>+</Button></Tooltip>
-                <Tooltip text="100%"><Button style={vbtn} onClick={() => setZoom(100)}>100%</Button></Tooltip>
-                <Tooltip text="Fit Page"><Button style={vbtn} onClick={() => setZoom(85)}>⊡ Fit</Button></Tooltip>
-                <Tooltip text="Page Width"><Button style={vbtn} onClick={() => setZoom(110)}>↔ Width</Button></Tooltip>
-                <Tooltip text="75%"><Button style={vbtn} onClick={() => setZoom(75)}>75%</Button></Tooltip>
-              </div>
-            </RibbonGroup>
+      <RibbonGroup label="Zoom">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <HeroBtn icon={<ZoomIn size={20} strokeWidth={1.75} />} label="100%" title="Zoom to 100%" active={zoom === 100} onClick={() => setZoom(100)} />
+          <HeroBtn icon={<Maximize2 size={20} strokeWidth={1.75} />} label="Fit Page" title="Fit Page to Window" active={zoom === 85} onClick={() => setZoom(85)} />
+          <HeroBtn icon={<MoveHorizontal size={20} strokeWidth={1.75} />} label="Page Width" title="Fit Page Width" active={zoom === 110} onClick={() => setZoom(110)} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+              <Button style={{ height: 22, padding: '0 6px', fontSize: 11 }} onClick={() => setZoom(Math.max(25, zoom - 10))}>−</Button>
+              <span style={{ fontSize: 11, color: 'var(--text-primary)', fontFamily: 'var(--font-ui)', minWidth: 36, textAlign: 'center' }}>{zoom}%</span>
+              <Button style={{ height: 22, padding: '0 6px', fontSize: 11 }} onClick={() => setZoom(Math.min(300, zoom + 10))}>+</Button>
+            </div>
+            <MiniAction icon={<ZoomOut size={13} strokeWidth={1.75} />} text="75%" title="Zoom to 75%" onClick={() => setZoom(75)} />
+            <MiniAction icon={<ZoomIn size={13} strokeWidth={1.75} />} text="150%" title="Zoom to 150%" onClick={() => setZoom(150)} />
+          </div>
+        </div>
+      </RibbonGroup>
 
-            <RibbonGroup label="Window">
-              <div style={col}>
-                <Tooltip text="New Window — opens document in a new tab">
-                  <Button style={vbtn} onClick={() => window.open(window.location.href, '_blank')}>⊞ New Window</Button>
-                </Tooltip>
-                <Tooltip text={fullscreen ? 'Exit Fullscreen' : 'Fullscreen'}>
-                  <Button style={vbtn} onClick={toggleFullscreen}>{fullscreen ? '⤡ Exit Full' : '⤢ Fullscreen'}</Button>
-                </Tooltip>
-                <Tooltip text="Split View"><Button style={vbtn} onClick={() => {
-                  const left = document.getElementById('editor-scroll-area');
-                  if (!left) return;
-                  const existing = document.getElementById('etherx-split-preview');
-                  if (existing) {
-                    existing.remove();
-                    toast('Split view closed', 'info');
-                    return;
-                  }
-                  const container = document.createElement('div');
-                  container.id = 'etherx-split-preview';
-                  container.style.flex = '1';
-                  container.style.borderLeft = '1px solid var(--border)';
-                  container.style.overflow = 'auto';
-                  container.style.background = 'var(--bg-primary)';
-                  container.style.position = 'relative';
-                  const lbl = document.createElement('div');
-                  lbl.style.cssText = 'position:absolute;top:0;left:0;right:0;padding:8px 12px;background:var(--ribbon-surface);border-bottom:1px solid var(--border);font-size:12px;font-weight:600;color:var(--text-muted);z-index:10;';
-                  lbl.textContent = 'Preview';
-                  container.appendChild(lbl);
-                  const content = document.createElement('div');
-                  content.id = 'etherx-split-content';
-                  content.style.cssText = 'margin-top:32px;padding:20px;white-space:pre-wrap;word-wrap:break-word;';
-                  container.appendChild(content);
-                  left.parentElement?.appendChild(container);
-                  if (editor) {
-                    const update = () => { content.innerText = editor.state.doc.textBetween(0, editor.state.doc.content.size, '\n'); };
-                    editor.on('update', update);
-                    update();
-                    container.dataset.editorListener = 'true';
-                  }
-                  toast('Split view opened - synchronized preview', 'success');
-                }}>⊟ Split</Button></Tooltip>
-              </div>
-            </RibbonGroup>
+      <RibbonGroup label="Window">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <HeroBtn icon={<ExternalLink size={20} strokeWidth={1.75} />} label="New Window" title="Open Document in New Tab" onClick={() => window.open(window.location.href, '_blank')} />
+          <HeroBtn icon={<Columns size={20} strokeWidth={1.75} />} label="Split" title="Toggle Synchronized Split View" onClick={handleSplit} />
+          <HeroBtn
+            icon={fullscreen ? <Minimize size={20} strokeWidth={1.75} /> : <Maximize size={20} strokeWidth={1.75} />}
+            label={fullscreen ? 'Exit Full' : 'Fullscreen'}
+            title="Toggle Fullscreen"
+            active={fullscreen}
+            onClick={toggleFullscreen}
+          />
+        </div>
+      </RibbonGroup>
 
-            <RibbonGroup label="Structure & Security">
-              <div style={col}>
-                <Tooltip text="Master Document & Subdocuments"><Button style={vbtn} onClick={() => openDialog('masterDoc')}>📑 Master Doc</Button></Tooltip>
-                <Tooltip text="Security & Protection"><Button style={vbtn} onClick={() => openDialog('security')}>🔒 Security</Button></Tooltip>
-              </div>
-            </RibbonGroup>
+      <RibbonGroup label="Structure & Security">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <HeroBtn icon={<FileCode2 size={20} strokeWidth={1.75} />} label="Master Doc" title="Master Document & Subdocuments" onClick={() => openDialog('masterDoc')} />
+          <HeroBtn icon={<ShieldCheck size={20} strokeWidth={1.75} />} label="Security" title="Security & Protection Settings" onClick={() => openDialog('security')} />
+        </div>
+      </RibbonGroup>
 
-            <RibbonGroup label="Macros">
-              <div style={col}>
-                <Tooltip text="Macros"><Button style={vbtn} onClick={() => {
-                  const script = window.prompt('Macro command (upper|lower|title)', 'upper');
-                  if (!script || !editor) return;
-                  const { from, to } = editor.state.selection;
-                  if (from === to) {
-                    toast('Select text to run macro', 'info');
-                    return;
-                  }
-                  const selected = editor.state.doc.textBetween(from, to, ' ');
-                  let transformed = selected;
-                  if (script === 'upper') transformed = selected.toUpperCase();
-                  if (script === 'lower') transformed = selected.toLowerCase();
-                  if (script === 'title') transformed = selected.replace(/\w\S*/g, (w) => w[0].toUpperCase() + w.slice(1).toLowerCase());
-                  editor.chain().focus().insertContentAt({ from, to }, transformed).run();
-                  toast(`Macro applied: ${script}`, 'success');
-                }}>⚙ Macros</Button></Tooltip>
-              </div>
-            </RibbonGroup>
-          </>
-        );
-      })()}
+      <RibbonGroup label="Macros">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <HeroBtn icon={<Terminal size={20} strokeWidth={1.75} />} label="Macros" title="View & Run Macros" onClick={handleMacro} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
+            <MiniAction icon={<Zap size={13} strokeWidth={1.75} />} text="Run Quick" title="Run Quick Macro" onClick={handleMacro} />
+            <MiniAction icon={<CircleDot size={13} strokeWidth={1.75} />} text="Record" title="Record Macro" onClick={() => toast('Macro recorder ready', 'info')} />
+          </div>
+        </div>
+      </RibbonGroup>
     </>
   );
 }

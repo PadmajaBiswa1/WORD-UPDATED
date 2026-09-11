@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { Zap, Check, Copy, Info, Lock } from 'lucide-react';
 import { useUIStore, useDocumentStore } from '@/store';
 import { useCollaborationStore } from '@/store';
 import { Modal, Button, Input, Label, Stack } from '@/components/ui';
@@ -282,8 +283,8 @@ export function ShareDialog() {
     <Modal title="Share Document" onClose={() => closeDialog('shareDoc')} width={480}>
       <Stack gap={20}>
         <div style={{ padding:'14px 16px', background:'rgba(201, 168, 76, 0.1)', borderRadius:'var(--radius-md)', border:'1px solid var(--border-gold)' }}>
-          <div style={{ fontFamily:'var(--font-ui)', fontSize:12, fontWeight:700, color:'var(--text-gold)', marginBottom: 4 }}>
-            ⚡ Real-Time Collaboration
+          <div style={{ fontFamily:'var(--font-ui)', fontSize:12, fontWeight:700, color:'var(--text-gold)', marginBottom: 4, display:'flex', alignItems:'center', gap:5 }}>
+            <Zap size={13} fill="currentColor" /> Real-Time Collaboration
           </div>
           <div style={{ fontFamily:'var(--font-ui)', fontSize:11, color:'var(--text-primary)', marginBottom: 8 }}>
             {connected 
@@ -331,12 +332,14 @@ export function ShareDialog() {
               onClick={copyLink} 
               disabled={working}
               title="Copy share link to clipboard"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
             >
-              {copied ? '✓ Copied!' : '📋 Copy Link'}
+              {copied ? <><Check size={13} strokeWidth={2} /> Copied!</> : <><Copy size={13} strokeWidth={1.75} /> Copy Link</>}
             </Button>
           </div>
-          <div style={{ marginTop: 6, fontFamily:'var(--font-ui)', fontSize: 11, color:'var(--text-muted)' }}>
-            📌 Share this link with anyone to start collaborating instantly - no sign-up required. Changes are synchronized in real-time.
+          <div style={{ marginTop: 6, fontFamily:'var(--font-ui)', fontSize: 11, color:'var(--text-muted)', display:'flex', alignItems:'center', gap:5 }}>
+            <Info size={13} style={{ flexShrink: 0, color: 'var(--text-gold)' }} />
+            <span>Share this link with anyone to start collaborating instantly - no sign-up required. Changes are synchronized in real-time.</span>
           </div>
         </div>
 
@@ -378,7 +381,9 @@ export function ShareDialog() {
 
         {/* Access settings */}
         <div style={{ padding:'12px 14px', background:'var(--bg-elevated)', borderRadius:'var(--radius-md)', border:'1px solid var(--border)' }}>
-          <div style={{ fontFamily:'var(--font-ui)', fontSize:12, fontWeight:600, color:'var(--text-primary)', marginBottom:6 }}>🔒 Access Settings</div>
+          <div style={{ fontFamily:'var(--font-ui)', fontSize:12, fontWeight:600, color:'var(--text-primary)', marginBottom:6, display:'flex', alignItems:'center', gap:5 }}>
+            <Lock size={13} /> Access Settings
+          </div>
           <div style={{ fontFamily:'var(--font-ui)', fontSize:12, color:'var(--text-secondary)' }}>
             Anyone with the link can join this document. Use invited roles to guide whether they should view, comment, or edit.
           </div>

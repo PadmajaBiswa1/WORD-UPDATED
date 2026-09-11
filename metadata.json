@@ -1,0 +1,8 @@
+{
+  "name": "EtherX Word",
+  "description": "Collaborative word processor with rich text editing, document templates, AI writing assistant, and export tools.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

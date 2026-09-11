@@ -1,4 +1,9 @@
 import { useUIStore, useEditorStore, useDocumentStore } from '@/store';
+import {
+  FileText, BookOpen, FilePlus2, Table, Image, Shapes, BarChart3, Camera,
+  Link2, MessageSquare, PanelTop, PanelBottom, Hash, BoxSelect,
+  Sparkles, CaseUpper, Calendar, Blocks, PenTool, Sigma, Omega, ShieldCheck, FileSignature
+} from 'lucide-react';
 import { RibbonGroup } from '../RibbonGroup';
 import { Tooltip } from '@/components/ui';
 
@@ -142,151 +147,177 @@ export function InsertTab() {
     return <div style={base} />;
   };
 
-  const heroBtn = {
-    border: '1px solid transparent',
-    background: 'transparent',
-    borderRadius: 2,
-    cursor: 'pointer',
-    color: 'var(--ribbon-ink)',
-    width: 54,
-    height: 80,
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 3,
-    padding: '2px 2px',
-    fontFamily: 'var(--font-ui)',
+  function HeroBtn({ icon, label, onClick, title, active, disabled }) {
+    return (
+      <Tooltip text={title || label}>
+        <button
+          disabled={disabled}
+          onClick={onClick}
+          style={{
+            border: active ? '1px solid var(--border-gold, #c9a84c)' : '1px solid transparent',
+            background: active ? 'var(--bg-hover, rgba(212,175,55,0.1))' : 'transparent',
+            borderRadius: 3,
+            cursor: disabled ? 'not-allowed' : 'pointer',
+            color: active ? 'var(--text-gold, #c9a84c)' : 'var(--text-primary)',
+            minWidth: 56,
+            height: 74,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 4,
+            padding: '4px 6px',
+            fontFamily: 'var(--font-ui)',
+            fontSize: 11,
+            transition: 'background 0.1s, border-color 0.1s',
+            whiteSpace: 'nowrap',
+            opacity: disabled ? 0.45 : 1,
+          }}
+          onMouseEnter={(e) => {
+            if (!disabled && !active) {
+              e.currentTarget.style.background = 'var(--bg-hover)';
+              e.currentTarget.style.borderColor = 'var(--border)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!disabled && !active) {
+              e.currentTarget.style.background = 'transparent';
+              e.currentTarget.style.borderColor = 'transparent';
+            }
+          }}
+        >
+          <div style={{ fontSize: 20, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</div>
+          <span style={{ fontSize: 11, lineHeight: 1.1, textAlign: 'center' }}>{label}</span>
+        </button>
+      </Tooltip>
+    );
+  }
+
+  function MiniAction({ icon, text, onClick, title, active, disabled }) {
+    return (
+      <Tooltip text={title || text}>
+        <button
+          disabled={disabled}
+          onClick={onClick}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 5,
+            height: 22,
+            padding: '0 6px',
+            fontSize: 11,
+            fontFamily: 'var(--font-ui)',
+            border: active ? '1px solid var(--border-gold, #c9a84c)' : '1px solid transparent',
+            borderRadius: 2,
+            background: active ? 'var(--bg-hover)' : 'transparent',
+            color: active ? 'var(--text-gold, #c9a84c)' : 'var(--text-primary)',
+            cursor: disabled ? 'not-allowed' : 'pointer',
+            whiteSpace: 'nowrap',
+            transition: 'background 0.1s, border-color 0.1s',
+            opacity: disabled ? 0.45 : 1,
+          }}
+          onMouseEnter={(e) => {
+            if (!disabled && !active) {
+              e.currentTarget.style.background = 'var(--bg-hover)';
+              e.currentTarget.style.borderColor = 'var(--border)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!disabled && !active) {
+              e.currentTarget.style.background = 'transparent';
+              e.currentTarget.style.borderColor = 'transparent';
+            }
+          }}
+        >
+          {icon && <span style={{ fontSize: 12, lineHeight: 1 }}>{icon}</span>}
+          <span>{text}</span>
+        </button>
+      </Tooltip>
+    );
+  }
+
+  const insertTextBox = () => {
+    if (!editor) return;
+    const boxId = `textbox-${Date.now()}`;
+    run(() => {
+      editor
+        .chain()
+        .focus()
+        .insertContent(`<div id="${boxId}" style="border:2px solid #4472c4;border-radius:4px;padding:12px;margin:8px 0;background:#f0f7ff;cursor:text;min-width:200px;min-height:60px;" contenteditable="true" data-textbox="true"><span style="color:#999;font-style:italic;">Click to type</span></div>`)
+        .run();
+    });
+    toast('Text box inserted', 'success');
   };
-
-  const itemBtn = {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 5,
-    height: 24,
-    padding: '0 6px',
-    border: '1px solid transparent',
-    background: 'transparent',
-    borderRadius: 2,
-    cursor: 'pointer',
-    color: 'var(--ribbon-ink)',
-    fontSize: 11,
-    fontFamily: 'var(--font-ui)',
-    whiteSpace: 'nowrap',
-  };
-
-  const label = (t, dd = false) => <span style={{ fontSize: 11, lineHeight: 1.05, textAlign: 'center' }}>{t}{dd ? ' ▾' : ''}</span>;
-
-  const col = { display: 'flex', flexDirection: 'column', flexWrap: 'wrap', maxHeight: 82, height: 82, gap: 2, alignContent: 'flex-start' };
-  const ibtn = { ...itemBtn, height: 25 };
 
   return (
     <>
       <RibbonGroup label="Pages">
-        <span data-hero="true" style={{ display: 'inline-flex', height: 78, alignItems: 'stretch' }}>
-          <Tooltip text="Page Break" shortcut="Ctrl+Enter">
-            <button data-hero="true" style={heroBtn} onClick={() => run(() => editor.chain().focus().insertPageBreak().run())}>
-              {iconBox('page')}
-              {label('Page Break')}
-            </button>
-          </Tooltip>
-        </span>
-      </RibbonGroup>
-
-      <RibbonGroup label="Tables">
-        <span data-hero="true" style={{ display: 'inline-flex', height: 78, alignItems: 'stretch' }}>
-          <button data-hero="true" style={heroBtn} onClick={() => openDialog('insertTable')}>
-            {iconBox('table')}
-            {label('Table', true)}
-          </button>
-        </span>
-      </RibbonGroup>
-
-      <RibbonGroup label="Illustrations">
-        <div style={col}>
-          <button style={ibtn} onClick={() => openDialog('insertImage')}>{iconBox('picture')}{label('Pictures', true)}</button>
-          <button style={ibtn} onClick={() => openDialog('insertShape')}>{iconBox('picture')}{label('Shapes', true)}</button>
-          <button style={ibtn} onClick={() => openDialog('insertChart')}>{iconBox('chart')}{label('Chart', true)}</button>
-          <button style={ibtn} onClick={() => openDialog('screenshot')}>{iconBox('picture')}{label('Screenshot', true)}</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <HeroBtn icon={<FileText size={20} strokeWidth={1.75} />} label="Page Break" title="Insert Page Break (Ctrl+Enter)" onClick={() => run(() => editor.chain().focus().insertPageBreak().run())} />
+          <HeroBtn icon={<BookOpen size={20} strokeWidth={1.75} />} label="Cover Page" title="Insert Cover Page Template" onClick={() => openDialog('templates')} />
+          <HeroBtn icon={<FilePlus2 size={20} strokeWidth={1.75} />} label="Blank Page" title="Insert Blank Page" onClick={() => run(() => editor.chain().focus().insertContent('<p></p>').run())} />
         </div>
       </RibbonGroup>
 
-      <RibbonGroup label="Links">
-        <span data-hero="true" style={{ display: 'inline-flex', height: 78, alignItems: 'stretch' }}>
-          <button data-hero="true" style={heroBtn} onClick={() => openDialog('insertLink')}>
-            {iconBox('link')}
-            {label('Link')}
-          </button>
-        </span>
+      <RibbonGroup label="Tables">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <HeroBtn icon={<Table size={20} strokeWidth={1.75} />} label="Table ▾" title="Insert Table" onClick={() => openDialog('insertTable')} />
+        </div>
       </RibbonGroup>
 
-      <RibbonGroup label="Comments">
-        <span data-hero="true" style={{ display: 'inline-flex', height: 78, alignItems: 'stretch' }}>
-          <Tooltip text="Comment" shortcut="Ctrl+Alt+M">
-            <button data-hero="true" style={heroBtn} onClick={() => openDialog('comments')}>
-              {iconBox('picture')}
-              {label('Comment')}
-            </button>
-          </Tooltip>
-        </span>
+      <RibbonGroup label="Illustrations">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <HeroBtn icon={<Image size={20} strokeWidth={1.75} />} label="Pictures" title="Insert Picture from Device / Web" onClick={() => openDialog('insertImage')} />
+          <HeroBtn icon={<Shapes size={20} strokeWidth={1.75} />} label="Shapes" title="Insert Shapes" onClick={() => openDialog('insertShape')} />
+          <HeroBtn icon={<BarChart3 size={20} strokeWidth={1.75} />} label="Chart" title="Insert Chart" onClick={() => openDialog('insertChart')} />
+          <HeroBtn icon={<Camera size={20} strokeWidth={1.75} />} label="Screenshot" title="Capture / Insert Screenshot" onClick={() => openDialog('screenshot')} />
+        </div>
+      </RibbonGroup>
+
+      <RibbonGroup label="Links & Comments">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <HeroBtn icon={<Link2 size={20} strokeWidth={1.75} />} label="Link" title="Insert Link (Ctrl+K)" onClick={() => openDialog('insertLink')} />
+          <HeroBtn icon={<MessageSquare size={20} strokeWidth={1.75} />} label="Comment" title="New Comment (Ctrl+Alt+M)" onClick={() => openDialog('comments')} />
+        </div>
       </RibbonGroup>
 
       <RibbonGroup label="Header & Footer">
-        <div style={col}>
-          <button style={ibtn} onClick={() => openHeaderFooter('header')}>{iconBox('picture')}{label('Header', true)}</button>
-          <button style={ibtn} onClick={() => openHeaderFooter('footer')}>{iconBox('picture')}{label('Footer', true)}</button>
-          <button style={ibtn} onClick={() => openHeaderFooter('pagenum')}>{iconBox('picture')}{label('Page Number', true)}</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <HeroBtn icon={<PanelTop size={20} strokeWidth={1.75} />} label="Header" title="Insert or Edit Header" onClick={() => openHeaderFooter('header')} />
+          <HeroBtn icon={<PanelBottom size={20} strokeWidth={1.75} />} label="Footer" title="Insert or Edit Footer" onClick={() => openHeaderFooter('footer')} />
+          <HeroBtn icon={<Hash size={20} strokeWidth={1.75} />} label="Page #" title="Insert Page Numbers" onClick={() => openHeaderFooter('pagenum')} />
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Text">
-        <div style={col}>
-          <button
-            style={ibtn}
-            onClick={() => {
-              if (!editor) return;
-              const boxId = `textbox-${Date.now()}`;
-              run(() => {
-                editor
-                  .chain()
-                  .focus()
-                  .insertContent(`<div id="${boxId}" style="border:2px solid #4472c4;border-radius:4px;padding:12px;margin:8px 0;background:#f0f7ff;cursor:text;min-width:200px;min-height:60px;" contenteditable="true" data-textbox="true"><span style="color:#999;font-style:italic;">Click to type</span></div>`)
-                  .run();
-              });
-              toast('Text box inserted', 'success');
-            }}
-          >
-            {iconBox('picture')}{label('Text Box', true)}
-          </button>
-          <button style={ibtn} onClick={() => openDialog('buildingBlocks')}>{iconBox('picture')}{label('Quick Parts', true)}</button>
-          <button style={ibtn} onClick={insertSignatureField}>{iconBox('picture')}{label('Sig Field')}</button>
-          <button style={ibtn} onClick={() => openDialog('wordArt')}>{iconBox('picture')}{label('WordArt', true)}</button>
-          <button style={ibtn} onClick={insertDropCap}>{iconBox('picture')}{label('Drop Cap', true)}</button>
-          <button style={ibtn} onClick={() => insertHtml(new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }))}>{iconBox('picture')}{label('Date & Time', true)}</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <HeroBtn icon={<BoxSelect size={20} strokeWidth={1.75} />} label="Text Box" title="Insert Text Box" onClick={insertTextBox} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
+            <MiniAction icon={<Sparkles size={13} strokeWidth={1.75} />} text="WordArt" title="Insert WordArt" onClick={() => openDialog('wordArt')} />
+            <MiniAction icon={<CaseUpper size={13} strokeWidth={1.75} />} text="Drop Cap" title="Insert Drop Cap" onClick={insertDropCap} />
+            <MiniAction icon={<Calendar size={13} strokeWidth={1.75} />} text="Date & Time" title="Insert Date & Time" onClick={() => insertHtml(new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }))} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
+            <MiniAction icon={<Blocks size={13} strokeWidth={1.75} />} text="Quick Parts" title="Quick Parts & Building Blocks" onClick={() => openDialog('buildingBlocks')} />
+            <MiniAction icon={<PenTool size={13} strokeWidth={1.75} />} text="Sig Field" title="Insert Signature Field" onClick={insertSignatureField} />
+          </div>
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Symbols">
-        <div style={col}>
-          <button style={ibtn} onClick={() => openDialog('equation')}>{iconBox('picture')}{label('Equation', true)}</button>
-          <button style={ibtn} onClick={() => openDialog('insertSymbol')}>{iconBox('picture')}{label('Symbol', true)}</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <HeroBtn icon={<Sigma size={20} strokeWidth={1.75} />} label="Equation" title="Insert Math Equation" onClick={() => openDialog('equation')} />
+          <HeroBtn icon={<Omega size={20} strokeWidth={1.75} />} label="Symbol" title="Insert Special Character or Symbol" onClick={() => openDialog('insertSymbol')} />
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Digital Signatures" noDivider>
-        <div style={col}>
-          <button style={ibtn} onClick={() => openDialog('digitalSignature')}>
-            {iconBox('signature')}
-            {label('Digital Sign')}
-          </button>
-          <button style={ibtn} onClick={insertSignatureField}>
-            {iconBox('picture')}
-            {label('Sig Field')}
-          </button>
-          <button style={ibtn} onClick={insertEsignFields}>
-            {iconBox('table')}
-            {label('eSign Table')}
-          </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+          <HeroBtn icon={<ShieldCheck size={20} strokeWidth={1.75} />} label="Digital Sign" title="Sign Document with Digital Key" onClick={() => openDialog('digitalSignature')} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
+            <MiniAction icon={<PenTool size={13} strokeWidth={1.75} />} text="Sig Field" title="Insert Signature Field" onClick={insertSignatureField} />
+            <MiniAction icon={<FileSignature size={13} strokeWidth={1.75} />} text="eSign Table" title="Insert Multi-Party Signature Table" onClick={insertEsignFields} />
+          </div>
         </div>
       </RibbonGroup>
     </>

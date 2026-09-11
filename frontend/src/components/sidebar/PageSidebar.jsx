@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { X } from 'lucide-react';
 import { useUIStore, useDocumentStore, useEditorStore, useCollaborationStore } from '@/store';
 import { PAGE_SIZES, getLayoutMetrics, PAGE_GAP } from '@/utils/pageLayout';
 
@@ -154,14 +155,15 @@ export function PageSidebar() {
               border: 'none',
               color: 'var(--text-muted)',
               cursor: 'pointer',
-              fontSize: 12,
+              display: 'inline-flex',
+              alignItems: 'center',
               padding: '0 2px',
               lineHeight: 1,
             }}
             onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--gold)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; }}
           >
-            ✕
+            <X size={14} />
           </button>
         </div>
       </div>

@@ -69,26 +69,26 @@ export function RibbonButton({
           height: 24,
           padding: '0 6px',
           background: active
-            ? 'rgba(212, 175, 55, 0.2)'
+            ? 'rgba(212, 175, 55, 0.16)'
             : hovered
             ? 'var(--ribbon-hover, var(--bg-hover))'
             : 'transparent',
           border: active
-            ? '1px solid var(--gold)'
+            ? '1px solid rgba(212, 175, 55, 0.5)'
             : hovered
-            ? '1px solid var(--border-gold, #3d3000)'
+            ? '1px solid var(--border)'
             : '1px solid transparent',
-          borderRadius: 3,
+          borderRadius: 4,
           color: active ? 'var(--gold)' : 'var(--ribbon-ink, var(--text-primary))',
           fontFamily: 'var(--font-ui)',
           fontSize: 11,
-          fontWeight: active ? 600 : 500,
+          fontWeight: active ? 600 : 450,
           cursor: disabled ? 'not-allowed' : 'pointer',
           opacity: disabled ? 0.45 : 1,
           userSelect: 'none',
           whiteSpace: 'nowrap',
           outline: 'none',
-          transition: 'all 0.1s ease',
+          transition: 'all 0.12s ease',
           ...style,
         }}
         className={className}
@@ -128,21 +128,21 @@ export function RibbonButton({
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'flex-start',
-        minWidth: 46,
-        maxWidth: 78,
+        minWidth: 48,
+        maxWidth: 76,
         height: 60,
-        padding: '3px 4px 2px',
+        padding: '4px 5px 2px',
         background: active
-          ? 'rgba(212, 175, 55, 0.2)'
+          ? 'rgba(212, 175, 55, 0.16)'
           : hovered
           ? 'var(--ribbon-hover, var(--bg-hover))'
           : 'transparent',
         border: active
-          ? '1px solid var(--gold)'
+          ? '1px solid rgba(212, 175, 55, 0.5)'
           : hovered
-          ? '1px solid var(--border-gold, #3d3000)'
+          ? '1px solid var(--border)'
           : '1px solid transparent',
-        borderRadius: 3,
+        borderRadius: 4,
         color: active ? 'var(--gold)' : 'var(--ribbon-ink, var(--text-primary))',
         fontFamily: 'var(--font-ui)',
         cursor: disabled ? 'not-allowed' : 'pointer',
@@ -151,7 +151,7 @@ export function RibbonButton({
         outline: 'none',
         boxSizing: 'border-box',
         flexShrink: 0,
-        transition: 'background 0.1s, border-color 0.1s, color 0.1s',
+        transition: 'all 0.12s ease',
         ...style,
       }}
       className={className}

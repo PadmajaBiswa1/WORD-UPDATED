@@ -1,7 +1,13 @@
 import { useEffect } from 'react';
+import { CheckCircle2, XCircle, Info, AlertTriangle, X } from 'lucide-react';
 import { useUIStore } from '@/store';
 
-const ICONS  = { success: '✓', error: '✕', info: 'ℹ', warning: '⚠' };
+const ICONS = {
+  success: CheckCircle2,
+  error: XCircle,
+  info: Info,
+  warning: AlertTriangle,
+};
 const COLORS = { success: '#4caf50', error: '#e74c3c', info: '#d4af37', warning: '#e67e22' };
 
 function Toast({ toast, onRemove }) {
@@ -11,6 +17,8 @@ function Toast({ toast, onRemove }) {
   }, [toast.id, toast.duration, onRemove]);
 
   const c = COLORS[toast.type] || COLORS.info;
+  const IconComponent = ICONS[toast.type] || ICONS.info;
+
   return (
     <div className="anim-fade-up" style={{
       background: 'var(--bg-surface)', border: `1px solid ${c}`,
@@ -18,10 +26,14 @@ function Toast({ toast, onRemove }) {
       padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10,
       minWidth: 240, maxWidth: 340, boxShadow: 'var(--shadow-md)', pointerEvents: 'all',
     }}>
-      <span style={{ color: c, fontWeight: 700, fontSize: 14 }}>{ICONS[toast.type] || ICONS.info}</span>
+      <span style={{ color: c, display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>
+        <IconComponent size={16} strokeWidth={2} />
+      </span>
       <span style={{ color: 'var(--text-primary)', flex: 1, fontSize: 13, fontFamily: 'var(--font-ui)' }}>{toast.message}</span>
       <button onClick={() => onRemove(toast.id)}
-        style={{ background:'none', border:'none', color:'var(--text-muted)', cursor:'pointer', fontSize:13, padding:'0 2px' }}>✕</button>
+        style={{ background:'none', border:'none', color:'var(--text-muted)', cursor:'pointer', display:'inline-flex', alignItems:'center', padding:'0 2px' }}>
+        <X size={13} />
+      </button>
     </div>
   );
 }

@@ -1,4 +1,8 @@
 import { useMemo } from 'react';
+import {
+  Sparkles, FilePenLine, FileText, AlignLeft, CheckCheck, RefreshCw,
+  Tag, Languages, Globe, Link2
+} from 'lucide-react';
 import { Button, Tooltip, Divider } from '@/components/ui';
 import { RibbonGroup } from '../RibbonGroup';
 import { useDocumentStore, useEditorStore, useUIStore } from '@/store';
@@ -112,7 +116,7 @@ export function AITab() {
           {/* Flagship Assistant Button */}
           <Tooltip text="Open Pragna AI Assistant Modal">
             <Button disabled={!hasEditor} style={heroButtonStyle} onClick={() => openPragnaTab('ask')}>
-              <span style={{ fontSize: 18, lineHeight: 1 }}>✦</span>
+              <span style={{ fontSize: 18, lineHeight: 1, display: 'inline-flex', alignItems: 'center' }}><Sparkles size={18} strokeWidth={1.75} /></span>
               <span style={{ fontSize: 12 }}>Ask Pragna</span>
             </Button>
           </Tooltip>
@@ -120,7 +124,7 @@ export function AITab() {
           {/* Edit as Instructed Button */}
           <Tooltip text="Edit selected text according to custom instructions using Gemma 31B">
             <Button disabled={!hasEditor} style={heroButtonStyle} onClick={() => openPragnaTab('edit')}>
-              <span style={{ fontSize: 18, lineHeight: 1 }}>✏️</span>
+              <span style={{ fontSize: 18, lineHeight: 1, display: 'inline-flex', alignItems: 'center' }}><FilePenLine size={18} strokeWidth={1.75} /></span>
               <span style={{ fontSize: 12 }}>Edit as Instructed</span>
             </Button>
           </Tooltip>
@@ -129,42 +133,42 @@ export function AITab() {
 
           <Tooltip text="Generate full draft from topic prompt">
             <Button disabled={!hasEditor} style={buttonStyle} onClick={() => openPragnaTab('generate')}>
-              <span style={{ fontSize: 18, lineHeight: 1 }}>✎</span>
+              <span style={{ fontSize: 18, lineHeight: 1, display: 'inline-flex', alignItems: 'center' }}><FileText size={18} strokeWidth={1.75} /></span>
               <span>Draft Generator</span>
             </Button>
           </Tooltip>
 
           <Tooltip text="Summarize selected text or document">
             <Button disabled={!hasEditor} style={buttonStyle} onClick={() => openPragnaTab('summarize')}>
-              <span style={{ fontSize: 18, lineHeight: 1 }}>▤</span>
+              <span style={{ fontSize: 18, lineHeight: 1, display: 'inline-flex', alignItems: 'center' }}><AlignLeft size={18} strokeWidth={1.75} /></span>
               <span>Summarize</span>
             </Button>
           </Tooltip>
 
           <Tooltip text="Fix grammar, spelling, and polish style">
             <Button disabled={!hasEditor} style={buttonStyle} onClick={() => openPragnaTab('grammar')}>
-              <span style={{ fontSize: 18, lineHeight: 1 }}>✓</span>
+              <span style={{ fontSize: 18, lineHeight: 1, display: 'inline-flex', alignItems: 'center' }}><CheckCheck size={18} strokeWidth={1.75} /></span>
               <span>Grammar & Polish</span>
             </Button>
           </Tooltip>
 
           <Tooltip text="Rewrite text in different tones">
             <Button disabled={!hasEditor} style={buttonStyle} onClick={() => openPragnaTab('rewrite')}>
-              <span style={{ fontSize: 18, lineHeight: 1 }}>↻</span>
+              <span style={{ fontSize: 18, lineHeight: 1, display: 'inline-flex', alignItems: 'center' }}><RefreshCw size={18} strokeWidth={1.75} /></span>
               <span>Rewrite Assistant</span>
             </Button>
           </Tooltip>
 
           <Tooltip text="Generate compelling document title">
             <Button disabled={!hasEditor} style={buttonStyle} onClick={() => openPragnaTab('title')}>
-              <span style={{ fontSize: 18, lineHeight: 1 }}>🏷</span>
+              <span style={{ fontSize: 18, lineHeight: 1, display: 'inline-flex', alignItems: 'center' }}><Tag size={18} strokeWidth={1.75} /></span>
               <span>Title Generator</span>
             </Button>
           </Tooltip>
 
           <Tooltip text="Translate text with Pragna AI">
             <Button disabled={!hasEditor} style={buttonStyle} onClick={() => openPragnaTab('translate')}>
-              <span style={{ fontSize: 18, lineHeight: 1 }}>🌐</span>
+              <span style={{ fontSize: 18, lineHeight: 1, display: 'inline-flex', alignItems: 'center' }}><Languages size={18} strokeWidth={1.75} /></span>
               <span>Translation</span>
             </Button>
           </Tooltip>
@@ -175,14 +179,14 @@ export function AITab() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <Tooltip text="Live Web Research across Google News, ArXiv, and Wikipedia">
             <Button disabled={!hasEditor} style={heroButtonStyle} onClick={() => openPragnaTab('research')}>
-              <span style={{ fontSize: 18, lineHeight: 1 }}>🌐</span>
+              <span style={{ fontSize: 18, lineHeight: 1, display: 'inline-flex', alignItems: 'center' }}><Globe size={18} strokeWidth={1.75} /></span>
               <span style={{ fontSize: 12 }}>Web Research</span>
             </Button>
           </Tooltip>
 
           <Tooltip text="Fetch and analyze any web page or article URL">
             <Button disabled={!hasEditor} style={buttonStyle} onClick={() => openPragnaTab('urlReader')}>
-              <span style={{ fontSize: 18, lineHeight: 1 }}>🔗</span>
+              <span style={{ fontSize: 18, lineHeight: 1, display: 'inline-flex', alignItems: 'center' }}><Link2 size={18} strokeWidth={1.75} /></span>
               <span>URL Reader</span>
             </Button>
           </Tooltip>

@@ -23,7 +23,7 @@ export function RibbonGroup({
         justifyContent: 'flex-start',
         alignItems: 'center',
         borderRight: noDivider ? 'none' : '1px solid var(--ribbon-divider)',
-        padding: '3px 12px 3px 12px',
+        padding: '2px 10px 2px 10px',
         margin: 0,
         height: '100%',
         minWidth: 'fit-content',
@@ -79,8 +79,9 @@ export function RibbonGroup({
         <span
           style={{
             fontSize: 10,
+            fontWeight: 500,
             color: 'var(--text-muted)',
-            letterSpacing: '.02em',
+            letterSpacing: '0.025em',
             fontFamily: 'var(--font-ui)',
             lineHeight: 1.2,
             textAlign: 'center',
@@ -89,6 +90,7 @@ export function RibbonGroup({
             textOverflow: 'ellipsis',
             maxWidth: '100%',
             display: 'block',
+            opacity: 0.9,
           }}
           title={label}
         >

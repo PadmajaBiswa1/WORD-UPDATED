@@ -238,13 +238,18 @@ export function PictureFormatToolbar({ editor, scrollContainerRef }) {
       positionToolbar();
     };
 
+    const handleOpenEditPanel = () => {
+      showToolbar();
+      setVisible(true);
+      positionToolbar();
+    };
+
     syncFromSelection();
     editor.on('selectionUpdate', syncFromSelection);
-    // Note: NOT subscribing to 'update' — it fires on every keystroke and
-    // causes the image toolbar to flicker/hide-show unnecessarily.
     editor.on('blur', syncFromSelection);
     document.addEventListener('selectionchange', syncFromSelection);
     window.addEventListener('resize', handleWindowInteraction);
+    window.addEventListener('open-image-edit-panel', handleOpenEditPanel);
 
     const scrollEl = scrollContainerRef?.current;
     if (scrollEl) scrollEl.addEventListener('scroll', handleWindowInteraction, { passive: true });
@@ -254,6 +259,7 @@ export function PictureFormatToolbar({ editor, scrollContainerRef }) {
       editor.off('blur', syncFromSelection);
       document.removeEventListener('selectionchange', syncFromSelection);
       window.removeEventListener('resize', handleWindowInteraction);
+      window.removeEventListener('open-image-edit-panel', handleOpenEditPanel);
       if (scrollEl) scrollEl.removeEventListener('scroll', handleWindowInteraction);
     };
   }, [editor, hideToolbar, mounted, positionToolbar, scrollContainerRef, showToolbar]);
@@ -401,7 +407,7 @@ export function PictureFormatToolbar({ editor, scrollContainerRef }) {
             overflowY: 'auto',
           }}
         >
-          <PictureFormatTab />
+          <PictureFormatTab mode="floating" />
         </div>
       </div>
     </div>,

@@ -39,6 +39,7 @@ const getResizeDirection = (clientX, clientY, rect) => {
 };
 
 const DIR_CURSORS = {
+  rot: 'grab',
   nw: 'nwse-resize', se: 'nwse-resize',
   ne: 'nesw-resize', sw: 'nesw-resize',
   e: 'ew-resize', w: 'ew-resize',
@@ -47,6 +48,7 @@ const DIR_CURSORS = {
 
 // Handle positions: [top%, left%, cursor]
 const HANDLE_DEFS = [
+  { dir: 'rot', isRotation: true },
   { dir: 'nw', top: -1, left: -1 },
   { dir: 'n',  top: -1, left: 50 },
   { dir: 'ne', top: -1, left: 101 },
@@ -130,17 +132,36 @@ function getHandleContainer() {
         'z-index:9995',
       ].join(';');
 
-      const dot = document.createElement('div');
-      dot.style.cssText = [
-        `width:${HANDLE_VISUAL}px`,
-        `height:${HANDLE_VISUAL}px`,
-        'border-radius:2px',
-        'background:#fff',
-        'border:1.5px solid #1a73e8',
-        'box-shadow:0 1px 4px rgba(0,0,0,0.35)',
-        'pointer-events:none',
-      ].join(';');
-      h.appendChild(dot);
+      if (def.dir === 'rot') {
+        h.title = 'Drag to rotate (Shift: snap 15°)';
+        const stem = document.createElement('div');
+        stem.style.cssText = 'position:absolute;top:10px;left:9.5px;width:1px;height:12px;background:#10b981;pointer-events:none;';
+        h.appendChild(stem);
+
+        const dot = document.createElement('div');
+        dot.style.cssText = [
+          'width:11px',
+          'height:11px',
+          'border-radius:50%',
+          'background:#10b981',
+          'border:1.5px solid #fff',
+          'box-shadow:0 1px 4px rgba(0,0,0,0.4)',
+          'pointer-events:none',
+        ].join(';');
+        h.appendChild(dot);
+      } else {
+        const dot = document.createElement('div');
+        dot.style.cssText = [
+          `width:${HANDLE_VISUAL}px`,
+          `height:${HANDLE_VISUAL}px`,
+          'border-radius:2px',
+          'background:#fff',
+          'border:1.5px solid #1a73e8',
+          'box-shadow:0 1px 4px rgba(0,0,0,0.35)',
+          'pointer-events:none',
+        ].join(';');
+        h.appendChild(dot);
+      }
       _handleContainer.appendChild(h);
     });
   }
@@ -160,6 +181,11 @@ function repositionHandles(img) {
   HANDLE_DEFS.forEach((def) => {
     const h = container.querySelector(`[data-etherx-handle="${def.dir}"]`);
     if (!h) return;
+    if (def.dir === 'rot') {
+      h.style.left = '50%';
+      h.style.top  = '-20px';
+      return;
+    }
     const leftPct = def.left === -1 ? 0 : def.left === 101 ? 100 : 50;
     const topPct  = def.top  === -1 ? 0 : def.top  === 101 ? 100 : 50;
     h.style.left = `${leftPct}%`;
@@ -210,6 +236,9 @@ function hideSelectionBorder() {
 const createIdleDragState = () => ({
   isDragging: false,
   isResizing: false,
+  isRotating: false,
+  currentRotation: 0,
+  initialRotation: 0,
   resizeDir: null,
   img: null,
   startX: 0,
@@ -247,11 +276,19 @@ export function useImageResizeAndDrag(editor, editorRef) {
         if (img.style.marginTop) css['margin-top'] = img.style.marginTop;
       }
 
-      editor.chain().focus().updateAttributes('image', {
+      const updateData = {
         width: String(width),
         height: String(height),
-        style: toCssStyle(css),
-      }).run();
+      };
+
+      if (state.isRotating && typeof state.currentRotation === 'number') {
+        const rot = state.currentRotation;
+        css.transform = rot ? `rotate(${rot}deg)` : null;
+        updateData.rotate = String(rot);
+      }
+
+      updateData.style = toCssStyle(css);
+      editor.chain().focus().updateAttributes('image', updateData).run();
     };
 
     // Show/hide handles based on selection
@@ -275,6 +312,28 @@ export function useImageResizeAndDrag(editor, editorRef) {
         if (!img) return;
         const rect = img.getBoundingClientRect();
         const computed = window.getComputedStyle(img);
+
+        if (dir === 'rot') {
+          const rawRot = img.getAttribute('data-rotation') || '0';
+          const initRot = parseInt(rawRot, 10) || 0;
+          dragStateRef.current = {
+            ...createIdleDragState(),
+            isDragging: false,
+            isResizing: false,
+            isRotating: true,
+            resizeDir: 'rot',
+            img,
+            startX: event.clientX,
+            startY: event.clientY,
+            initialRotation: initRot,
+            currentRotation: initRot,
+          };
+          event.preventDefault();
+          event.stopPropagation();
+          window.dispatchEvent(new CustomEvent('image-drag-start'));
+          return;
+        }
+
         dragStateRef.current = {
           ...createIdleDragState(),
           isDragging: false,
@@ -335,8 +394,29 @@ export function useImageResizeAndDrag(editor, editorRef) {
 
     const handleMouseMove = (event) => {
       const state = dragStateRef.current;
-      const { isDragging, isResizing, resizeDir, img } = state;
-      if ((!isDragging && !isResizing) || !img) return;
+      const { isDragging, isResizing, isRotating, resizeDir, img } = state;
+      if ((!isDragging && !isResizing && !isRotating) || !img) return;
+
+      if (isRotating) {
+        const rect = img.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        let deg = Math.round(Math.atan2(event.clientY - centerY, event.clientX - centerX) * (180 / Math.PI) + 90);
+        deg = ((deg % 360) + 360) % 360;
+        if (event.shiftKey || Math.abs(deg % 45) < 4) {
+          deg = Math.round(deg / 15) * 15;
+        }
+        img.style.transform = `rotate(${deg}deg)`;
+        img.setAttribute('data-rotation', String(deg));
+        state.currentRotation = deg;
+
+        const lbl = getDimLabel();
+        lbl.textContent = `Rotation: ${deg}°`;
+        lbl.style.left = `${rect.left + rect.width / 2}px`;
+        lbl.style.top  = `${rect.top - 24}px`;
+        lbl.style.display = 'block';
+        return;
+      }
 
       const deltaX = event.clientX - state.startX;
       const deltaY = event.clientY - state.startY;
@@ -348,9 +428,7 @@ export function useImageResizeAndDrag(editor, editorRef) {
         let newMarginTop = state.initialMarginTop;
 
         const aspectRatio = state.initialHeight / Math.max(state.initialWidth, 1);
-
-        const isCorner = ['se', 'sw', 'ne', 'nw'].includes(resizeDir);
-        const freeAspect = event.shiftKey; // Shift allows free (non-proportional) corner drag; default is proportional
+        const freeAspect = event.shiftKey;
 
         if (resizeDir === 'e') {
           newWidth = Math.max(20, state.initialWidth + deltaX);
@@ -400,7 +478,7 @@ export function useImageResizeAndDrag(editor, editorRef) {
 
     const handleHoverMove = (event) => {
       const state = dragStateRef.current;
-      if (state.isDragging || state.isResizing) return;
+      if (state.isDragging || state.isResizing || state.isRotating) return;
 
       const img = event.target.closest?.('img');
       if (!img || !proseMirrorEl.contains(img)) return;
@@ -422,7 +500,6 @@ export function useImageResizeAndDrag(editor, editorRef) {
         persistImageGeometry(state);
         state.img.style.cursor = 'move';
         hideDimensionLabel();
-        // Re-sync handles after persistence (size may have changed)
         requestAnimationFrame(() => {
           const img = getSelectedImageElement(editor);
           repositionHandles(img);
@@ -443,6 +520,31 @@ export function useImageResizeAndDrag(editor, editorRef) {
       editor.chain().focus().deleteSelection().run();
     };
 
+    const handleDblClick = (event) => {
+      const img = event.target.closest?.('img');
+      if (!img || !proseMirrorEl.contains(img)) return;
+      event.preventDefault();
+      window.dispatchEvent(new CustomEvent('open-image-edit-panel', { detail: { img } }));
+    };
+
+    const handleContextMenu = (event) => {
+      const img = event.target.closest?.('img');
+      if (!img || !proseMirrorEl.contains(img)) return;
+      event.preventDefault();
+      // Ensure image is selected
+      try {
+        const pos = editor.view.posAtDOM(img, 0);
+        if (typeof pos === 'number') {
+          editor.commands.setNodeSelection(pos);
+        }
+      } catch {
+        // selection fallback
+      }
+      window.dispatchEvent(new CustomEvent('open-image-context-menu', {
+        detail: { img, x: event.clientX, y: event.clientY },
+      }));
+    };
+
     // Sync handles whenever selection changes
     editor.on('selectionUpdate', syncHandlesToSelection);
 
@@ -459,11 +561,13 @@ export function useImageResizeAndDrag(editor, editorRef) {
     window.addEventListener('image-reposition-handles', onScrollOrResize);
 
     editorElement.addEventListener('mousedown', handleMouseDown);
-    document.addEventListener('mousedown', handleMouseDown);  // catch handle clicks (fixed-pos)
+    document.addEventListener('mousedown', handleMouseDown);
     proseMirrorEl.addEventListener('mousemove', handleHoverMove);
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
     proseMirrorEl.addEventListener('keydown', handleKeyDown);
+    proseMirrorEl.addEventListener('dblclick', handleDblClick);
+    proseMirrorEl.addEventListener('contextmenu', handleContextMenu);
 
     return () => {
       editor.off('selectionUpdate', syncHandlesToSelection);
@@ -473,6 +577,8 @@ export function useImageResizeAndDrag(editor, editorRef) {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
       proseMirrorEl.removeEventListener('keydown', handleKeyDown);
+      proseMirrorEl.removeEventListener('dblclick', handleDblClick);
+      proseMirrorEl.removeEventListener('contextmenu', handleContextMenu);
       if (scrollEl) scrollEl.removeEventListener('scroll', onScrollOrResize);
       window.removeEventListener('resize', onScrollOrResize);
       window.removeEventListener('image-reposition-handles', onScrollOrResize);

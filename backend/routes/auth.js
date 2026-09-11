@@ -36,6 +36,14 @@ function readUsersStore() {
           isVerified: true,
           createdAt: new Date().toISOString(),
         },
+        {
+          _id: 'user_vinay',
+          name: 'Vinay',
+          email: 'vinaygk219@gmail.com',
+          passwordHash: bcrypt.hashSync('vinay@3374', 10),
+          isVerified: true,
+          createdAt: new Date().toISOString(),
+        },
       ];
       writeUsersStore(defaultUsers);
       return defaultUsers;

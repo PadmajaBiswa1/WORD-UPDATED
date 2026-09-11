@@ -45,7 +45,7 @@ export function EditorPage({ isShared = false }) {
   });
 
   const { save } = useAutoSave();
-  useKeyboardShortcuts({ onSave: save });
+  useKeyboardShortcuts();
   usePagination();
   useClipboardListener();
   

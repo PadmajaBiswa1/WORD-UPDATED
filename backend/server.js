@@ -3,6 +3,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 
 const connectDB = require('./config/db');
 const authRoutes = require('./routes/auth');
@@ -33,37 +34,19 @@ process.on('uncaughtException', (error) => {
 
 const app = express();
 
+// Ensure uploads folder exists
+const uploadsDir = path.join(__dirname, 'public', 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
 // =====================================================
 // CORS CONFIGURATION
 // =====================================================
 
-const configuredFrontendUrls = String(process.env.FRONTEND_URL || '')
-    .split(',')
-    .map((url) => url.trim())
-    .filter(Boolean);
-
-const allowedOrigins = new Set([
-    ...configuredFrontendUrls,
-    'http://localhost:3000',
-    'http://localhost:3001',
-]);
-
 app.use(
     cors({
-        origin(origin, callback) {
-            // Allow requests without an Origin header
-            // and localhost during development.
-            if (
-                !origin ||
-                allowedOrigins.has(origin) ||
-                /^https?:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin)
-            ) {
-                return callback(null, true);
-            }
-
-            console.warn(`⚠️ CORS blocked origin: ${origin}`);
-            return callback(null, false);
-        },
+        origin: true,
         credentials: true,
     })
 );
@@ -72,7 +55,8 @@ app.use(
 // MIDDLEWARE
 // =====================================================
 
-app.use(express.json({ limit: '5mb' }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // =====================================================
 // DATABASE
@@ -97,7 +81,7 @@ app.use('/api/notifications', notificationRoutes);
 
 app.use(
     '/uploads',
-    express.static(path.join(__dirname, 'public', 'uploads'))
+    express.static(uploadsDir)
 );
 
 // =====================================================
@@ -123,14 +107,75 @@ app.use('/api', (req, res) => {
 });
 
 // =====================================================
-// SERVER
+// DATABASE OFFLINE & GENERAL ERROR MIDDLEWARE
 // =====================================================
 
-// Render provides process.env.PORT automatically.
-// Locally, it will fall back to port 3001.
-
-const PORT = Number(process.env.PORT || 5000);
-
-app.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
+app.use((err, req, res, next) => {
+    if (
+        err.name === 'MongooseError' ||
+        err.name === 'MongoNetworkError' ||
+        (err.message && err.message.includes('buffering timed out'))
+    ) {
+        console.warn('[AI Studio] Database offline — returning fallback response');
+        if (req.method === 'GET') {
+            return res.json(req.path.endsWith('s') || req.path.endsWith('s/') ? [] : {});
+        }
+        return res.status(503).json({ error: 'Service temporarily unavailable (database offline)' });
+    }
+    console.error('Server error:', err);
+    res.status(err.status || 500).json({ message: err.message || 'Internal server error' });
 });
+
+// =====================================================
+// FRONTEND SERVING (Vite middleware in dev, static in prod)
+// =====================================================
+
+async function setupFrontend() {
+    const distPath = path.resolve(__dirname, '../frontend/dist');
+
+    if (process.env.NODE_ENV !== 'production') {
+        try {
+            const { createServer: createViteServer } = await import('vite');
+            const vite = await createViteServer({
+                root: path.resolve(__dirname, '../frontend'),
+                configFile: path.resolve(__dirname, '../frontend/vite.config.js'),
+                server: {
+                    middlewareMode: true,
+                    hmr: false,
+                },
+                appType: 'spa',
+            });
+            app.use(vite.middlewares);
+            console.log('⚡ Vite dev middleware loaded for live preview');
+            return;
+        } catch (viteErr) {
+            console.warn('⚠️ Vite middleware note:', viteErr.message);
+        }
+    }
+
+    if (fs.existsSync(distPath)) {
+        app.use(express.static(distPath));
+        app.get('*', (req, res) => {
+            res.sendFile(path.join(distPath, 'index.html'));
+        });
+        console.log(`📦 Serving static frontend from ${distPath}`);
+    } else {
+        console.warn(`⚠️ Warning: frontend dist not found at ${distPath}.`);
+    }
+}
+
+// =====================================================
+// SERVER STARTUP
+// =====================================================
+
+const PORT = 3000;
+
+async function startServer() {
+    await setupFrontend();
+
+    app.listen(PORT, '0.0.0.0', () => {
+        console.log(`🚀 Server running on http://0.0.0.0:${PORT}`);
+    });
+}
+
+startServer();
