@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Bell, Check } from 'lucide-react';
 import { notificationApi } from '@/services/api';
 
 function formatRelativeTime(dateString) {
@@ -135,11 +136,8 @@ export function NotificationBell({ style = {} }) {
           }
         }}
       >
-        {/* Bell SVG */}
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-        </svg>
+        {/* Bell Icon */}
+        <Bell size={18} />
 
         {/* Badge Count */}
         {unreadCount > 0 && (
@@ -343,13 +341,14 @@ export function NotificationBell({ style = {} }) {
                           background: 'none',
                           border: 'none',
                           color: 'var(--text-muted, #777)',
-                          fontSize: 13,
+                          display: 'inline-flex',
+                          alignItems: 'center',
                           cursor: 'pointer',
                           padding: '2px 4px',
                           lineHeight: 1,
                         }}
                       >
-                        ✓
+                        <Check size={13} strokeWidth={2} />
                       </button>
                     )}
                   </div>

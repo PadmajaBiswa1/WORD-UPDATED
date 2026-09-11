@@ -1,4 +1,9 @@
 import { useUIStore, useEditorStore, useDocumentStore } from '@/store';
+import {
+  FileText, BookOpen, FilePlus2, Table, Image, Shapes, BarChart3, Camera,
+  Link2, MessageSquare, PanelTop, PanelBottom, Hash, BoxSelect,
+  Sparkles, CaseUpper, Calendar, Blocks, PenTool, Sigma, Omega, ShieldCheck, FileSignature
+} from 'lucide-react';
 import { RibbonGroup } from '../RibbonGroup';
 import { Tooltip } from '@/components/ui';
 
@@ -248,70 +253,70 @@ export function InsertTab() {
     <>
       <RibbonGroup label="Pages">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon="📄" label="Page Break" title="Insert Page Break (Ctrl+Enter)" onClick={() => run(() => editor.chain().focus().insertPageBreak().run())} />
-          <HeroBtn icon="📑" label="Cover Page" title="Insert Cover Page Template" onClick={() => openDialog('templates')} />
-          <HeroBtn icon="📋" label="Blank Page" title="Insert Blank Page" onClick={() => run(() => editor.chain().focus().insertContent('<p></p>').run())} />
+          <HeroBtn icon={<FileText size={20} strokeWidth={1.75} />} label="Page Break" title="Insert Page Break (Ctrl+Enter)" onClick={() => run(() => editor.chain().focus().insertPageBreak().run())} />
+          <HeroBtn icon={<BookOpen size={20} strokeWidth={1.75} />} label="Cover Page" title="Insert Cover Page Template" onClick={() => openDialog('templates')} />
+          <HeroBtn icon={<FilePlus2 size={20} strokeWidth={1.75} />} label="Blank Page" title="Insert Blank Page" onClick={() => run(() => editor.chain().focus().insertContent('<p></p>').run())} />
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Tables">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon="▦" label="Table ▾" title="Insert Table" onClick={() => openDialog('insertTable')} />
+          <HeroBtn icon={<Table size={20} strokeWidth={1.75} />} label="Table ▾" title="Insert Table" onClick={() => openDialog('insertTable')} />
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Illustrations">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon="🖼" label="Pictures" title="Insert Picture from Device / Web" onClick={() => openDialog('insertImage')} />
-          <HeroBtn icon="🔷" label="Shapes" title="Insert Shapes" onClick={() => openDialog('insertShape')} />
-          <HeroBtn icon="📊" label="Chart" title="Insert Chart" onClick={() => openDialog('insertChart')} />
-          <HeroBtn icon="📷" label="Screenshot" title="Capture / Insert Screenshot" onClick={() => openDialog('screenshot')} />
+          <HeroBtn icon={<Image size={20} strokeWidth={1.75} />} label="Pictures" title="Insert Picture from Device / Web" onClick={() => openDialog('insertImage')} />
+          <HeroBtn icon={<Shapes size={20} strokeWidth={1.75} />} label="Shapes" title="Insert Shapes" onClick={() => openDialog('insertShape')} />
+          <HeroBtn icon={<BarChart3 size={20} strokeWidth={1.75} />} label="Chart" title="Insert Chart" onClick={() => openDialog('insertChart')} />
+          <HeroBtn icon={<Camera size={20} strokeWidth={1.75} />} label="Screenshot" title="Capture / Insert Screenshot" onClick={() => openDialog('screenshot')} />
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Links & Comments">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon="🔗" label="Link" title="Insert Link (Ctrl+K)" onClick={() => openDialog('insertLink')} />
-          <HeroBtn icon="💬" label="Comment" title="New Comment (Ctrl+Alt+M)" onClick={() => openDialog('comments')} />
+          <HeroBtn icon={<Link2 size={20} strokeWidth={1.75} />} label="Link" title="Insert Link (Ctrl+K)" onClick={() => openDialog('insertLink')} />
+          <HeroBtn icon={<MessageSquare size={20} strokeWidth={1.75} />} label="Comment" title="New Comment (Ctrl+Alt+M)" onClick={() => openDialog('comments')} />
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Header & Footer">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon="⊞" label="Header" title="Insert or Edit Header" onClick={() => openHeaderFooter('header')} />
-          <HeroBtn icon="⊟" label="Footer" title="Insert or Edit Footer" onClick={() => openHeaderFooter('footer')} />
-          <HeroBtn icon="#" label="Page #" title="Insert Page Numbers" onClick={() => openHeaderFooter('pagenum')} />
+          <HeroBtn icon={<PanelTop size={20} strokeWidth={1.75} />} label="Header" title="Insert or Edit Header" onClick={() => openHeaderFooter('header')} />
+          <HeroBtn icon={<PanelBottom size={20} strokeWidth={1.75} />} label="Footer" title="Insert or Edit Footer" onClick={() => openHeaderFooter('footer')} />
+          <HeroBtn icon={<Hash size={20} strokeWidth={1.75} />} label="Page #" title="Insert Page Numbers" onClick={() => openHeaderFooter('pagenum')} />
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Text">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon="🔲" label="Text Box" title="Insert Text Box" onClick={insertTextBox} />
+          <HeroBtn icon={<BoxSelect size={20} strokeWidth={1.75} />} label="Text Box" title="Insert Text Box" onClick={insertTextBox} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
-            <MiniAction icon="🎨" text="WordArt" title="Insert WordArt" onClick={() => openDialog('wordArt')} />
-            <MiniAction icon="🔤" text="Drop Cap" title="Insert Drop Cap" onClick={insertDropCap} />
-            <MiniAction icon="📅" text="Date & Time" title="Insert Date & Time" onClick={() => insertHtml(new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }))} />
+            <MiniAction icon={<Sparkles size={13} strokeWidth={1.75} />} text="WordArt" title="Insert WordArt" onClick={() => openDialog('wordArt')} />
+            <MiniAction icon={<CaseUpper size={13} strokeWidth={1.75} />} text="Drop Cap" title="Insert Drop Cap" onClick={insertDropCap} />
+            <MiniAction icon={<Calendar size={13} strokeWidth={1.75} />} text="Date & Time" title="Insert Date & Time" onClick={() => insertHtml(new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }))} />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
-            <MiniAction icon="🧱" text="Quick Parts" title="Quick Parts & Building Blocks" onClick={() => openDialog('buildingBlocks')} />
-            <MiniAction icon="✍" text="Sig Field" title="Insert Signature Field" onClick={insertSignatureField} />
+            <MiniAction icon={<Blocks size={13} strokeWidth={1.75} />} text="Quick Parts" title="Quick Parts & Building Blocks" onClick={() => openDialog('buildingBlocks')} />
+            <MiniAction icon={<PenTool size={13} strokeWidth={1.75} />} text="Sig Field" title="Insert Signature Field" onClick={insertSignatureField} />
           </div>
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Symbols">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon="∑" label="Equation" title="Insert Math Equation" onClick={() => openDialog('equation')} />
-          <HeroBtn icon="Ω" label="Symbol" title="Insert Special Character or Symbol" onClick={() => openDialog('insertSymbol')} />
+          <HeroBtn icon={<Sigma size={20} strokeWidth={1.75} />} label="Equation" title="Insert Math Equation" onClick={() => openDialog('equation')} />
+          <HeroBtn icon={<Omega size={20} strokeWidth={1.75} />} label="Symbol" title="Insert Special Character or Symbol" onClick={() => openDialog('insertSymbol')} />
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Digital Signatures" noDivider>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon="🛡" label="Digital Sign" title="Sign Document with Digital Key" onClick={() => openDialog('digitalSignature')} />
+          <HeroBtn icon={<ShieldCheck size={20} strokeWidth={1.75} />} label="Digital Sign" title="Sign Document with Digital Key" onClick={() => openDialog('digitalSignature')} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
-            <MiniAction icon="✍" text="Sig Field" title="Insert Signature Field" onClick={insertSignatureField} />
-            <MiniAction icon="▦" text="eSign Table" title="Insert Multi-Party Signature Table" onClick={insertEsignFields} />
+            <MiniAction icon={<PenTool size={13} strokeWidth={1.75} />} text="Sig Field" title="Insert Signature Field" onClick={insertSignatureField} />
+            <MiniAction icon={<FileSignature size={13} strokeWidth={1.75} />} text="eSign Table" title="Insert Multi-Party Signature Table" onClick={insertEsignFields} />
           </div>
         </div>
       </RibbonGroup>

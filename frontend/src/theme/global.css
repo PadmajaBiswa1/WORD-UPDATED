@@ -1294,3 +1294,78 @@ body {
     font-size: 11px !important;
   }
 }
+
+/* ── Print Stylesheet: Suppress internal UI and doc metadata ── */
+@media print {
+  @page {
+    margin: 15mm 20mm;
+    size: auto;
+  }
+
+  /* Reset root containers for high-fidelity printing */
+  html, body, #root {
+    background: #ffffff !important;
+    color: #000000 !important;
+    overflow: visible !important;
+    height: auto !important;
+    width: 100% !important;
+  }
+
+  /* Completely suppress all application chrome and UI layers */
+  .titlebar,
+  .titlebar-title-wrap,
+  .titlebar-input,
+  .ribbon,
+  .ribbon-tabs-bar,
+  .page-sidebar-nav,
+  .page-sidebar-container,
+  .page-status-bar,
+  .pragna-chat-sidebar,
+  .toast-container,
+  [data-etherx-handles],
+  [data-etherx-sel-border],
+  [data-etherx-dim-label],
+  .floating-format-toolbar,
+  .picture-format-toolbar,
+  nav,
+  header,
+  footer,
+  aside,
+  button,
+  input,
+  [role="dialog"] {
+    display: none !important;
+  }
+
+  /* Ensure editor scroll container does not clip or offset */
+  #editor-scroll-area {
+    position: static !important;
+    overflow: visible !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+  }
+
+  /* Flatten pages so content prints cleanly */
+  .document-page,
+  [data-etherx-page-surface],
+  #document-page-0 {
+    box-shadow: none !important;
+    border: none !important;
+    background: #ffffff !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    transform: none !important;
+  }
+
+  /* Ensure text prints cleanly in high contrast */
+  .ProseMirror {
+    color: #000000 !important;
+    font-size: 12pt !important;
+    line-height: 1.5 !important;
+  }
+}

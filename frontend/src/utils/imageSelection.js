@@ -36,3 +36,19 @@ export function isInsideSelectedImage(target, editor) {
   const image = getSelectedImageElement(editor);
   return Boolean(image && target && image.contains(target));
 }
+
+export function parseCssStyle(style = '') {
+  const out = {};
+  style.split(';').forEach((pair) => {
+    const [k, v] = pair.split(':').map((s) => s?.trim());
+    if (k && v) out[k] = v;
+  });
+  return out;
+}
+
+export function toCssStyle(obj = {}) {
+  return Object.entries(obj)
+    .filter(([, v]) => v !== undefined && v !== null && v !== '')
+    .map(([k, v]) => `${k}: ${v}`)
+    .join('; ');
+}

@@ -11,6 +11,7 @@ import {
   useProductivityStore,
 } from '../store/index.js';
 import { normalizeKeyEvent, executeShortcutCommand } from './productivityExtension.js';
+import { printDocument } from '@/utils/printUtils';
 
 // ── Platform Detection ───────────────────────────────────────
 export const isMac = typeof navigator !== 'undefined' && (
@@ -610,7 +611,7 @@ export const SHORTCUT_REGISTRY = [
     scope: 'global',
     match: (e, mod) => mod && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'p',
     action: () => {
-      window.print();
+      printDocument();
     },
   },
   {

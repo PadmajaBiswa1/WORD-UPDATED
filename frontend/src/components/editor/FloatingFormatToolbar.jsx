@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { Sparkles } from 'lucide-react';
 import { Button, ColorSwatch, Divider, Select, Tooltip } from '@/components/ui';
 import { useEditorStore, useUIStore } from '@/store';
 import { FontFormattingControls, useFontFormattingControls } from '../toolbar/fontFormatting.jsx';
@@ -345,7 +346,9 @@ export function FloatingFormatToolbar({ editor, scrollContainerRef }) {
             }}
             onClick={() => useUIStore.getState().openPragna('edit')}
           >
-            <span style={{ fontSize: 13, color: '#000000' }}>✦</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+              <Sparkles size={13} strokeWidth={2} color="#000000" />
+            </span>
             <span>Pragna Edit</span>
           </Button>
         </Tooltip>

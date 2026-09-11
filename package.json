@@ -1,0 +1,19 @@
+{
+  "name": "etherxword",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "node backend/server.js",
+    "build": "npm run build --workspace=frontend",
+    "start": "node backend/server.js"
+  },
+  "dependencies": {
+    "@tiptap/extension-blockquote": "^2.27.3",
+    "jszip": "^3.10.2",
+    "lucide-react": "^1.45.0"
+  }
+}

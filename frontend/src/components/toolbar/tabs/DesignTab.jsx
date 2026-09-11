@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import {
+  MoveVertical, Sparkles, Check, Droplet, Square, Mic, Volume2, PenTool, BookOpen, Lock
+} from 'lucide-react';
 import { useUIStore, useEditorStore, useDocumentStore } from '@/store';
 import { Modal, Button, Label, Stack, Input } from '@/components/ui';
 import { runImageTextCapture, runSmartSuggestions } from '@/utils/smartFeatures';
@@ -300,7 +303,7 @@ export function DesignTab() {
       recognition.lang = 'en-US';
       recognition.onstart = () => {
         setIsDictating(true);
-        toast('🎤 Listening... speak into your microphone', 'success');
+        toast('Listening... speak into your microphone', 'success');
       };
       recognition.onresult = (event) => {
         let finalTranscript = '';
@@ -350,7 +353,7 @@ export function DesignTab() {
     utterance.rate = 1.0;
     utterance.onstart = () => {
       setIsSpeaking(true);
-      toast('🔊 Reading aloud...', 'success');
+      toast('Reading aloud...', 'success');
     };
     utterance.onend = () => setIsSpeaking(false);
     utterance.onerror = () => setIsSpeaking(false);
@@ -576,7 +579,7 @@ export function DesignTab() {
             />
             <MiniAction
               triggerName="spacing"
-              icon="⇕"
+              icon={<MoveVertical size={13} strokeWidth={1.75} />}
               text="Spacing ▾"
               title="Paragraph Spacing"
               onClick={(e) => openPopover('spacing', e)}
@@ -585,13 +588,13 @@ export function DesignTab() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, justifyContent: 'center' }}>
             <MiniAction
               triggerName="effects"
-              icon="✨"
+              icon={<Sparkles size={13} strokeWidth={1.75} />}
               text="Effects ▾"
               title="Theme Effects"
               onClick={(e) => openPopover('effects', e)}
             />
             <MiniAction
-              icon="✓"
+              icon={<Check size={13} strokeWidth={1.75} />}
               text="Set Default"
               title="Set as Default for New Documents"
               onClick={handleSetAsDefault}
@@ -687,7 +690,7 @@ export function DesignTab() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
           <HeroBtn
             triggerName="watermark"
-            icon="💧"
+            icon={<Droplet size={20} strokeWidth={1.75} />}
             label="Watermark"
             title="Add ghosted text or watermark behind content"
             onClick={(e) => openPopover('watermark', e)}
@@ -711,7 +714,7 @@ export function DesignTab() {
             onClick={(e) => openPopover('pageColor', e)}
           />
           <HeroBtn
-            icon="🔲"
+            icon={<Square size={20} strokeWidth={1.75} />}
             label="Page Borders"
             title="Add or change the border around the page"
             onClick={() => setBorderModalOpen(true)}
@@ -723,16 +726,16 @@ export function DesignTab() {
       <RibbonGroup label="Smart Tools">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
           <HeroBtn
-            icon={isDictating ? '🔴' : '🎤'}
+            icon={<Mic size={20} strokeWidth={1.75} style={isDictating ? { color: '#ef4444' } : undefined} />}
             label={isDictating ? 'Listening...' : 'Voice Typing'}
             title="Dictate with voice typing"
             active={isDictating}
             onClick={toggleVoiceTyping}
           />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
-            <MiniAction icon="🔊" text={isSpeaking ? 'Reading...' : 'Read Aloud'} title="Text to Speech" onClick={toggleReadAloud} active={isSpeaking} />
-            <MiniAction icon="✍" text="Handwriting" title="Switch to Inking" onClick={() => { setActiveTab('draw'); toast('Switched to Draw / Inking tab', 'info'); }} />
-            <MiniAction icon="✨" text="Suggestions" title="Smart Content Suggestions" onClick={() => runSmartSuggestions({ editor, toast })} />
+            <MiniAction icon={<Volume2 size={13} strokeWidth={1.75} />} text={isSpeaking ? 'Reading...' : 'Read Aloud'} title="Text to Speech" onClick={toggleReadAloud} active={isSpeaking} />
+            <MiniAction icon={<PenTool size={13} strokeWidth={1.75} />} text="Handwriting" title="Switch to Inking" onClick={() => { setActiveTab('draw'); toast('Switched to Draw / Inking tab', 'info'); }} />
+            <MiniAction icon={<Sparkles size={13} strokeWidth={1.75} />} text="Suggestions" title="Smart Content Suggestions" onClick={() => runSmartSuggestions({ editor, toast })} />
           </div>
         </div>
       </RibbonGroup>
@@ -740,8 +743,8 @@ export function DesignTab() {
       {/* ── Group 6: Document Protection ── */}
       <RibbonGroup label="Protection">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon="📑" label="Master Doc" title="Master Document & Subdocuments" onClick={() => openDialog('masterDoc')} />
-          <HeroBtn icon="🔒" label="Security" title="Document Password & Encryption" onClick={() => openDialog('security')} />
+          <HeroBtn icon={<BookOpen size={20} strokeWidth={1.75} />} label="Master Doc" title="Master Document & Subdocuments" onClick={() => openDialog('masterDoc')} />
+          <HeroBtn icon={<Lock size={20} strokeWidth={1.75} />} label="Security" title="Document Password & Encryption" onClick={() => openDialog('security')} />
         </div>
       </RibbonGroup>
 

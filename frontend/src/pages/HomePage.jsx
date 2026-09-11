@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import {
+  Home, Sparkles, FilePlus, FolderOpen, Save, SaveAll,
+  Printer, Download, Share2, Info, BarChart2, Settings,
+  X, FileText, CheckCheck, RotateCcw, Tag, Globe
+} from 'lucide-react';
 import mammoth from 'mammoth';
 import { documentApi, exportApi } from '@/services/api';
 import { buildDocxBlob, buildHtmlDocument, exportToDocx, exportToHtml, exportToPdf, exportToMarkdown, exportToEpub } from '@/services/export';
@@ -62,19 +67,19 @@ const LoadingIcon = () => (
 );
 
 const MENU_ITEMS = [
-  { key: 'home', label: 'Home', icon: '⌂' },
-  { key: 'ai', label: 'Pragna AI', icon: '✦' },
-  { key: 'new', label: 'New', icon: '✧' },
-  { key: 'open', label: 'Open', icon: '◫' },
-  { key: 'save', label: 'Save', icon: '⎙' },
-  { key: 'saveAs', label: 'Save As', icon: '⇪' },
-  { key: 'print', label: 'Print', icon: '⎘' },
-  { key: 'export', label: 'Export', icon: '⇩' },
-  { key: 'share', label: 'Share', icon: '⤴' },
-  { key: 'info', label: 'Info', icon: 'ⓘ' },
-  { key: 'statistics', label: 'Statistics', icon: '↕' },
-  { key: 'settings', label: 'Settings', icon: '✶' },
-  { key: 'close', label: 'Close', icon: '✕', danger: true },
+  { key: 'home', label: 'Home', icon: Home },
+  { key: 'ai', label: 'Pragna AI', icon: Sparkles },
+  { key: 'new', label: 'New', icon: FilePlus },
+  { key: 'open', label: 'Open', icon: FolderOpen },
+  { key: 'save', label: 'Save', icon: Save },
+  { key: 'saveAs', label: 'Save As', icon: SaveAll },
+  { key: 'print', label: 'Print', icon: Printer },
+  { key: 'export', label: 'Export', icon: Download },
+  { key: 'share', label: 'Share', icon: Share2 },
+  { key: 'info', label: 'Info', icon: Info },
+  { key: 'statistics', label: 'Statistics', icon: BarChart2 },
+  { key: 'settings', label: 'Settings', icon: Settings },
+  { key: 'close', label: 'Close', icon: X, danger: true },
 ];
 
 const START_TEMPLATES = [
@@ -87,9 +92,9 @@ const START_TEMPLATES = [
 ];
 
 const SAVE_AS_FORMATS = [
-  { key: 'etherx', label: 'EtherX Document (.ethex)' },
   { key: 'docx', label: 'Word Document (.docx)' },
   { key: 'pdf', label: 'PDF Document (.pdf)' },
+  { key: 'etherx', label: 'EtherX Document (.ethex)' },
   { key: 'html', label: 'Web Page (.html)' },
   { key: 'markdown', label: 'Markdown Document (.md)' },
   { key: 'epub', label: 'EPUB eBook (.epub)' },
@@ -571,6 +576,14 @@ function filePickerSupported() {
 
 function pickerOptions(name, format) {
   const byFormat = {
+    docx: {
+      suggestedName: `${name}.docx`,
+      types: [{ description: 'Word Document', accept: { 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'] } }],
+    },
+    pdf: {
+      suggestedName: `${name}.pdf`,
+      types: [{ description: 'PDF Document', accept: { 'application/pdf': ['.pdf'] } }],
+    },
     etherx: {
       suggestedName: `${name}.ethex`,
       types: [{ description: 'EtherX Document', accept: { 'application/json': ['.ethex'] } }],
@@ -579,16 +592,20 @@ function pickerOptions(name, format) {
       suggestedName: `${name}.html`,
       types: [{ description: 'Web Page', accept: { 'text/html': ['.html'] } }],
     },
-    docx: {
-      suggestedName: `${name}.docx`,
-      types: [{ description: 'Word Document', accept: { 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'] } }],
+    markdown: {
+      suggestedName: `${name}.md`,
+      types: [{ description: 'Markdown Document', accept: { 'text/markdown': ['.md'] } }],
     },
   };
-  return byFormat[format] || byFormat.etherx;
+  return byFormat[format] || byFormat.docx;
 }
 
 async function saveWithFilePicker(name, format, content) {
   if (!filePickerSupported()) return false;
+  // Let PDF, EPUB, and Markdown formats run through the dedicated client-side export pipelines
+  if (format === 'pdf' || format === 'epub' || format === 'markdown' || format === 'md') {
+    return false;
+  }
 
   const { suggestedName, types } = pickerOptions(name, format);
   try {
@@ -696,7 +713,7 @@ export function HomePage() {
   const [selectedDocId, setSelectedDocId] = useState(null);
   const [search, setSearch] = useState('');
   const [saveAsName, setSaveAsName] = useState('');
-  const [saveAsFormat, setSaveAsFormat] = useState('etherx');
+  const [saveAsFormat, setSaveAsFormat] = useState('docx');
   const [saveAsLocation, setSaveAsLocation] = useState('cloud');
   const [saveAsBusy, setSaveAsBusy] = useState(false);
   const [exportFormat, setExportFormat] = useState('pdf');
@@ -1107,10 +1124,21 @@ export function HomePage() {
       if (!selectedDoc) return toast('Select a document first', 'info');
       const popup = window.open('', '_blank', 'width=980,height=760');
       if (!popup) return toast('Popup blocked for printing', 'warning');
-      popup.document.write(`<html><head><title>${selectedDoc.title}</title></head><body><h1>${selectedDoc.title}</h1><div>${selectedDoc.content || '<p>No content available.</p>'}</div></body></html>`);
+      popup.document.write(`<!DOCTYPE html><html><head><title>&nbsp;</title><style>
+        @page { margin: 15mm 20mm; }
+        body { margin: 0; font-family: Calibri, 'Segoe UI', Arial, sans-serif; color: #111; line-height: 1.6; }
+        h1, h2, h3, h4, h5, h6 { color: #111; margin-top: 1.2em; margin-bottom: 0.4em; }
+        p { margin: 0 0 1em; }
+        img { max-width: 100%; height: auto; }
+        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+        th, td { border: 1px solid #ccc; padding: 6px 10px; }
+      </style></head><body><div class="print-document-content">${selectedDoc.content || '<p>No content available.</p>'}</div></body></html>`);
       popup.document.close();
       popup.focus();
-      popup.print();
+      setTimeout(() => {
+        popup.print();
+        popup.close();
+      }, 250);
       setActiveMenu('home');
       return;
     }
@@ -1503,7 +1531,7 @@ export function HomePage() {
               onClick={() => runMenuAction(item.key)}
               title={item.label}
             >
-              <span style={styles.menuIcon}>{item.icon}</span>
+              <span style={styles.menuIcon}><item.icon size={16} strokeWidth={1.75} /></span>
               <span>{item.label}</span>
             </button>
           ))}
@@ -1579,7 +1607,7 @@ export function HomePage() {
                         onClick={() => deleteDoc(doc)}
                         title="Delete document"
                       >
-                        ✕
+                        <X size={13} strokeWidth={2} />
                       </button>
                     </div>
                   ))}
@@ -1607,20 +1635,20 @@ export function HomePage() {
             <p style={styles.panelSubtitle}>Apply intelligent Pragna AI actions to your documents powered by Ollama Cloud.</p>
             <div style={styles.aiGrid}>
               {[
-                { key: 'content-generator', icon: '✦', label: 'Content Generator', desc: 'Start a new AI draft from a topic' },
-                { key: 'summarize', icon: '▤', label: 'Text Summarizer', desc: 'Create a summary document' },
-                { key: 'grammar', icon: '✓', label: 'Grammar Correction', desc: 'Fix grammar in the selected document' },
-                { key: 'rewrite', icon: '↻', label: 'Rewrite Assistant', desc: 'Rewrite the selected document' },
-                { key: 'title', icon: '🏷', label: 'Title Generator', desc: 'Generate a better document title' },
-                { key: 'translate', icon: '🌐', label: 'Translation', desc: 'Open a translation view for the document' },
-              ].map(({ key, icon, label, desc }) => (
+                { key: 'content-generator', icon: Sparkles, label: 'Content Generator', desc: 'Start a new AI draft from a topic' },
+                { key: 'summarize', icon: FileText, label: 'Text Summarizer', desc: 'Create a summary document' },
+                { key: 'grammar', icon: CheckCheck, label: 'Grammar Correction', desc: 'Fix grammar in the selected document' },
+                { key: 'rewrite', icon: RotateCcw, label: 'Rewrite Assistant', desc: 'Rewrite the selected document' },
+                { key: 'title', icon: Tag, label: 'Title Generator', desc: 'Generate a better document title' },
+                { key: 'translate', icon: Globe, label: 'Translation', desc: 'Open a translation view for the document' },
+              ].map(({ key, icon: IconComponent, label, desc }) => (
                 <button
                   key={key}
                   style={{ ...styles.aiBtn, ...(aiAction === key ? styles.aiBtnActive : null) }}
                   onClick={() => setAiAction(aiAction === key ? null : key)}
                   disabled={aiRunning}
                 >
-                  <span style={styles.aiBtnIcon}>{icon}</span>
+                  <span style={styles.aiBtnIcon}><IconComponent size={18} strokeWidth={1.75} /></span>
                   <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     <strong>{label}</strong>
                     <small>{desc}</small>
@@ -2124,8 +2152,10 @@ const styles = {
   },
   menuIcon: {
     width: 18,
-    textAlign: 'center',
-    fontSize: 17,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
     opacity: 0.92,
   },
   sidebarFooter: {

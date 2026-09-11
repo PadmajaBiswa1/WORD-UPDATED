@@ -553,10 +553,9 @@ async function restoreVersion(id, versionId) {
 }
 
 async function shareDocument(id, share = {}) {
-  const doc = await Document.findOne({ id });
-  if (!doc) return null;
+  const current = await getDocument(id);
+  if (!current) return null;
 
-  const current = normalizeDoc(doc.toObject());
   const email = String(share.email || '').trim().toLowerCase();
   const role = ['owner', 'editor', 'commenter', 'viewer'].includes(share.role) ? share.role : 'viewer';
 
@@ -569,8 +568,8 @@ async function shareDocument(id, share = {}) {
     };
     current.shareLinkEnabled = true;
     current.updatedAt = new Date().toISOString();
-    const updated = await Document.findOneAndUpdate({ id }, current, { new: true });
-    return { share: shareEntry, document: normalizeDoc(updated.toObject()) };
+    const updated = await updateDocument(id, current, { createVersion: false });
+    return { share: shareEntry, document: updated };
   }
 
   const existingIndex = current.sharedWith.findIndex((entry) => String(entry.email || '').toLowerCase() === email);
@@ -588,8 +587,8 @@ async function shareDocument(id, share = {}) {
   }
 
   current.updatedAt = new Date().toISOString();
-  const updated = await Document.findOneAndUpdate({ id }, current, { new: true });
-  return { share: shareEntry, document: normalizeDoc(updated.toObject()) };
+  const updated = await updateDocument(id, current, { createVersion: false });
+  return { share: shareEntry, document: updated };
 }
 
 async function getAiProfile(id, user = {}) {
@@ -599,9 +598,8 @@ async function getAiProfile(id, user = {}) {
 }
 
 async function updateAiProfile(id, profileInput = {}, user = {}) {
-  const doc = await Document.findOne({ id });
-  if (!doc) return null;
-  const current = normalizeDoc(doc.toObject());
+  const current = await getDocument(id, user);
+  if (!current) return null;
   const perm = checkPermission(current, user, 'edit');
   if (!perm.allowed) {
     const err = new Error(perm.reason || 'Permission denied');
@@ -622,9 +620,8 @@ async function updateAiProfile(id, profileInput = {}, user = {}) {
 }
 
 async function updateSecurityEnvelope(id, securityInput = {}, user = {}) {
-  const doc = await Document.findOne({ id });
-  if (!doc) return null;
-  const current = normalizeDoc(doc.toObject());
+  const current = await getDocument(id, user);
+  if (!current) return null;
   const perm = checkPermission(current, user, 'security');
   if (!perm.allowed) {
     const err = new Error(perm.reason || 'Permission denied');
@@ -652,9 +649,8 @@ async function updateSecurityEnvelope(id, securityInput = {}, user = {}) {
 }
 
 async function addDocumentPart(id, partData = {}, user = {}) {
-  const doc = await Document.findOne({ id });
-  if (!doc) return null;
-  const current = normalizeDoc(doc.toObject());
+  const current = await getDocument(id, user);
+  if (!current) return null;
   const perm = checkPermission(current, user, 'manage_subdocuments');
   if (!perm.allowed) {
     const err = new Error(perm.reason || 'Permission denied');
@@ -670,7 +666,7 @@ async function addDocumentPart(id, partData = {}, user = {}) {
   }
 
   if (targetDocId) {
-    const targetDoc = await Document.findOne({ id: targetDocId });
+    const targetDoc = await getDocument(targetDocId);
     if (targetDoc && Array.isArray(targetDoc.documentParts)) {
       const hasCycle = targetDoc.documentParts.some((p) => p.linkedDocumentId === id);
       if (hasCycle) {
@@ -695,9 +691,8 @@ async function addDocumentPart(id, partData = {}, user = {}) {
 }
 
 async function removeDocumentPart(id, partId, user = {}) {
-  const doc = await Document.findOne({ id });
-  if (!doc) return null;
-  const current = normalizeDoc(doc.toObject());
+  const current = await getDocument(id, user);
+  if (!current) return null;
   const perm = checkPermission(current, user, 'manage_subdocuments');
   if (!perm.allowed) {
     const err = new Error(perm.reason || 'Permission denied');
@@ -710,9 +705,8 @@ async function removeDocumentPart(id, partId, user = {}) {
 }
 
 async function getRevisions(id, targetRevision, user = {}) {
-  const doc = await Document.findOne({ id });
-  if (!doc) return null;
-  const current = normalizeDoc(doc.toObject());
+  const current = await getDocument(id, user);
+  if (!current) return null;
   const perm = checkPermission(current, user, 'read');
   if (!perm.allowed) {
     const err = new Error(perm.reason || 'Permission denied');

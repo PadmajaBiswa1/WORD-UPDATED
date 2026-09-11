@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { Sparkles, X, ArrowRight, Check, RotateCcw, Plus } from 'lucide-react';
 import { useEditorStore, useUIStore } from '@/store';
 import { executePragnaAi } from '@/services/ai';
 
@@ -221,7 +222,7 @@ export function InlinePragnaTrigger({ editor, scrollContainerRef }) {
           {/* Header */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ color: 'var(--gold)', fontSize: 16 }}>✦</span>
+              <span style={{ color: 'var(--gold)', display: 'inline-flex', alignItems: 'center' }}><Sparkles size={16} strokeWidth={2} /></span>
               <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--gold)' }}>Draft with Pragna</span>
               <span style={{ fontSize: 10, background: 'rgba(212, 175, 55, 0.15)', color: 'var(--gold)', padding: '1px 6px', borderRadius: 10 }}>Gemma 31B</span>
             </div>
@@ -235,12 +236,13 @@ export function InlinePragnaTrigger({ editor, scrollContainerRef }) {
                 border: 'none',
                 color: 'var(--text-muted)',
                 cursor: 'pointer',
-                fontSize: 14,
+                display: 'inline-flex',
+                alignItems: 'center',
                 padding: '2px 6px',
                 borderRadius: 4,
               }}
             >
-              ✕
+              <X size={14} />
             </button>
           </div>
 
@@ -294,7 +296,12 @@ export function InlinePragnaTrigger({ editor, scrollContainerRef }) {
                     boxShadow: '0 2px 6px rgba(212, 175, 55, 0.35)',
                   }}
                 >
-                  {loading ? 'Drafting...' : 'Generate ➔'}
+                  {loading ? 'Drafting...' : (
+                    <>
+                      <span>Generate</span>
+                      <ArrowRight size={13} strokeWidth={2} />
+                    </>
+                  )}
                 </button>
               </div>
 
@@ -322,6 +329,9 @@ export function InlinePragnaTrigger({ editor, scrollContainerRef }) {
                       fontSize: 10,
                       cursor: 'pointer',
                       transition: 'all 0.12s',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 3,
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.borderColor = 'var(--gold)';
@@ -332,7 +342,8 @@ export function InlinePragnaTrigger({ editor, scrollContainerRef }) {
                       e.currentTarget.style.color = 'var(--text-secondary)';
                     }}
                   >
-                    + {chip}
+                    <Plus size={10} strokeWidth={2} />
+                    <span>{chip}</span>
                   </button>
                 ))}
               </div>
@@ -340,8 +351,8 @@ export function InlinePragnaTrigger({ editor, scrollContainerRef }) {
           ) : (
             /* MS Word Keep / Try Again / Discard Bar */
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 4 }}>
-              <span style={{ fontSize: 11, color: '#52c41a', display: 'flex', alignItems: 'center', gap: 4 }}>
-                ✓ Draft inserted into document
+              <span style={{ fontSize: 11, color: '#52c41a', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <Check size={13} strokeWidth={2} /> Draft inserted into document
               </span>
               <div style={{ display: 'flex', gap: 6 }}>
                 <button
@@ -355,9 +366,13 @@ export function InlinePragnaTrigger({ editor, scrollContainerRef }) {
                     padding: '4px 10px',
                     borderRadius: 4,
                     cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
                   }}
                 >
-                  Keep it
+                  <Check size={12} strokeWidth={2} />
+                  <span>Keep it</span>
                 </button>
                 <button
                   onClick={() => handleGenerate()}
@@ -370,9 +385,13 @@ export function InlinePragnaTrigger({ editor, scrollContainerRef }) {
                     padding: '4px 8px',
                     borderRadius: 4,
                     cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
                   }}
                 >
-                  ↺ Regenerate
+                  <RotateCcw size={12} strokeWidth={2} />
+                  <span>Regenerate</span>
                 </button>
                 <button
                   onClick={handleDiscard}
@@ -384,9 +403,13 @@ export function InlinePragnaTrigger({ editor, scrollContainerRef }) {
                     padding: '4px 8px',
                     borderRadius: 4,
                     cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
                   }}
                 >
-                  ✕ Discard
+                  <X size={12} strokeWidth={2} />
+                  <span>Discard</span>
                 </button>
               </div>
             </div>

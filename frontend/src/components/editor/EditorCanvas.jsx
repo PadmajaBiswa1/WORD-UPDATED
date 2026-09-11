@@ -6,6 +6,8 @@ import { useImageResizeAndDrag } from '@/hooks/useImageResizeAndDrag';
 import { HorizontalRuler } from './HorizontalRuler';
 import { FloatingFormatToolbar } from './FloatingFormatToolbar';
 import { PictureFormatToolbar } from './PictureFormatToolbar';
+import { ImageCropModal } from './ImageCropModal';
+import { ImageContextMenu } from './ImageContextMenu';
 import { InlinePragnaTrigger } from './InlinePragnaTrigger';
 import { useUIStore, useDocumentStore, useCollaborationStore } from '@/store';
 import { getLayoutMetrics, PAGE_GAP, PAGE_BORDER_WIDTH } from '@/utils/pageLayout';
@@ -61,7 +63,33 @@ export function EditorCanvas() {
   const [pageCount, setPageCount] = useState(1);
   const [remoteCarets, setRemoteCarets] = useState([]);
   const [remoteSelections, setRemoteSelections] = useState([]);
+  const [contextMenu, setContextMenu] = useState({ isOpen: false, x: 0, y: 0, imgElement: null });
+  const [cropModal, setCropModal] = useState({ isOpen: false, imgElement: null });
   const overflowTimer = useRef(null);
+
+  useEffect(() => {
+    const handleOpenContextMenu = (e) => {
+      const { img, x, y } = e.detail || {};
+      if (img) {
+        setContextMenu({ isOpen: true, x: x || 100, y: y || 100, imgElement: img });
+      }
+    };
+
+    const handleOpenCrop = (e) => {
+      const img = e.detail?.img || editor?.view?.dom?.querySelector('.ProseMirror-selectednode img, img.ProseMirror-selectednode');
+      if (img) {
+        setCropModal({ isOpen: true, imgElement: img });
+      }
+    };
+
+    window.addEventListener('open-image-context-menu', handleOpenContextMenu);
+    window.addEventListener('open-image-crop-modal', handleOpenCrop);
+
+    return () => {
+      window.removeEventListener('open-image-context-menu', handleOpenContextMenu);
+      window.removeEventListener('open-image-crop-modal', handleOpenCrop);
+    };
+  }, [editor]);
 
   useEffect(() => {
     if (!documentId) return;
@@ -376,6 +404,30 @@ export function EditorCanvas() {
           </div>
           <FloatingFormatToolbar editor={editor} scrollContainerRef={scrollRef} />
           <PictureFormatToolbar editor={editor} scrollContainerRef={scrollRef} />
+          <ImageContextMenu
+            isOpen={contextMenu.isOpen}
+            x={contextMenu.x}
+            y={contextMenu.y}
+            imgElement={contextMenu.imgElement}
+            onClose={() => setContextMenu({ isOpen: false, x: 0, y: 0, imgElement: null })}
+            editor={editor}
+            onOpenCrop={(img) => setCropModal({ isOpen: true, imgElement: img })}
+          />
+          <ImageCropModal
+            isOpen={cropModal.isOpen}
+            imgElement={cropModal.imgElement}
+            onClose={() => setCropModal({ isOpen: false, imgElement: null })}
+            onApplyCrop={(dataUrl, width, height) => {
+              if (editor) {
+                editor.chain().focus().updateAttributes('image', {
+                  src: dataUrl,
+                  width: String(width),
+                  height: String(height),
+                }).run();
+                useUIStore.getState().toast('Image cropped successfully', 'success');
+              }
+            }}
+          />
           <div aria-hidden="true" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 2 }}>
             {Array.from({ length: pageCount }).map((_, i) => (
               <div

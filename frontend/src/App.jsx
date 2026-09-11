@@ -1,10 +1,13 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { SignInPage }        from '@/pages/SignInPage';
 import { SignUpPage }        from '@/pages/SignUpPage';
 import { ForgotPasswordPage} from '@/pages/ForgotPasswordPage';
 import { HomePage }          from '@/pages/HomePage';
 import { EditorPage }        from '@/pages/EditorPage';
+import { initGlobalPrintHandler } from '@/utils/printUtils';
+
+initGlobalPrintHandler();
 
 class EditorErrorBoundary extends React.PureComponent {
   state = { hasError: false };

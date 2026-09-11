@@ -197,6 +197,44 @@ class OllamaService {
    * Execute chat completion with Ollama Cloud, supporting multi-key rotation and model fallbacks
    */
   async chatCompletion({ messages, temperature = 0.7, max_tokens = 4000, model }) {
+    if (process.env.GEMINI_API_KEY) {
+      try {
+        const contents = messages
+          .filter((m) => m.role !== 'system')
+          .map((m) => ({
+            role: m.role === 'assistant' ? 'model' : 'user',
+            parts: [{ text: m.content || '' }],
+          }));
+        const systemMsg = messages.find((m) => m.role === 'system')?.content;
+
+        const geminiBody = {
+          contents: contents.length ? contents : [{ role: 'user', parts: [{ text: 'Hello' }] }],
+          ...(systemMsg ? { systemInstruction: { parts: [{ text: systemMsg }] } } : {}),
+          generationConfig: {
+            temperature: typeof temperature === 'number' ? temperature : 0.7,
+            maxOutputTokens: typeof max_tokens === 'number' ? max_tokens : 4096,
+          },
+        };
+
+        const geminiRes = await axios.post(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+          geminiBody,
+          { timeout: 45000 }
+        );
+
+        const geminiText = geminiRes.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (geminiText) {
+          return {
+            content: geminiText.trim(),
+            model: 'gemini-2.5-flash',
+            role: 'assistant',
+          };
+        }
+      } catch (geminiErr) {
+        console.warn('⚠️ Gemini API attempt failed, falling back to Ollama:', geminiErr.message);
+      }
+    }
+
     const isLocal = this.baseUrl?.includes('localhost') || this.baseUrl?.includes('127.0.0.1');
     if (!this.keys.length && !isLocal) {
       throw new Error('No Ollama API keys found in configuration. Please check backend .env.');

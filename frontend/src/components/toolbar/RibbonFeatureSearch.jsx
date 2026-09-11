@@ -528,30 +528,46 @@ export function RibbonFeatureSearch({ compactWidth = 190, onActivateTab: onActiv
         onMouseEnter={() => setHasFocus(true)}
         onMouseLeave={() => setHasFocus(false)}
       >
-        <div style={{ position: 'relative', width: '100%' }}>
-          <div
+        <div style={{ position: 'relative', width: '100%', display: 'flex', alignItems: 'center' }}>
+          <svg
             style={{
               position: 'absolute',
               left: 8,
               top: '50%',
               transform: 'translateY(-50%)',
-              width: 12,
-              height: 12,
+              width: 13,
+              height: 13,
+              color: hasFocus ? 'var(--gold)' : 'var(--text-muted)',
+              pointerEvents: 'none',
+              transition: 'color 0.12s ease',
             }}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth="2.2"
             aria-hidden
-          />
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
+          </svg>
           <Input
             value={query}
             onChange={(v) => {
               setQuery(v);
               setOpen(true);
             }}
-            placeholder="Search features"
+            placeholder={hasFocus ? "Type a feature, command, or action..." : "Tell me what to do..."}
             width="100%"
             type="text"
             autoFocus={false}
             onKeyDown={onKeyDown}
-            style={{ paddingLeft: 26 }}
+            style={{
+              paddingLeft: 27,
+              height: 25,
+              fontSize: 11,
+              borderRadius: 4,
+              border: hasFocus ? '1px solid var(--gold)' : '1px solid var(--border)',
+              background: 'var(--bg-elevated)',
+            }}
           />
         </div>
       </div>

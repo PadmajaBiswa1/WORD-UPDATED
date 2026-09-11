@@ -1,4 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
+import {
+  LayoutGrid, RotateCw, Maximize2, Columns2, WrapText, Layers,
+  BringToFront, SendToBack, ZoomIn, ZoomOut, Trash2, BookOpen, Lock,
+  Hash, Minus, Scissors, Check
+} from 'lucide-react';
 import { useDocumentStore, useEditorStore, useUIStore } from '@/store';
 import { PAGE_SIZES, MARGIN_MAP, getLayoutMetrics } from '@/utils/pageLayout';
 import { RibbonGroup } from '../RibbonGroup';
@@ -469,7 +474,7 @@ export function LayoutTab() {
       <Group title="Page Setup">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
           <PageSetupControl
-            icon="📄"
+            icon={<LayoutGrid size={13} strokeWidth={1.75} />}
             label="Margins"
             value={pageMargin}
             options={[
@@ -485,7 +490,7 @@ export function LayoutTab() {
             width={94}
           />
           <PageSetupControl
-            icon="↕"
+            icon={<RotateCw size={13} strokeWidth={1.75} />}
             label="Orientation"
             value={pageOrientation}
             options={[
@@ -499,7 +504,7 @@ export function LayoutTab() {
             width={94}
           />
           <PageSetupControl
-            icon="📏"
+            icon={<Maximize2 size={13} strokeWidth={1.75} />}
             label="Size"
             value={pageSize}
             options={[
@@ -515,7 +520,7 @@ export function LayoutTab() {
             width={88}
           />
           <PageSetupControl
-            icon="☵"
+            icon={<Columns2 size={13} strokeWidth={1.75} />}
             label="Columns"
             value={String(pageColumns)}
             options={[
@@ -534,7 +539,7 @@ export function LayoutTab() {
           {/* Stacked Breaks, Line Numbers, Hyphenation */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ fontSize: 13, color: 'var(--gold, #c9a84c)' }}>⊞</span>
+              <span style={{ color: 'var(--gold, #c9a84c)', display: 'inline-flex', alignItems: 'center' }}><Scissors size={13} strokeWidth={1.75} /></span>
               <select
                 value={breakAction}
                 onChange={(e) => insertSelectedBreak(e.target.value)}
@@ -575,8 +580,9 @@ export function LayoutTab() {
                 whiteSpace: 'nowrap',
               }}
             >
-              <span style={{ fontSize: 11, fontWeight: 700 }}>#</span>
-              <span>Line Numbers {lineNumbersOn ? '✓' : '▾'}</span>
+              <Hash size={12} strokeWidth={1.75} />
+              <span>Line Numbers</span>
+              {lineNumbersOn ? <Check size={11} strokeWidth={2} /> : <span style={{ fontSize: 9 }}>▾</span>}
             </button>
             <button
               onClick={toggleHyphenation}
@@ -596,8 +602,9 @@ export function LayoutTab() {
                 whiteSpace: 'nowrap',
               }}
             >
-              <span style={{ fontSize: 12 }}>―</span>
-              <span>Hyphenation {hyphenationOn ? '✓' : '▾'}</span>
+              <Minus size={12} strokeWidth={1.75} />
+              <span>Hyphenation</span>
+              {hyphenationOn ? <Check size={11} strokeWidth={2} /> : <span style={{ fontSize: 9 }}>▾</span>}
             </button>
           </div>
         </div>
@@ -731,15 +738,15 @@ export function LayoutTab() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 74 }}>
           {/* Col 1: Placement */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
-            <IconTextButton icon="▧" text="Position" onClick={() => alignImage('center')} />
-            <IconTextButton icon="≋" text="Wrap Text" onClick={wrapText} />
-            <IconTextButton icon="⌖" text="Selection Pane" onClick={toggleSidebar} active={sidebarOpen} />
+            <IconTextButton icon={<LayoutGrid size={13} strokeWidth={1.75} />} text="Position" onClick={() => alignImage('center')} />
+            <IconTextButton icon={<WrapText size={13} strokeWidth={1.75} />} text="Wrap Text" onClick={wrapText} />
+            <IconTextButton icon={<Layers size={13} strokeWidth={1.75} />} text="Selection Pane" onClick={toggleSidebar} active={sidebarOpen} />
           </div>
 
           {/* Col 2: Layering & Align */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
-            <IconTextButton icon="▰" text="Bring Forward" onClick={() => layerImage('up')} />
-            <IconTextButton icon="▱" text="Send Backward" onClick={() => layerImage('down')} />
+            <IconTextButton icon={<BringToFront size={13} strokeWidth={1.75} />} text="Bring Forward" onClick={() => layerImage('up')} />
+            <IconTextButton icon={<SendToBack size={13} strokeWidth={1.75} />} text="Send Backward" onClick={() => layerImage('down')} />
             <TinyAction text="Align Left ▾" onClick={() => alignImage('left')} />
           </div>
 
@@ -747,10 +754,10 @@ export function LayoutTab() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
             <TinyAction text="Rotate 15° ▾" onClick={rotateImage} />
             <div style={{ display: 'flex', gap: 3 }}>
-              <IconTextButton icon="＋" text="Size +" onClick={() => resizeSelectedImage('up')} />
-              <IconTextButton icon="－" text="Size -" onClick={() => resizeSelectedImage('down')} />
+              <IconTextButton icon={<ZoomIn size={13} strokeWidth={1.75} />} text="Size +" onClick={() => resizeSelectedImage('up')} />
+              <IconTextButton icon={<ZoomOut size={13} strokeWidth={1.75} />} text="Size -" onClick={() => resizeSelectedImage('down')} />
             </div>
-            <IconTextButton icon="🗑" text="Remove Image" onClick={removeSelectedImage} />
+            <IconTextButton icon={<Trash2 size={13} strokeWidth={1.75} />} text="Remove Image" onClick={removeSelectedImage} />
           </div>
         </div>
       </Group>
@@ -779,7 +786,7 @@ export function LayoutTab() {
             onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'transparent'; }}
           >
-            <span style={{ fontSize: 22, lineHeight: 1 }}>📑</span>
+            <BookOpen size={20} strokeWidth={1.75} />
             <span>Master Doc</span>
           </button>
           <button
@@ -804,7 +811,7 @@ export function LayoutTab() {
             onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'transparent'; }}
           >
-            <span style={{ fontSize: 22, lineHeight: 1 }}>🔒</span>
+            <Lock size={20} strokeWidth={1.75} />
             <span>Security</span>
           </button>
         </div>

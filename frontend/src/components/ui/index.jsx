@@ -3,6 +3,7 @@
 // ═══════════════════════════════════════════════════════════════
 import { createPortal } from 'react-dom';
 import { useState, useEffect, useRef } from 'react';
+import { X } from 'lucide-react';
 
 /* ── Button ─────────────────────────────────────────────────── */
 const variantStyle = {
@@ -503,7 +504,9 @@ export function Modal({ title, onClose, children, width = 480, noPad = false }) 
           background: 'var(--bg-elevated)',
         }}>
           <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, color: 'var(--gold)', fontSize: 13, letterSpacing: '.06em', textTransform: 'uppercase' }}>{title}</span>
-          <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--text-muted)', cursor:'pointer', fontSize:16, padding:'0 4px', lineHeight:1 }}>✕</button>
+          <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--text-muted)', cursor:'pointer', display:'inline-flex', alignItems:'center', padding:'0 4px', lineHeight:1 }}>
+            <X size={16} />
+          </button>
         </div>
         <div style={{ padding: noPad ? 0 : 20, overflowY: 'auto', flex: 1 }}>{children}</div>
       </div>

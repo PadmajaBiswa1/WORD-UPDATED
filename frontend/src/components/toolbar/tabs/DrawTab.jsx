@@ -1,4 +1,8 @@
 import { useMemo, useState } from 'react';
+import {
+  MousePointer, PenTool, Eraser, Undo2, Redo2, LassoSelect,
+  PenLine, Plus, Ruler, Layout, Palette, Hexagon, Sigma, RotateCcw, HelpCircle
+} from 'lucide-react';
 import { useUIStore, useEditorStore } from '@/store';
 import { Button, Tooltip } from '@/components/ui';
 import { RibbonGroup } from '../RibbonGroup';
@@ -220,13 +224,13 @@ export function DrawTab() {
     <>
       <RibbonGroup label="Tools">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon="↖" label="Select" title="Select Tool" active={drawTool === 'select'} onClick={() => activateTool('select')} />
-          <HeroBtn icon="✍" label="Draw" title="Draw with Touch / Pen" active={drawTool === 'pen'} onClick={() => activateTool('pen', true)} />
-          <HeroBtn icon="⌫" label="Eraser" title="Eraser Tool" active={drawTool === 'eraser'} onClick={() => activateTool('eraser', true)} />
+          <HeroBtn icon={<MousePointer size={20} strokeWidth={1.75} />} label="Select" title="Select Tool" active={drawTool === 'select'} onClick={() => activateTool('select')} />
+          <HeroBtn icon={<PenTool size={20} strokeWidth={1.75} />} label="Draw" title="Draw with Touch / Pen" active={drawTool === 'pen'} onClick={() => activateTool('pen', true)} />
+          <HeroBtn icon={<Eraser size={20} strokeWidth={1.75} />} label="Eraser" title="Eraser Tool" active={drawTool === 'eraser'} onClick={() => activateTool('eraser', true)} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
-            <MiniAction icon="↶" text="Undo" title="Undo Inking" onClick={() => run(() => editor.chain().undo().run())} />
-            <MiniAction icon="↷" text="Redo" title="Redo Inking" onClick={() => run(() => editor.chain().redo().run())} />
-            <MiniAction icon="◌" text="Lasso" title="Lasso Select" onClick={() => run(() => editor.chain().selectAll().run())} />
+            <MiniAction icon={<Undo2 size={13} strokeWidth={1.75} />} text="Undo" title="Undo Inking" onClick={() => run(() => editor.chain().undo().run())} />
+            <MiniAction icon={<Redo2 size={13} strokeWidth={1.75} />} text="Redo" title="Redo Inking" onClick={() => run(() => editor.chain().redo().run())} />
+            <MiniAction icon={<LassoSelect size={13} strokeWidth={1.75} />} text="Lasso" title="Lasso Select" onClick={() => run(() => editor.chain().selectAll().run())} />
           </div>
         </div>
       </RibbonGroup>
@@ -253,13 +257,13 @@ export function DrawTab() {
                     boxShadow: drawColor === pen.color ? '0 0 6px rgba(212,175,55,0.3)' : 'none',
                   }}
                 >
-                  <span style={{ fontSize: 16 }}>✎</span>
+                  <PenLine size={16} strokeWidth={1.75} />
                   <div style={{ width: 22, height: 6, borderRadius: 2, background: pen.color }} />
                 </button>
               </Tooltip>
             ))}
           </div>
-          <HeroBtn icon="＋" label="Add Pen" title="Add Custom Color Pen" onClick={addPen} />
+          <HeroBtn icon={<Plus size={20} strokeWidth={1.75} />} label="Add Pen" title="Add Custom Color Pen" onClick={addPen} />
         </div>
       </RibbonGroup>
 
@@ -310,23 +314,23 @@ export function DrawTab() {
 
       <RibbonGroup label="Stencils & Canvas">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon="📏" label="Ruler" title="Toggle Drawing Ruler" active={rulerVisible} onClick={() => { toggleRuler(); toast(rulerVisible ? 'Ruler hidden' : 'Ruler shown', 'info'); }} />
-          <HeroBtn icon="🖼" label="Canvas" title="Insert Drawing Canvas" onClick={() => openDialog('drawing')} />
-          <HeroBtn icon="🎨" label="Background" title="Format Drawing Background" onClick={formatBackground} />
+          <HeroBtn icon={<Ruler size={20} strokeWidth={1.75} />} label="Ruler" title="Toggle Drawing Ruler" active={rulerVisible} onClick={() => { toggleRuler(); toast(rulerVisible ? 'Ruler hidden' : 'Ruler shown', 'info'); }} />
+          <HeroBtn icon={<Layout size={20} strokeWidth={1.75} />} label="Canvas" title="Insert Drawing Canvas" onClick={() => openDialog('drawing')} />
+          <HeroBtn icon={<Palette size={20} strokeWidth={1.75} />} label="Background" title="Format Drawing Background" onClick={formatBackground} />
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Convert">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon="⬡" label="To Shape" title="Convert Ink to Shapes" onClick={() => openDialog('insertShape')} />
-          <HeroBtn icon="∑" label="To Math" title="Convert Ink to Math Equations" onClick={() => openDialog('equation')} />
+          <HeroBtn icon={<Hexagon size={20} strokeWidth={1.75} />} label="To Shape" title="Convert Ink to Shapes" onClick={() => openDialog('insertShape')} />
+          <HeroBtn icon={<Sigma size={20} strokeWidth={1.75} />} label="To Math" title="Convert Ink to Math Equations" onClick={() => openDialog('equation')} />
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Replay & Help">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon="↺" label="Replay" title="Replay Ink Strokes" onClick={replayInk} />
-          <HeroBtn icon="❓" label="Help" title="Drawing Help & Reference" onClick={() => window.open('https://support.microsoft.com/en-us/office/draw-and-write-with-ink-in-office', '_blank', 'noopener,noreferrer')} />
+          <HeroBtn icon={<RotateCcw size={20} strokeWidth={1.75} />} label="Replay" title="Replay Ink Strokes" onClick={replayInk} />
+          <HeroBtn icon={<HelpCircle size={20} strokeWidth={1.75} />} label="Help" title="Drawing Help & Reference" onClick={() => window.open('https://support.microsoft.com/en-us/office/draw-and-write-with-ink-in-office', '_blank', 'noopener,noreferrer')} />
         </div>
       </RibbonGroup>
     </>

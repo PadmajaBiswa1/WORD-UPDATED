@@ -1,4 +1,10 @@
 import { useUIStore, useEditorStore } from '@/store';
+import {
+  Mail, Tag, MailCheck, Users, UserCheck, Highlighter, MapPin,
+  MessageSquare, Braces, Settings, ArrowLeftRight, RefreshCw, Eye,
+  Search, CheckCircle, CheckCheck, Send, Printer,
+  ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight
+} from 'lucide-react';
 import { Button, Tooltip } from '@/components/ui';
 import { RibbonGroup } from '../RibbonGroup';
 
@@ -59,7 +65,7 @@ function HeroBtn({ icon, label, onClick, title }) {
           e.currentTarget.style.borderColor = 'transparent';
         }}
       >
-        <span style={{ fontSize: 22, lineHeight: 1 }}>{icon}</span>
+        <div style={{ fontSize: 20, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</div>
         <span style={{ fontSize: 11, lineHeight: 1.1, textAlign: 'center' }}>{label}</span>
       </button>
     </Tooltip>
@@ -96,7 +102,7 @@ function MiniAction({ icon, text, onClick, title }) {
           e.currentTarget.style.borderColor = 'transparent';
         }}
       >
-        {icon && <span style={{ fontSize: 12, lineHeight: 1 }}>{icon}</span>}
+        {icon && <span style={{ fontSize: 13, lineHeight: 1, display: 'inline-flex', alignItems: 'center' }}>{icon}</span>}
         <span>{text}</span>
       </button>
     </Tooltip>
@@ -261,59 +267,59 @@ export function MailingsTab() {
     <>
       <RibbonGroup label="Create">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon="✉" label="Envelopes" title="Create Envelopes" onClick={() => openDialog('envelopes')} />
-          <HeroBtn icon="🏷" label="Labels" title="Create Mailing Labels" onClick={() => openDialog('labels')} />
+          <HeroBtn icon={<Mail size={20} strokeWidth={1.75} />} label="Envelopes" title="Create Envelopes" onClick={() => openDialog('envelopes')} />
+          <HeroBtn icon={<Tag size={20} strokeWidth={1.75} />} label="Labels" title="Create Mailing Labels" onClick={() => openDialog('labels')} />
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Start Mail Merge">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon="⊞" label="Start Merge" title="Start Mail Merge" onClick={startMailMerge} />
+          <HeroBtn icon={<MailCheck size={20} strokeWidth={1.75} />} label="Start Merge" title="Start Mail Merge" onClick={startMailMerge} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
-            <MiniAction icon="👥" text="Select Recipients" title="Select or Import Recipients" onClick={() => openDialog('selectRecipients')} />
-            <MiniAction icon="✎" text="Edit Recipient List" title="Edit Recipient List" onClick={() => openDialog('editRecipients')} />
+            <MiniAction icon={<Users size={13} strokeWidth={1.75} />} text="Select Recipients" title="Select or Import Recipients" onClick={() => openDialog('selectRecipients')} />
+            <MiniAction icon={<UserCheck size={13} strokeWidth={1.75} />} text="Edit Recipient List" title="Edit Recipient List" onClick={() => openDialog('editRecipients')} />
           </div>
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Write & Insert Fields">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon="🖍" label="Highlight" title="Highlight Merge Fields" onClick={highlightFields} />
+          <HeroBtn icon={<Highlighter size={20} strokeWidth={1.75} />} label="Highlight" title="Highlight Merge Fields" onClick={highlightFields} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
-            <MiniAction icon="📮" text="Address Block" title="Insert Address Block" onClick={() => insertHtml('<div style="border:1px solid #cfcfcf;padding:10px 12px;">{{FirstName}} {{LastName}}<br />{{Address}}<br />{{City}}, {{State}} {{Zip}}</div>')} />
-            <MiniAction icon="👋" text="Greeting Line" title="Insert Greeting Line" onClick={() => openDialog('greetingLine')} />
-            <MiniAction icon="⊞" text="Insert Field ▾" title="Insert Merge Field" onClick={() => openDialog('insertMergeField')} />
+            <MiniAction icon={<MapPin size={13} strokeWidth={1.75} />} text="Address Block" title="Insert Address Block" onClick={() => insertHtml('<div style="border:1px solid #cfcfcf;padding:10px 12px;">{{FirstName}} {{LastName}}<br />{{Address}}<br />{{City}}, {{State}} {{Zip}}</div>')} />
+            <MiniAction icon={<MessageSquare size={13} strokeWidth={1.75} />} text="Greeting Line" title="Insert Greeting Line" onClick={() => openDialog('greetingLine')} />
+            <MiniAction icon={<Braces size={13} strokeWidth={1.75} />} text="Insert Field ▾" title="Insert Merge Field" onClick={() => openDialog('insertMergeField')} />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
-            <MiniAction icon="⚙" text="Rules ▾" title="Insert Word Fields / Rules" onClick={insertRule} />
-            <MiniAction icon="⇔" text="Match Fields" title="Match Database Fields" onClick={insertMatchTemplate} />
-            <MiniAction icon="↻" text="Update Labels" title="Update All Labels" onClick={() => openDialog('labels')} />
+            <MiniAction icon={<Settings size={13} strokeWidth={1.75} />} text="Rules ▾" title="Insert Word Fields / Rules" onClick={insertRule} />
+            <MiniAction icon={<ArrowLeftRight size={13} strokeWidth={1.75} />} text="Match Fields" title="Match Database Fields" onClick={insertMatchTemplate} />
+            <MiniAction icon={<RefreshCw size={13} strokeWidth={1.75} />} text="Update Labels" title="Update All Labels" onClick={() => openDialog('labels')} />
           </div>
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Preview Results">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon="👁" label="Preview" title="Preview Results" onClick={() => openDialog('finishMerge')} />
+          <HeroBtn icon={<Eye size={20} strokeWidth={1.75} />} label="Preview" title="Preview Results" onClick={() => openDialog('finishMerge')} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Button style={{ height: 22, padding: '0 4px', fontSize: 10 }} onClick={() => navigateRecipient('first')}>|◀</Button>
-              <Button style={{ height: 22, padding: '0 4px', fontSize: 10 }} onClick={() => navigateRecipient('prev')}>◀</Button>
-              <Button style={{ height: 22, padding: '0 4px', fontSize: 10 }} onClick={() => navigateRecipient('next')}>▶</Button>
-              <Button style={{ height: 22, padding: '0 4px', fontSize: 10 }} onClick={() => navigateRecipient('last')}>▶|</Button>
+              <Button style={{ height: 22, padding: '0 4px', fontSize: 10, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => navigateRecipient('first')} title="First Recipient"><ChevronsLeft size={12} strokeWidth={1.75} /></Button>
+              <Button style={{ height: 22, padding: '0 4px', fontSize: 10, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => navigateRecipient('prev')} title="Previous Recipient"><ChevronLeft size={12} strokeWidth={1.75} /></Button>
+              <Button style={{ height: 22, padding: '0 4px', fontSize: 10, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => navigateRecipient('next')} title="Next Recipient"><ChevronRight size={12} strokeWidth={1.75} /></Button>
+              <Button style={{ height: 22, padding: '0 4px', fontSize: 10, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => navigateRecipient('last')} title="Last Recipient"><ChevronsRight size={12} strokeWidth={1.75} /></Button>
             </div>
-            <MiniAction icon="🔍" text="Find Recipient" title="Find Recipient in List" onClick={findRecipient} />
-            <MiniAction icon="✓" text="Auto Check" title="Auto Check for Merge Errors" onClick={checkMergeErrors} />
+            <MiniAction icon={<Search size={13} strokeWidth={1.75} />} text="Find Recipient" title="Find Recipient in List" onClick={findRecipient} />
+            <MiniAction icon={<CheckCircle size={13} strokeWidth={1.75} />} text="Auto Check" title="Auto Check for Merge Errors" onClick={checkMergeErrors} />
           </div>
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Finish">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon="✓" label="Finish & Merge" title="Finish & Merge Documents" onClick={() => openDialog('finishMerge')} />
+          <HeroBtn icon={<CheckCheck size={20} strokeWidth={1.75} />} label="Finish & Merge" title="Finish & Merge Documents" onClick={() => openDialog('finishMerge')} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
-            <MiniAction icon="📧" text="Merge to Email" title="Send Email Messages" onClick={mergeToEmail} />
-            <MiniAction icon="🖨" text="Merge to Print" title="Print Documents" onClick={mergeToPrint} />
+            <MiniAction icon={<Send size={13} strokeWidth={1.75} />} text="Merge to Email" title="Send Email Messages" onClick={mergeToEmail} />
+            <MiniAction icon={<Printer size={13} strokeWidth={1.75} />} text="Merge to Print" title="Print Documents" onClick={mergeToPrint} />
           </div>
         </div>
       </RibbonGroup>

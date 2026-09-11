@@ -1,5 +1,16 @@
 // ── Layout Tab ───────────────────────────────────────────────
 import { useEffect, useState, useRef } from 'react';
+import {
+  SpellCheck, BarChart3, BookOpen, Hash, Accessibility, Volume2,
+  Languages, Globe, MessageSquarePlus, Trash2, Eye, ChevronLeft, ChevronRight,
+  FileDiff, Check, X, PanelLeftClose, History, ArrowLeftRight,
+  ShieldAlert, Users, EyeOff, Mic, Headphones, ScanText, PenTool,
+  Sparkles, Printer, ListTree, FileText, Focus, Ruler, Grid,
+  Compass, LayoutGrid, ZoomIn, Maximize2, MoveHorizontal, ZoomOut,
+  ExternalLink, Columns, Minimize, Maximize, FileCode2, ShieldCheck,
+  Terminal, Zap, CircleDot, ArrowUpDown, WrapText,
+  Layers, Crosshair, ArrowUp, ArrowDown, AlignLeft, RotateCw
+} from 'lucide-react';
 import { useUIStore, useEditorStore } from '@/store';
 import { Button, Tooltip, Select } from '@/components/ui';
 import { RibbonGroup } from '../RibbonGroup';
@@ -293,7 +304,7 @@ export function LayoutTab() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {/* Margins */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, width: 90 }}>
-            <span style={{ fontSize: 18, color: 'var(--gold)', lineHeight: 1 }}>📄</span>
+            <span style={{ fontSize: 18, color: 'var(--gold)', lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><FileText size={18} strokeWidth={1.75} /></span>
             <span style={{ fontSize: 9.5, color: 'var(--text-secondary)', fontWeight: 600, letterSpacing: '0.04em' }}>MARGINS</span>
             <Select
               width={90}
@@ -306,7 +317,7 @@ export function LayoutTab() {
 
           {/* Orientation */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, width: 92 }}>
-            <span style={{ fontSize: 18, color: 'var(--gold)', lineHeight: 1 }}>↕</span>
+            <span style={{ fontSize: 18, color: 'var(--gold)', lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><ArrowUpDown size={18} strokeWidth={1.75} /></span>
             <span style={{ fontSize: 9.5, color: 'var(--text-secondary)', fontWeight: 600, letterSpacing: '0.04em' }}>ORIENTATION</span>
             <div style={{ display: 'flex', gap: 2 }}>
               <Button
@@ -330,7 +341,7 @@ export function LayoutTab() {
 
           {/* Page Size */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, width: 80 }}>
-            <span style={{ fontSize: 18, color: 'var(--gold)', lineHeight: 1 }}>📏</span>
+            <span style={{ fontSize: 18, color: 'var(--gold)', lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Ruler size={18} strokeWidth={1.75} /></span>
             <span style={{ fontSize: 9.5, color: 'var(--text-secondary)', fontWeight: 600, letterSpacing: '0.04em' }}>SIZE</span>
             <Select
               width={80}
@@ -343,7 +354,7 @@ export function LayoutTab() {
 
           {/* Columns */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, width: 80 }}>
-            <span style={{ fontSize: 18, color: 'var(--gold)', lineHeight: 1 }}>☵</span>
+            <span style={{ fontSize: 18, color: 'var(--gold)', lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Columns size={18} strokeWidth={1.75} /></span>
             <span style={{ fontSize: 9.5, color: 'var(--text-secondary)', fontWeight: 600, letterSpacing: '0.04em' }}>COLUMNS</span>
             <Select
               width={80}
@@ -438,19 +449,19 @@ export function LayoutTab() {
       <RibbonGroup label="Arrange">
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2, height: 82, justifyContent: 'space-between' }}>
-            <Tooltip text="Position on page"><Button style={rbtn} onClick={() => alignImage('center')}>⊞ Position</Button></Tooltip>
-            <Tooltip text="Wrap Text around image/shape"><Button style={rbtn} onClick={wrapText}>☰ Wrap Text</Button></Tooltip>
-            <Tooltip text="Selection Pane"><Button style={rbtn} active={sidebarOpen} onClick={() => toggleSidebar()}>⌖ Selection Pane</Button></Tooltip>
+            <Tooltip text="Position on page"><Button style={rbtn} onClick={() => alignImage('center')}><Layers size={13} style={{ marginRight: 4 }} /> Position</Button></Tooltip>
+            <Tooltip text="Wrap Text around image/shape"><Button style={rbtn} onClick={wrapText}><WrapText size={13} style={{ marginRight: 4 }} /> Wrap Text</Button></Tooltip>
+            <Tooltip text="Selection Pane"><Button style={rbtn} active={sidebarOpen} onClick={() => toggleSidebar()}><Crosshair size={13} style={{ marginRight: 4 }} /> Selection Pane</Button></Tooltip>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2, height: 82, justifyContent: 'space-between' }}>
-            <Tooltip text="Bring Forward"><Button style={rbtn} onClick={() => layerImage('up')}>↑ Forward</Button></Tooltip>
-            <Tooltip text="Send Backward"><Button style={rbtn} onClick={() => layerImage('down')}>↓ Backward</Button></Tooltip>
-            <Tooltip text="Align Object"><Button style={rbtn} onClick={() => alignImage('left')}>⇤ Align Left</Button></Tooltip>
+            <Tooltip text="Bring Forward"><Button style={rbtn} onClick={() => layerImage('up')}><ArrowUp size={13} style={{ marginRight: 4 }} /> Forward</Button></Tooltip>
+            <Tooltip text="Send Backward"><Button style={rbtn} onClick={() => layerImage('down')}><ArrowDown size={13} style={{ marginRight: 4 }} /> Backward</Button></Tooltip>
+            <Tooltip text="Align Object"><Button style={rbtn} onClick={() => alignImage('left')}><AlignLeft size={13} style={{ marginRight: 4 }} /> Align Left</Button></Tooltip>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 2, height: 82, justifyContent: 'space-between' }}>
-            <Tooltip text="Rotate 90 degrees"><Button style={rbtn} onClick={rotateImage}>↻ Rotate</Button></Tooltip>
-            <Tooltip text="Increase Size"><Button style={rbtn} onClick={() => resizeSelectedImage('up')}>＋ Enlarge</Button></Tooltip>
-            <Tooltip text="Decrease Size"><Button style={rbtn} onClick={() => resizeSelectedImage('down')}>－ Shrink</Button></Tooltip>
+            <Tooltip text="Rotate 90 degrees"><Button style={rbtn} onClick={rotateImage}><RotateCw size={13} style={{ marginRight: 4 }} /> Rotate</Button></Tooltip>
+            <Tooltip text="Increase Size"><Button style={rbtn} onClick={() => resizeSelectedImage('up')}><ZoomIn size={13} style={{ marginRight: 4 }} /> Enlarge</Button></Tooltip>
+            <Tooltip text="Decrease Size"><Button style={rbtn} onClick={() => resizeSelectedImage('down')}><ZoomOut size={13} style={{ marginRight: 4 }} /> Shrink</Button></Tooltip>
           </div>
         </div>
       </RibbonGroup>
@@ -519,7 +530,7 @@ function HeroBtn({ icon, label, onClick, onMouseDown, title, active, disabled })
           }
         }}
       >
-        <span style={{ fontSize: 20, lineHeight: 1 }}>{icon}</span>
+        <div style={{ fontSize: 20, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</div>
         <span style={{ fontSize: 11, lineHeight: 1.1, textAlign: 'center' }}>{label}</span>
       </button>
     </Tooltip>
@@ -563,7 +574,7 @@ function MiniAction({ icon, text, onClick, onMouseDown, title, active, disabled 
           }
         }}
       >
-        {icon && <span style={{ fontSize: 12, lineHeight: 1 }}>{icon}</span>}
+        {icon && <span style={{ fontSize: 13, lineHeight: 1, display: 'inline-flex', alignItems: 'center' }}>{icon}</span>}
         <span>{text}</span>
       </button>
     </Tooltip>
@@ -935,38 +946,38 @@ export function ReviewTab() {
     <>
       <RibbonGroup label="Proofing">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon="ABC✓" label="Spelling" title="Spelling & Grammar (F7)" active={spellCheck} onClick={handleSpellCheck} />
-          <HeroBtn icon="📊" label="Clarity" title="Readability Dashboard & Clarity Metrics" onClick={() => openDialog('readability')} />
+          <HeroBtn icon={<SpellCheck size={20} strokeWidth={1.75} />} label="Spelling" title="Spelling & Grammar (F7)" active={spellCheck} onClick={handleSpellCheck} />
+          <HeroBtn icon={<BarChart3 size={20} strokeWidth={1.75} />} label="Clarity" title="Readability Dashboard & Clarity Metrics" onClick={() => openDialog('readability')} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
-            <MiniAction icon="📖" text="Thesaurus" title="Thesaurus & Synonyms" onClick={openThesaurus} />
-            <MiniAction icon="123" text="Word Count" title="Word & Character Count" onClick={handleWordCount} />
-            <MiniAction icon="♿" text="Check Access" title="Check Accessibility" onClick={handleAccessibility} />
+            <MiniAction icon={<BookOpen size={13} strokeWidth={1.75} />} text="Thesaurus" title="Thesaurus & Synonyms" onClick={openThesaurus} />
+            <MiniAction icon={<Hash size={13} strokeWidth={1.75} />} text="Word Count" title="Word & Character Count" onClick={handleWordCount} />
+            <MiniAction icon={<Accessibility size={13} strokeWidth={1.75} />} text="Check Access" title="Check Accessibility" onClick={handleAccessibility} />
           </div>
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Speech">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon="🔊" label="Read Aloud" title="Read Text Aloud" onClick={handleReadAloud} />
+          <HeroBtn icon={<Volume2 size={20} strokeWidth={1.75} />} label="Read Aloud" title="Read Text Aloud" onClick={handleReadAloud} />
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Language">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon="🌐" label="Translate" title="Translate Selection" onClick={translateSelection} />
-          <HeroBtn icon="🗣" label="Language" title="Set Proofing Language" onClick={handleLanguage} />
+          <HeroBtn icon={<Languages size={20} strokeWidth={1.75} />} label="Translate" title="Translate Selection" onClick={translateSelection} />
+          <HeroBtn icon={<Globe size={20} strokeWidth={1.75} />} label="Language" title="Set Proofing Language" onClick={handleLanguage} />
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Comments">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon="💬" label="New Comment" title="New Comment (Ctrl+Alt+M)" onMouseDown={(e) => e.preventDefault()} onClick={handleNewComment} />
+          <HeroBtn icon={<MessageSquarePlus size={20} strokeWidth={1.75} />} label="New Comment" title="New Comment (Ctrl+Alt+M)" onMouseDown={(e) => e.preventDefault()} onClick={handleNewComment} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
-            <MiniAction icon="🗑" text="Delete Comment" title="Delete Comment" onClick={removeCurrentComment} />
-            <MiniAction icon="👁" text="Show Comments" title="Show All Comments" onClick={handleComments} />
+            <MiniAction icon={<Trash2 size={13} strokeWidth={1.75} />} text="Delete Comment" title="Delete Comment" onClick={removeCurrentComment} />
+            <MiniAction icon={<Eye size={13} strokeWidth={1.75} />} text="Show Comments" title="Show All Comments" onClick={handleComments} />
             <div style={{ display: 'flex', gap: 2 }}>
-              <Button style={{ height: 22, padding: '0 4px', fontSize: 10 }} onClick={() => stepComment(-1)}>◀ Prev</Button>
-              <Button style={{ height: 22, padding: '0 4px', fontSize: 10 }} onClick={() => stepComment(1)}>▶ Next</Button>
+              <Button style={{ height: 22, padding: '0 4px', fontSize: 10, display: 'inline-flex', alignItems: 'center', gap: 2 }} onClick={() => stepComment(-1)}><ChevronLeft size={10} strokeWidth={1.75} /> Prev</Button>
+              <Button style={{ height: 22, padding: '0 4px', fontSize: 10, display: 'inline-flex', alignItems: 'center', gap: 2 }} onClick={() => stepComment(1)}>Next <ChevronRight size={10} strokeWidth={1.75} /></Button>
             </div>
           </div>
         </div>
@@ -974,62 +985,62 @@ export function ReviewTab() {
 
       <RibbonGroup label="Tracking">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon="⊕" label="Track Changes" title="Track Changes (Ctrl+Shift+E)" active={trackChanges} onClick={toggleTrackChanges} />
+          <HeroBtn icon={<FileDiff size={20} strokeWidth={1.75} />} label="Track Changes" title="Track Changes (Ctrl+Shift+E)" active={trackChanges} onClick={toggleTrackChanges} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
-            <MiniAction icon="✓" text="Accept Change" title="Accept Tracked Change" onClick={handleAcceptChange} />
-            <MiniAction icon="✕" text="Reject Change" title="Reject Tracked Change" onClick={handleRejectChange} />
+            <MiniAction icon={<Check size={13} strokeWidth={1.75} />} text="Accept Change" title="Accept Tracked Change" onClick={handleAcceptChange} />
+            <MiniAction icon={<X size={13} strokeWidth={1.75} />} text="Reject Change" title="Reject Tracked Change" onClick={handleRejectChange} />
             <div style={{ display: 'flex', gap: 2 }}>
-              <Button style={{ height: 22, padding: '0 4px', fontSize: 10 }} onClick={() => announceChange(-1)}>◀ Prev</Button>
-              <Button style={{ height: 22, padding: '0 4px', fontSize: 10 }} onClick={() => announceChange(1)}>▶ Next</Button>
+              <Button style={{ height: 22, padding: '0 4px', fontSize: 10, display: 'inline-flex', alignItems: 'center', gap: 2 }} onClick={() => announceChange(-1)}><ChevronLeft size={10} strokeWidth={1.75} /> Prev</Button>
+              <Button style={{ height: 22, padding: '0 4px', fontSize: 10, display: 'inline-flex', alignItems: 'center', gap: 2 }} onClick={() => announceChange(1)}>Next <ChevronRight size={10} strokeWidth={1.75} /></Button>
             </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
             <Select width={108} options={MARKUP_OPTIONS} value={markupMode} onChange={handleFilterMarkup} title="All Markup" />
-            <MiniAction icon="▣" text="Reviewing Pane" title="Reviewing Pane" onClick={handleReviewingPane} />
+            <MiniAction icon={<PanelLeftClose size={13} strokeWidth={1.75} />} text="Reviewing Pane" title="Reviewing Pane" onClick={handleReviewingPane} />
           </div>
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Compare">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon="⏱" label="History" title="Version History & Restore" onClick={() => openDialog('versionHistory')} />
-          <HeroBtn icon="⇔" label="Compare" title="Compare Documents" onClick={handleCompare} />
+          <HeroBtn icon={<History size={20} strokeWidth={1.75} />} label="History" title="Version History & Restore" onClick={() => openDialog('versionHistory')} />
+          <HeroBtn icon={<ArrowLeftRight size={20} strokeWidth={1.75} />} label="Compare" title="Compare Documents" onClick={handleCompare} />
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Protect">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon="🛡" label="Restrict" title="Restrict Document Editing" onClick={handleRestrictEditing} />
-          <HeroBtn icon="👥" label="Protect" title="Block Authors" onClick={blockAuthors} />
+          <HeroBtn icon={<ShieldAlert size={20} strokeWidth={1.75} />} label="Restrict" title="Restrict Document Editing" onClick={handleRestrictEditing} />
+          <HeroBtn icon={<Users size={20} strokeWidth={1.75} />} label="Protect" title="Block Authors" onClick={blockAuthors} />
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Ink">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon="🖌" label="Hide Ink" title="Hide All Ink" active={hideInk} onClick={handleHideInk} />
+          <HeroBtn icon={<EyeOff size={20} strokeWidth={1.75} />} label="Hide Ink" title="Hide All Ink" active={hideInk} onClick={handleHideInk} />
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Smart Features">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
           <HeroBtn
-            icon={voiceActive && voiceMode === 'command' ? '🔴' : '🎙'}
+            icon={<Mic size={20} strokeWidth={1.75} style={voiceActive && voiceMode === 'command' ? { color: '#ef4444' } : undefined} />}
             label="Voice"
             title="Voice Commands & Speech Control"
             active={voiceActive && voiceMode === 'command'}
             onClick={() => startVoice('command')}
           />
           <HeroBtn
-            icon={voiceActive && voiceMode === 'typing' ? '🔴' : '🎤'}
+            icon={<Headphones size={20} strokeWidth={1.75} style={voiceActive && voiceMode === 'typing' ? { color: '#ef4444' } : undefined} />}
             label="Dictate"
             title="Voice Typing (Dictation + Commands)"
             active={voiceActive && voiceMode === 'typing'}
             onClick={() => startVoice('typing')}
           />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
-            <MiniAction icon="🧾" text="OCR Scan" title="OCR (Image to Text)" onClick={() => runImageTextCapture({ editor, toast, mode: 'ocr' })} />
-            <MiniAction icon="✍" text="Handwriting" title="Handwriting Recognition" onClick={() => runImageTextCapture({ editor, toast, mode: 'handwriting' })} />
-            <MiniAction icon="✨" text="Suggestions" title="Smart Suggestions" onClick={() => runSmartSuggestions({ editor, toast })} />
+            <MiniAction icon={<ScanText size={13} strokeWidth={1.75} />} text="OCR Scan" title="OCR (Image to Text)" onClick={() => runImageTextCapture({ editor, toast, mode: 'ocr' })} />
+            <MiniAction icon={<PenTool size={13} strokeWidth={1.75} />} text="Handwriting" title="Handwriting Recognition" onClick={() => runImageTextCapture({ editor, toast, mode: 'handwriting' })} />
+            <MiniAction icon={<Sparkles size={13} strokeWidth={1.75} />} text="Suggestions" title="Smart Suggestions" onClick={() => runSmartSuggestions({ editor, toast })} />
           </div>
         </div>
       </RibbonGroup>
@@ -1147,51 +1158,51 @@ export function ViewTab() {
     <>
       <RibbonGroup label="Views">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon="📄" label="Print" title="Print Layout View" active={viewMode === 'print'} onClick={() => applyViewMode('print')} />
-          <HeroBtn icon="🌐" label="Web" title="Web Layout View" active={viewMode === 'web'} onClick={() => applyViewMode('web')} />
+          <HeroBtn icon={<Printer size={20} strokeWidth={1.75} />} label="Print" title="Print Layout View" active={viewMode === 'print'} onClick={() => applyViewMode('print')} />
+          <HeroBtn icon={<Globe size={20} strokeWidth={1.75} />} label="Web" title="Web Layout View" active={viewMode === 'web'} onClick={() => applyViewMode('web')} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
-            <MiniAction icon="≡" text="Outline" title="Outline View" active={viewMode === 'outline'} onClick={() => applyViewMode('outline')} />
-            <MiniAction icon="📝" text="Draft" title="Draft View" active={viewMode === 'draft'} onClick={() => applyViewMode('draft')} />
-            <MiniAction icon="📖" text="Read Mode" title="Read Mode" active={viewMode === 'read'} onClick={() => applyViewMode('read')} />
+            <MiniAction icon={<ListTree size={13} strokeWidth={1.75} />} text="Outline" title="Outline View" active={viewMode === 'outline'} onClick={() => applyViewMode('outline')} />
+            <MiniAction icon={<FileText size={13} strokeWidth={1.75} />} text="Draft" title="Draft View" active={viewMode === 'draft'} onClick={() => applyViewMode('draft')} />
+            <MiniAction icon={<BookOpen size={13} strokeWidth={1.75} />} text="Read Mode" title="Read Mode" active={viewMode === 'read'} onClick={() => applyViewMode('read')} />
           </div>
-          <HeroBtn icon="🎯" label="Focus" title="Toggle Focus Mode" active={focusMode} onClick={toggleFocus} />
+          <HeroBtn icon={<Focus size={20} strokeWidth={1.75} />} label="Focus" title="Toggle Focus Mode" active={focusMode} onClick={toggleFocus} />
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Show">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon="📏" label="Ruler" title="Toggle Ruler" active={rulerVisible} onClick={handleRuler} />
-          <HeroBtn icon="▦" label="Gridlines" title="Toggle Gridlines" active={gridlinesVisible} onClick={handleGridlines} />
+          <HeroBtn icon={<Ruler size={20} strokeWidth={1.75} />} label="Ruler" title="Toggle Ruler" active={rulerVisible} onClick={handleRuler} />
+          <HeroBtn icon={<Grid size={20} strokeWidth={1.75} />} label="Gridlines" title="Toggle Gridlines" active={gridlinesVisible} onClick={handleGridlines} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
-            <MiniAction icon="🧭" text="Nav Pane" title="Navigation Pane" onClick={() => toggleSidebar()} />
-            <MiniAction icon="◫" text="Thumbnails" title="Toggle Page Sidebar" active={sidebarOpen} onClick={toggleSidebar} />
+            <MiniAction icon={<Compass size={13} strokeWidth={1.75} />} text="Nav Pane" title="Navigation Pane" onClick={() => toggleSidebar()} />
+            <MiniAction icon={<LayoutGrid size={13} strokeWidth={1.75} />} text="Thumbnails" title="Toggle Page Sidebar" active={sidebarOpen} onClick={toggleSidebar} />
           </div>
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Zoom">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon="100%" label="100%" title="Zoom to 100%" active={zoom === 100} onClick={() => setZoom(100)} />
-          <HeroBtn icon="⊡" label="Fit Page" title="Fit Page to Window" active={zoom === 85} onClick={() => setZoom(85)} />
-          <HeroBtn icon="↔" label="Page Width" title="Fit Page Width" active={zoom === 110} onClick={() => setZoom(110)} />
+          <HeroBtn icon={<ZoomIn size={20} strokeWidth={1.75} />} label="100%" title="Zoom to 100%" active={zoom === 100} onClick={() => setZoom(100)} />
+          <HeroBtn icon={<Maximize2 size={20} strokeWidth={1.75} />} label="Fit Page" title="Fit Page to Window" active={zoom === 85} onClick={() => setZoom(85)} />
+          <HeroBtn icon={<MoveHorizontal size={20} strokeWidth={1.75} />} label="Page Width" title="Fit Page Width" active={zoom === 110} onClick={() => setZoom(110)} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
               <Button style={{ height: 22, padding: '0 6px', fontSize: 11 }} onClick={() => setZoom(Math.max(25, zoom - 10))}>−</Button>
               <span style={{ fontSize: 11, color: 'var(--text-primary)', fontFamily: 'var(--font-ui)', minWidth: 36, textAlign: 'center' }}>{zoom}%</span>
               <Button style={{ height: 22, padding: '0 6px', fontSize: 11 }} onClick={() => setZoom(Math.min(300, zoom + 10))}>+</Button>
             </div>
-            <MiniAction icon="🔍" text="75%" title="Zoom to 75%" onClick={() => setZoom(75)} />
-            <MiniAction icon="🔎" text="150%" title="Zoom to 150%" onClick={() => setZoom(150)} />
+            <MiniAction icon={<ZoomOut size={13} strokeWidth={1.75} />} text="75%" title="Zoom to 75%" onClick={() => setZoom(75)} />
+            <MiniAction icon={<ZoomIn size={13} strokeWidth={1.75} />} text="150%" title="Zoom to 150%" onClick={() => setZoom(150)} />
           </div>
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Window">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon="⊞" label="New Window" title="Open Document in New Tab" onClick={() => window.open(window.location.href, '_blank')} />
-          <HeroBtn icon="⊟" label="Split" title="Toggle Synchronized Split View" onClick={handleSplit} />
+          <HeroBtn icon={<ExternalLink size={20} strokeWidth={1.75} />} label="New Window" title="Open Document in New Tab" onClick={() => window.open(window.location.href, '_blank')} />
+          <HeroBtn icon={<Columns size={20} strokeWidth={1.75} />} label="Split" title="Toggle Synchronized Split View" onClick={handleSplit} />
           <HeroBtn
-            icon={fullscreen ? '⤡' : '⤢'}
+            icon={fullscreen ? <Minimize size={20} strokeWidth={1.75} /> : <Maximize size={20} strokeWidth={1.75} />}
             label={fullscreen ? 'Exit Full' : 'Fullscreen'}
             title="Toggle Fullscreen"
             active={fullscreen}
@@ -1202,17 +1213,17 @@ export function ViewTab() {
 
       <RibbonGroup label="Structure & Security">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon="📑" label="Master Doc" title="Master Document & Subdocuments" onClick={() => openDialog('masterDoc')} />
-          <HeroBtn icon="🔒" label="Security" title="Security & Protection Settings" onClick={() => openDialog('security')} />
+          <HeroBtn icon={<FileCode2 size={20} strokeWidth={1.75} />} label="Master Doc" title="Master Document & Subdocuments" onClick={() => openDialog('masterDoc')} />
+          <HeroBtn icon={<ShieldCheck size={20} strokeWidth={1.75} />} label="Security" title="Security & Protection Settings" onClick={() => openDialog('security')} />
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Macros">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon="⚙" label="Macros" title="View & Run Macros" onClick={handleMacro} />
+          <HeroBtn icon={<Terminal size={20} strokeWidth={1.75} />} label="Macros" title="View & Run Macros" onClick={handleMacro} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
-            <MiniAction icon="⚡" text="Run Quick" title="Run Quick Macro" onClick={handleMacro} />
-            <MiniAction icon="⏺" text="Record" title="Record Macro" onClick={() => toast('Macro recorder ready', 'info')} />
+            <MiniAction icon={<Zap size={13} strokeWidth={1.75} />} text="Run Quick" title="Run Quick Macro" onClick={handleMacro} />
+            <MiniAction icon={<CircleDot size={13} strokeWidth={1.75} />} text="Record" title="Record Macro" onClick={() => toast('Macro recorder ready', 'info')} />
           </div>
         </div>
       </RibbonGroup>

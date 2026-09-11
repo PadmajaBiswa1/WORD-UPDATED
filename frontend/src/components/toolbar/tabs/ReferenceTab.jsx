@@ -1,4 +1,9 @@
 import { useRef, useState } from 'react';
+import {
+  BookOpen, Plus, RefreshCw, FileText, ArrowDownToLine, ArrowRight, Eye,
+  Quote, Library, Tag, Book, ShieldCheck, Captions, ListOrdered, Table,
+  ExternalLink, BookmarkPlus, ListFilter, Scale, ScrollText, GraduationCap, Search
+} from 'lucide-react';
 import { useUIStore, useEditorStore, useDocumentStore } from '@/store';
 import { Button, Tooltip } from '@/components/ui';
 import { RibbonGroup } from '../RibbonGroup';
@@ -359,7 +364,7 @@ function HeroBtn({ icon, label, onClick, onMouseDown, title, shortcut }) {
           e.currentTarget.style.borderColor = 'transparent';
         }}
       >
-        <span style={{ fontSize: 22, lineHeight: 1 }}>{icon}</span>
+        <div style={{ fontSize: 20, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</div>
         <span style={{ fontSize: 11, lineHeight: 1.1, textAlign: 'center' }}>{label}</span>
       </button>
     </Tooltip>
@@ -397,7 +402,7 @@ function MiniAction({ icon, text, onClick, onMouseDown, title, shortcut }) {
           e.currentTarget.style.borderColor = 'transparent';
         }}
       >
-        {icon && <span style={{ fontSize: 12, lineHeight: 1 }}>{icon}</span>}
+        {icon && <span style={{ fontSize: 13, lineHeight: 1, display: 'inline-flex', alignItems: 'center' }}>{icon}</span>}
         <span>{text}</span>
       </button>
     </Tooltip>
@@ -408,78 +413,78 @@ function MiniAction({ icon, text, onClick, onMouseDown, title, shortcut }) {
     <>
       <RibbonGroup label="Table of Contents">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon="📑" label="Contents" title="Insert Table of Contents" onMouseDown={keepSelectionOnMouseDown} onClick={insertToc} />
+          <HeroBtn icon={<BookOpen size={20} strokeWidth={1.75} />} label="Contents" title="Insert Table of Contents" onMouseDown={keepSelectionOnMouseDown} onClick={insertToc} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
-            <MiniAction icon="＋" text="Add Text ▾" title="Add Text to Outline" onMouseDown={keepSelectionOnMouseDown} onClick={addTextToToc} />
-            <MiniAction icon="↻" text="Update Table" title="Update Table of Contents" onMouseDown={keepSelectionOnMouseDown} onClick={updateToc} />
+            <MiniAction icon={<Plus size={13} strokeWidth={1.75} />} text="Add Text ▾" title="Add Text to Outline" onMouseDown={keepSelectionOnMouseDown} onClick={addTextToToc} />
+            <MiniAction icon={<RefreshCw size={13} strokeWidth={1.75} />} text="Update Table" title="Update Table of Contents" onMouseDown={keepSelectionOnMouseDown} onClick={updateToc} />
           </div>
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Footnotes">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon="📝" label="Footnote" title="Insert Footnote" shortcut="Alt+Ctrl+F" onMouseDown={keepSelectionOnMouseDown} onClick={() => insertHtml('<p><sup>[1]</sup> Footnote: Footnote text</p>')} />
+          <HeroBtn icon={<FileText size={20} strokeWidth={1.75} />} label="Footnote" title="Insert Footnote" shortcut="Alt+Ctrl+F" onMouseDown={keepSelectionOnMouseDown} onClick={() => insertHtml('<p><sup>[1]</sup> Footnote: Footnote text</p>')} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
-            <MiniAction icon="¹" text="Insert Endnote" shortcut="Alt+Ctrl+D" onMouseDown={keepSelectionOnMouseDown} onClick={() => insertHtml('<p><sup>[a]</sup> Endnote: Endnote text</p>')} />
-            <MiniAction icon="→" text="Next Footnote ▾" onMouseDown={keepSelectionOnMouseDown} onClick={jumpToNextFootnote} />
-            <MiniAction icon="👁" text={notesVisible ? 'Hide Notes' : 'Show Notes'} onMouseDown={keepSelectionOnMouseDown} onClick={toggleNotesVisibility} />
+            <MiniAction icon={<ArrowDownToLine size={13} strokeWidth={1.75} />} text="Insert Endnote" shortcut="Alt+Ctrl+D" onMouseDown={keepSelectionOnMouseDown} onClick={() => insertHtml('<p><sup>[a]</sup> Endnote: Endnote text</p>')} />
+            <MiniAction icon={<ArrowRight size={13} strokeWidth={1.75} />} text="Next Footnote ▾" onMouseDown={keepSelectionOnMouseDown} onClick={jumpToNextFootnote} />
+            <MiniAction icon={<Eye size={13} strokeWidth={1.75} />} text={notesVisible ? 'Hide Notes' : 'Show Notes'} onMouseDown={keepSelectionOnMouseDown} onClick={toggleNotesVisibility} />
           </div>
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Citations & Bibliography">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon="❝" label="Citation" title="Insert Citation" onMouseDown={keepSelectionOnMouseDown} onClick={insertCitation} />
+          <HeroBtn icon={<Quote size={20} strokeWidth={1.75} />} label="Citation" title="Insert Citation" onMouseDown={keepSelectionOnMouseDown} onClick={insertCitation} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
-            <MiniAction icon="📚" text="Manage Sources" onMouseDown={keepSelectionOnMouseDown} onClick={manageSources} />
-            <MiniAction icon="🏷" text="Style: APA ▾" onMouseDown={keepSelectionOnMouseDown} onClick={() => openDialog('insertCitation')} />
-            <MiniAction icon="📖" text="Bibliography ▾" onMouseDown={keepSelectionOnMouseDown} onClick={insertBibliography} />
+            <MiniAction icon={<Library size={13} strokeWidth={1.75} />} text="Manage Sources" onMouseDown={keepSelectionOnMouseDown} onClick={manageSources} />
+            <MiniAction icon={<Tag size={13} strokeWidth={1.75} />} text="Style: APA ▾" onMouseDown={keepSelectionOnMouseDown} onClick={() => openDialog('insertCitation')} />
+            <MiniAction icon={<Book size={13} strokeWidth={1.75} />} text="Bibliography ▾" onMouseDown={keepSelectionOnMouseDown} onClick={insertBibliography} />
           </div>
-          <HeroBtn icon="🛡" label="Fact-Check" title="AI Citation Fact-Checking" onMouseDown={keepSelectionOnMouseDown} onClick={() => openDialog('citationFactCheck')} />
+          <HeroBtn icon={<ShieldCheck size={20} strokeWidth={1.75} />} label="Fact-Check" title="AI Citation Fact-Checking" onMouseDown={keepSelectionOnMouseDown} onClick={() => openDialog('citationFactCheck')} />
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Captions">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon="🏷" label="Caption" title="Insert Caption (Figure or Table)" onMouseDown={keepSelectionOnMouseDown} onClick={insertCaption} />
+          <HeroBtn icon={<Captions size={20} strokeWidth={1.75} />} label="Caption" title="Insert Caption (Figure or Table)" onMouseDown={keepSelectionOnMouseDown} onClick={insertCaption} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
-            <MiniAction icon="≡" text="Figures Table" title="Insert Table of Figures" onMouseDown={keepSelectionOnMouseDown} onClick={insertTableOfFigures} />
-            <MiniAction icon="≡" text="Tables Table" title="Insert Table of Tables" onMouseDown={keepSelectionOnMouseDown} onClick={insertTableOfTables} />
-            <MiniAction icon="⇒" text="Cross-reference" onMouseDown={keepSelectionOnMouseDown} onClick={() => {
+            <MiniAction icon={<ListOrdered size={13} strokeWidth={1.75} />} text="Figures Table" title="Insert Table of Figures" onMouseDown={keepSelectionOnMouseDown} onClick={insertTableOfFigures} />
+            <MiniAction icon={<Table size={13} strokeWidth={1.75} />} text="Tables Table" title="Insert Table of Tables" onMouseDown={keepSelectionOnMouseDown} onClick={insertTableOfTables} />
+            <MiniAction icon={<ExternalLink size={13} strokeWidth={1.75} />} text="Cross-reference" onMouseDown={keepSelectionOnMouseDown} onClick={() => {
               const picked = selectedText(editor) || (window.prompt('Cross-reference label', 'Reference') || 'Reference');
               run(() => editor.chain().insertContent(`[See: ${picked}]`).run());
             }} />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
-            <MiniAction icon="↻" text="Update Table" title="Update Tables of Figures / Tables" onMouseDown={keepSelectionOnMouseDown} onClick={updateCaptionsTable} />
+            <MiniAction icon={<RefreshCw size={13} strokeWidth={1.75} />} text="Update Table" title="Update Tables of Figures / Tables" onMouseDown={keepSelectionOnMouseDown} onClick={updateCaptionsTable} />
           </div>
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Index">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon="✎" label="Mark Entry" title="Mark Selected Text for Index" onMouseDown={keepSelectionOnMouseDown} onClick={markIndexEntry} />
+          <HeroBtn icon={<BookmarkPlus size={20} strokeWidth={1.75} />} label="Mark Entry" title="Mark Selected Text for Index" onMouseDown={keepSelectionOnMouseDown} onClick={markIndexEntry} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
-            <MiniAction icon="≡" text="Insert Index" title="Insert Alphabetical Index (A-Z)" onMouseDown={keepSelectionOnMouseDown} onClick={insertIndex} />
-            <MiniAction icon="↻" text="Update Index" title="Update Index" onMouseDown={keepSelectionOnMouseDown} onClick={updateIndex} />
+            <MiniAction icon={<ListFilter size={13} strokeWidth={1.75} />} text="Insert Index" title="Insert Alphabetical Index (A-Z)" onMouseDown={keepSelectionOnMouseDown} onClick={insertIndex} />
+            <MiniAction icon={<RefreshCw size={13} strokeWidth={1.75} />} text="Update Index" title="Update Index" onMouseDown={keepSelectionOnMouseDown} onClick={updateIndex} />
           </div>
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Table of Authorities">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon="⚖" label="Mark" title="Mark Citation for Authorities" onMouseDown={keepSelectionOnMouseDown} onClick={markCitation} />
+          <HeroBtn icon={<Scale size={20} strokeWidth={1.75} />} label="Mark" title="Mark Citation for Authorities" onMouseDown={keepSelectionOnMouseDown} onClick={markCitation} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
-            <MiniAction icon="≡" text="Insert Authorities" onMouseDown={keepSelectionOnMouseDown} onClick={insertAuthorities} />
-            <MiniAction icon="↻" text="Update Table" onMouseDown={keepSelectionOnMouseDown} onClick={updateAuthorities} />
+            <MiniAction icon={<ScrollText size={13} strokeWidth={1.75} />} text="Insert Authorities" onMouseDown={keepSelectionOnMouseDown} onClick={insertAuthorities} />
+            <MiniAction icon={<RefreshCw size={13} strokeWidth={1.75} />} text="Update Table" onMouseDown={keepSelectionOnMouseDown} onClick={updateAuthorities} />
           </div>
         </div>
       </RibbonGroup>
 
       <RibbonGroup label="Research">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon="🔬" label="Researcher" title="Academic Researcher" onMouseDown={keepSelectionOnMouseDown} onClick={openResearcher} />
-          <HeroBtn icon="🔍" label="Lookup" title="Smart Web Lookup" onMouseDown={keepSelectionOnMouseDown} onClick={smartLookup} />
+          <HeroBtn icon={<GraduationCap size={20} strokeWidth={1.75} />} label="Researcher" title="Academic Researcher" onMouseDown={keepSelectionOnMouseDown} onClick={openResearcher} />
+          <HeroBtn icon={<Search size={20} strokeWidth={1.75} />} label="Lookup" title="Smart Web Lookup" onMouseDown={keepSelectionOnMouseDown} onClick={smartLookup} />
         </div>
       </RibbonGroup>
     </>

@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { Save, Undo2, Redo2, FolderOpen, FileEdit } from 'lucide-react';
 import { useCollaborationStore, useDocumentStore, useEditorStore, useUIStore } from '@/store';
 import { getStoredUser } from '@/services/api';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
@@ -119,17 +120,25 @@ export function TitleBar({ onSave }) {
           }} />
         </button>
         <Tooltip text="Save Document" shortcut="Ctrl+S">
-          <button type="button" aria-label="Save" onClick={onSave} style={quickBtn} onMouseEnter={onGoldHover} onMouseLeave={onGoldLeave}>💾</button>
+          <button type="button" aria-label="Save" onClick={onSave} style={quickBtn} onMouseEnter={onGoldHover} onMouseLeave={onGoldLeave}>
+            <Save size={13} strokeWidth={1.75} />
+          </button>
         </Tooltip>
         <Tooltip text="Undo" shortcut="Ctrl+Z">
-          <button type="button" aria-label="Undo" onClick={handleUndo} disabled={!canUndo} style={{ ...quickBtn, ...(canUndo ? null : disabledBtn) }} onMouseEnter={onGoldHover} onMouseLeave={onGoldLeave}>↩</button>
+          <button type="button" aria-label="Undo" onClick={handleUndo} disabled={!canUndo} style={{ ...quickBtn, ...(canUndo ? null : disabledBtn) }} onMouseEnter={onGoldHover} onMouseLeave={onGoldLeave}>
+            <Undo2 size={13} strokeWidth={1.75} />
+          </button>
         </Tooltip>
         <Tooltip text="Redo" shortcut="Ctrl+Y">
-          <button type="button" aria-label="Redo" onClick={handleRedo} disabled={!canRedo} style={{ ...quickBtn, ...(canRedo ? null : disabledBtn) }} onMouseEnter={onGoldHover} onMouseLeave={onGoldLeave}>↪</button>
+          <button type="button" aria-label="Redo" onClick={handleRedo} disabled={!canRedo} style={{ ...quickBtn, ...(canRedo ? null : disabledBtn) }} onMouseEnter={onGoldHover} onMouseLeave={onGoldLeave}>
+            <Redo2 size={13} strokeWidth={1.75} />
+          </button>
         </Tooltip>
         <div className="titlebar-import-btn">
           <Tooltip text="Open / Import Document" shortcut="Ctrl+O">
-            <button type="button" aria-label="Import DOCX" onClick={() => openDialog('importDocx')} style={quickBtn} onMouseEnter={onGoldHover} onMouseLeave={onGoldLeave}>📥</button>
+            <button type="button" aria-label="Import DOCX" onClick={() => openDialog('importDocx')} style={quickBtn} onMouseEnter={onGoldHover} onMouseLeave={onGoldLeave}>
+              <FolderOpen size={13} strokeWidth={1.75} />
+            </button>
           </Tooltip>
         </div>
       </div>
@@ -154,7 +163,9 @@ export function TitleBar({ onSave }) {
           padding: '0 8px',
           gap: 6,
         }}>
-          <span aria-hidden="true" style={{ color: 'var(--gold)', fontSize: 12 }}>✎</span>
+          <span aria-hidden="true" style={{ color: 'var(--gold)', display: 'inline-flex', alignItems: 'center' }}>
+            <FileEdit size={13} strokeWidth={1.75} />
+          </span>
           <input
             aria-label="Document title"
             value={title}
