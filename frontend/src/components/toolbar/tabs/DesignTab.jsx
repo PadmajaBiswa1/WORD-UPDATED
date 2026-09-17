@@ -779,7 +779,7 @@ export function DesignTab() {
           />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
             <MiniAction icon={<Volume2 size={13} strokeWidth={1.75} />} text={isSpeaking ? 'Reading...' : 'Read Aloud'} title="Text to Speech" onClick={toggleReadAloud} active={isSpeaking} />
-            <MiniAction icon={<PenTool size={13} strokeWidth={1.75} />} text="Handwriting" title="Switch to Inking" onClick={() => { setActiveTab('draw'); toast('Switched to Draw / Inking tab', 'info'); }} />
+            <MiniAction icon={<PenTool size={13} strokeWidth={1.75} />} text="Handwriting" title="Convert handwritten notes/images to text (OCR)" onClick={() => openDialog('handwriting')} />
             <MiniAction icon={<Sparkles size={13} strokeWidth={1.75} />} text="Suggestions" title="Smart Content Suggestions" onClick={() => runSmartSuggestions({ editor, toast })} />
           </div>
         </div>

@@ -177,7 +177,14 @@ export function Select({ value, onChange, options = [], width = 120, title, sear
     arrowColor: '#c9a84c',
   };
 
-  const selected = options.find((option) => option.value === value) || options[0] || { value: '', label: '' };
+  const normalizedVal = String(value || '').trim().toLowerCase();
+  const selected = options.find((option) => String(option.value).toLowerCase() === normalizedVal)
+    || options.find((option) => {
+      const optVal = String(option.value).toLowerCase();
+      return normalizedVal.startsWith(optVal) || normalizedVal.includes(optVal);
+    })
+    || options[0]
+    || { value: '', label: '' };
 
   const normalizedQuery = query.trim().toLowerCase();
   const filteredOptions = options.filter((option) => {
@@ -214,7 +221,12 @@ export function Select({ value, onChange, options = [], width = 120, title, sear
   useEffect(() => {
     if (!open) return undefined;
 
-    const selectedIndex = options.findIndex((option) => option.value === value);
+    const selectedIndex = options.findIndex((option) => {
+      if (option.value === value) return true;
+      const optVal = String(option.value).toLowerCase();
+      const normVal = String(value || '').trim().toLowerCase();
+      return optVal === normVal || normVal.startsWith(optVal) || normVal.includes(optVal);
+    });
     setActiveIndex(selectedIndex >= 0 ? selectedIndex : 0);
     updateMenuPosition();
 
@@ -439,24 +451,32 @@ export function Select({ value, onChange, options = [], width = 120, title, sear
 }
 
 /* ── Input ──────────────────────────────────────────────────── */
-export function Input({ value, onChange, placeholder, width = '100%', type = 'text', autoFocus, onKeyDown, rows }) {
+export function Input({ value, onChange, placeholder, width = '100%', type = 'text', autoFocus, onKeyDown, rows, style = {}, className, ...rest }) {
   const base = {
     background: 'var(--bg-elevated)', color: 'var(--text-primary)',
     border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)',
     padding: '6px 10px', fontSize: '13px', fontFamily: 'var(--font-ui)',
     width, outline: 'none', transition: 'border-color var(--transition)',
     resize: rows ? 'vertical' : undefined,
+    boxSizing: 'border-box',
+    ...style,
   };
   const handlers = {
-    onFocus: (e) => (e.target.style.borderColor = 'var(--gold)'),
-    onBlur:  (e) => (e.target.style.borderColor = 'var(--border)'),
+    onFocus: (e) => {
+      e.target.style.borderColor = style.borderColor || 'var(--gold)';
+      rest.onFocus?.(e);
+    },
+    onBlur:  (e) => {
+      e.target.style.borderColor = style.borderColor || (style.border ? undefined : 'var(--border)');
+      rest.onBlur?.(e);
+    },
   };
   return rows
-    ? <textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-        rows={rows} style={base} {...handlers} />
-    : <input type={type} value={value} onChange={(e) => onChange(e.target.value)}
+    ? <textarea value={value} onChange={(e) => onChange?.(e.target.value)} placeholder={placeholder}
+        rows={rows} style={base} className={className} {...handlers} {...rest} />
+    : <input type={type} value={value} onChange={(e) => onChange?.(e.target.value)}
         placeholder={placeholder} autoFocus={autoFocus} onKeyDown={onKeyDown}
-        style={base} {...handlers} />;
+        style={base} className={className} {...handlers} {...rest} />;
 }
 
 /* ── ColorSwatch ────────────────────────────────────────────── */

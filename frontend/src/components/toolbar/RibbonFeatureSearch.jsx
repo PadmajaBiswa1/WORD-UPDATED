@@ -532,7 +532,7 @@ export function RibbonFeatureSearch({ compactWidth = 190, onActivateTab: onActiv
           <svg
             style={{
               position: 'absolute',
-              left: 8,
+              left: 9,
               top: '50%',
               transform: 'translateY(-50%)',
               width: 13,
@@ -540,6 +540,7 @@ export function RibbonFeatureSearch({ compactWidth = 190, onActivateTab: onActiv
               color: hasFocus ? 'var(--gold)' : 'var(--text-muted)',
               pointerEvents: 'none',
               transition: 'color 0.12s ease',
+              zIndex: 2,
             }}
             fill="none"
             viewBox="0 0 24 24"
@@ -561,7 +562,7 @@ export function RibbonFeatureSearch({ compactWidth = 190, onActivateTab: onActiv
             autoFocus={false}
             onKeyDown={onKeyDown}
             style={{
-              paddingLeft: 27,
+              padding: '4px 10px 4px 30px',
               height: 25,
               fontSize: 11,
               borderRadius: 4,

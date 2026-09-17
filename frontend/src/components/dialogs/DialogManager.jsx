@@ -62,6 +62,7 @@ import { MasterDocumentDialog } from './MasterDocumentDialog';
 import { StyleInspectorDialog } from './StyleInspectorDialog';
 import { ClipboardHistoryDrawer } from './ClipboardHistoryDrawer';
 import { CitationFactCheckDialog } from './CitationFactCheckDialog';
+import { HandwritingDialog } from './HandwritingDialog';
 
 export function DialogManager() {
   const { dialogs } = useUIStore();
@@ -122,6 +123,7 @@ export function DialogManager() {
       {dialogs.styleInspector && <StyleInspectorDialog />}
       {dialogs.clipboardHistory && <ClipboardHistoryDrawer />}
       {dialogs.citationFactCheck && <CitationFactCheckDialog />}
+      {dialogs.handwriting    && <HandwritingDialog />}
       <UpgradeModal />
     </>
   );

@@ -31,6 +31,7 @@ import Blockquote from '@tiptap/extension-blockquote';
 import { PageBreak } from '@/components/editor/PageBreak';
 import { ProductivityExtension } from '@/services/productivityExtension';
 import { useEditorStore, useDocumentStore, useUIStore } from '@/store';
+import { normalizeFontFamily } from '@/components/toolbar/fontFormatting.jsx';
 
 const LANGUAGE_KEY = 'etherx-language';
 
@@ -228,7 +229,8 @@ export function useEditorSetup() {
   const syncToolbarFormattingState = useCallback((instance) => {
     const attrs = instance.getAttributes('textStyle') || {};
     const currentStore = useEditorStore.getState();
-    const nextFamily = attrs.fontFamily || currentStore.fontFamily;
+    const rawFamily = attrs.fontFamily;
+    const nextFamily = rawFamily ? (normalizeFontFamily(rawFamily) || rawFamily) : currentStore.fontFamily;
     const rawSize = attrs.fontSize;
     const parsedSize = rawSize ? parseInt(String(rawSize), 10) : NaN;
     const nextSize = Number.isFinite(parsedSize)

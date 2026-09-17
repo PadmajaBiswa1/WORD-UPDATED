@@ -42,6 +42,47 @@ export const FONT_FAMILY_OPTIONS = [
 export const FONT_SIZE_OPTIONS = ['8', '9', '10', '11', '12', '14', '16', '18', '20', '24', '28', '32', '36', '48', '72']
   .map((size) => ({ value: size, label: size }));
 
+export function normalizeFontFamily(rawFamily) {
+  if (!rawFamily || typeof rawFamily !== 'string') return '';
+  const trimmed = rawFamily.trim();
+  if (!trimmed) return '';
+
+  // 1. Direct match in FONT_STACKS keys
+  if (FONT_STACKS[trimmed]) return trimmed;
+
+  // 2. Exact match in FONT_FAMILY_OPTIONS (case-insensitive)
+  const directMatch = FONT_FAMILY_OPTIONS.find(
+    (opt) => opt.value.toLowerCase() === trimmed.toLowerCase()
+  );
+  if (directMatch) return directMatch.value;
+
+  // 3. Reverse lookup in FONT_STACKS
+  for (const [key, stack] of Object.entries(FONT_STACKS)) {
+    if (stack.toLowerCase() === trimmed.toLowerCase()) {
+      return key;
+    }
+  }
+
+  // 4. Extract first family from comma-separated CSS font stack
+  const first = trimmed.split(',')[0].replace(/['"]/g, '').trim();
+  if (first) {
+    if (FONT_STACKS[first]) return first;
+    const match = FONT_FAMILY_OPTIONS.find(
+      (opt) => opt.value.toLowerCase() === first.toLowerCase()
+    );
+    if (match) return match.value;
+  }
+
+  // 5. Check if any known option is contained in the raw string
+  for (const opt of FONT_FAMILY_OPTIONS) {
+    if (trimmed.toLowerCase().includes(opt.value.toLowerCase())) {
+      return opt.value;
+    }
+  }
+
+  return first || trimmed;
+}
+
 export function useFontFormattingControls(editor) {
   const { setFontFamily, setFontSize } = useEditorStore();
   const lastSelectionRef = useRef(null);
@@ -68,11 +109,23 @@ export function useFontFormattingControls(editor) {
     }
   }, [editor]);
 
+  const restoreSelection = useCallback(() => {
+    if (!editor || !lastSelectionRef.current) return false;
+    const { from, to } = lastSelectionRef.current;
+    const maxPos = editor.state.doc.content.size;
+    if (from <= maxPos && to <= maxPos) {
+      editor.chain().focus().setTextSelection({ from, to }).run();
+      return true;
+    }
+    return false;
+  }, [editor]);
+
   const applyFontFamily = useCallback((value) => {
     if (!editor || !value) return;
-    setFontFamily(value);
+    const cleanFamily = normalizeFontFamily(value) || value;
+    setFontFamily(cleanFamily);
 
-    const stack = FONT_STACKS[value] || `${value}, sans-serif`;
+    const stack = FONT_STACKS[cleanFamily] || `${cleanFamily}, sans-serif`;
     const chain = editor.chain().focus();
     
     // If the live selection was lost due to dropdown focus, restore the saved range
@@ -106,13 +159,13 @@ export function useFontFormattingControls(editor) {
     chain.setFontSize(`${next}pt`).run();
   }, [editor, setFontSize]);
 
-  return { applyFontFamily, applyFontSize, snapshotSelection };
+  return { applyFontFamily, applyFontSize, snapshotSelection, restoreSelection };
 }
 
 export function FontFormattingControls({
   editor,
-  fontFamily,
-  fontSize,
+  fontFamily: fontFamilyProp,
+  fontSize: fontSizeProp,
   familyWidth = 140,
   sizeWidth = 64,
   searchable = true,
@@ -126,6 +179,19 @@ export function FontFormattingControls({
   const applyFontSize = applyFontSizeProp || controls.applyFontSize;
   const snapshotSelection = controls.snapshotSelection;
 
+  const storeFontFamily = useEditorStore((s) => s.fontFamily);
+  const storeFontSize = useEditorStore((s) => s.fontSize);
+
+  // Resolve current active font from editor attrs if available, fallback to prop or store
+  const currentAttrFamily = editor?.getAttributes('textStyle')?.fontFamily;
+  const resolvedFamily = normalizeFontFamily(currentAttrFamily || fontFamilyProp || storeFontFamily) || 'Calibri';
+
+  const currentAttrSize = editor?.getAttributes('textStyle')?.fontSize;
+  const parsedSize = currentAttrSize ? parseInt(String(currentAttrSize), 10) : NaN;
+  const resolvedSize = Number.isFinite(parsedSize)
+    ? String(parsedSize)
+    : (fontSizeProp || storeFontSize || '12');
+
   const handleFocus = (e) => {
     snapshotSelection();
     onFocus?.(e);
@@ -134,7 +200,7 @@ export function FontFormattingControls({
   return (
     <>
       <Select
-        value={fontFamily}
+        value={resolvedFamily}
         onChange={applyFontFamily}
         onFocus={handleFocus}
         options={FONT_FAMILY_OPTIONS}
@@ -144,7 +210,7 @@ export function FontFormattingControls({
         searchPlaceholder={searchPlaceholder}
       />
       <Select
-        value={fontSize}
+        value={resolvedSize}
         onChange={applyFontSize}
         onFocus={handleFocus}
         options={FONT_SIZE_OPTIONS}

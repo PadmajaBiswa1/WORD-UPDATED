@@ -381,7 +381,7 @@ export function EditorCanvas() {
                     const borderWidthPx = Math.max(1, Math.round(Number(design.borderWidth || 2) * scale));
                     const bStyle = design.borderStyle || 'solid';
                     const bColor = design.borderColor || '#6f5320';
-                    const bInset = Math.round(Math.max(12, Math.min(scaledDimensions.padding * 0.45, Number(design?.borderDistance ?? 24) * scale)));
+                    const bInset = Math.round(Math.max(14 * scale, Math.min(scaledDimensions.padding - borderWidthPx - 4, Number(design?.borderDistance ?? 24) * scale)));
                     return (
                       <div
                         data-etherx-page-border="true"
@@ -391,6 +391,8 @@ export function EditorCanvas() {
                           left: bInset,
                           right: bInset,
                           bottom: bInset,
+                          maxWidth: '100%',
+                          maxHeight: '100%',
                           pointerEvents: 'none',
                           borderTop: activeSides.top !== false ? `${borderWidthPx}px ${bStyle} ${bColor}` : 'none',
                           borderRight: activeSides.right !== false ? `${borderWidthPx}px ${bStyle} ${bColor}` : 'none',
@@ -488,8 +490,9 @@ export function EditorCanvas() {
                 style={{
                   position: 'absolute',
                   top: i * scaledDimensions.pageStep + scaledDimensions.pageHeight - Math.max(24, scaledDimensions.padding * 0.25),
-                  left: 0,
-                  right: 0,
+                  left: scaledDimensions.padding,
+                  right: scaledDimensions.padding,
+                  boxSizing: 'border-box',
                   textAlign: 'center',
                   fontSize: 10 * scale,
                   color: 'var(--text-muted)',
@@ -502,12 +505,46 @@ export function EditorCanvas() {
               </div>
             ))}
             {headerFooter?.headerText ? Array.from({ length: pageCount }).map((_, i) => (
-              <div key={`header-${i}`} style={{ position: 'absolute', top: i * scaledDimensions.pageStep + Math.max(16, scaledDimensions.padding * 0.22), left: 0, right: 0, textAlign: String(headerFooter.headerAlign || 'Center').toLowerCase(), fontSize: 10 * scale, color: 'var(--text-muted)', fontFamily: 'var(--font-ui)', pointerEvents: 'none', userSelect: 'none', borderBottom: '1px solid rgba(140,140,140,0.45)', paddingBottom: 6 }}>
+              <div
+                key={`header-${i}`}
+                style={{
+                  position: 'absolute',
+                  top: i * scaledDimensions.pageStep + Math.max(16, scaledDimensions.padding * 0.22),
+                  left: scaledDimensions.padding,
+                  right: scaledDimensions.padding,
+                  boxSizing: 'border-box',
+                  textAlign: String(headerFooter.headerAlign || 'Center').toLowerCase(),
+                  fontSize: 10 * scale,
+                  color: 'var(--text-muted)',
+                  fontFamily: 'var(--font-ui)',
+                  pointerEvents: 'none',
+                  userSelect: 'none',
+                  borderBottom: '1px dashed var(--border-gold, rgba(201, 168, 76, 0.5))',
+                  paddingBottom: 6,
+                }}
+              >
                 {headerFooter.headerText}
               </div>
             )) : null}
             {headerFooter?.footerText ? Array.from({ length: pageCount }).map((_, i) => (
-              <div key={`footer-${i}`} style={{ position: 'absolute', top: i * scaledDimensions.pageStep + scaledDimensions.pageHeight - Math.max(32, scaledDimensions.padding * 0.3), left: 0, right: 0, textAlign: String(headerFooter.footerAlign || 'Center').toLowerCase(), fontSize: 10 * scale, color: 'var(--text-muted)', fontFamily: 'var(--font-ui)', pointerEvents: 'none', userSelect: 'none', borderTop: '1px solid rgba(140,140,140,0.45)', paddingTop: 6 }}>
+              <div
+                key={`footer-${i}`}
+                style={{
+                  position: 'absolute',
+                  top: i * scaledDimensions.pageStep + scaledDimensions.pageHeight - Math.max(32, scaledDimensions.padding * 0.3),
+                  left: scaledDimensions.padding,
+                  right: scaledDimensions.padding,
+                  boxSizing: 'border-box',
+                  textAlign: String(headerFooter.footerAlign || 'Center').toLowerCase(),
+                  fontSize: 10 * scale,
+                  color: 'var(--text-muted)',
+                  fontFamily: 'var(--font-ui)',
+                  pointerEvents: 'none',
+                  userSelect: 'none',
+                  borderTop: '1px dashed var(--border-gold, rgba(201, 168, 76, 0.5))',
+                  paddingTop: 6,
+                }}
+              >
                 {headerFooter.footerText}
               </div>
             )) : null}
@@ -516,7 +553,24 @@ export function EditorCanvas() {
               const isTop = vpos === 'top';
               const pageNumber = Number(headerFooter.pageNumberStart || 1) + i;
               return (
-                <div key={`pagenum-${i}`} style={{ position: 'absolute', top: isTop ? (i * scaledDimensions.pageStep + Math.max(32, scaledDimensions.padding * 0.3)) : (i * scaledDimensions.pageStep + scaledDimensions.pageHeight - Math.max(28, scaledDimensions.padding * 0.25)), left: 0, right: 0, textAlign: halign, fontSize: 10 * scale, color: 'var(--text-muted)', fontFamily: 'var(--font-ui)', pointerEvents: 'none', userSelect: 'none' }}>
+                <div
+                  key={`pagenum-${i}`}
+                  style={{
+                    position: 'absolute',
+                    top: isTop
+                      ? (i * scaledDimensions.pageStep + Math.max(32, scaledDimensions.padding * 0.3))
+                      : (i * scaledDimensions.pageStep + scaledDimensions.pageHeight - Math.max(28, scaledDimensions.padding * 0.25)),
+                    left: scaledDimensions.padding,
+                    right: scaledDimensions.padding,
+                    boxSizing: 'border-box',
+                    textAlign: halign,
+                    fontSize: 10 * scale,
+                    color: 'var(--text-muted)',
+                    fontFamily: 'var(--font-ui)',
+                    pointerEvents: 'none',
+                    userSelect: 'none',
+                  }}
+                >
                   Page {pageNumber}
                 </div>
               );
