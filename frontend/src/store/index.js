@@ -14,10 +14,12 @@ const baseDesignState = () => ({
   pageColor: getDefaultPageColor(),
   pageColorMode: 'theme',
   pageFillImage: '',
-  borderSetting: 'box',
-  borderStyle: 'solid',
-  borderColor: '#6f5320',
+  borderSetting: 'none',
+  borderStyle: 'none',
+  borderColor: 'transparent',
   borderWidth: 1,
+  borderDistance: 24,
+  borderSides: { top: false, right: false, bottom: false, left: false },
   pageShadow: 'var(--shadow-page)',
   accent: '#c9a84c',
   heading: '#c9a84c',
@@ -827,3 +829,5 @@ export const useOfflineStore = create((set) => {
     setLastSyncError: (lastSyncError) => set({ lastSyncError, syncStatus: 'error' }),
   };
 });
+
+export { useSubscriptionStore } from './subscriptionStore';

@@ -5,6 +5,9 @@ import { SignUpPage }        from '@/pages/SignUpPage';
 import { ForgotPasswordPage} from '@/pages/ForgotPasswordPage';
 import { HomePage }          from '@/pages/HomePage';
 import { EditorPage }        from '@/pages/EditorPage';
+import { PricingPage }       from '@/pages/PricingPage';
+import { AdminLayout }        from '@/pages/admin/AdminLayout';
+import { UpgradeModal }      from '@/components/dialogs/UpgradeModal';
 import { initGlobalPrintHandler } from '@/utils/printUtils';
 
 initGlobalPrintHandler();
@@ -43,6 +46,24 @@ function RequireAuth({ children }) {
   return token ? children : <Navigate to="/signin" replace />;
 }
 
+function AdminRoute({ children }) {
+  const token = localStorage.getItem('etherx_token');
+  if (!token) return <Navigate to="/signin" replace />;
+  let user = {};
+  try {
+    user = JSON.parse(localStorage.getItem('etherx_user') || '{}');
+  } catch {}
+  const email = String(user.email || '').toLowerCase();
+  const isSeedOwner = email === 'biswalpadmaja411@gmail.com' || email === 'demo@etherx.com';
+  const role = user.role || (isSeedOwner ? 'Owner' : 'Viewer');
+
+  // Stealth Route Guard: silently redirects non-admin users to /home
+  if (role !== 'Owner' && role !== 'Admin') {
+    return <Navigate to="/home" replace />;
+  }
+  return children;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -52,10 +73,13 @@ export default function App() {
         <Route path="/signup"        element={<SignUpPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/home"          element={<RequireAuth><HomePage /></RequireAuth>} />
+        <Route path="/pricing"       element={<PricingPage />} />
+        <Route path="/admin/*"       element={<AdminRoute><AdminLayout /></AdminRoute>} />
         <Route path="/doc/:id"       element={<EditorErrorBoundary><RequireAuth><EditorPage /></RequireAuth></EditorErrorBoundary>} />
         <Route path="/shared/:id"    element={<EditorErrorBoundary><EditorPage isShared={true} /></EditorErrorBoundary>} />
         <Route path="*"              element={<Navigate to="/signin" replace />} />
       </Routes>
+      <UpgradeModal />
     </BrowserRouter>
   );
 }

@@ -131,7 +131,7 @@ export function EditorCanvas() {
       const heightBased = Math.max(1, Math.min(500, Math.ceil(proseEl.scrollHeight / contentHeight)));
       const markerEls = wrapRef.current?.querySelectorAll('div[data-page-break="true"], .etherx-page-break');
       const markerCount = markerEls ? markerEls.length : 0;
-      const pages = markerCount > 0 ? Math.max(1, Math.min(500, markerCount + 1)) : heightBased;
+      const pages = Math.max(1, Math.min(500, Math.max(markerCount + 1, heightBased)));
       const text = proseEl.innerText || '';
       const words = text.trim().split(/\s+/).filter(Boolean).length;
       setPageCount(pages);
@@ -304,54 +304,107 @@ export function EditorCanvas() {
           overflowY: 'auto',
           overflowX: 'auto',
           background: 'var(--bg-app)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          padding: `${scaledDimensions.scrollPaddingY}px ${scaledDimensions.scrollPaddingX}px`,
           scrollBehavior: 'smooth',
         }}
       >
         <div
-          ref={wrapRef}
-          id="document-page-0"
+          id="editor-canvas-align-wrapper"
           style={{
+            minWidth: '100%',
+            width: 'max-content',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            padding: `${scaledDimensions.scrollPaddingY}px ${scaledDimensions.scrollPaddingX}px`,
             boxSizing: 'border-box',
-            width: scaledDimensions.pageWidth,
-            minHeight: Math.min(100000, scaledDimensions.pageStep * Math.max(1, pageCount) + scaledDimensions.pageGap),
-            background: 'transparent',
-            borderRadius: 2,
-            '--etherx-page-fill': 'var(--bg-page)',
-            '--etherx-page-border-width': '1px',
-            '--etherx-page-border-style': 'solid',
-            '--etherx-page-border-color': 'var(--page-border)',
-            '--etherx-page-shadow': 'var(--shadow-page)',
-            '--etherx-page-content-height': `${scaledDimensions.contentHeight}px`,
-            padding: `${scaledDimensions.padding}px`,
-            position: 'relative',
-            isolation: 'isolate',
-            wordBreak: 'break-word',
-            overflowWrap: 'break-word',
-            overflowX: 'hidden',
-            transition: 'all 0.15s ease-out',
           }}
         >
-          <div aria-hidden="true" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0 }}>
-            {Array.from({ length: pageCount }).map((_, i) => (
-              <div
-                key={`page-frame-bg-${i}`}
-                data-etherx-page-frame="true"
-                data-etherx-page-surface="background"
-                style={{
-                  position: 'absolute',
-                  top: i * scaledDimensions.pageStep,
-                  left: -scaledDimensions.padding,
-                  width: `calc(100% + ${scaledDimensions.padding * 2}px)`,
-                  height: scaledDimensions.pageHeight,
-                  background: 'var(--etherx-page-fill, var(--bg-page))',
-                  backgroundImage: 'var(--etherx-page-fill-image, none)',
-                  borderRadius: 2,
-                }}
-              >
+          <div
+            ref={wrapRef}
+            id="document-page-0"
+            style={{
+              boxSizing: 'border-box',
+              width: scaledDimensions.pageWidth,
+              minHeight: Math.min(100000, Math.max(scaledDimensions.pageHeight, (pageCount - 1) * scaledDimensions.pageStep + scaledDimensions.pageHeight)),
+              background: 'transparent',
+              borderRadius: 2,
+              '--etherx-page-fill': 'var(--bg-page)',
+              '--etherx-page-border-width': '1px',
+              '--etherx-page-border-style': 'solid',
+              '--etherx-page-border-color': 'var(--page-border)',
+              '--etherx-page-shadow': 'var(--shadow-page)',
+              '--etherx-page-content-height': `${scaledDimensions.contentHeight}px`,
+              padding: `${scaledDimensions.padding}px`,
+              position: 'relative',
+              isolation: 'isolate',
+              wordBreak: 'break-word',
+              overflowWrap: 'break-word',
+              overflowX: 'hidden',
+              transition: 'all 0.15s ease-out',
+            }}
+          >
+            <div aria-hidden="true" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0 }}>
+              {Array.from({ length: pageCount }).map((_, i) => (
+                <div
+                  key={`page-frame-bg-${i}`}
+                  data-etherx-page-frame="true"
+                  data-etherx-page-surface="background"
+                  style={{
+                    position: 'absolute',
+                    top: i * scaledDimensions.pageStep,
+                    left: 0,
+                    width: '100%',
+                    height: scaledDimensions.pageHeight,
+                    background: 'var(--etherx-page-fill, var(--bg-page))',
+                    backgroundImage: 'var(--etherx-page-fill-image, none)',
+                    border: '1px solid var(--page-border)',
+                    boxShadow: 'var(--etherx-page-shadow, var(--shadow-page))',
+                    borderRadius: 2,
+                    boxSizing: 'border-box',
+                  }}
+                >
+                  {/* Inward Decorative Page Border (Word-style) */}
+                  {Boolean(
+                    design?.borderStyle &&
+                    design.borderStyle !== 'none' &&
+                    design?.borderSetting &&
+                    design.borderSetting !== 'none' &&
+                    design?.borderColor &&
+                    design.borderColor !== 'transparent'
+                  ) && (() => {
+                    const borderSides = design?.borderSides;
+                    const hasSides = borderSides
+                      ? Boolean(borderSides.top || borderSides.right || borderSides.bottom || borderSides.left)
+                      : true;
+                    if (!hasSides) return null;
+                    const activeSides = borderSides || { top: true, right: true, bottom: true, left: true };
+                    const borderWidthPx = Math.max(1, Math.round(Number(design.borderWidth || 2) * scale));
+                    const bStyle = design.borderStyle || 'solid';
+                    const bColor = design.borderColor || '#6f5320';
+                    const bInset = Math.round(Math.max(12, Math.min(scaledDimensions.padding * 0.45, Number(design?.borderDistance ?? 24) * scale)));
+                    return (
+                      <div
+                        data-etherx-page-border="true"
+                        style={{
+                          position: 'absolute',
+                          top: bInset,
+                          left: bInset,
+                          right: bInset,
+                          bottom: bInset,
+                          pointerEvents: 'none',
+                          borderTop: activeSides.top !== false ? `${borderWidthPx}px ${bStyle} ${bColor}` : 'none',
+                          borderRight: activeSides.right !== false ? `${borderWidthPx}px ${bStyle} ${bColor}` : 'none',
+                          borderBottom: activeSides.bottom !== false ? `${borderWidthPx}px ${bStyle} ${bColor}` : 'none',
+                          borderLeft: activeSides.left !== false ? `${borderWidthPx}px ${bStyle} ${bColor}` : 'none',
+                          boxSizing: 'border-box',
+                          boxShadow: design.borderSetting === 'shadow'
+                            ? `${Math.max(2, Math.round(3 * scale))}px ${Math.max(2, Math.round(3 * scale))}px 0px rgba(0,0,0,0.35)`
+                            : (design.borderSetting === '3d' ? 'inset 1px 1px 0px rgba(255,255,255,0.4), 1px 1px 0px rgba(0,0,0,0.25)' : 'none'),
+                          borderRadius: 1,
+                        }}
+                      />
+                    );
+                  })()}
                 {(design?.watermark || watermarkText) && (
                   <div
                     data-etherx-watermark="true"
@@ -383,10 +436,10 @@ export function EditorCanvas() {
                 style={{
                   position: 'absolute',
                   top: i * scaledDimensions.pageStep + scaledDimensions.pageHeight,
-                  left: -scaledDimensions.padding,
-                  width: `calc(100% + ${scaledDimensions.padding * 2}px)`,
+                  left: 0,
+                  width: '100%',
                   height: scaledDimensions.pageGap,
-                  background: 'transparent',
+                  background: 'var(--bg-app)',
                 }}
               />
             ))}
@@ -431,30 +484,12 @@ export function EditorCanvas() {
           <div aria-hidden="true" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 2 }}>
             {Array.from({ length: pageCount }).map((_, i) => (
               <div
-                key={`page-frame-overlay-${i}`}
-                data-etherx-page-surface="overlay"
-                style={{
-                  position: 'absolute',
-                  top: i * scaledDimensions.pageStep,
-                  left: -scaledDimensions.padding,
-                  width: `calc(100% + ${scaledDimensions.padding * 2}px)`,
-                  height: scaledDimensions.pageHeight,
-                  background: 'transparent',
-                  border: 'var(--etherx-page-border-width, 1px) var(--etherx-page-border-style, solid) var(--etherx-page-border-color, var(--page-border))',
-                  boxShadow: 'var(--etherx-page-shadow, var(--shadow-page))',
-                  borderRadius: 2,
-                  boxSizing: 'border-box',
-                }}
-              />
-            ))}
-            {Array.from({ length: pageCount }).map((_, i) => (
-              <div
                 key={`page-index-${i}`}
                 style={{
                   position: 'absolute',
                   top: i * scaledDimensions.pageStep + scaledDimensions.pageHeight - Math.max(24, scaledDimensions.padding * 0.25),
-                  left: -scaledDimensions.padding,
-                  right: -scaledDimensions.padding,
+                  left: 0,
+                  right: 0,
                   textAlign: 'center',
                   fontSize: 10 * scale,
                   color: 'var(--text-muted)',
@@ -498,6 +533,7 @@ export function EditorCanvas() {
               </div>
             </div>
           ))}
+        </div>
         </div>
       </div>
     </div>

@@ -22,6 +22,7 @@ import { CommandMapDialog }    from './CommandMapDialog';
 import { HelpDialog }          from './HelpDialog';
 import { WhatsNewDialog }      from './WhatsNewDialog';
 import { PragnaAiDialog }      from './PragnaAiDialog';
+import { UpgradeModal }        from './UpgradeModal';
 import {
   WordCountDialog,
   CommentsDialog,
@@ -121,6 +122,7 @@ export function DialogManager() {
       {dialogs.styleInspector && <StyleInspectorDialog />}
       {dialogs.clipboardHistory && <ClipboardHistoryDrawer />}
       {dialogs.citationFactCheck && <CitationFactCheckDialog />}
+      <UpgradeModal />
     </>
   );
 }

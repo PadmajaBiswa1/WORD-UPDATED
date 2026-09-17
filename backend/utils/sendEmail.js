@@ -139,4 +139,17 @@ async function sendInviteEmail({ toEmail, inviterName, documentTitle, shareUrl, 
   }
 }
 
-module.exports = { generateOTP, sendOTPEmail, sendInviteEmail };
+async function sendRoleChangeEmail({ to, userName, oldRole, newRole, updatedBy }) {
+  console.log(`[EmailService] 📧 Role change notification: Sending to ${to} (${userName})`);
+  console.log(`[EmailService] Role changed from "${oldRole}" to "${newRole}" by ${updatedBy?.name || 'an Administrator'}`);
+  return {
+    success: true,
+    simulated: true,
+    to,
+    subject: `EtherX Word: Your role has been updated to ${newRole}`,
+    timestamp: new Date().toISOString(),
+  };
+}
+
+module.exports = { generateOTP, sendOTPEmail, sendInviteEmail, sendRoleChangeEmail };
+

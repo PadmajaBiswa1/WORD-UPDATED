@@ -1,6 +1,11 @@
 # Dependencies
+node_modules/
 backend/node_modules/
 frontend/node_modules/
+
+# Uploads
+backend/public/uploads/*
+!backend/public/uploads/.gitkeep
 
 # Build output
 frontend/dist/

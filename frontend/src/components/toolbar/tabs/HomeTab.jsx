@@ -6,7 +6,8 @@ import {
   List, ListOrdered, ListTodo, Quote, Outdent, Indent, MoveVertical,
   Search, Undo2, Redo2, MousePointerClick, HelpCircle
 } from 'lucide-react';
-import { useEditorStore, useUIStore } from '@/store';
+import { useEditorStore, useUIStore, useSubscriptionStore } from '@/store';
+import { canAccessAi } from '@/utils/featureGate';
 import { Button, Divider, Tooltip, Select, ColorSwatch } from '@/components/ui';
 import { RibbonGroup } from '../RibbonGroup';
 import { FONT_SIZE_OPTIONS, FontFormattingControls, useFontFormattingControls } from '../fontFormatting.jsx';
@@ -167,6 +168,14 @@ export function HomeTab() {
   const activeHighlight = editor?.getAttributes('highlight')?.color || '#ffe08a';
 
   const handlePragnaClick = () => {
+    const userPlan = useSubscriptionStore.getState().plan;
+    if (!canAccessAi(userPlan)) {
+      useSubscriptionStore.getState().openUpgradeModal(
+        'Pragna AI writing assistant (grammar check, rewriting, summarization) is exclusively available on EtherX Pro.',
+        'pro'
+      );
+      return;
+    }
     if (!editor) {
       openPragna('ask');
       return;

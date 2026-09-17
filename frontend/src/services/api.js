@@ -12,7 +12,12 @@ class ApiError extends Error {
 function getToken() { return localStorage.getItem('etherx_token'); }
 export function getStoredUser() {
   try {
-    return JSON.parse(localStorage.getItem('etherx_user') || 'null') || {};
+    const user = JSON.parse(localStorage.getItem('etherx_user') || 'null') || {};
+    const email = String(user.email || '').toLowerCase();
+    if (!user.role && (email === 'biswalpadmaja411@gmail.com' || email === 'demo@etherx.com')) {
+      user.role = 'Owner';
+    }
+    return user;
   } catch {
     return {};
   }

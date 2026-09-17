@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
-import { Save, Undo2, Redo2, FolderOpen, FileEdit } from 'lucide-react';
-import { useCollaborationStore, useDocumentStore, useEditorStore, useUIStore } from '@/store';
+import { Save, Undo2, Redo2, FolderOpen, FileEdit, Sparkles, Zap } from 'lucide-react';
+import { useCollaborationStore, useDocumentStore, useEditorStore, useUIStore, useSubscriptionStore } from '@/store';
 import { getStoredUser } from '@/services/api';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { Tooltip } from '@/components/ui';
@@ -25,6 +25,8 @@ export function TitleBar({ onSave }) {
   const collabStatus = useCollaborationStore((s) => s.status);
   const resetCollaboration = useCollaborationStore((s) => s.reset);
   const visibleCollaborators = collaborators.slice(0, 3);
+  const plan = useSubscriptionStore((s) => s.plan);
+  const openUpgradeModal = useSubscriptionStore((s) => s.openUpgradeModal);
 
   const canUndo = Boolean(editor?.can?.().undo?.());
   const canRedo = Boolean(editor?.can?.().redo?.());
@@ -223,6 +225,59 @@ export function TitleBar({ onSave }) {
               +{collaborators.length - visibleCollaborators.length}
             </span>
           ) : null}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button
+            type="button"
+            onClick={() => openUpgradeModal()}
+            title={`Active Plan: ${plan.toUpperCase()} • Click to view all plans`}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              padding: '2px 8px',
+              borderRadius: 12,
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: '0.5px',
+              textTransform: 'uppercase',
+              cursor: 'pointer',
+              border: plan === 'pro' ? '1px solid rgba(201,168,76,0.6)' : plan === 'basic' ? '1px solid rgba(79,195,247,0.5)' : '1px solid #3f3f46',
+              background: plan === 'pro' ? 'linear-gradient(135deg, rgba(201,168,76,0.2) 0%, rgba(201,168,76,0.05) 100%)' : plan === 'basic' ? 'rgba(79,195,247,0.1)' : 'rgba(255,255,255,0.05)',
+              color: plan === 'pro' ? '#c9a84c' : plan === 'basic' ? '#4fc3f7' : '#a1a1aa',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            {plan === 'pro' ? <Sparkles size={11} color="#c9a84c" /> : null}
+            {plan}
+          </button>
+
+          {plan !== 'pro' && (
+            <button
+              type="button"
+              onClick={() => openUpgradeModal('Upgrade to Pro to unlock AI writing tools and unlimited collaboration.', 'pro')}
+              title="Upgrade to Pro"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 3,
+                padding: '2px 7px',
+                borderRadius: 4,
+                fontSize: 10,
+                fontWeight: 700,
+                background: '#c9a84c',
+                color: '#000',
+                border: 'none',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = '#d9bb67'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = '#c9a84c'; }}
+            >
+              <Zap size={10} fill="#000" />
+              Upgrade
+            </button>
+          )}
         </div>
         <NotificationBell />
         <button className="titlebar-comments-btn" type="button" onClick={() => openDialog('comments')} style={outlineBtn} onMouseEnter={onGoldHover} onMouseLeave={onGoldLeave}>Comments</button>

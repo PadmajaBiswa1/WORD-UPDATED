@@ -26,6 +26,12 @@ function readUsersStore() {
           email: 'demo@etherx.com',
           passwordHash: bcrypt.hashSync('password123', 10),
           isVerified: true,
+          plan: 'free',
+          billingCycle: 'monthly',
+          subscriptionExpiresAt: null,
+          role: 'Owner',
+          status: 'active',
+          department: 'Engineering',
           createdAt: new Date().toISOString(),
         },
         {
@@ -34,6 +40,12 @@ function readUsersStore() {
           email: 'biswalpadmaja411@gmail.com',
           passwordHash: bcrypt.hashSync('password123', 10),
           isVerified: true,
+          plan: 'free',
+          billingCycle: 'monthly',
+          subscriptionExpiresAt: null,
+          role: 'Owner',
+          status: 'active',
+          department: 'Executive',
           createdAt: new Date().toISOString(),
         },
         {
@@ -42,6 +54,12 @@ function readUsersStore() {
           email: 'vinaygk219@gmail.com',
           passwordHash: bcrypt.hashSync('vinay@3374', 10),
           isVerified: true,
+          plan: 'free',
+          billingCycle: 'monthly',
+          subscriptionExpiresAt: null,
+          role: 'Admin',
+          status: 'active',
+          department: 'Engineering',
           createdAt: new Date().toISOString(),
         },
       ];
@@ -84,10 +102,42 @@ function writeOtpsStore(otps) {
   } catch {}
 }
 
+function formatUserResponse(user) {
+  if (!user) return null;
+  const email = String(user.email || '').toLowerCase();
+  const isSeedOwner = email === 'biswalpadmaja411@gmail.com' || email === 'demo@etherx.com';
+  const role = isSeedOwner ? 'Owner' : (user.role || 'Viewer');
+  return {
+    id: user._id || user.id,
+    name: user.name,
+    email: user.email,
+    plan: user.plan || (isSeedOwner ? 'pro' : 'free'),
+    billingCycle: user.billingCycle || 'monthly',
+    subscriptionExpiresAt: user.subscriptionExpiresAt || null,
+    role,
+    status: user.status || 'active',
+    department: user.department || (isSeedOwner ? 'Executive' : 'General'),
+    organizationId: user.organizationId || 'org_etherx_pro',
+  };
+}
+
 function signToken(user) {
   const secret = process.env.JWT_SECRET || 'your_super_secret_jwt_key_change_this';
+  const email = String(user.email || '').toLowerCase();
+  const isSeedOwner = email === 'biswalpadmaja411@gmail.com' || email === 'demo@etherx.com';
+  const role = isSeedOwner ? 'Owner' : (user.role || 'Viewer');
   return jwt.sign(
-    { id: user._id || user.id, email: user.email, name: user.name },
+    {
+      id: user._id || user.id,
+      email: user.email,
+      name: user.name,
+      plan: user.plan || (isSeedOwner ? 'pro' : 'free'),
+      billingCycle: user.billingCycle || 'monthly',
+      role,
+      status: user.status || 'active',
+      department: user.department || (isSeedOwner ? 'Executive' : 'General'),
+      organizationId: user.organizationId || 'org_etherx_pro',
+    },
     secret,
     { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
   );
@@ -102,9 +152,31 @@ router.post('/demo', async (req, res) => {
       name: 'Demo User',
       email: 'demo@etherx.com',
       isVerified: true,
+      plan: 'free',
+      billingCycle: 'monthly',
+      subscriptionExpiresAt: null,
+      role: 'Owner',
+      status: 'active',
+      department: 'Engineering',
+      organizationId: 'org_etherx_pro',
     };
+
+    if (!isMongoConnected()) {
+      const users = readUsersStore();
+      const existingIndex = users.findIndex((u) => u._id === 'user_demo' || u.id === 'user_demo' || u.email === 'demo@etherx.com');
+      if (existingIndex >= 0) {
+        users[existingIndex].role = 'Owner';
+        users[existingIndex].status = 'active';
+        users[existingIndex].department = 'Engineering';
+        writeUsersStore(users);
+      } else {
+        users.push(demoUser);
+        writeUsersStore(users);
+      }
+    }
+
     const token = signToken(demoUser);
-    res.json({ token, user: { id: demoUser.id, name: demoUser.name, email: demoUser.email } });
+    res.json({ token, user: formatUserResponse(demoUser) });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -164,6 +236,9 @@ router.post('/signup', async (req, res) => {
         email: normalizedEmail,
         passwordHash,
         isVerified: true, // Auto-verify in offline mode for frictionless experience
+        plan: 'free',
+        billingCycle: 'monthly',
+        subscriptionExpiresAt: null,
         createdAt: new Date().toISOString(),
       });
     }
@@ -199,7 +274,7 @@ router.post('/verify-otp', async (req, res) => {
 
       const user  = await User.findOne({ email: normalizedEmail });
       const token = signToken(user);
-      return res.json({ token, user: { id: user._id, name: user.name, email: user.email } });
+      return res.json({ token, user: formatUserResponse(user) });
     }
 
     const otps = readOtpsStore();
@@ -217,7 +292,7 @@ router.post('/verify-otp', async (req, res) => {
     writeOtpsStore(otps.filter((o) => !(o.email === normalizedEmail && o.type === 'verify')));
 
     const token = signToken(user);
-    res.json({ token, user: { id: user._id, name: user.name, email: user.email } });
+    res.json({ token, user: formatUserResponse(user) });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -278,7 +353,7 @@ router.post('/signin', async (req, res) => {
       const token = signToken(user);
       return res.json({
         token,
-        user: { id: user._id, name: user.name, email: user.email },
+        user: formatUserResponse(user),
       });
     }
 
@@ -299,7 +374,7 @@ router.post('/signin', async (req, res) => {
     const token = signToken(user);
     res.json({
       token,
-      user: { id: user._id || user.id, name: user.name, email: user.email },
+      user: formatUserResponse(user),
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -411,13 +486,13 @@ router.get('/me', authMiddleware, async (req, res) => {
     if (isMongoConnected()) {
       const user = await User.findById(req.user.id).select('-password');
       if (!user) return res.status(404).json({ message: 'User not found' });
-      return res.json({ user });
+      return res.json({ user: formatUserResponse(user) });
     }
 
     const users = readUsersStore();
     const user = users.find((u) => u._id === req.user.id || u.id === req.user.id || u.email === req.user.email);
     if (!user) return res.status(404).json({ message: 'User not found' });
-    res.json({ user: { id: user._id || user.id, name: user.name, email: user.email } });
+    res.json({ user: formatUserResponse(user) });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

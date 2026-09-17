@@ -227,12 +227,20 @@ export function DesignTab() {
   const [tempBorderStyle, setTempBorderStyle] = useState(design.borderStyle || 'solid');
   const [tempBorderColor, setTempBorderColor] = useState(design.borderColor || '#6f5320');
   const [tempBorderWidth, setTempBorderWidth] = useState(design.borderWidth || 2);
+  const [tempBorderDistance, setTempBorderDistance] = useState(design.borderDistance || 24);
+  const [tempBorderSides, setTempBorderSides] = useState(
+    design.borderSides || { top: true, right: true, bottom: true, left: true }
+  );
   const [customWatermarkInput, setCustomWatermarkInput] = useState(design.watermark || watermarkText || '');
 
   const tempBorderSettingRef = useRef(design.borderSetting || 'box');
   const tempBorderStyleRef = useRef(design.borderStyle || 'solid');
   const tempBorderColorRef = useRef(design.borderColor || '#6f5320');
   const tempBorderWidthRef = useRef(design.borderWidth || 2);
+  const tempBorderDistanceRef = useRef(design.borderDistance || 24);
+  const tempBorderSidesRef = useRef(
+    design.borderSides || { top: true, right: true, bottom: true, left: true }
+  );
 
   const [isDictating, setIsDictating] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -717,7 +725,44 @@ export function DesignTab() {
             icon={<Square size={20} strokeWidth={1.75} />}
             label="Page Borders"
             title="Add or change the border around the page"
-            onClick={() => setBorderModalOpen(true)}
+            onClick={() => {
+              const hasActiveBorder = Boolean(
+                design?.borderSetting &&
+                design.borderSetting !== 'none' &&
+                design?.borderStyle &&
+                design.borderStyle !== 'none' &&
+                design?.borderColor &&
+                design.borderColor !== 'transparent'
+              );
+              const currentSetting = hasActiveBorder ? design.borderSetting : 'none';
+              const currentStyle = hasActiveBorder ? design.borderStyle : 'solid';
+              const currentColor = hasActiveBorder && design.borderColor ? design.borderColor : '#6f5320';
+              const currentWidth = Number(design?.borderWidth) || 2;
+              const currentDistance = Number(design?.borderDistance) || 24;
+              const currentSides = hasActiveBorder && design?.borderSides
+                ? {
+                    top: design.borderSides.top !== false,
+                    right: design.borderSides.right !== false,
+                    bottom: design.borderSides.bottom !== false,
+                    left: design.borderSides.left !== false,
+                  }
+                : (hasActiveBorder
+                    ? { top: true, right: true, bottom: true, left: true }
+                    : { top: false, right: false, bottom: false, left: false });
+              setTempBorderSetting(currentSetting);
+              setTempBorderStyle(currentStyle);
+              setTempBorderColor(currentColor);
+              setTempBorderWidth(currentWidth);
+              setTempBorderDistance(currentDistance);
+              setTempBorderSides(currentSides);
+              tempBorderSettingRef.current = currentSetting;
+              tempBorderStyleRef.current = currentStyle;
+              tempBorderColorRef.current = currentColor;
+              tempBorderWidthRef.current = currentWidth;
+              tempBorderDistanceRef.current = currentDistance;
+              tempBorderSidesRef.current = currentSides;
+              setBorderModalOpen(true);
+            }}
           />
         </div>
       </RibbonGroup>
@@ -1046,9 +1091,9 @@ export function DesignTab() {
 
       {/* ── BORDER MODAL ── */}
       {borderModalOpen && (
-        <Modal title="Borders and Shading" onClose={() => setBorderModalOpen(false)} width={540}>
-          <Stack gap={12}>
-            <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 16 }}>
+        <Modal title="Borders and Shading" onClose={() => setBorderModalOpen(false)} width={620}>
+          <Stack gap={14}>
+            <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr 150px', gap: 16, alignItems: 'start' }}>
               {/* Setting */}
               <div>
                 <Label>Setting</Label>
@@ -1061,6 +1106,25 @@ export function DesignTab() {
                       onClick={() => {
                         setTempBorderSetting(st);
                         tempBorderSettingRef.current = st;
+                        if (st === 'none') {
+                          const noneSides = { top: false, right: false, bottom: false, left: false };
+                          setTempBorderSides(noneSides);
+                          tempBorderSidesRef.current = noneSides;
+                          setTempBorderStyle('none');
+                          tempBorderStyleRef.current = 'none';
+                        } else {
+                          const allSides = { top: true, right: true, bottom: true, left: true };
+                          setTempBorderSides(allSides);
+                          tempBorderSidesRef.current = allSides;
+                          if (tempBorderStyleRef.current === 'none') {
+                            setTempBorderStyle('solid');
+                            tempBorderStyleRef.current = 'solid';
+                          }
+                          if (tempBorderColorRef.current === 'transparent') {
+                            setTempBorderColor('#6f5320');
+                            tempBorderColorRef.current = '#6f5320';
+                          }
+                        }
                       }}
                       style={{ justifyContent: 'flex-start', fontSize: 11 }}
                     >
@@ -1070,7 +1134,7 @@ export function DesignTab() {
                 </div>
               </div>
 
-              {/* Style, Color, Width */}
+              {/* Style, Color, Width, Distance */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div>
                   <Label>Style</Label>
@@ -1082,6 +1146,23 @@ export function DesignTab() {
                         onClick={() => {
                           setTempBorderStyle(st);
                           tempBorderStyleRef.current = st;
+                          if (st === 'none') {
+                            setTempBorderSetting('none');
+                            tempBorderSettingRef.current = 'none';
+                            const noneSides = { top: false, right: false, bottom: false, left: false };
+                            setTempBorderSides(noneSides);
+                            tempBorderSidesRef.current = noneSides;
+                          } else if (tempBorderSettingRef.current === 'none') {
+                            setTempBorderSetting('box');
+                            tempBorderSettingRef.current = 'box';
+                            const allSides = { top: true, right: true, bottom: true, left: true };
+                            setTempBorderSides(allSides);
+                            tempBorderSidesRef.current = allSides;
+                            if (tempBorderColorRef.current === 'transparent') {
+                              setTempBorderColor('#6f5320');
+                              tempBorderColorRef.current = '#6f5320';
+                            }
+                          }
                         }}
                         style={{
                           background: tempBorderStyle === st ? 'var(--bg-hover)' : 'transparent',
@@ -1143,6 +1224,131 @@ export function DesignTab() {
                     ))}
                   </div>
                 </div>
+
+                <div>
+                  <Label>Distance from Page Edge</Label>
+                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                    {[
+                      { label: '16pt (Narrow)', value: 16 },
+                      { label: '24pt (Standard)', value: 24 },
+                      { label: '32pt (Deep)', value: 32 },
+                      { label: '40pt (Wide)', value: 40 },
+                    ].map((opt) => (
+                      <Button
+                        key={opt.value}
+                        type="button"
+                        variant={tempBorderDistance === opt.value ? 'primary' : 'subtle'}
+                        onClick={() => {
+                          setTempBorderDistance(opt.value);
+                          tempBorderDistanceRef.current = opt.value;
+                        }}
+                        style={{ padding: '2px 6px', fontSize: 10 }}
+                      >
+                        {opt.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Live Preview Box & Side Toggles */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <Label>Preview</Label>
+                <div
+                  style={{
+                    width: 120,
+                    height: 165,
+                    background: 'var(--bg-page, #ffffff)',
+                    border: '1px solid var(--border)',
+                    boxShadow: '0 2px 10px rgba(0,0,0,0.18)',
+                    borderRadius: 2,
+                    position: 'relative',
+                    marginTop: 4,
+                    boxSizing: 'border-box',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {tempBorderSetting !== 'none' && tempBorderStyle !== 'none' && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: Math.max(4, Math.round(tempBorderDistance * 0.35)),
+                        left: Math.max(4, Math.round(tempBorderDistance * 0.35)),
+                        right: Math.max(4, Math.round(tempBorderDistance * 0.35)),
+                        bottom: Math.max(4, Math.round(tempBorderDistance * 0.35)),
+                        borderTopStyle: tempBorderSides.top !== false ? tempBorderStyle : 'none',
+                        borderRightStyle: tempBorderSides.right !== false ? tempBorderStyle : 'none',
+                        borderBottomStyle: tempBorderSides.bottom !== false ? tempBorderStyle : 'none',
+                        borderLeftStyle: tempBorderSides.left !== false ? tempBorderStyle : 'none',
+                        borderTopWidth: tempBorderSides.top !== false ? `${Math.max(1, Math.min(3, tempBorderWidth))}px` : '0px',
+                        borderRightWidth: tempBorderSides.right !== false ? `${Math.max(1, Math.min(3, tempBorderWidth))}px` : '0px',
+                        borderBottomWidth: tempBorderSides.bottom !== false ? `${Math.max(1, Math.min(3, tempBorderWidth))}px` : '0px',
+                        borderLeftWidth: tempBorderSides.left !== false ? `${Math.max(1, Math.min(3, tempBorderWidth))}px` : '0px',
+                        borderTopColor: tempBorderColor,
+                        borderRightColor: tempBorderColor,
+                        borderBottomColor: tempBorderColor,
+                        borderLeftColor: tempBorderColor,
+                        boxSizing: 'border-box',
+                        boxShadow: tempBorderSetting === 'shadow'
+                          ? '2px 2px 0px rgba(0,0,0,0.3)'
+                          : (tempBorderSetting === '3d' ? 'inset 1px 1px 0px rgba(255,255,255,0.4), 1px 1px 0px rgba(0,0,0,0.2)' : 'none'),
+                      }}
+                    />
+                  )}
+                  {/* Sample text preview */}
+                  <div style={{ padding: '24px 18px', display: 'flex', flexDirection: 'column', gap: 4, opacity: 0.28 }}>
+                    <div style={{ height: 3, background: 'var(--text-primary)', borderRadius: 1 }} />
+                    <div style={{ height: 3, width: '85%', background: 'var(--text-primary)', borderRadius: 1 }} />
+                    <div style={{ height: 3, width: '90%', background: 'var(--text-primary)', borderRadius: 1 }} />
+                    <div style={{ height: 3, width: '65%', background: 'var(--text-primary)', borderRadius: 1 }} />
+                    <div style={{ height: 3, width: '75%', background: 'var(--text-primary)', borderRadius: 1 }} />
+                  </div>
+                </div>
+
+                {/* Individual Side Toggles (Word-style) */}
+                <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4, width: '100%' }}>
+                  <div style={{ fontSize: 9, color: 'var(--text-secondary)', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '.05em', fontWeight: 600 }}>
+                    Toggle Borders
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+                    {[
+                      { side: 'top', label: 'Top' },
+                      { side: 'bottom', label: 'Bottom' },
+                      { side: 'left', label: 'Left' },
+                      { side: 'right', label: 'Right' },
+                    ].map(({ side, label }) => {
+                      const active = tempBorderSides[side] !== false && tempBorderSetting !== 'none';
+                      return (
+                        <Button
+                          key={side}
+                          type="button"
+                          variant={active ? 'primary' : 'subtle'}
+                          onClick={() => {
+                            const nextVal = !active;
+                            const next = { ...tempBorderSidesRef.current, [side]: nextVal };
+                            setTempBorderSides(next);
+                            tempBorderSidesRef.current = next;
+                            if (tempBorderStyleRef.current === 'none') {
+                              setTempBorderStyle('solid');
+                              tempBorderStyleRef.current = 'solid';
+                            }
+                            if (tempBorderColorRef.current === 'transparent') {
+                              setTempBorderColor('#6f5320');
+                              tempBorderColorRef.current = '#6f5320';
+                            }
+                            const hasAny = Boolean(next.top || next.bottom || next.left || next.right);
+                            const nextSetting = hasAny ? 'custom' : 'none';
+                            setTempBorderSetting(nextSetting);
+                            tempBorderSettingRef.current = nextSetting;
+                          }}
+                          style={{ padding: '2px 4px', fontSize: 10, justifyContent: 'center' }}
+                        >
+                          {active ? `✓ ${label}` : label}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -1154,17 +1360,23 @@ export function DesignTab() {
                 variant="primary"
                 onClick={() => {
                   const setting = tempBorderSettingRef.current;
-                  const style = setting === 'none' ? 'none' : tempBorderStyleRef.current;
+                  const style = tempBorderStyleRef.current;
                   const color = tempBorderColorRef.current;
                   const width = tempBorderWidthRef.current;
+                  const distance = tempBorderDistanceRef.current;
+                  const sides = tempBorderSidesRef.current;
+                  const hasSides = Boolean(sides.top || sides.bottom || sides.left || sides.right);
+                  const isNone = setting === 'none' || style === 'none' || !hasSides;
                   setDesign({
-                    borderSetting: setting,
-                    borderStyle: style,
-                    borderColor: color,
+                    borderSetting: isNone ? 'none' : setting,
+                    borderStyle: isNone ? 'none' : style,
+                    borderColor: isNone ? 'transparent' : color,
                     borderWidth: width,
+                    borderDistance: distance,
+                    borderSides: isNone ? { top: false, right: false, bottom: false, left: false } : sides,
                   });
                   setBorderModalOpen(false);
-                  toast('Page borders updated', 'success');
+                  toast(isNone ? 'Page borders removed' : 'Page borders updated', 'success');
                 }}
               >
                 OK

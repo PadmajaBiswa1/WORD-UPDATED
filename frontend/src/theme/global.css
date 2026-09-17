@@ -673,6 +673,18 @@ body {
   display: block;
   transition: all 0.1s ease;
 }
+
+body.etherx-is-resizing,
+body.etherx-is-resizing * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
+body.etherx-is-resizing img,
+.ProseMirror img.etherx-is-resizing {
+  transition: none !important;
+}
+
 .ProseMirror img.ProseMirror-selectednode,
 .ProseMirror .ProseMirror-selectednode img {
   outline: 2px solid var(--gold);
@@ -755,12 +767,8 @@ body {
 
 /* ── Data attribute page break (from PageBreak extension) ────── */
 .ProseMirror [data-page-break]:not([data-etherx-auto-break="true"]) {
-  /* Thin, non-editable separator between pages */
   display: block !important;
   visibility: visible !important;
-  height: 1px !important;
-  min-height: 1px !important;
-  max-height: 1px !important;
   margin: 0 !important;
   padding: 0 !important;
   background: transparent !important;
@@ -805,9 +813,7 @@ body {
   height: 0 !important;
 }
 
-/* Ensure proper spacing around page breaks */
 .ProseMirror [data-page-break]:not([data-etherx-auto-break="true"]) + * {
-  margin-top: 24px !important;
   page-break-before: always !important;
 }
 

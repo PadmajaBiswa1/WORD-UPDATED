@@ -1,6 +1,90 @@
 {
   "documents": [
     {
+      "id": "doc_852f2dba7e63",
+      "title": "Untitled Document",
+      "contentFormatVersion": 2,
+      "contentJson": null,
+      "content": "<p></p>",
+      "createdAt": "2026-09-12T09:59:25.350Z",
+      "updatedAt": "2026-09-12T09:59:25.350Z",
+      "revision": 0,
+      "owner": {
+        "id": "6a76bc4f8059daac81c3c8b0",
+        "name": "werty",
+        "email": "biswalpadmaja411@gmail.com"
+      },
+      "sharedWith": [],
+      "shareLinkEnabled": false,
+      "versions": [],
+      "comments": [],
+      "trackChanges": false,
+      "styles": [],
+      "references": {
+        "citations": [],
+        "captions": [],
+        "indexEntries": []
+      },
+      "security": {
+        "protected": false,
+        "keyVersion": 1,
+        "kdf": "PBKDF2",
+        "salt": "",
+        "nonce": "",
+        "authTag": "",
+        "encryptedPayload": ""
+      },
+      "aiProfile": {
+        "tone": "balanced",
+        "audience": "general",
+        "responseStyle": "concise",
+        "preferredTerms": [],
+        "forbiddenTerms": [],
+        "instructions": ""
+      },
+      "accessPolicy": {
+        "allowDownload": true,
+        "allowComments": true,
+        "allowCopy": true
+      },
+      "documentParts": [],
+      "signatures": [],
+      "design": {
+        "pageColor": "#fdfbf7",
+        "pageColorMode": "theme",
+        "pageFillImage": "",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
+        "borderWidth": 1,
+        "pageShadow": "var(--shadow-page)",
+        "accent": "#c9a84c",
+        "heading": "#c9a84c",
+        "subtle": "#444444",
+        "font": "Crimson Pro",
+        "spacing": "1.7",
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
+      },
+      "headerFooter": {
+        "headerText": "",
+        "headerAlign": "Center",
+        "footerText": "",
+        "footerAlign": "Center",
+        "pageNumberEnabled": false,
+        "pageNumberStyle": "bottom-center",
+        "pageNumberStart": 1
+      },
+      "ipfsHash": null,
+      "ipfsGatewayUrl": null,
+      "ipfsPinnedAt": null
+    },
+    {
       "id": "doc_1e185d0cde8b",
       "title": "gay Draft",
       "content": "<h3>Executive Summary</h3><p><span style=\"font-family: &quot;Times New Roman&quot;, serif;\">T</span><span style=\"font-family: &quot;Courier New&quot;, monospace;\">his comprehensive document explores gay with a professional focus. It establishes the foundational context, historical background, and the primary motivations behind the current study of gay.</span><span style=\"font-family: &quot;Times New Roman&quot;, serif;\"> We aim to provide a detailed analysis that serves as a definitive resource for stak</span>eholders and researchers alike.</p><h3>Core Objectives</h3><p>The main goal of this initiative is to evaluate the various dimensions of gay. This includes analyzing current trends, identifying potential bottlenecks, and proposing strategic frameworks that can be implemented to optimize outcomes. Our approach is grounded in professional principles to ensure relevance and rigor.</p><h3>Detailed Analysis</h3><p>A deep dive into gay reveals several critical factors. Firstly, the interaction between environmental variables and gay suggests a complex ecosystem of cause and effect. Secondly, the socio-economic implications c<span style=\"font-family: Garamond;\">annot be overstated, as gay directly impacts the efficiency and growth of the related sectors</span>.</p><h3>Methodology and Framework</h3><p>To address the challenges associated with gay, we propose a <span style=\"font-family: Calibri;\"><strong>multi-phased methodology. Phase 1 focuses on data acquisition and baseline </strong></span><span style=\"font-family: &quot;Times New Roman&quot;;\">assessment. Phase 2 involves iterative testing of gay variables in controlled environments. Fin</span>ally, Phase 3 scales these findings to real-world applications.</p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><div fillheight=\"233.31580535888622\" auto=\"true\" data-page-break=\"true\" data-etherx-auto-break=\"true\" class=\"etherx-page-break etherx-auto-page-break\" contenteditable=\"false\" style=\"height: 233.316px; margin: 0px; pointer-events: none; user-select: none; position: relative; cursor: default; opacity: 0; overflow: hidden;\"></div><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><div fillheight=\"220.9508148956296\" auto=\"true\" data-page-break=\"true\" data-etherx-auto-break=\"true\" class=\"etherx-page-break etherx-auto-page-break\" contenteditable=\"false\" style=\"height: 220.951px; margin: 0px; pointer-events: none; user-select: none; position: relative; cursor: default; opacity: 0; overflow: hidden;\"></div><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><p></p><div fillheight=\"220.9508148956296\" auto=\"true\" data-page-break=\"true\" data-etherx-auto-break=\"true\" class=\"etherx-page-break etherx-auto-page-break\" contenteditable=\"false\" style=\"height: 220.951px; margin: 0px; pointer-events: none; user-select: none; position: relative; cursor: default; opacity: 0; overflow: hidden;\"></div><p></p><p></p><p></p><p></p><p></p><p></p><p></p>",
@@ -21,9 +105,9 @@
         "pageColor": "#fdfbf7",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -31,7 +115,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "headerFooter": {
         "headerText": "",
@@ -67,9 +157,9 @@
         "pageColor": "#fdfbf7",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -77,7 +167,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "headerFooter": {
         "headerText": "",
@@ -113,9 +209,9 @@
         "pageColor": "#1a1a1a",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -123,7 +219,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "headerFooter": {
         "headerText": "",
@@ -159,9 +261,9 @@
         "pageColor": "#1a1a1a",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -169,7 +271,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "headerFooter": {
         "headerText": "",
@@ -212,9 +320,9 @@
         "pageColor": "#1a1a1a",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -222,7 +330,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "headerFooter": {
         "headerText": "",
@@ -284,9 +398,9 @@
         "pageColor": "#1a1a1a",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -294,7 +408,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "headerFooter": {
         "headerText": "",
@@ -330,9 +450,9 @@
         "pageColor": "#fdfbf7",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -340,7 +460,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "headerFooter": {
         "headerText": "",
@@ -375,9 +501,9 @@
         "pageColor": "#1a1a1a",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -385,7 +511,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "headerFooter": {
         "headerText": "",
@@ -420,9 +552,9 @@
         "pageColor": "#1a1a1a",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -430,7 +562,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "headerFooter": {
         "headerText": "",
@@ -508,9 +646,9 @@
         "pageColor": "#fdfbf7",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -518,7 +656,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "headerFooter": {
         "headerText": "",
@@ -553,9 +697,9 @@
         "pageColor": "#fdfbf7",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -563,7 +707,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "headerFooter": {
         "headerText": "",
@@ -598,9 +748,9 @@
         "pageColor": "#fdfbf7",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -608,7 +758,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "headerFooter": {
         "headerText": "",
@@ -650,9 +806,9 @@
         "pageColor": "#fdfbf7",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -660,7 +816,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "headerFooter": {
         "headerText": "",
@@ -695,9 +857,9 @@
         "pageColor": "#1a1a1a",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -705,7 +867,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "headerFooter": {
         "headerText": "",
@@ -740,9 +908,9 @@
         "pageColor": "#1a1a1a",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -750,7 +918,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "headerFooter": {
         "headerText": "",
@@ -785,9 +959,9 @@
         "pageColor": "#fdfbf7",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -795,7 +969,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "headerFooter": {
         "headerText": "",
@@ -837,9 +1017,9 @@
         "pageColor": "#fdfbf7",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -847,7 +1027,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "headerFooter": {
         "headerText": "",
@@ -882,9 +1068,9 @@
         "pageColor": "#1a1a1a",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -892,7 +1078,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "headerFooter": {
         "headerText": "",
@@ -927,9 +1119,9 @@
         "pageColor": "#1a1a1a",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -937,7 +1129,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "headerFooter": {
         "headerText": "",
@@ -972,9 +1170,9 @@
         "pageColor": "#1a1a1a",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -982,7 +1180,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "headerFooter": {
         "headerText": "",
@@ -1017,9 +1221,9 @@
         "pageColor": "#1a1a1a",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -1027,7 +1231,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "headerFooter": {
         "headerText": "",
@@ -1062,9 +1272,9 @@
         "pageColor": "#fdfbf7",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -1072,7 +1282,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -1098,9 +1314,9 @@
         "pageColor": "#fdfbf7",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -1108,7 +1324,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -1134,9 +1356,9 @@
         "pageColor": "#fdfbf7",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -1144,7 +1366,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -1170,9 +1398,9 @@
         "pageColor": "#fdfbf7",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -1180,7 +1408,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -1206,9 +1440,9 @@
         "pageColor": "#1a1a1a",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -1216,7 +1450,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -1242,9 +1482,9 @@
         "pageColor": "#1a1a1a",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -1252,7 +1492,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -1278,9 +1524,9 @@
         "pageColor": "#fdfbf7",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -1288,7 +1534,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -1314,9 +1566,9 @@
         "pageColor": "#fdfbf7",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -1324,7 +1576,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -1350,9 +1608,9 @@
         "pageColor": "#1a1a1a",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -1360,7 +1618,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -1386,9 +1650,9 @@
         "pageColor": "#1a1a1a",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -1396,7 +1660,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -1422,9 +1692,9 @@
         "pageColor": "#fdfbf7",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -1432,7 +1702,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -1458,9 +1734,9 @@
         "pageColor": "#1a1a1a",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -1468,7 +1744,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -1494,9 +1776,9 @@
         "pageColor": "#1a1a1a",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -1504,7 +1786,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -1530,9 +1818,9 @@
         "pageColor": "#fdfbf7",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -1540,7 +1828,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -1566,9 +1860,9 @@
         "pageColor": "#1a1a1a",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -1576,7 +1870,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -1602,9 +1902,9 @@
         "pageColor": "#1a1a1a",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -1612,7 +1912,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -1638,9 +1944,9 @@
         "pageColor": "#fdfbf7",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -1648,7 +1954,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -1674,9 +1986,9 @@
         "pageColor": "#fdfbf7",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -1684,7 +1996,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -1710,9 +2028,9 @@
         "pageColor": "#fdfbf7",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -1720,7 +2038,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -1746,9 +2070,9 @@
         "pageColor": "#1a1a1a",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -1756,7 +2080,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -1782,9 +2112,9 @@
         "pageColor": "#1a1a1a",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -1792,7 +2122,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -1818,9 +2154,9 @@
         "pageColor": "#fdfbf7",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -1828,7 +2164,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -1854,9 +2196,9 @@
         "pageColor": "#fdfbf7",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -1864,7 +2206,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -1890,9 +2238,9 @@
         "pageColor": "#1a1a1a",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -1900,7 +2248,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -1926,9 +2280,9 @@
         "pageColor": "#1a1a1a",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -1936,7 +2290,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -1962,9 +2322,9 @@
         "pageColor": "#fdfbf7",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -1972,7 +2332,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -1998,9 +2364,9 @@
         "pageColor": "#fdfbf7",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -2008,7 +2374,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -2034,9 +2406,9 @@
         "pageColor": "#1a1a1a",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -2044,7 +2416,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -2070,9 +2448,9 @@
         "pageColor": "#1a1a1a",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -2080,7 +2458,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -2106,9 +2490,9 @@
         "pageColor": "#fdfbf7",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -2116,7 +2500,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -2142,9 +2532,9 @@
         "pageColor": "#fdfbf7",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -2152,7 +2542,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -2178,9 +2574,9 @@
         "pageColor": "#fdfbf7",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -2188,7 +2584,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -2214,9 +2616,9 @@
         "pageColor": "#fdfbf7",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -2224,7 +2626,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -2250,9 +2658,9 @@
         "pageColor": "#fdfbf7",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -2260,7 +2668,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -2286,9 +2700,9 @@
         "pageColor": "#fdfbf7",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -2296,7 +2710,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -2322,9 +2742,9 @@
         "pageColor": "#fdfbf7",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -2332,7 +2752,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -2358,9 +2784,9 @@
         "pageColor": "#fdfbf7",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -2368,7 +2794,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -2394,9 +2826,9 @@
         "pageColor": "#fdfbf7",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -2404,7 +2836,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -2430,9 +2868,9 @@
         "pageColor": "#fdfbf7",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -2440,7 +2878,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -2465,9 +2909,9 @@
       "design": {
         "pageColor": "#fdfbf7",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -2475,7 +2919,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -2500,9 +2950,9 @@
       "design": {
         "pageColor": "#fdfbf7",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -2510,7 +2960,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -2535,9 +2991,9 @@
       "design": {
         "pageColor": "#1a1a1a",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -2545,7 +3001,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -2570,9 +3032,9 @@
       "design": {
         "pageColor": "#fdfbf7",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -2580,7 +3042,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -2605,9 +3073,9 @@
       "design": {
         "pageColor": "#fdfbf7",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -2615,7 +3083,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -2640,9 +3114,9 @@
       "design": {
         "pageColor": "#fdfbf7",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -2650,7 +3124,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -2675,9 +3155,9 @@
       "design": {
         "pageColor": "#fdfbf7",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -2685,7 +3165,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -2711,9 +3197,9 @@
         "pageColor": "#1a1a1a",
         "pageColorMode": "theme",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -2721,7 +3207,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -2746,9 +3238,9 @@
       "design": {
         "pageColor": "#1a1a1a",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -2756,7 +3248,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,
@@ -2821,9 +3319,9 @@
       "design": {
         "pageColor": "#fdfbf7",
         "pageFillImage": "",
-        "borderSetting": "box",
-        "borderStyle": "solid",
-        "borderColor": "#6f5320",
+        "borderSetting": "none",
+        "borderStyle": "none",
+        "borderColor": "transparent",
         "borderWidth": 1,
         "pageShadow": "var(--shadow-page)",
         "accent": "#c9a84c",
@@ -2831,7 +3329,13 @@
         "subtle": "#444444",
         "font": "Crimson Pro",
         "spacing": "1.7",
-        "effect": "none"
+        "effect": "none",
+        "borderSides": {
+          "top": false,
+          "right": false,
+          "bottom": false,
+          "left": false
+        }
       },
       "ipfsHash": null,
       "ipfsGatewayUrl": null,

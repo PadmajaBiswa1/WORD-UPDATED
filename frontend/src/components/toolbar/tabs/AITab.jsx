@@ -5,8 +5,9 @@ import {
 } from 'lucide-react';
 import { Button, Tooltip, Divider } from '@/components/ui';
 import { RibbonGroup } from '../RibbonGroup';
-import { useDocumentStore, useEditorStore, useUIStore } from '@/store';
+import { useDocumentStore, useEditorStore, useUIStore, useSubscriptionStore } from '@/store';
 import { executePragnaAi, openTranslationUrl } from '@/services/ai';
+import { canAccessAi } from '@/utils/featureGate';
 
 function getSelectedText(editor) {
   if (!editor) return '';
@@ -29,6 +30,8 @@ export function AITab() {
   const { editor } = useEditorStore();
   const { toast, openPragna } = useUIStore();
   const setTitle = useDocumentStore((s) => s.setTitle);
+  const { plan, openUpgradeModal } = useSubscriptionStore();
+  const isAiUnlocked = canAccessAi(plan);
 
   const hasEditor = !!editor;
   const buttonStyle = useMemo(() => ({
@@ -63,7 +66,19 @@ export function AITab() {
     boxShadow: '0 0 10px rgba(212,175,55,0.12)',
   }), []);
 
+  const checkAiAccess = () => {
+    if (!isAiUnlocked) {
+      openUpgradeModal(
+        'Pragna AI writing suite (grammar check, rewriting, summarization, research) is exclusively available on EtherX Pro.',
+        'pro'
+      );
+      return false;
+    }
+    return true;
+  };
+
   const openPragnaTab = (tabId) => {
+    if (!checkAiAccess()) return;
     if (!editor) {
       toast('Editor is not ready yet', 'info');
       return;
@@ -72,6 +87,7 @@ export function AITab() {
   };
 
   const quickGrammar = async () => {
+    if (!checkAiAccess()) return;
     if (!editor) return;
     const source = getSelectedText(editor);
     if (!source) {
@@ -91,6 +107,7 @@ export function AITab() {
   };
 
   const quickSummarize = async () => {
+    if (!checkAiAccess()) return;
     if (!editor) return;
     const source = getSelectedText(editor);
     if (!source) {
@@ -111,7 +128,24 @@ export function AITab() {
 
   return (
     <>
-      <RibbonGroup label="Pragna AI">
+      <RibbonGroup label={
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+          Pragna AI
+          {!isAiUnlocked && (
+            <span style={{
+              fontSize: 9,
+              fontWeight: 800,
+              background: 'rgba(201, 168, 76, 0.2)',
+              color: '#c9a84c',
+              padding: '1px 5px',
+              borderRadius: 3,
+              border: '1px solid rgba(201, 168, 76, 0.4)',
+            }}>
+              PRO
+            </span>
+          )}
+        </span>
+      }>
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, maxWidth: 940 }}>
           {/* Flagship Assistant Button */}
           <Tooltip text="Open Pragna AI Assistant Modal">
@@ -175,7 +209,24 @@ export function AITab() {
         </div>
       </RibbonGroup>
 
-      <RibbonGroup label="Web & Research Tools">
+      <RibbonGroup label={
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+          Web & Research Tools
+          {!isAiUnlocked && (
+            <span style={{
+              fontSize: 9,
+              fontWeight: 800,
+              background: 'rgba(201, 168, 76, 0.2)',
+              color: '#c9a84c',
+              padding: '1px 5px',
+              borderRadius: 3,
+              border: '1px solid rgba(201, 168, 76, 0.4)',
+            }}>
+              PRO
+            </span>
+          )}
+        </span>
+      }>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <Tooltip text="Live Web Research across Google News, ArXiv, and Wikipedia">
             <Button disabled={!hasEditor} style={heroButtonStyle} onClick={() => openPragnaTab('research')}>

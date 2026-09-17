@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Zap, Check, Copy, Info, Lock } from 'lucide-react';
-import { useUIStore, useDocumentStore } from '@/store';
-import { useCollaborationStore } from '@/store';
+import { useUIStore, useDocumentStore, useCollaborationStore, useSubscriptionStore } from '@/store';
+import { canAddCollaborator } from '@/utils/featureGate';
 import { Modal, Button, Input, Label, Stack } from '@/components/ui';
 import { documentApi } from '@/services/api';
 import { sendInviteEmail } from '@/services/emailjs';
@@ -53,6 +53,7 @@ export function ShareDialog() {
   const { closeDialog, toast } = useUIStore();
   const { id, title, content, setId, setLastSaved } = useDocumentStore();
   const { collaborators, connected, enableCollaboration } = useCollaborationStore();
+  const { plan, openUpgradeModal } = useSubscriptionStore();
   const activeDocumentId = routeId || id;
   const [copied, setCopied] = useState(false);
   const [email,  setEmail]  = useState('');
@@ -143,6 +144,10 @@ export function ShareDialog() {
   };
 
   const copyLink = async () => {
+    if (plan === 'free') {
+      openUpgradeModal('Single-user editing only on Free tier. Upgrade to Basic for up to 3 collaborators or Pro for unlimited real-time collaboration.', 'basic');
+      return;
+    }
     if (working || copied) return; // Prevent multiple simultaneous clicks
     setWorking(true);
     try {
@@ -167,6 +172,16 @@ export function ShareDialog() {
   };
 
   const inviteUser = async () => {
+    if (plan === 'free') {
+      openUpgradeModal('Single-user editing only on Free tier. Upgrade to Basic for up to 3 collaborators or Pro for unlimited real-time collaboration.', 'basic');
+      return;
+    }
+
+    if (!canAddCollaborator(plan, (invitedCollaborators || []).length)) {
+      openUpgradeModal('Basic plan allows up to 3 collaborators per document. Upgrade to Pro for unlimited real-time collaboration.', 'pro');
+      return;
+    }
+
     const inviteEmail = email.trim().toLowerCase();
     if (!inviteEmail) {
       toast('Please enter an email address', 'warning');
@@ -281,7 +296,79 @@ export function ShareDialog() {
 
   return (
     <Modal title="Share Document" onClose={() => closeDialog('shareDoc')} width={480}>
-      <Stack gap={20}>
+      <Stack gap={16}>
+        {plan === 'free' ? (
+          <div style={{
+            padding: '12px 14px',
+            background: 'rgba(239, 68, 68, 0.12)',
+            border: '1px solid rgba(239, 68, 68, 0.35)',
+            borderRadius: 'var(--radius-md)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+          }}>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#fca5a5', marginBottom: 2, display: 'flex', alignItems: 'center', gap: 5 }}>
+                <Lock size={13} /> Free Plan: Single-User Editing
+              </div>
+              <div style={{ fontSize: 11, color: '#f87171' }}>
+                Real-time collaboration is locked on Free. Upgrade to Basic for up to 3 collaborators or Pro for unlimited.
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => openUpgradeModal('Upgrade to collaborate with others in real time.', 'basic')}
+              style={{
+                padding: '6px 12px',
+                background: '#c9a84c',
+                color: '#000',
+                fontWeight: 700,
+                fontSize: 11,
+                border: 'none',
+                borderRadius: 4,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Upgrade
+            </button>
+          </div>
+        ) : plan === 'basic' ? (
+          <div style={{
+            padding: '10px 14px',
+            background: 'rgba(79, 195, 247, 0.1)',
+            border: '1px solid rgba(79, 195, 247, 0.3)',
+            borderRadius: 'var(--radius-md)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            fontSize: 11,
+          }}>
+            <span style={{ color: '#4fc3f7', fontWeight: 600 }}>
+              Basic Plan: {invitedCollaborators.length} of 3 collaborators used
+            </span>
+            {invitedCollaborators.length >= 3 && (
+              <button
+                type="button"
+                onClick={() => openUpgradeModal('Upgrade to Pro for unlimited real-time collaborators.', 'pro')}
+                style={{
+                  padding: '4px 8px',
+                  background: '#c9a84c',
+                  color: '#000',
+                  fontWeight: 700,
+                  fontSize: 10,
+                  border: 'none',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                }}
+              >
+                Upgrade to Pro
+              </button>
+            )}
+          </div>
+        ) : null}
+
         <div style={{ padding:'14px 16px', background:'rgba(201, 168, 76, 0.1)', borderRadius:'var(--radius-md)', border:'1px solid var(--border-gold)' }}>
           <div style={{ fontFamily:'var(--font-ui)', fontSize:12, fontWeight:700, color:'var(--text-gold)', marginBottom: 4, display:'flex', alignItems:'center', gap:5 }}>
             <Zap size={13} fill="currentColor" /> Real-Time Collaboration

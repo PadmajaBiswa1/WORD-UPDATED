@@ -1,9 +1,10 @@
+const path = require('path');
+const fs = require('fs');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 require('dotenv').config();
 
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
-const fs = require('fs');
 
 const connectDB = require('./config/db');
 const authRoutes = require('./routes/auth');
@@ -12,6 +13,8 @@ const templateRoutes = require('./routes/templates');
 const uploadRoutes = require('./routes/upload');
 const aiRoutes = require('./routes/ai');
 const notificationRoutes = require('./routes/notifications');
+const subscriptionRoutes = require('./routes/subscription');
+const adminRoutes = require('./routes/admin');
 
 // Initialize services
 console.log('🔧 Initializing services...');
@@ -74,6 +77,8 @@ app.use('/api/templates', templateRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/subscription', subscriptionRoutes);
+app.use('/api/admin', adminRoutes);
 
 // =====================================================
 // STATIC UPLOADS
@@ -133,7 +138,7 @@ app.use((err, req, res, next) => {
 async function setupFrontend() {
     const distPath = path.resolve(__dirname, '../frontend/dist');
 
-    if (process.env.NODE_ENV !== 'production') {
+    if (Number(PORT) === 3000 && process.env.NODE_ENV !== 'production') {
         try {
             const { createServer: createViteServer } = await import('vite');
             const vite = await createViteServer({
@@ -168,7 +173,7 @@ async function setupFrontend() {
 // SERVER STARTUP
 // =====================================================
 
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 5053;
 
 async function startServer() {
     await setupFrontend();

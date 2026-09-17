@@ -35,6 +35,8 @@ const {
 
 const User = require('../models/User');
 const { extractUserFromRequest } = require('../middleware/auth');
+const { resolveUserPlan } = require('../middleware/subscriptionGate');
+const { getTier } = require('../config/subscriptionTiers');
 
 function requestUser(req) {
   if (req.user && req.user.id && req.isAuthenticated) {
@@ -132,7 +134,30 @@ router.get('/', async (req, res) => {
 // ── POST /api/documents ────────────────────────────────────────
 router.post('/', async (req, res) => {
   try {
-    const document = await createDocument(req.body || {}, requestUser(req));
+    const user = requestUser(req);
+    const plan = await resolveUserPlan(user);
+    const tier = getTier(plan);
+
+    if (Number.isFinite(tier.limits.maxDocuments)) {
+      const allDocs = await listDocuments(user);
+      const ownedDocs = (allDocs || []).filter((d) => {
+        const ownerId = d.owner?.id || d.owner?._id || d.owner?.email;
+        const myId = user.id || user.email;
+        return ownerId === myId;
+      });
+      if (ownedDocs.length >= tier.limits.maxDocuments) {
+        return res.status(403).json({
+          error: 'UPGRADE_REQUIRED',
+          upgradeRequired: true,
+          code: 'DOC_LIMIT_REACHED',
+          currentPlan: plan,
+          requiredTier: 'basic',
+          message: `You have reached the ${tier.limits.maxDocuments}-document limit on the ${tier.name} plan. Upgrade to Basic for unlimited documents.`,
+        });
+      }
+    }
+
+    const document = await createDocument(req.body || {}, user);
     res.status(201).json(document);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -232,6 +257,31 @@ router.post('/:id/access', async (req, res) => {
     const validRoles = ['owner', 'editor', 'commenter', 'viewer'];
     if (role && !validRoles.includes(role)) {
       return res.status(400).json({ message: `Invalid role. Must be one of: ${validRoles.join(', ')}` });
+    }
+
+    const ownerPlan = await resolveUserPlan(document.owner || user);
+    const ownerTier = getTier(ownerPlan);
+
+    if (!ownerTier.features.realTimeCollaboration) {
+      return res.status(403).json({
+        error: 'UPGRADE_REQUIRED',
+        code: 'COLLAB_GATED',
+        currentPlan: ownerPlan,
+        requiredTier: 'basic',
+        message: 'Single-user editing only on Free tier. Upgrade to Basic for up to 3 collaborators or Pro for unlimited.',
+      });
+    }
+
+    const currentShares = Array.isArray(document.sharedWith) ? document.sharedWith : [];
+    const isNewShare = email && !currentShares.some((s) => s.email?.toLowerCase() === email.toLowerCase());
+    if (isNewShare && Number.isFinite(ownerTier.limits.collaboratorsPerDoc) && currentShares.length >= ownerTier.limits.collaboratorsPerDoc) {
+      return res.status(403).json({
+        error: 'UPGRADE_REQUIRED',
+        code: 'COLLAB_LIMIT_REACHED',
+        currentPlan: ownerPlan,
+        requiredTier: 'pro',
+        message: `Basic plan allows up to 3 collaborators per document. Upgrade to Pro for unlimited collaboration.`,
+      });
     }
 
     const shareResult = await shareDocument(req.params.id, { email, id, role });
@@ -590,7 +640,21 @@ router.get('/:id/versions', async (req, res) => {
     }
 
     const versions = await listVersions(req.params.id);
-    res.json({ versions: versions || [] });
+    const plan = await resolveUserPlan(user);
+    const tier = getTier(plan);
+
+    let filteredVersions = versions || [];
+    if (Number.isFinite(tier.limits.versionHistoryHours)) {
+      const cutoff = Date.now() - tier.limits.versionHistoryHours * 3600 * 1000;
+      filteredVersions = filteredVersions.filter((v) => new Date(v.savedAt).getTime() >= cutoff);
+    }
+
+    res.json({
+      versions: filteredVersions,
+      totalSaved: (versions || []).length,
+      retentionHours: tier.limits.versionHistoryHours,
+      retentionDisplay: tier.limits.versionHistoryDisplay,
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -628,6 +692,32 @@ async function handleShareDocument(req, res) {
     const perm = checkPermission(document, user, 'share');
     if (!perm.allowed) {
       return res.status(403).json({ message: 'Share permission denied', reason: perm.reason });
+    }
+
+    const ownerPlan = await resolveUserPlan(document.owner || user);
+    const ownerTier = getTier(ownerPlan);
+
+    if (!ownerTier.features.realTimeCollaboration) {
+      return res.status(403).json({
+        error: 'UPGRADE_REQUIRED',
+        code: 'COLLAB_GATED',
+        currentPlan: ownerPlan,
+        requiredTier: 'basic',
+        message: 'Single-user editing only on Free tier. Upgrade to Basic for up to 3 collaborators or Pro for unlimited.',
+      });
+    }
+
+    const currentShares = Array.isArray(document.sharedWith) ? document.sharedWith : [];
+    const inviteEmail = req.body?.email ? String(req.body.email).trim().toLowerCase() : '';
+    const isNewShare = inviteEmail && !currentShares.some((s) => s.email?.toLowerCase() === inviteEmail);
+    if (isNewShare && Number.isFinite(ownerTier.limits.collaboratorsPerDoc) && currentShares.length >= ownerTier.limits.collaboratorsPerDoc) {
+      return res.status(403).json({
+        error: 'UPGRADE_REQUIRED',
+        code: 'COLLAB_LIMIT_REACHED',
+        currentPlan: ownerPlan,
+        requiredTier: 'pro',
+        message: `Basic plan allows up to 3 collaborators per document. Upgrade to Pro for unlimited collaboration.`,
+      });
     }
 
     const shareResult = await shareDocument(req.params.id, req.body || {});

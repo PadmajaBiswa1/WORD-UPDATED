@@ -16,7 +16,7 @@ import { useCollaboration } from '@/hooks/useCollaboration';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { usePagination }  from '@/hooks/usePagination';
 import { useClipboardListener } from '@/hooks/useClipboardListener';
-import { useUIStore, useDocumentStore, useCollaborationStore } from '@/store';
+import { useUIStore, useDocumentStore, useCollaborationStore, useSubscriptionStore } from '@/store';
 import { documentApi } from '@/services/api';
 
 function getDefaultPageColor() {
@@ -87,13 +87,22 @@ export function EditorPage({ isShared = false }) {
           }
         });
     } else if (!isShared && !documentId) {
+      // If store already contains preloaded template content, preserve it
+      const storeState = useDocumentStore.getState();
+      const hasPreloadedContent = storeState.content && storeState.content !== '<p></p>' && storeState.content !== '';
+      const initialTitle = storeState.title && storeState.title !== 'Untitled Document' ? storeState.title : 'Untitled Document';
+      const initialContent = hasPreloadedContent ? storeState.content : '<p></p>';
+
+      if (!hasPreloadedContent) {
+        reset();
+      }
+
       // Only create new document for authenticated users
-      console.log('📝 Creating new blank document...');
-      reset();
+      console.log('📝 Creating document on backend...', initialTitle);
       documentApi
         .create({
-          title: 'Untitled Document',
-          content: '<p></p>',
+          title: initialTitle,
+          content: initialContent,
           design: { pageColor: getDefaultPageColor(), pageColorMode: 'theme' },
         })
         .then((created) => {

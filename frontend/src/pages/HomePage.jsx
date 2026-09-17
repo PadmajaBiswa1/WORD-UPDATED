@@ -3,15 +3,17 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Home, Sparkles, FilePlus, FolderOpen, Save, SaveAll,
   Printer, Download, Share2, Info, BarChart2, Settings,
-  X, FileText, CheckCheck, RotateCcw, Tag, Globe
+  X, FileText, CheckCheck, RotateCcw, Tag, Globe, Zap, Lock, ShieldCheck
 } from 'lucide-react';
 import mammoth from 'mammoth';
 import { documentApi, exportApi } from '@/services/api';
 import { buildDocxBlob, buildHtmlDocument, exportToDocx, exportToHtml, exportToPdf, exportToMarkdown, exportToEpub } from '@/services/export';
 import { buildAiResult, executePragnaAi, getPlainTextFromHtml, openTranslationUrl } from '@/services/ai';
-import { useUIStore, useDocumentStore } from '@/store';
+import { useUIStore, useDocumentStore, useSubscriptionStore } from '@/store';
+import { canAccessAi, canAccessTemplate, canCreateDocument, canExportFormat } from '@/utils/featureGate';
 import { getStoredUser } from '@/services/api';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { UpgradeModal } from '@/components/dialogs/UpgradeModal';
 
 const LOCAL_FILE_DOCS_KEY = 'etherx_file_docs';
 
@@ -68,6 +70,7 @@ const LoadingIcon = () => (
 
 const MENU_ITEMS = [
   { key: 'home', label: 'Home', icon: Home },
+  { key: 'pricing', label: 'Plans & Pricing', icon: Zap },
   { key: 'ai', label: 'Pragna AI', icon: Sparkles },
   { key: 'new', label: 'New', icon: FilePlus },
   { key: 'open', label: 'Open', icon: FolderOpen },
@@ -83,12 +86,12 @@ const MENU_ITEMS = [
 ];
 
 const START_TEMPLATES = [
-  { key: 'blank', label: 'Blank' },
-  { key: 'business', label: 'Business' },
-  { key: 'letter', label: 'Letter' },
-  { key: 'resume', label: 'Resume' },
-  { key: 'proposal', label: 'Proposal' },
-  { key: 'invoice', label: 'Invoice' },
+  { key: 'blank', label: 'Blank', tier: 'free' },
+  { key: 'business', label: 'Business', tier: 'free' },
+  { key: 'letter', label: 'Letter', tier: 'free' },
+  { key: 'resume', label: 'Resume', tier: 'free' },
+  { key: 'proposal', label: 'Proposal', tier: 'basic' },
+  { key: 'invoice', label: 'Invoice', tier: 'pro' },
 ];
 
 const SAVE_AS_FORMATS = [
@@ -707,6 +710,11 @@ export function HomePage() {
   const currentEditorComments = useDocumentStore((s) => s.comments);
   const currentEditorTrackChanges = useDocumentStore((s) => s.trackChanges);
 
+  const plan = useSubscriptionStore((s) => s.plan);
+  const usage = useSubscriptionStore((s) => s.usage);
+  const openUpgradeModal = useSubscriptionStore((s) => s.openUpgradeModal);
+  const fetchSubscription = useSubscriptionStore((s) => s.fetchSubscription);
+
   const [activeMenu, setActiveMenu] = useState('home');
   const [loading, setLoading] = useState(true);
   const [docs, setDocs] = useState([]);
@@ -730,8 +738,33 @@ export function HomePage() {
   const [aiPageCount, setAiPageCount] = useState(1);
   const [aiRunning, setAiRunning] = useState(false);
 
+  const currentUser = getStoredUser();
+  const isAdminUser = currentUser?.role === 'Owner' || currentUser?.role === 'Admin';
+  const visibleMenuItems = useMemo(() => {
+    if (!isAdminUser) return MENU_ITEMS;
+    const items = [...MENU_ITEMS];
+    const settingsIdx = items.findIndex((i) => i.key === 'settings');
+    const adminEntry = { key: 'admin', label: 'Admin Console', icon: ShieldCheck };
+    if (settingsIdx >= 0) {
+      items.splice(settingsIdx, 0, adminEntry);
+    } else {
+      items.push(adminEntry);
+    }
+    return items;
+  }, [isAdminUser]);
+
   const returnTo = location.state?.returnTo || '/doc/new';
   const fileInputRef = useRef(null);
+
+  const handleBackToEditor = () => {
+    if (selectedDoc?.id && !selectedDoc.localOnly) {
+      navigate(`/doc/${selectedDoc.id}`);
+    } else if (docs[0]?.id && !docs[0].localOnly) {
+      navigate(`/doc/${docs[0].id}`);
+    } else {
+      navigate(returnTo);
+    }
+  };
 
   // Refresh time display every minute
   useEffect(() => {
@@ -785,8 +818,9 @@ export function HomePage() {
       }
     }
     loadDocs();
+    fetchSubscription();
     return () => { alive = false; };
-  }, [currentDocIdFromRoute]);
+  }, [currentDocIdFromRoute, fetchSubscription]);
 
   const selectedDoc = useMemo(() => docs.find((d) => d.id === selectedDocId) || null, [docs, selectedDocId]);
   const saveAsSourceDoc = useMemo(() => {
@@ -902,6 +936,14 @@ export function HomePage() {
   const handleRunAiAction = async () => {
     if (!aiAction) return;
 
+    if (!canAccessAi(plan)) {
+      openUpgradeModal(
+        'Pragna AI writing tools are exclusively available on EtherX Pro. Upgrade to unleash AI grammar, rewriting, and summarization.',
+        'pro'
+      );
+      return;
+    }
+
     if (aiAction === 'content-generator') {
       if (!aiTopic.trim()) { toast('Enter a topic for the content generator', 'info'); return; }
       setAiRunning(true);
@@ -973,6 +1015,12 @@ export function HomePage() {
   };
 
   async function createFromTemplate(key) {
+    const templateCheck = canAccessTemplate(plan, key);
+    if (!templateCheck.allowed) {
+      openUpgradeModal(templateCheck.reason, templateCheck.requiredTier || 'basic');
+      return;
+    }
+
     if (key === 'blank') {
       try {
         // Create blank document on backend
@@ -1062,19 +1110,46 @@ export function HomePage() {
   }
 
   async function runMenuAction(key) {
-    if (key === 'home' || key === 'ai' || key === 'open' || key === 'export' || key === 'share' || key === 'saveAs' || key === 'info' || key === 'statistics' || key === 'settings') {
+    if (key === 'pricing') {
+      openUpgradeModal();
+      return;
+    }
+
+    if (key === 'ai') {
+      if (!canAccessAi(plan)) {
+        openUpgradeModal(
+          'Pragna AI writing tools are exclusively available on EtherX Pro. Upgrade to unleash AI grammar, rewriting, and summarization.',
+          'pro'
+        );
+        return;
+      }
+      setActiveMenu('ai');
+      return;
+    }
+
+    if (key === 'open') {
+      setActiveMenu('open');
+      fileInputRef.current?.click();
+      return;
+    }
+
+    if (key === 'new') {
+      await createFromTemplate('blank');
+      return;
+    }
+
+    if (key === 'admin') {
+      navigate('/admin');
+      return;
+    }
+
+    if (key === 'home' || key === 'export' || key === 'share' || key === 'saveAs' || key === 'info' || key === 'statistics' || key === 'settings') {
       setActiveMenu(key);
       if (key !== 'ai') setAiAction(null);
       if (key === 'saveAs' && saveAsSourceDoc) {
         setSaveAsName(nextCopyName(saveAsSourceDoc.title));
         setSaveAsLocation('cloud');
       }
-      return;
-    }
-
-    if (key === 'new') {
-      await createFromTemplate('blank');
-      setActiveMenu('home');
       return;
     }
 
@@ -1144,7 +1219,8 @@ export function HomePage() {
     }
 
     if (key === 'close') {
-      navigate(returnTo);
+      handleBackToEditor();
+      return;
     }
   }
 
@@ -1152,6 +1228,15 @@ export function HomePage() {
     if (!selectedDoc) return toast('Select a document first', 'info');
     if (exportBusy) return;
     const fmt = (fmtOverride || exportFormat || 'pdf').toLowerCase();
+
+    if (!canExportFormat(plan, fmt)) {
+      openUpgradeModal(
+        `${fmt.toUpperCase()} export is available on ${fmt === 'markdown' || fmt === 'md' || fmt === 'odt' ? 'Basic and Pro plans' : 'the Pro plan'}. Upgrade to unlock advanced export options.`,
+        fmt === 'markdown' || fmt === 'md' || fmt === 'odt' ? 'basic' : 'pro'
+      );
+      return;
+    }
+
     setExportBusy(true);
     const exportLocally = async () => {
       if (fmt === 'markdown' || fmt === 'md') {
@@ -1238,6 +1323,14 @@ export function HomePage() {
 
   async function shareSelectedDoc() {
     if (!selectedDoc) return toast('Select a document first', 'info');
+
+    if (plan === 'free') {
+      openUpgradeModal(
+        'Single-user editing only on the Free plan. Upgrade to Basic (up to 3 collaborators) or Pro (unlimited real-time collaboration) to share documents.',
+        'basic'
+      );
+      return;
+    }
     try {
       const targetDoc = await ensureCloudDocForShare(selectedDoc);
       const response = await documentApi.share(targetDoc.id, { role: 'viewer' });
@@ -1260,6 +1353,12 @@ export function HomePage() {
   }
 
   async function createCloudCopyFrom(doc, titleOverride) {
+    const createCheck = canCreateDocument(plan, docs.length, usage?.storageBytes || 0);
+    if (!createCheck.allowed) {
+      openUpgradeModal(createCheck.reason, createCheck.requiredTier || 'basic');
+      return null;
+    }
+
     const content = doc?.content || '<p></p>';
     const title = cleanBaseName(titleOverride || doc?.title || 'Untitled Document');
     const created = await documentApi.create({
@@ -1407,7 +1506,14 @@ export function HomePage() {
   async function handleUploadOpen(event) {
     const file = event.target.files?.[0];
     if (!file) return;
-    
+
+    const createCheck = canCreateDocument(plan, docs.length, usage?.storageBytes || 0);
+    if (!createCheck.allowed) {
+      openUpgradeModal(createCheck.reason, createCheck.requiredTier || 'basic');
+      event.target.value = '';
+      return;
+    }
+
     const fileName = file.name.replace(/\.[^/.]+$/, '');
     let content = '';
     
@@ -1524,7 +1630,7 @@ export function HomePage() {
         <img src="/assets/etherxwordlogo.png" alt="EtherX Word Logo" style={{ ...styles.fileMenuTitle, maxHeight: '100%', objectFit: 'contain' }} />
 
         <div style={styles.menuList}>
-          {MENU_ITEMS.map((item) => (
+          {visibleMenuItems.map((item) => (
             <button
               key={item.key}
               style={selectedStyle(activeMenu === item.key, item.danger)}
@@ -1537,6 +1643,36 @@ export function HomePage() {
           ))}
         </div>
 
+        <div style={styles.usageWidget}>
+          <div style={styles.usageHeader}>
+            <span style={styles.usagePlanBadge}>{(plan || 'free').toUpperCase()} PLAN</span>
+            {plan !== 'pro' && (
+              <button
+                type="button"
+                style={styles.usageUpgradeBtn}
+                onClick={() => openUpgradeModal('Upgrade for unlimited documents, AI writing, and advanced features', 'pro')}
+              >
+                Upgrade
+              </button>
+            )}
+          </div>
+          <div style={styles.usageLabel}>
+            <span>{plan === 'free' ? `${docs.length} / 5 documents` : `${docs.length} documents`}</span>
+            <span>{plan === 'free' ? '500MB cap' : plan === 'basic' ? '15GB cap' : 'Unlimited'}</span>
+          </div>
+          {plan === 'free' && (
+            <div style={styles.usageBarBg}>
+              <div
+                style={{
+                  ...styles.usageBarFill,
+                  width: `${Math.min(100, (docs.length / 5) * 100)}%`,
+                  backgroundColor: docs.length >= 5 ? '#ef4444' : '#2563eb',
+                }}
+              />
+            </div>
+          )}
+        </div>
+
         <div style={styles.sidebarFooter}>
           <div style={styles.docPill}>
             <div style={styles.docPillTitle}>{selectedDoc?.title || 'Untitled Document'}</div>
@@ -1546,7 +1682,7 @@ export function HomePage() {
             <span style={styles.darkModeIndicator} aria-hidden="true" />
             Dark mode
           </div>
-          <button style={styles.backEditorBtn} onClick={() => navigate(returnTo)}>← Back to Editor</button>
+          <button style={styles.backEditorBtn} onClick={handleBackToEditor}>← Back to Editor</button>
         </div>
       </aside>
 
@@ -1571,7 +1707,7 @@ export function HomePage() {
               gap: 6,
               padding: 0,
             }}
-            onClick={() => navigate(returnTo)}
+            onClick={handleBackToEditor}
           >
             ← Editor
           </button>
@@ -1619,11 +1755,45 @@ export function HomePage() {
             <div>
               <div style={styles.sectionLabel}>TEMPLATE CATEGORIES</div>
               <div style={styles.templateGrid}>
-                {START_TEMPLATES.map((tpl) => (
-                  <button key={tpl.key} style={styles.templateBtn} onClick={() => createFromTemplate(tpl.key)}>
-                    {tpl.label}
-                  </button>
-                ))}
+                {START_TEMPLATES.map((tpl) => {
+                  const isLocked = (tpl.tier === 'basic' && plan === 'free') || (tpl.tier === 'pro' && plan !== 'pro');
+                  return (
+                    <button
+                      key={tpl.key}
+                      style={{
+                        ...styles.templateBtn,
+                        position: 'relative',
+                        opacity: isLocked ? 0.9 : 1,
+                      }}
+                      onClick={() => createFromTemplate(tpl.key)}
+                    >
+                      <span>{tpl.label}</span>
+                      {isLocked && (
+                        <span
+                          style={{
+                            position: 'absolute',
+                            top: 6,
+                            right: 6,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 2,
+                            padding: '2px 5px',
+                            fontSize: 9,
+                            fontWeight: 700,
+                            borderRadius: 3,
+                            background: tpl.tier === 'pro' ? 'linear-gradient(135deg, #f59e0b, #d97706)' : '#2563eb',
+                            color: '#fff',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.4px',
+                          }}
+                        >
+                          <Lock size={9} strokeWidth={2.5} />
+                          {tpl.tier}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </section>
@@ -2022,25 +2192,45 @@ export function HomePage() {
                 </p>
                 <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
                   {[
-                    { key: 'pdf', label: 'PDF' },
-                    { key: 'docx', label: 'Word (.docx)' },
-                    { key: 'html', label: 'HTML' },
-                    { key: 'markdown', label: 'Markdown (.md)' },
-                    { key: 'epub', label: 'EPUB (.epub)' },
-                  ].map((f) => (
-                    <button
-                      key={f.key}
-                      style={{
-                        ...styles.secondaryActionBtn,
-                        background: exportFormat === f.key ? 'var(--bg-hover)' : 'transparent',
-                        borderColor: exportFormat === f.key ? 'var(--border-gold)' : 'var(--border)',
-                        color: exportFormat === f.key ? 'var(--text-gold)' : 'var(--text-secondary)',
-                      }}
-                      onClick={() => setExportFormat(f.key)}
-                    >
-                      {f.label}
-                    </button>
-                  ))}
+                    { key: 'pdf', label: 'PDF', tier: 'free' },
+                    { key: 'docx', label: 'Word (.docx)', tier: 'free' },
+                    { key: 'markdown', label: 'Markdown (.md)', tier: 'basic' },
+                    { key: 'html', label: 'HTML', tier: 'pro' },
+                    { key: 'epub', label: 'EPUB (.epub)', tier: 'pro' },
+                  ].map((f) => {
+                    const locked = !canExportFormat(plan, f.key);
+                    return (
+                      <button
+                        key={f.key}
+                        style={{
+                          ...styles.secondaryActionBtn,
+                          background: exportFormat === f.key ? 'var(--bg-hover)' : 'transparent',
+                          borderColor: exportFormat === f.key ? 'var(--border-gold)' : 'var(--border)',
+                          color: exportFormat === f.key ? 'var(--text-gold)' : 'var(--text-secondary)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                        }}
+                        onClick={() => {
+                          if (locked) {
+                            openUpgradeModal(
+                              `${f.label} export requires ${f.tier === 'pro' ? 'an EtherX Pro' : 'a Basic or Pro'} subscription.`,
+                              f.tier
+                            );
+                            return;
+                          }
+                          setExportFormat(f.key);
+                        }}
+                      >
+                        <span>{f.label}</span>
+                        {locked && (
+                          <span style={{ fontSize: 9, padding: '1px 4px', borderRadius: 3, background: f.tier === 'pro' ? '#f59e0b' : '#2563eb', color: '#fff', fontWeight: 700 }}>
+                            {f.tier.toUpperCase()}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
                 <button
                   style={{ ...styles.primaryActionBtn, ...(exportBusy ? { opacity: 0.6, cursor: 'not-allowed' } : {}) }}
@@ -2083,6 +2273,7 @@ export function HomePage() {
         )}
       </main>
     </div>
+    <UpgradeModal />
     </>
   );
 }
@@ -2128,7 +2319,11 @@ const styles = {
     padding: '10px 8px',
   },
   menuBtn: {
-    border: '1px solid transparent',
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: 'transparent',
+    width: '100%',
+    boxSizing: 'border-box',
     background: 'transparent',
     color: 'var(--text-secondary)',
     padding: '10px 10px',
@@ -2157,6 +2352,61 @@ const styles = {
     justifyContent: 'center',
     flexShrink: 0,
     opacity: 0.92,
+  },
+  usageWidget: {
+    margin: '10px 8px 6px',
+    padding: '10px',
+    borderRadius: 8,
+    border: '1px solid var(--border)',
+    background: 'rgba(255, 255, 255, 0.03)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 6,
+    flexShrink: 0,
+  },
+  usageHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  usagePlanBadge: {
+    fontSize: 10,
+    fontWeight: 700,
+    letterSpacing: '0.6px',
+    padding: '2px 6px',
+    borderRadius: 4,
+    background: 'var(--bg-elevated)',
+    color: 'var(--text-gold)',
+    border: '1px solid var(--border-gold)',
+  },
+  usageUpgradeBtn: {
+    background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+    border: 'none',
+    borderRadius: 4,
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: 600,
+    padding: '3px 8px',
+    cursor: 'pointer',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+  },
+  usageLabel: {
+    fontSize: 11,
+    color: 'var(--text-muted)',
+    display: 'flex',
+    justifyContent: 'space-between',
+  },
+  usageBarBg: {
+    width: '100%',
+    height: 5,
+    borderRadius: 3,
+    background: 'rgba(255, 255, 255, 0.1)',
+    overflow: 'hidden',
+  },
+  usageBarFill: {
+    height: '100%',
+    borderRadius: 3,
+    transition: 'width 0.3s ease',
   },
   sidebarFooter: {
     flexShrink: 0,
@@ -2613,7 +2863,9 @@ const styles = {
     fontSize: 18,
   },
   saveAsItem: {
-    border: '1px solid transparent',
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: 'transparent',
     borderRadius: 6,
     background: 'transparent',
     color: 'var(--text-primary)',
@@ -2777,7 +3029,9 @@ const styles = {
     gap: 10,
     padding: '10px 10px',
     marginBottom: 6,
-    border: '1px solid transparent',
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: 'transparent',
     borderRadius: 6,
     background: 'transparent',
     color: 'var(--text-primary)',

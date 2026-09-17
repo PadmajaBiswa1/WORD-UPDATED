@@ -2,9 +2,10 @@ const express = require('express');
 const router = express.Router();
 const ollamaService = require('../utils/ollamaService');
 const webToolsService = require('../utils/webToolsService');
+const { requireFeature } = require('../middleware/subscriptionGate');
 
 // Execute Pragna AI action (generate, summarize, grammar, rewrite, title, translate, prompt)
-router.post('/action', async (req, res) => {
+router.post('/action', requireFeature('aiWritingTools'), async (req, res) => {
   const startTime = Date.now();
   try {
     const {
@@ -58,7 +59,7 @@ router.post('/action', async (req, res) => {
 });
 
 // Interactive chat/assistant with Pragna (with optional Web Grounding)
-router.post('/chat', async (req, res) => {
+router.post('/chat', requireFeature('aiWritingTools'), async (req, res) => {
   const startTime = Date.now();
   try {
     const {
