@@ -131,7 +131,7 @@ const MULTILEVEL_FORMATS = [
 ];
 
 const TEXT_COLORS = [
-  '#000000', '#333333', '#666666', '#999999', '#ffffff', '#ff4d4f',
+  '#F5F1E8', '#ffffff', '#d4af37', '#999999', '#666666', '#333333', '#000000', '#ff4d4f',
   '#fa8c16', '#fadb14', '#52c41a', '#13c2c2', '#1677ff', '#722ed1',
   '#ff7a45', '#ff85c0', '#f759ab', '#c41d7f', '#ad6800', '#5cdbd3',
   '#0050b3', '#1890ff', '#b37feb', '#531dab',
@@ -164,7 +164,7 @@ export function HomeTab() {
   const [stylesDropdownPos, setStylesDropdownPos] = useState({ top: 0, left: 0 });
   const stylesStripRef = useRef(null);
 
-  const activeTextColor = editor?.getAttributes('textStyle')?.color || '#d4af37';
+  const activeTextColor = editor?.getAttributes('textStyle')?.color || '#F5F1E8';
   const activeHighlight = editor?.getAttributes('highlight')?.color || '#ffe08a';
 
   const handlePragnaClick = () => {

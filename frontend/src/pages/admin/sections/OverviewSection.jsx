@@ -39,7 +39,7 @@ export function OverviewSection({ onNavigateTab }) {
   if (error) {
     return (
       <div style={styles.errorCard}>
-        <AlertTriangle size={20} color="#ef4444" />
+        <AlertTriangle size={20} color="#d4af37" />
         <span>Failed to load overview: {error}</span>
         <button style={styles.retryBtn} onClick={fetchOverview}>Retry</button>
       </div>
@@ -77,13 +77,13 @@ export function OverviewSection({ onNavigateTab }) {
         <div style={styles.kpiCard}>
           <div style={styles.kpiTop}>
             <span style={styles.kpiLabel}>ORGANIZATION MEMBERS</span>
-            <div style={{ ...styles.kpiIconWrap, background: 'rgba(59,130,246,0.15)', color: '#3b82f6' }}>
+            <div style={{ ...styles.kpiIconWrap, background: 'rgba(212,175,55,0.15)', color: '#d4af37' }}>
               <Users size={18} />
             </div>
           </div>
           <div style={styles.kpiValue}>{kpis?.totalMembers || 0}</div>
           <div style={styles.kpiSub}>
-            <span style={{ color: '#10b981', fontWeight: 600 }}>{kpis?.activeMembers} Active</span> • {kpis?.deactivatedMembers} Deactivated
+            <span style={{ color: '#d4af37', fontWeight: 600 }}>{kpis?.activeMembers} Active</span> • {kpis?.deactivatedMembers} Deactivated
           </div>
         </div>
 
@@ -91,13 +91,13 @@ export function OverviewSection({ onNavigateTab }) {
         <div style={styles.kpiCard}>
           <div style={styles.kpiTop}>
             <span style={styles.kpiLabel}>ACTIVE USERS (DAU / MAU)</span>
-            <div style={{ ...styles.kpiIconWrap, background: 'rgba(16,185,129,0.15)', color: '#10b981' }}>
+            <div style={{ ...styles.kpiIconWrap, background: 'rgba(212,175,55,0.15)', color: '#d4af37' }}>
               <CheckCircle2 size={18} />
             </div>
           </div>
           <div style={styles.kpiValue}>{kpis?.dau || 0} <span style={{ fontSize: 16, color: '#8e9aa8', fontWeight: 400 }}>/ {kpis?.mau || 0}</span></div>
           <div style={styles.kpiSub}>
-            <span style={{ color: '#10b981' }}>{Math.round(((kpis?.dau || 1) / (kpis?.totalMembers || 1)) * 100)}% engagement rate</span>
+            <span style={{ color: '#d4af37' }}>{Math.round(((kpis?.dau || 1) / (kpis?.totalMembers || 1)) * 100)}% engagement rate</span>
           </div>
         </div>
 
@@ -119,7 +119,7 @@ export function OverviewSection({ onNavigateTab }) {
         <div style={styles.kpiCard}>
           <div style={styles.kpiTop}>
             <span style={styles.kpiLabel}>PRAGNA AI CREDITS</span>
-            <div style={{ ...styles.kpiIconWrap, background: 'rgba(168,85,247,0.15)', color: '#a855f7' }}>
+            <div style={{ ...styles.kpiIconWrap, background: 'rgba(212,175,55,0.15)', color: '#d4af37' }}>
               <Sparkles size={18} />
             </div>
           </div>
@@ -245,16 +245,17 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: 12,
-    background: 'rgba(239,68,68,0.1)',
-    border: '1px solid rgba(239,68,68,0.3)',
-    color: '#ef4444',
+    background: 'rgba(212,175,55,0.1)',
+    border: '1px solid rgba(212,175,55,0.3)',
+    color: '#d4af37',
     padding: 16,
     borderRadius: 8,
   },
   retryBtn: {
     marginLeft: 'auto',
-    background: '#ef4444',
-    color: '#fff',
+    background: 'linear-gradient(135deg, #d4af37 0%, #aa8528 100%)',
+    color: '#0b0d11',
+    fontWeight: 600,
     border: 'none',
     borderRadius: 4,
     padding: '6px 12px',
@@ -383,7 +384,7 @@ const styles = {
   },
   progressBar: {
     height: '100%',
-    background: 'linear-gradient(90deg, #a855f7 0%, #ec4899 100%)',
+    background: 'linear-gradient(90deg, #d4af37 0%, #c9a84c 100%)',
     borderRadius: 4,
   },
   splitGrid: {
@@ -489,9 +490,9 @@ const styles = {
     fontSize: 10,
     fontWeight: 700,
     letterSpacing: '0.05em',
-    color: '#10b981',
-    background: 'rgba(16,185,129,0.12)',
-    border: '1px solid rgba(16,185,129,0.3)',
+    color: '#d4af37',
+    background: 'rgba(212,175,55,0.12)',
+    border: '1px solid rgba(212,175,55,0.3)',
     padding: '3px 8px',
     borderRadius: 4,
   },
@@ -499,9 +500,9 @@ const styles = {
     fontSize: 10,
     fontWeight: 700,
     letterSpacing: '0.05em',
-    color: '#9ca3af',
-    background: 'rgba(156,163,175,0.12)',
-    border: '1px solid rgba(156,163,175,0.2)',
+    color: '#d4af37',
+    background: 'rgba(212,175,55,0.06)',
+    border: '1px solid rgba(212,175,55,0.18)',
     padding: '3px 8px',
     borderRadius: 4,
   },
@@ -509,9 +510,9 @@ const styles = {
     fontSize: 10,
     fontWeight: 700,
     letterSpacing: '0.05em',
-    color: '#ef4444',
-    background: 'rgba(239,68,68,0.12)',
-    border: '1px solid rgba(239,68,68,0.3)',
+    color: '#d4af37',
+    background: 'rgba(212,175,55,0.12)',
+    border: '1px solid rgba(212,175,55,0.3)',
     padding: '3px 8px',
     borderRadius: 4,
   },

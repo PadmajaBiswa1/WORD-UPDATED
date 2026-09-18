@@ -112,8 +112,8 @@ export function UsageAnalyticsSection() {
             datasets: [{
               label: 'AI Credits Consumed',
               data: data.metrics?.aiCredits || [],
-              borderColor: '#a855f7',
-              backgroundColor: 'rgba(168, 85, 247, 0.15)',
+              borderColor: '#d4af37',
+              backgroundColor: 'rgba(212, 175, 55, 0.15)',
               borderWidth: 2,
               fill: true,
               tension: 0.35,
@@ -134,8 +134,8 @@ export function UsageAnalyticsSection() {
             datasets: [{
               label: 'Total Storage (GB)',
               data: data.metrics?.storageGrowth || [],
-              borderColor: '#3b82f6',
-              backgroundColor: 'rgba(59, 130, 246, 0.12)',
+              borderColor: '#d4af37',
+              backgroundColor: 'rgba(212, 175, 55, 0.12)',
               borderWidth: 2,
               fill: true,
               tension: 0.25,
@@ -267,10 +267,10 @@ export function UsageAnalyticsSection() {
         <div style={styles.chartCard}>
           <div style={styles.chartHeader}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Sparkles size={17} color="#a855f7" />
+              <Sparkles size={17} color="#d4af37" />
               <h3 style={styles.chartTitle}>Pragna AI Credits Consumed</h3>
             </div>
-            <span style={{ ...styles.chartMetricTag, color: '#a855f7', background: 'rgba(168,85,247,0.1)' }}>
+            <span style={{ ...styles.chartMetricTag, color: '#d4af37', background: 'rgba(212,175,55,0.1)' }}>
               Monthly Pool: 50,000
             </span>
           </div>
@@ -286,10 +286,10 @@ export function UsageAnalyticsSection() {
         <div style={styles.chartCard}>
           <div style={styles.chartHeader}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <HardDrive size={17} color="#3b82f6" />
+              <HardDrive size={17} color="#d4af37" />
               <h3 style={styles.chartTitle}>Cloud Storage Growth (GB)</h3>
             </div>
-            <span style={{ ...styles.chartMetricTag, color: '#3b82f6', background: 'rgba(59,130,246,0.1)' }}>
+            <span style={{ ...styles.chartMetricTag, color: '#d4af37', background: 'rgba(212,175,55,0.1)' }}>
               Pro Unlimited
             </span>
           </div>
@@ -330,7 +330,7 @@ export function UsageAnalyticsSection() {
                   <div style={{ fontSize: 13, fontWeight: 600, color: '#f9fafb' }}>{u.name}</div>
                   <div style={{ fontSize: 11, color: '#9ca3af' }}>{u.department}</div>
                 </div>
-                <strong style={{ color: '#a855f7', fontSize: 13 }}>{u.aiCreditsUsed} credits</strong>
+                <strong style={{ color: '#d4af37', fontSize: 13 }}>{u.aiCreditsUsed} credits</strong>
               </div>
             ))}
           </div>
@@ -343,7 +343,7 @@ export function UsageAnalyticsSection() {
           <div>
             <h3 style={{ margin: 0, fontSize: 16, color: '#f9fafb', fontWeight: 600 }}>Active Users Tracking</h3>
             <p style={{ margin: '4px 0 0', fontSize: 12, color: '#9ca3af' }}>
-              Daily Active Users: <strong style={{ color: '#10b981' }}>{data?.activeUsers?.dau}</strong> • Total Active Accounts: <strong style={{ color: '#f9fafb' }}>{data?.activeUsers?.mau}</strong>
+              Daily Active Users: <strong style={{ color: '#d4af37' }}>{data?.activeUsers?.dau}</strong> • Total Active Accounts: <strong style={{ color: '#f9fafb' }}>{data?.activeUsers?.mau}</strong>
             </p>
           </div>
 
@@ -634,16 +634,18 @@ const styles = {
   badgeActive: {
     fontSize: 10,
     fontWeight: 700,
-    color: '#10b981',
-    background: 'rgba(16,185,129,0.1)',
+    color: '#d4af37',
+    background: 'rgba(212,175,55,0.12)',
+    border: '1px solid rgba(212,175,55,0.25)',
     padding: '2px 8px',
     borderRadius: 4,
   },
   badgeInactive: {
     fontSize: 10,
     fontWeight: 700,
-    color: '#ef4444',
-    background: 'rgba(239,68,68,0.1)',
+    color: '#d4af37',
+    background: 'rgba(212,175,55,0.06)',
+    border: '1px solid rgba(212,175,55,0.18)',
     padding: '2px 8px',
     borderRadius: 4,
   },

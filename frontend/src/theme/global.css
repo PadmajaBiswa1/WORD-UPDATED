@@ -9,9 +9,10 @@
   --bg-app: #0a0a0a;
   --bg-surface: #0a0a0a;
   --bg-elevated: #111111;
-  --text-primary: #f0e6c8;
+  --text-primary: #F5F1E8;
   --text-secondary: #d4b86a;
   --text-muted: #9a8a6a;
+  --text-doc: #F5F1E8;
   --border: #3d3000;
   --gold: #c9a84c;
   --font-ui: 'Segoe UI', system-ui, sans-serif;
@@ -462,7 +463,7 @@ body {
   font-family: var(--design-font, 'Crimson Pro', Georgia, serif);
   font-size: 12pt;
   line-height: var(--design-spacing, 1.6);
-  color: var(--text-doc);
+  color: var(--text-doc, #F5F1E8);
   min-height: 100%;
   outline: none;
   caret-color: var(--gold);
@@ -478,7 +479,7 @@ body {
 .ProseMirror p,
 .ProseMirror li,
 .ProseMirror blockquote {
-  color: var(--design-subtle, var(--text-secondary));
+  color: var(--design-subtle, var(--text-doc, #F5F1E8));
 }
 
 .ProseMirror h1,

@@ -319,7 +319,7 @@ export function Select({ value, onChange, options = [], width = 120, title, sear
               left: menuStyle.left,
               width: menuStyle.width,
               maxHeight: menuStyle.maxHeight,
-              zIndex: 4000,
+              zIndex: 9999,
               background: styles.background,
               border: styles.border,
               borderRadius: 6,

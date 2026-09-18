@@ -56,7 +56,7 @@ async function renderContentToThumbnail(htmlContent, pageWidth, pageHeight, padd
   }
 
   const bgColor = theme.bgColor || '#1a1a1a';
-  const textColor = theme.textColor || '#e8e0d0';
+  const textColor = theme.textColor || '#F5F1E8';
   const fontFamily = theme.fontFamily || "'Crimson Pro', Georgia, serif";
   const headingColor = theme.headingColor || '#d4af37';
 

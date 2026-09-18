@@ -112,9 +112,9 @@ export function SubscriptionSection() {
       {/* Grace Period Alert Banner */}
       {isGracePeriod && (
         <div style={styles.graceAlert}>
-          <AlertTriangle size={22} color="#f59e0b" style={{ flexShrink: 0 }} />
+          <AlertTriangle size={22} color="#d4af37" style={{ flexShrink: 0 }} />
           <div style={{ flex: 1 }}>
-            <h4 style={{ margin: '0 0 4px', fontSize: 14, fontWeight: 700, color: '#f59e0b' }}>
+            <h4 style={{ margin: '0 0 4px', fontSize: 14, fontWeight: 700, color: '#d4af37' }}>
               Subscription Grace Period Active — Action Required
             </h4>
             <p style={{ margin: 0, fontSize: 12, color: '#d1d5db', lineHeight: 1.4 }}>
@@ -174,7 +174,7 @@ export function SubscriptionSection() {
               <span style={styles.planPill}>TEAM CAPACITY</span>
               <h3 style={styles.seatsTitle}>Member Seat Allocation</h3>
             </div>
-            <div style={{ ...styles.planBadge, background: 'rgba(59,130,246,0.12)', color: '#3b82f6', borderColor: 'rgba(59,130,246,0.3)' }}>
+            <div style={{ ...styles.planBadge, background: 'rgba(212,175,55,0.12)', color: '#d4af37', borderColor: 'rgba(212,175,55,0.3)' }}>
               {seatsUsed} / {seatsTotal} SEATS
             </div>
           </div>
@@ -196,7 +196,7 @@ export function SubscriptionSection() {
               <span style={styles.statLabel}>Total Purchased</span>
             </div>
             <div style={styles.statBox}>
-              <span style={{ ...styles.statNum, color: '#10b981' }}>{seatsUsed}</span>
+              <span style={{ ...styles.statNum, color: '#d4af37' }}>{seatsUsed}</span>
               <span style={styles.statLabel}>Active Members</span>
             </div>
             <div style={styles.statBox}>
@@ -216,8 +216,8 @@ export function SubscriptionSection() {
                 <button
                   style={{
                     ...styles.simulateBtn,
-                    borderColor: isGracePeriod ? '#10b981' : 'rgba(245,158,11,0.3)',
-                    color: isGracePeriod ? '#10b981' : '#f59e0b',
+                    borderColor: 'rgba(212,175,55,0.35)',
+                    color: '#d4af37',
                   }}
                   onClick={handleToggleGracePeriod}
                   disabled={busy}
@@ -357,17 +357,17 @@ const styles = {
   },
   errorWrap: {
     padding: 20,
-    background: 'rgba(239,68,68,0.1)',
-    color: '#ef4444',
+    background: 'rgba(212,175,55,0.1)',
+    color: '#d4af37',
     borderRadius: 8,
   },
   toast: {
     display: 'flex',
     alignItems: 'center',
     gap: 10,
-    background: 'rgba(16,185,129,0.12)',
-    border: '1px solid rgba(16,185,129,0.3)',
-    color: '#10b981',
+    background: 'rgba(212,175,55,0.12)',
+    border: '1px solid rgba(212,175,55,0.3)',
+    color: '#d4af37',
     padding: '12px 16px',
     borderRadius: 8,
     fontSize: 13,
@@ -377,13 +377,13 @@ const styles = {
     alignItems: 'center',
     gap: 16,
     padding: '16px 20px',
-    background: 'rgba(245,158,11,0.12)',
-    border: '1px solid rgba(245,158,11,0.35)',
+    background: 'rgba(212,175,55,0.12)',
+    border: '1px solid rgba(212,175,55,0.35)',
     borderRadius: 10,
   },
   graceResolveBtn: {
-    background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-    color: '#000',
+    background: 'linear-gradient(135deg, #d4af37 0%, #aa8528 100%)',
+    color: '#0b0d11',
     border: 'none',
     fontWeight: 700,
     fontSize: 12,
@@ -515,7 +515,7 @@ const styles = {
   },
   meterFill: {
     height: '100%',
-    background: 'linear-gradient(90deg, #d4af37 0%, #3b82f6 100%)',
+    background: 'linear-gradient(90deg, #d4af37 0%, #aa8528 100%)',
     borderRadius: 4,
   },
   seatStatsGrid: {
@@ -592,9 +592,9 @@ const styles = {
   },
   badgeRazorpay: {
     fontSize: 11,
-    color: '#3b82f6',
-    background: 'rgba(59,130,246,0.1)',
-    border: '1px solid rgba(59,130,246,0.25)',
+    color: '#d4af37',
+    background: 'rgba(212,175,55,0.1)',
+    border: '1px solid rgba(212,175,55,0.25)',
     padding: '3px 9px',
     borderRadius: 4,
     fontWeight: 600,
@@ -628,8 +628,9 @@ const styles = {
   paidBadge: {
     fontSize: 10,
     fontWeight: 700,
-    color: '#10b981',
-    background: 'rgba(16,185,129,0.1)',
+    color: '#d4af37',
+    background: 'rgba(212,175,55,0.12)',
+    border: '1px solid rgba(212,175,55,0.25)',
     padding: '2px 8px',
     borderRadius: 4,
   },

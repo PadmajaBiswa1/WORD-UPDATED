@@ -85,8 +85,8 @@ export function AdminLayout() {
               <span
                 style={{
                   ...styles.roleBadge,
-                  color: user?.role === 'Owner' ? '#d4af37' : '#a855f7',
-                  background: user?.role === 'Owner' ? 'rgba(212,175,55,0.12)' : 'rgba(168,85,247,0.12)',
+                  color: '#d4af37',
+                  background: 'rgba(212,175,55,0.12)',
                 }}
               >
                 {user?.role?.toUpperCase() || 'ADMIN'}

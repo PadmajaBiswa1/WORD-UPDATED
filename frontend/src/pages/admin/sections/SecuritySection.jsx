@@ -158,7 +158,7 @@ export function SecuritySection() {
             <button
               style={{
                 ...styles.switchBtn,
-                background: settings.enforce2FA ? '#10b981' : '#374151',
+                background: settings.enforce2FA ? '#d4af37' : '#374151',
               }}
               onClick={() => handleTogglePolicy('enforce2FA')}
               disabled={busy}
@@ -191,7 +191,7 @@ export function SecuritySection() {
             <button
               style={{
                 ...styles.switchBtn,
-                background: settings.enforceSSO ? '#10b981' : '#374151',
+                background: settings.enforceSSO ? '#d4af37' : '#374151',
               }}
               onClick={() => handleTogglePolicy('enforceSSO')}
               disabled={busy}
@@ -347,7 +347,7 @@ export function SecuritySection() {
                     <td style={styles.td}>
                       <div style={styles.detailsCell}>
                         {log.details?.oldRole && log.details?.newRole ? (
-                          <span style={{ color: '#10b981', fontWeight: 500 }}>
+                          <span style={{ color: '#d4af37', fontWeight: 500 }}>
                             {log.details.oldRole} → {log.details.newRole}
                           </span>
                         ) : log.details?.email ? (
@@ -382,9 +382,9 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: 10,
-    background: 'rgba(16,185,129,0.12)',
-    border: '1px solid rgba(16,185,129,0.3)',
-    color: '#10b981',
+    background: 'rgba(212,175,55,0.12)',
+    border: '1px solid rgba(212,175,55,0.3)',
+    color: '#d4af37',
     padding: '12px 16px',
     borderRadius: 8,
     fontSize: 13,
@@ -441,18 +441,18 @@ const styles = {
   statusBadgeActive: {
     fontSize: 10,
     fontWeight: 700,
-    color: '#10b981',
-    background: 'rgba(16,185,129,0.12)',
-    border: '1px solid rgba(16,185,129,0.3)',
+    color: '#d4af37',
+    background: 'rgba(212,175,55,0.12)',
+    border: '1px solid rgba(212,175,55,0.3)',
     padding: '3px 8px',
     borderRadius: 4,
   },
   statusBadgeInactive: {
     fontSize: 10,
     fontWeight: 700,
-    color: '#9ca3af',
-    background: 'rgba(156,163,175,0.12)',
-    border: '1px solid rgba(156,163,175,0.2)',
+    color: '#d4af37',
+    background: 'rgba(212,175,55,0.06)',
+    border: '1px solid rgba(212,175,55,0.18)',
     padding: '3px 8px',
     borderRadius: 4,
   },
@@ -538,7 +538,7 @@ const styles = {
   removeIpBtn: {
     background: 'transparent',
     border: 'none',
-    color: '#ef4444',
+    color: '#d4af37',
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',

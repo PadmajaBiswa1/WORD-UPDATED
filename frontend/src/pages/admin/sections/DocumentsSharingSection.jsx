@@ -111,13 +111,13 @@ export function DocumentsSharingSection() {
 
         <div style={styles.policyRight}>
           <div style={styles.toggleWrap}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: allowExternalSharing ? '#10b981' : '#ef4444' }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#d4af37' }}>
               {allowExternalSharing ? 'External Sharing Allowed' : 'Strict Internal Only'}
             </span>
             <button
               style={{
                 ...styles.switchBtn,
-                background: allowExternalSharing ? '#10b981' : '#374151',
+                background: allowExternalSharing ? '#d4af37' : '#374151',
               }}
               onClick={handleToggleOrgSharing}
               disabled={policyBusy}
@@ -208,9 +208,9 @@ export function DocumentsSharingSection() {
                       <span
                         style={{
                           ...styles.sharingBadge,
-                          color: isPublic ? '#10b981' : '#3b82f6',
-                          background: isPublic ? 'rgba(16,185,129,0.1)' : 'rgba(59,130,246,0.1)',
-                          borderColor: isPublic ? 'rgba(16,185,129,0.3)' : 'rgba(59,130,246,0.3)',
+                          color: '#d4af37',
+                          background: isPublic ? 'rgba(212,175,55,0.14)' : 'rgba(212,175,55,0.06)',
+                          borderColor: isPublic ? 'rgba(212,175,55,0.35)' : 'rgba(212,175,55,0.18)',
                         }}
                       >
                         {isPublic ? <Globe size={12} /> : <Lock size={12} />}
@@ -228,9 +228,9 @@ export function DocumentsSharingSection() {
                       <button
                         style={{
                           ...styles.actionBtn,
-                          color: isPublic ? '#ef4444' : '#10b981',
-                          borderColor: isPublic ? 'rgba(239,68,68,0.3)' : 'rgba(16,185,129,0.3)',
-                          background: isPublic ? 'rgba(239,68,68,0.06)' : 'rgba(16,185,129,0.06)',
+                          color: '#d4af37',
+                          borderColor: 'rgba(212,175,55,0.3)',
+                          background: 'rgba(212,175,55,0.08)',
                         }}
                         onClick={() => handleToggleDocLink(doc)}
                         disabled={isBusy}
@@ -275,9 +275,9 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: 10,
-    background: 'rgba(16,185,129,0.12)',
-    border: '1px solid rgba(16,185,129,0.3)',
-    color: '#10b981',
+    background: 'rgba(212,175,55,0.12)',
+    border: '1px solid rgba(212,175,55,0.3)',
+    color: '#d4af37',
     padding: '12px 16px',
     borderRadius: 8,
     fontSize: 13,

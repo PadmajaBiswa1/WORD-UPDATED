@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Sparkles } from 'lucide-react';
+import {
+  Sparkles,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignJustify,
+  List,
+  ListOrdered,
+  RemoveFormatting,
+} from 'lucide-react';
 import { Button, ColorSwatch, Divider, Select, Tooltip } from '@/components/ui';
 import { useEditorStore, useUIStore } from '@/store';
 import { FontFormattingControls, useFontFormattingControls } from '../toolbar/fontFormatting.jsx';
@@ -12,12 +21,20 @@ const LINE_SPACING_VALUES = [
   { value: '2', label: '2.0' },
 ];
 
-const TEXT_COLORS = ['#111111', '#7f8c8d', '#c0392b', '#d35400', '#b8860b', '#1f6feb', '#8e44ad', '#16a085'];
-const HIGHLIGHT_COLORS = ['#fff59d', '#ffe08a', '#ffd6a5', '#c8f7c5', '#a8e0ff', '#f4c7f3', '#ffd1dc', '#d9f7be'];
+const TEXT_COLORS = [
+  '#F5F1E8', '#d4af37', '#ffffff', '#999999', '#444444',
+  '#000000', '#ff4d4f', '#fa8c16', '#fadb14', '#52c41a',
+  '#1677ff', '#722ed1', '#eb2f96', '#13c2c2', '#873800',
+];
 
-// Slightly larger, more comfortable touch targets across the whole toolbar.
-const BUTTON_STYLE = { minWidth: 34, height: 34, fontSize: 14, borderRadius: 6 };
-const SWATCH_BUTTON_STYLE = { minWidth: 40, height: 34, fontSize: 14, borderRadius: 6 };
+const HIGHLIGHT_COLORS = [
+  '#fff59d', '#ffe08a', '#ffd6a5', '#c8f7c5', '#a8e0ff',
+  '#f4c7f3', '#ffd1dc', '#d9f7be', '#bbf7d0', '#bfdbfe',
+];
+
+// Compact, comfortable buttons for the floating toolbar
+const BUTTON_STYLE = { minWidth: 28, height: 28, padding: '0 4px', fontSize: 12, borderRadius: 5, flexShrink: 0 };
+const SWATCH_BUTTON_STYLE = { minWidth: 28, height: 28, padding: '0 4px', fontSize: 12, borderRadius: 5, flexShrink: 0 };
 
 function parseStyle(style = '') {
   const out = {};
@@ -60,7 +77,7 @@ function getSelectionBounds(editor) {
       const right = Math.max(fromCoords.right, toCoords.right);
       const top = Math.min(fromCoords.top, toCoords.top);
       const bottom = Math.max(fromCoords.bottom, toCoords.bottom);
-      return { centerX: (left + right) / 2, top, bottom };
+      return { centerX: (left + right) / 2, top, bottom, left, right };
     } catch {
       return null;
     }
@@ -70,7 +87,7 @@ function getSelectionBounds(editor) {
   const right = Math.max(...rects.map((rect) => rect.right));
   const top = Math.min(...rects.map((rect) => rect.top));
   const bottom = Math.max(...rects.map((rect) => rect.bottom));
-  return { centerX: (left + right) / 2, top, bottom };
+  return { centerX: (left + right) / 2, top, bottom, left, right };
 }
 
 function isImageSelection(editor) {
@@ -80,40 +97,279 @@ function isImageSelection(editor) {
   );
 }
 
-// Elements that need REAL native focus to work (typing a font size, typing a
-// font family, etc). Mousedown on these must NOT be prevented, or the
-// browser never focuses/places a caret in them and typing silently does
-// nothing.
 function isFocusableFormField(target) {
-  return Boolean(target?.closest?.('input, select, textarea, [contenteditable="true"]'));
+  return Boolean(target?.closest?.('input, textarea, [contenteditable="true"]'));
 }
 
 export function FloatingFormatToolbar({ editor, scrollContainerRef }) {
-  const { fontFamily, fontSize, toast } = useEditorStore();
+  const { fontFamily, fontSize } = useEditorStore();
+  const dialogs = useUIStore((s) => s.dialogs);
+  const isAnyDialogOpen = Boolean(dialogs && Object.values(dialogs).some(Boolean));
 
   const { applyFontFamily, applyFontSize, snapshotSelection, restoreSelection } = useFontFormattingControls(editor);
 
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
   const [anchor, setAnchor] = useState(null);
-  const [position, setPosition] = useState({ top: 0, left: 0 });
+  const [position, setPosition] = useState({ top: 0, left: 0, hidden: false });
   const [textColorOpen, setTextColorOpen] = useState(false);
   const [highlightColorOpen, setHighlightColorOpen] = useState(false);
+  const [colorPalettePos, setColorPalettePos] = useState({ top: 0, left: 0 });
   const [isImageOperationActive, setIsImageOperationActive] = useState(false);
+
   const toolbarRef = useRef(null);
+  const textColorBtnRef = useRef(null);
+  const highlightColorBtnRef = useRef(null);
   const hideTimerRef = useRef(null);
   const pointerLockRef = useRef(false);
+  const isMouseDownRef = useRef(false);
+  const savedSelectionRef = useRef(null);
 
   const hideToolbar = useCallback(() => {
     clearTimeout(hideTimerRef.current);
     setVisible(false);
+    setTextColorOpen(false);
+    setHighlightColorOpen(false);
     hideTimerRef.current = setTimeout(() => {
       setMounted(false);
       setAnchor(null);
+    }, 160);
+  }, []);
+
+  const restoreSavedSelection = useCallback(() => {
+    if (!editor || !savedSelectionRef.current) return false;
+    const { from, to } = savedSelectionRef.current;
+    const maxPos = editor.state.doc.content.size;
+    if (from <= maxPos && to <= maxPos && from !== to) {
+      editor.chain().focus().setTextSelection({ from, to }).run();
+      return true;
+    }
+    return false;
+  }, [editor]);
+
+  const run = useCallback((callback) => {
+    if (!editor) return;
+    if (editor.state.selection.empty) {
+      restoreSavedSelection();
+    } else {
+      editor.view.focus();
+    }
+    callback();
+    editor.view.focus();
+  }, [editor, restoreSavedSelection]);
+
+  const updateParagraphStyle = useCallback((patch = {}) => {
+    if (!editor) return;
+    const base = editor.getAttributes('paragraph')?.style || '';
+    const css = parseStyle(base);
+    Object.entries(patch).forEach(([key, value]) => {
+      if (value === null || value === undefined || value === '') delete css[key];
+      else css[key] = value;
+    });
+    run(() => editor.chain().updateAttributes('paragraph', { style: toStyle(css) }).run());
+  }, [editor, run]);
+
+  const showToolbar = useCallback(() => {
+    if (!editor || isAnyDialogOpen) return;
+    const nextAnchor = getSelectionBounds(editor);
+    if (!nextAnchor) {
+      hideToolbar();
+      return;
+    }
+    const { selection } = editor.state;
+    if (!selection.empty) {
+      savedSelectionRef.current = { from: selection.from, to: selection.to };
+    }
+    setAnchor(nextAnchor);
+    setMounted(true);
+    requestAnimationFrame(() => setVisible(true));
+  }, [editor, hideToolbar, isAnyDialogOpen]);
+
+  const positionToolbar = useCallback(() => {
+    if (!toolbarRef.current || !anchor) return;
+    const toolbarEl = toolbarRef.current;
+    const rect = toolbarEl.getBoundingClientRect();
+    const width = rect.width || 620;
+    const height = rect.height || 42;
+
+    // Get the visible canvas bounds (the document editing viewport)
+    const scrollEl = scrollContainerRef?.current;
+    const scrollRect = scrollEl?.getBoundingClientRect?.() || {
+      top: 130,
+      bottom: window.innerHeight - 36,
+      left: 12,
+      right: window.innerWidth - 12,
+    };
+
+    // If the selection is completely scrolled outside the visible scroll container, hide
+    if (anchor.bottom < scrollRect.top || anchor.top > scrollRect.bottom) {
+      setPosition((prev) => (prev.hidden ? prev : { ...prev, hidden: true }));
+      return;
+    }
+
+    // Safe boundaries: avoid Ribbon/Ruler (top), Status Bar (bottom), and Sidebars (left/right)
+    const minTop = Math.max(10, scrollRect.top + 8);
+    const maxBottom = Math.min(window.innerHeight - 36, scrollRect.bottom - 8);
+    const minLeft = Math.max(10, scrollRect.left + 8);
+    const maxRight = Math.min(window.innerWidth - 10, scrollRect.right - 8);
+
+    const gap = 10;
+    const aboveTop = anchor.top - height - gap;
+    const belowTop = anchor.bottom + gap;
+
+    // Vertical placement: Prefer above the selection; flip below if colliding with Ribbon/Ruler
+    let top;
+    if (aboveTop >= minTop) {
+      top = aboveTop;
+    } else if (belowTop + height <= maxBottom) {
+      top = belowTop;
+    } else {
+      top = Math.max(minTop, Math.min(maxBottom - height, aboveTop));
+    }
+
+    // Horizontal placement: Center on selection, clamped to container bounds
+    const halfWidth = width / 2;
+    let left;
+    if (width >= (maxRight - minLeft)) {
+      left = (minLeft + maxRight) / 2;
+    } else {
+      left = Math.max(minLeft + halfWidth, Math.min(maxRight - halfWidth, anchor.centerX));
+    }
+
+    setPosition({ top, left, hidden: false });
+  }, [anchor, scrollContainerRef]);
+
+  useLayoutEffect(() => {
+    if (!mounted) return undefined;
+    positionToolbar();
+    const raf = requestAnimationFrame(positionToolbar);
+    return () => cancelAnimationFrame(raf);
+  }, [mounted, positionToolbar, fontFamily, fontSize]);
+
+  const isInsideToolbarOrPopups = useCallback((target) => {
+    if (!target) return false;
+    if (toolbarRef.current?.contains(target)) return true;
+    if (textColorBtnRef.current?.contains(target)) return true;
+    if (highlightColorBtnRef.current?.contains(target)) return true;
+    if (target.closest?.('[data-toolbar-active="true"], [data-format-palette="true"], [data-select-menu="true"], [data-color-trigger="true"]')) return true;
+    return false;
+  }, []);
+
+  // Track mouse interactions and dismiss when clicking anywhere outside (like Microsoft Word)
+  useEffect(() => {
+    const handleMouseDown = (e) => {
+      if (isInsideToolbarOrPopups(e.target)) {
+        if (!e.target.closest?.('[data-format-palette="true"], [data-color-trigger="true"]')) {
+          setTextColorOpen(false);
+          setHighlightColorOpen(false);
+        }
+        return;
+      }
+
+      // Click is outside the floating toolbar and palettes:
+      // Immediately dismiss/hide toolbar, like Microsoft Word
+      hideToolbar();
+      isMouseDownRef.current = true;
+    };
+
+    const handleMouseUp = (e) => {
+      isMouseDownRef.current = false;
+
+      if (isInsideToolbarOrPopups(e.target)) {
+        return;
+      }
+
+      // If mouseup occurred outside the editor canvas, keep toolbar hidden
+      if (!editor || !isSelectionInsideEditor(editor) || !editor.view.dom.contains(e.target)) {
+        hideToolbar();
+        return;
+      }
+
+      // If user dragged to make a non-empty text selection inside editor, show toolbar
+      if (editor.state.selection.empty || isImageSelection(editor) || isAnyDialogOpen) {
+        hideToolbar();
+        return;
+      }
+
+      showToolbar();
+    };
+
+    window.addEventListener('mousedown', handleMouseDown, true);
+    window.addEventListener('mouseup', handleMouseUp, true);
+    return () => {
+      window.removeEventListener('mousedown', handleMouseDown, true);
+      window.removeEventListener('mouseup', handleMouseUp, true);
+    };
+  }, [editor, hideToolbar, isAnyDialogOpen, isInsideToolbarOrPopups, showToolbar]);
+
+  // Sync toolbar with editor selections (keyboard selections, programmatic changes)
+  useEffect(() => {
+    if (!editor) return undefined;
+
+    const syncFromSelection = () => {
+      const active = document.activeElement;
+      if (active?.closest?.('[data-toolbar-active="true"], [data-select-menu="true"], [data-format-palette="true"]')) {
+        return;
+      }
+
+      const { selection } = editor.state;
+      if (!selection.empty) {
+        savedSelectionRef.current = { from: selection.from, to: selection.to };
+      }
+
+      if (isMouseDownRef.current) {
+        return;
+      }
+
+      if (selection.empty || !isSelectionInsideEditor(editor) || isImageSelection(editor) || isAnyDialogOpen) {
+        hideToolbar();
+        return;
+      }
+
+      showToolbar();
+    };
+
+    const handleWindowInteraction = () => {
+      if (!mounted) return;
       setTextColorOpen(false);
       setHighlightColorOpen(false);
-    }, 180);
-  }, []);
+
+      if (editor.state.selection.empty || !isSelectionInsideEditor(editor) || isImageSelection(editor)) {
+        hideToolbar();
+        return;
+      }
+
+      const nextAnchor = getSelectionBounds(editor);
+      if (nextAnchor) {
+        setAnchor(nextAnchor);
+      }
+      positionToolbar();
+    };
+
+    const handleBlur = () => {
+      if (pointerLockRef.current) return;
+      setTimeout(() => {
+        const active = document.activeElement;
+        if (active?.closest?.('[data-toolbar-active="true"], [data-select-menu="true"], [data-format-palette="true"]')) return;
+        hideToolbar();
+      }, 60);
+    };
+
+    syncFromSelection();
+    editor.on('selectionUpdate', syncFromSelection);
+    editor.on('blur', handleBlur);
+    window.addEventListener('resize', handleWindowInteraction);
+
+    const scrollEl = scrollContainerRef?.current;
+    if (scrollEl) scrollEl.addEventListener('scroll', handleWindowInteraction, { passive: true });
+
+    return () => {
+      editor.off('selectionUpdate', syncFromSelection);
+      editor.off('blur', handleBlur);
+      window.removeEventListener('resize', handleWindowInteraction);
+      if (scrollEl) scrollEl.removeEventListener('scroll', handleWindowInteraction);
+    };
+  }, [anchor, editor, hideToolbar, mounted, positionToolbar, scrollContainerRef, showToolbar, isAnyDialogOpen]);
 
   useEffect(() => {
     const handleStart = () => {
@@ -129,135 +385,114 @@ export function FloatingFormatToolbar({ editor, scrollContainerRef }) {
     };
   }, [hideToolbar]);
 
-  const run = useCallback((callback) => {
-    if (!editor) return;
-    editor.view.focus();
-    callback();
-    editor.view.focus();
-  }, [editor]);
-
-  const updateParagraphStyle = useCallback((patch = {}) => {
-    if (!editor) return;
-    const base = editor.getAttributes('paragraph')?.style || '';
-    const css = parseStyle(base);
-    Object.entries(patch).forEach(([key, value]) => {
-      if (value === null || value === undefined || value === '') delete css[key];
-      else css[key] = value;
-    });
-    run(() => editor.chain().updateAttributes('paragraph', { style: toStyle(css) }).run());
-  }, [editor, run]);
-
-  const showToolbar = useCallback(() => {
-    if (!editor) return;
-    const nextAnchor = getSelectionBounds(editor);
-    if (!nextAnchor) {
+  // Hide toolbar when any modal or dialog opens
+  useEffect(() => {
+    if (isAnyDialogOpen && visible) {
       hideToolbar();
-      return;
     }
-    setAnchor(nextAnchor);
-    setMounted(true);
-    requestAnimationFrame(() => setVisible(true));
-  }, [editor, hideToolbar]);
+  }, [isAnyDialogOpen, visible, hideToolbar]);
 
-  const positionToolbar = useCallback(() => {
-    if (!toolbarRef.current || !anchor) return;
-    const rect = toolbarRef.current.getBoundingClientRect();
-    const width = rect.width || 640;
-    const height = rect.height || 96;
-    const padding = 12;
-    const centerX = Math.max(width / 2 + padding, Math.min(window.innerWidth - width / 2 - padding, anchor.centerX));
-    let top = anchor.top - height - 12;
-    if (top < padding) {
-      top = Math.min(window.innerHeight - height - padding, anchor.bottom + 12);
-    }
-    setPosition({ top, left: centerX });
-  }, [anchor]);
-
-  useLayoutEffect(() => {
-    if (!mounted) return undefined;
-    positionToolbar();
-    const raf = requestAnimationFrame(positionToolbar);
-    return () => cancelAnimationFrame(raf);
-  }, [mounted, positionToolbar, fontFamily, fontSize, textColorOpen, highlightColorOpen]);
-
+  // Dismiss on Escape key
   useEffect(() => {
-    if (!editor) return undefined;
-
-    const syncFromSelection = () => {
-      const active = document.activeElement;
-      if (active?.closest?.('[data-toolbar-active="true"], [data-select-menu="true"], [data-format-palette="true"]')) {
-        return;
-      }
-
-      if (editor.state.selection.empty || !isSelectionInsideEditor(editor) || isImageSelection(editor)) {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && visible) {
         hideToolbar();
-        return;
       }
-      showToolbar();
     };
-
-    // On scroll/resize, re-measure the selection bounds (don't use stale anchor)
-    const handleWindowInteraction = () => {
-      if (!mounted || !anchor) return;
-      setTextColorOpen(false);
-      setHighlightColorOpen(false);
-      // Re-measure selection to get updated viewport-relative coords
-      const nextAnchor = getSelectionBounds(editor);
-      if (nextAnchor) {
-        setAnchor(nextAnchor);
-      }
-      positionToolbar();
-    };
-
-    const handleBlur = () => {
-      if (pointerLockRef.current) return;
-      setTimeout(() => {
-        const active = document.activeElement;
-        if (active?.closest?.('[data-toolbar-active="true"], [data-select-menu="true"], [data-format-palette="true"]')) return;
-        hideToolbar();
-      }, 50);
-    };
-
-    syncFromSelection();
-    // Only listen to selectionUpdate — 'update' fires too broadly (any doc change)
-    // and was causing spurious show/hide cycles
-    editor.on('selectionUpdate', syncFromSelection);
-    editor.on('blur', handleBlur);
-    window.addEventListener('resize', handleWindowInteraction);
-
-    const scrollEl = scrollContainerRef?.current;
-    if (scrollEl) scrollEl.addEventListener('scroll', handleWindowInteraction, { passive: true });
-
-    return () => {
-      editor.off('selectionUpdate', syncFromSelection);
-      editor.off('blur', handleBlur);
-      window.removeEventListener('resize', handleWindowInteraction);
-      if (scrollEl) scrollEl.removeEventListener('scroll', handleWindowInteraction);
-    };
-  }, [anchor, editor, hideToolbar, mounted, positionToolbar, scrollContainerRef, showToolbar]);
-
-  useEffect(() => {
-    const onMouseDown = (event) => {
-      if (toolbarRef.current?.contains(event.target)) return;
-      if (event.target.closest?.('[data-format-palette="true"]')) return;
-      setTextColorOpen(false);
-      setHighlightColorOpen(false);
-    };
-
-    document.addEventListener('mousedown', onMouseDown);
-    return () => document.removeEventListener('mousedown', onMouseDown);
-  }, []);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [visible, hideToolbar]);
 
   useEffect(() => () => clearTimeout(hideTimerRef.current), []);
 
-  const applyTextColor = (color) => {
-    run(() => editor.chain().setColor(color).run());
+  const toggleTextColor = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    snapshotSelection();
+
+    if (textColorOpen) {
+      setTextColorOpen(false);
+      return;
+    }
+
+    setHighlightColorOpen(false);
+    const rect = textColorBtnRef.current?.getBoundingClientRect();
+    if (rect) {
+      const popoverHeight = 175;
+      const popoverWidth = 170;
+      const spaceBelow = window.innerHeight - rect.bottom - 12;
+      const openUp = spaceBelow < popoverHeight && rect.top > popoverHeight;
+      const top = openUp ? Math.max(8, rect.top - popoverHeight - 6) : Math.min(window.innerHeight - popoverHeight - 8, rect.bottom + 6);
+      const left = Math.max(10, Math.min(window.innerWidth - popoverWidth - 10, rect.left + rect.width / 2 - popoverWidth / 2));
+      setColorPalettePos({ top, left });
+    }
+    setTextColorOpen(true);
+  };
+
+  const toggleHighlightColor = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    snapshotSelection();
+
+    if (highlightColorOpen) {
+      setHighlightColorOpen(false);
+      return;
+    }
+
     setTextColorOpen(false);
+    const rect = highlightColorBtnRef.current?.getBoundingClientRect();
+    if (rect) {
+      const popoverHeight = 150;
+      const popoverWidth = 160;
+      const spaceBelow = window.innerHeight - rect.bottom - 12;
+      const openUp = spaceBelow < popoverHeight && rect.top > popoverHeight;
+      const top = openUp ? Math.max(8, rect.top - popoverHeight - 6) : Math.min(window.innerHeight - popoverHeight - 8, rect.bottom + 6);
+      const left = Math.max(10, Math.min(window.innerWidth - popoverWidth - 10, rect.left + rect.width / 2 - popoverWidth / 2));
+      setColorPalettePos({ top, left });
+    }
+    setHighlightColorOpen(true);
+  };
+
+  const applyTextColor = (color) => {
+    if (!editor) return;
+    const chain = editor.chain().focus();
+    if (editor.state.selection.empty && savedSelectionRef.current) {
+      const { from, to } = savedSelectionRef.current;
+      const maxPos = editor.state.doc.content.size;
+      if (from <= maxPos && to <= maxPos && from !== to) {
+        chain.setTextSelection({ from, to });
+      }
+    }
+    if (color) {
+      chain.setColor(color).run();
+    } else {
+      chain.unsetColor().run();
+    }
+    setTextColorOpen(false);
+    editor.view.focus();
   };
 
   const applyHighlightColor = (color) => {
-    run(() => editor.chain().toggleHighlight({ color }).run());
+    if (!editor) return;
+    const chain = editor.chain().focus();
+    if (editor.state.selection.empty && savedSelectionRef.current) {
+      const { from, to } = savedSelectionRef.current;
+      const maxPos = editor.state.doc.content.size;
+      if (from <= maxPos && to <= maxPos && from !== to) {
+        chain.setTextSelection({ from, to });
+      }
+    }
+    if (color) {
+      if (editor.isActive('highlight', { color })) {
+        chain.unsetHighlight().run();
+      } else {
+        chain.setHighlight({ color }).run();
+      }
+    } else {
+      chain.unsetHighlight().run();
+    }
     setHighlightColorOpen(false);
+    editor.view.focus();
   };
 
   const clearFormatting = () => {
@@ -272,244 +507,423 @@ export function FloatingFormatToolbar({ editor, scrollContainerRef }) {
     if (restored) {
       updateParagraphStyle({ 'line-height': value });
     }
-
-    // ensure focus after change
     editor.view.focus();
   };
 
   const currentTextColor = editor?.getAttributes('textStyle')?.color || '';
-  const currentHighlight = editor?.getAttributes('highlight')?.color || '';
+  const currentHighlight = editor?.getAttributes('highlight')?.color || (editor?.isActive('highlight') ? '#fff59d' : '');
   const currentAlignment = editor?.getAttributes('paragraph')?.textAlign || 'left';
   const paragraphStyle = editor?.getAttributes('paragraph')?.style || '';
   const currentLineSpacing = parseStyle(paragraphStyle)['line-height'] || '1';
 
-  if (!mounted || !editor || isImageOperationActive) return null;
+  if (!mounted || !editor || isImageOperationActive || isAnyDialogOpen) return null;
 
-  return createPortal(
-    <div
-      ref={toolbarRef}
-      style={{
-        position: 'fixed',
-        top: position.top,
-        left: position.left,
-        transform: `translate(-50%, ${visible ? '0' : '-6px'})`,
-        opacity: visible ? 1 : 0,
-        pointerEvents: 'none',
-        transition: 'opacity 160ms ease, transform 160ms ease',
-        zIndex: 5000,
-        width: 'max-content',
-        maxWidth: 'min(92vw, 1080px)',
-      }}
-    >
-      <div
-        data-toolbar-active="true"
-        onMouseDown={(event) => {
-          // IMPORTANT: only intercept mousedown for plain buttons/dividers.
-          // Font family / font size (and any other real input/select) need
-          // their native mousedown behavior to actually receive focus and a
-          // text caret — preventDefault()'ing those silently breaks typing
-          // into them, which is why font size stopped working.
-          if (isFocusableFormField(event.target)) return;
-          event.preventDefault();
-          pointerLockRef.current = true;
-          window.setTimeout(() => { pointerLockRef.current = false; }, 0);
-        }}
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          gap: 6,
-          padding: '10px 12px',
-          border: '1px solid var(--border-gold)',
-           borderRadius: 10,
-           background: 'rgba(18, 18, 18, 0.96)',
-           color: 'var(--text-primary)',
-           boxShadow: '0 20px 36px rgba(0, 0, 0, 0.38)',
-          backdropFilter: 'blur(10px)',
-          pointerEvents: visible ? 'auto' : 'none',
-          fontSize: 13,
-        }}
-      >
-        <Tooltip text="Edit selected text with Pragna AI (Gemma 31B)">
-          <Button
-            style={{
-              ...BUTTON_STYLE,
-              minWidth: 96,
-              fontWeight: 600,
-              fontSize: 12,
-              padding: '0 10px',
-              gap: 5,
-              background: 'linear-gradient(135deg, #d4af37 0%, #b89628 100%)',
-              color: '#000000',
-              border: '1px solid #d4af37',
-              boxShadow: '0 1px 6px rgba(212, 175, 55, 0.35)',
+  return (
+    <>
+      {createPortal(
+        <div
+          ref={toolbarRef}
+          style={{
+            position: 'fixed',
+            top: position.top,
+            left: position.left,
+            transform: `translate(-50%, ${visible && !position.hidden ? '0' : '-6px'})`,
+            opacity: visible && !position.hidden ? 1 : 0,
+            pointerEvents: visible && !position.hidden ? 'auto' : 'none',
+            transition: 'opacity 140ms ease, transform 140ms ease',
+            zIndex: 3500,
+            width: 'max-content',
+            maxWidth: 'min(96vw, 980px)',
+          }}
+        >
+          <div
+            data-toolbar-active="true"
+            onMouseDown={(event) => {
+              if (isFocusableFormField(event.target)) return;
+              event.preventDefault();
+              pointerLockRef.current = true;
+              window.setTimeout(() => { pointerLockRef.current = false; }, 0);
             }}
-            onClick={() => useUIStore.getState().openPragna('edit')}
+            style={{
+              display: 'flex',
+              flexWrap: 'nowrap',
+              alignItems: 'center',
+              gap: 3,
+              padding: '5px 8px',
+              border: '1px solid rgba(212, 175, 55, 0.45)',
+              borderRadius: 8,
+              background: 'rgba(18, 18, 18, 0.96)',
+              color: 'var(--text-primary)',
+              boxShadow: '0 16px 36px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(212, 175, 55, 0.15)',
+              backdropFilter: 'blur(12px)',
+              pointerEvents: visible && !position.hidden ? 'auto' : 'none',
+              fontSize: 12,
+              maxWidth: 'min(96vw, 980px)',
+              overflowX: 'auto',
+              scrollbarWidth: 'none',
+            }}
           >
-            <span style={{ display: 'inline-flex', alignItems: 'center' }}>
-              <Sparkles size={13} strokeWidth={2} color="#000000" />
-            </span>
-            <span>Pragna Edit</span>
-          </Button>
-        </Tooltip>
+            <Tooltip text="Edit selected text with Pragna AI (Gemma 31B)">
+              <Button
+                style={{
+                  ...BUTTON_STYLE,
+                  minWidth: 92,
+                  height: 28,
+                  fontWeight: 600,
+                  fontSize: 12,
+                  padding: '0 8px',
+                  gap: 5,
+                  background: 'linear-gradient(135deg, #d4af37 0%, #b89628 100%)',
+                  color: '#000000',
+                  border: '1px solid #d4af37',
+                  boxShadow: '0 1px 6px rgba(212, 175, 55, 0.35)',
+                  flexShrink: 0,
+                }}
+                onClick={() => useUIStore.getState().openPragna('edit')}
+              >
+                <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                  <Sparkles size={13} strokeWidth={2} color="#000000" />
+                </span>
+                <span>Pragna Edit</span>
+              </Button>
+            </Tooltip>
 
-        <Divider vertical />
+            <Divider vertical style={{ height: 18, margin: '0 2px' }} />
 
-        <FontFormattingControls
-          editor={editor}
-          fontFamily={fontFamily}
-          fontSize={fontSize}
-          familyWidth={160}
-          sizeWidth={72}
-          applyFontFamily={applyFontFamily}
-          applyFontSize={applyFontSize}
-          onFocus={snapshotSelection}
-        />
+            <FontFormattingControls
+              editor={editor}
+              fontFamily={fontFamily}
+              fontSize={fontSize}
+              familyWidth={126}
+              sizeWidth={56}
+              applyFontFamily={applyFontFamily}
+              applyFontSize={applyFontSize}
+              onFocus={snapshotSelection}
+            />
 
-        <Divider vertical />
+            <Divider vertical style={{ height: 18, margin: '0 2px' }} />
 
-        <Tooltip text="Bold" shortcut="Ctrl+B">
-          <Button style={BUTTON_STYLE} active={editor.isActive('bold')} onClick={() => run(() => editor.chain().toggleBold().run())}>B</Button>
-        </Tooltip>
-        <Tooltip text="Italic" shortcut="Ctrl+I">
-          <Button style={BUTTON_STYLE} active={editor.isActive('italic')} onClick={() => run(() => editor.chain().toggleItalic().run())}>I</Button>
-        </Tooltip>
-        <Tooltip text="Underline" shortcut="Ctrl+U">
-          <Button style={BUTTON_STYLE} active={editor.isActive('underline')} onClick={() => run(() => editor.chain().toggleUnderline().run())}>U</Button>
-        </Tooltip>
-        <Tooltip text="Strikethrough">
-          <Button style={BUTTON_STYLE} active={editor.isActive('strike')} onClick={() => run(() => editor.chain().toggleStrike().run())}>S</Button>
-        </Tooltip>
+            <Tooltip text="Bold" shortcut="Ctrl+B">
+              <Button style={BUTTON_STYLE} active={editor.isActive('bold')} onClick={() => run(() => editor.chain().toggleBold().run())}>
+                <span style={{ fontWeight: 700 }}>B</span>
+              </Button>
+            </Tooltip>
+            <Tooltip text="Italic" shortcut="Ctrl+I">
+              <Button style={BUTTON_STYLE} active={editor.isActive('italic')} onClick={() => run(() => editor.chain().toggleItalic().run())}>
+                <span style={{ fontStyle: 'italic', fontFamily: 'serif' }}>I</span>
+              </Button>
+            </Tooltip>
+            <Tooltip text="Underline" shortcut="Ctrl+U">
+              <Button style={BUTTON_STYLE} active={editor.isActive('underline')} onClick={() => run(() => editor.chain().toggleUnderline().run())}>
+                <span style={{ textDecoration: 'underline' }}>U</span>
+              </Button>
+            </Tooltip>
+            <Tooltip text="Strikethrough">
+              <Button style={BUTTON_STYLE} active={editor.isActive('strike')} onClick={() => run(() => editor.chain().toggleStrike().run())}>
+                <span style={{ textDecoration: 'line-through' }}>S</span>
+              </Button>
+            </Tooltip>
 
-        <Divider vertical />
+            <Divider vertical style={{ height: 18, margin: '0 2px' }} />
 
-        <div style={{ position: 'relative' }}>
-          <Tooltip text="Text Color">
-            <Button
-              style={SWATCH_BUTTON_STYLE}
-              active={textColorOpen}
-              onClick={() => {
-                setHighlightColorOpen(false);
-                setTextColorOpen((value) => !value);
-              }}
-            >
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                <span style={{ width: 12, height: 12, borderRadius: 999, background: currentTextColor || '#111111', border: '1px solid var(--border)' }} />
-                A
-              </span>
-            </Button>
-          </Tooltip>
-          {textColorOpen && (
-            <div
-              data-format-palette="true"
-              style={{
-                position: 'absolute',
-                ...(position.top > window.innerHeight - 160 ? { bottom: 'calc(100% + 8px)' } : { top: 'calc(100% + 8px)' }),
-                left: '50%',
-                transform: 'translateX(-50%)',
-                zIndex: 10000,
-                padding: 10,
-                borderRadius: 8,
-                border: '1px solid var(--border-gold)',
-                background: 'rgba(24, 24, 24, 0.98)',
-                boxShadow: '0 12px 32px rgba(0, 0, 0, 0.6)',
-                backdropFilter: 'blur(12px)',
-                display: 'grid',
-                gridTemplateColumns: 'repeat(4, 1fr)',
-                gap: 8,
-                minWidth: 140,
-              }}
-            >
-              {TEXT_COLORS.map((color) => (
-                <ColorSwatch key={color} color={color} onSelect={applyTextColor} size={22} />
-              ))}
-            </div>
-          )}
-        </div>
+            <Tooltip text="Text Color">
+              <button
+                ref={textColorBtnRef}
+                type="button"
+                data-color-trigger="true"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onClick={toggleTextColor}
+                style={{
+                  ...SWATCH_BUTTON_STYLE,
+                  background: textColorOpen ? 'rgba(212, 175, 55, 0.25)' : 'transparent',
+                  borderColor: textColorOpen ? 'var(--gold)' : 'transparent',
+                  border: '1px solid',
+                  borderRadius: 5,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--text-primary)',
+                }}
+              >
+                <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, lineHeight: 1 }}>A</span>
+                  <span style={{ width: 14, height: 3, borderRadius: 1, background: currentTextColor || '#F5F1E8', border: '0.5px solid rgba(255, 255, 255, 0.25)' }} />
+                </span>
+              </button>
+            </Tooltip>
 
-        <div style={{ position: 'relative' }}>
-          <Tooltip text="Highlight Color">
-            <Button
-              style={SWATCH_BUTTON_STYLE}
-              active={highlightColorOpen}
-              onClick={() => {
-                setTextColorOpen(false);
-                setHighlightColorOpen((value) => !value);
-              }}
-            >
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                <span style={{ width: 12, height: 12, borderRadius: 3, background: currentHighlight || '#fff59d', border: '1px solid var(--border)' }} />
-                H
-              </span>
-            </Button>
-          </Tooltip>
-          {highlightColorOpen && (
-            <div
-              data-format-palette="true"
-              style={{
-                position: 'absolute',
-                ...(position.top > window.innerHeight - 160 ? { bottom: 'calc(100% + 8px)' } : { top: 'calc(100% + 8px)' }),
-                left: '50%',
-                transform: 'translateX(-50%)',
-                zIndex: 10000,
-                padding: 10,
-                borderRadius: 8,
-                border: '1px solid var(--border-gold)',
-                background: 'rgba(24, 24, 24, 0.98)',
-                boxShadow: '0 12px 32px rgba(0, 0, 0, 0.6)',
-                backdropFilter: 'blur(12px)',
-                display: 'grid',
-                gridTemplateColumns: 'repeat(4, 1fr)',
-                gap: 8,
-                minWidth: 140,
-              }}
-            >
-              {HIGHLIGHT_COLORS.map((color) => (
-                <ColorSwatch key={color} color={color} onSelect={applyHighlightColor} size={22} />
-              ))}
-            </div>
-          )}
-        </div>
+            <Tooltip text="Highlight Color">
+              <button
+                ref={highlightColorBtnRef}
+                type="button"
+                data-color-trigger="true"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onClick={toggleHighlightColor}
+                style={{
+                  ...SWATCH_BUTTON_STYLE,
+                  background: highlightColorOpen ? 'rgba(212, 175, 55, 0.25)' : 'transparent',
+                  borderColor: highlightColorOpen ? 'var(--gold)' : 'transparent',
+                  border: '1px solid',
+                  borderRadius: 5,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--text-primary)',
+                }}
+              >
+                <span style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, lineHeight: 1 }}>ab</span>
+                  <span style={{ width: 14, height: 3, borderRadius: 1, background: currentHighlight || '#fff59d', border: '0.5px solid rgba(255, 255, 255, 0.25)' }} />
+                </span>
+              </button>
+            </Tooltip>
 
-        <Tooltip text="Clear Formatting">
-          <Button style={{ ...BUTTON_STYLE, minWidth: 56 }} onClick={clearFormatting}>Clear</Button>
-        </Tooltip>
+            <Tooltip text="Clear Formatting">
+              <Button style={BUTTON_STYLE} onClick={clearFormatting}>
+                <RemoveFormatting size={13} />
+              </Button>
+            </Tooltip>
 
-        <Divider vertical />
+            <Divider vertical style={{ height: 18, margin: '0 2px' }} />
 
-        <Tooltip text="Align Left" shortcut="Ctrl+L">
-          <Button style={BUTTON_STYLE} active={currentAlignment === 'left'} onClick={() => run(() => editor.chain().setTextAlign('left').run())}>L</Button>
-        </Tooltip>
-        <Tooltip text="Align Center" shortcut="Ctrl+E">
-          <Button style={BUTTON_STYLE} active={currentAlignment === 'center'} onClick={() => run(() => editor.chain().setTextAlign('center').run())}>C</Button>
-        </Tooltip>
-        <Tooltip text="Align Right" shortcut="Ctrl+R">
-          <Button style={BUTTON_STYLE} active={currentAlignment === 'right'} onClick={() => run(() => editor.chain().setTextAlign('right').run())}>R</Button>
-        </Tooltip>
-        <Tooltip text="Justify">
-          <Button style={BUTTON_STYLE} active={currentAlignment === 'justify'} onClick={() => run(() => editor.chain().setTextAlign('justify').run())}>J</Button>
-        </Tooltip>
+            <Tooltip text="Align Left" shortcut="Ctrl+L">
+              <Button style={BUTTON_STYLE} active={currentAlignment === 'left'} onClick={() => run(() => editor.chain().setTextAlign('left').run())}>
+                <AlignLeft size={13} />
+              </Button>
+            </Tooltip>
+            <Tooltip text="Align Center" shortcut="Ctrl+E">
+              <Button style={BUTTON_STYLE} active={currentAlignment === 'center'} onClick={() => run(() => editor.chain().setTextAlign('center').run())}>
+                <AlignCenter size={13} />
+              </Button>
+            </Tooltip>
+            <Tooltip text="Align Right" shortcut="Ctrl+R">
+              <Button style={BUTTON_STYLE} active={currentAlignment === 'right'} onClick={() => run(() => editor.chain().setTextAlign('right').run())}>
+                <AlignRight size={13} />
+              </Button>
+            </Tooltip>
+            <Tooltip text="Justify">
+              <Button style={BUTTON_STYLE} active={currentAlignment === 'justify'} onClick={() => run(() => editor.chain().setTextAlign('justify').run())}>
+                <AlignJustify size={13} />
+              </Button>
+            </Tooltip>
 
-        <Divider vertical />
+            <Divider vertical style={{ height: 18, margin: '0 2px' }} />
 
-        <Tooltip text="Bullets">
-          <Button style={BUTTON_STYLE} active={editor.isActive('bulletList')} onClick={() => run(() => editor.chain().toggleBulletList().run())}>•</Button>
-        </Tooltip>
-        <Tooltip text="Numbering">
-          <Button style={BUTTON_STYLE} active={editor.isActive('orderedList')} onClick={() => run(() => editor.chain().toggleOrderedList().run())}>1.</Button>
-        </Tooltip>
-        <Tooltip text="Line Spacing">
-          <Select
-            value={currentLineSpacing}
-            onChange={cycleLineSpacing}
-            options={LINE_SPACING_VALUES}
-            width={92}
-            title="Line Spacing"
-            style={{ height: 34, fontSize: 13 }}
-          />
-        </Tooltip>
-      </div>
-    </div>,
-    document.body,
+            <Tooltip text="Bullet List">
+              <Button style={BUTTON_STYLE} active={editor.isActive('bulletList')} onClick={() => run(() => editor.chain().toggleBulletList().run())}>
+                <List size={13} />
+              </Button>
+            </Tooltip>
+            <Tooltip text="Numbered List">
+              <Button style={BUTTON_STYLE} active={editor.isActive('orderedList')} onClick={() => run(() => editor.chain().toggleOrderedList().run())}>
+                <ListOrdered size={13} />
+              </Button>
+            </Tooltip>
+            <Tooltip text="Line Spacing">
+              <Select
+                value={currentLineSpacing}
+                onChange={cycleLineSpacing}
+                options={LINE_SPACING_VALUES}
+                width={72}
+                title="Line Spacing"
+                style={{ height: 28, fontSize: 11 }}
+              />
+            </Tooltip>
+          </div>
+        </div>,
+        document.body,
+      )}
+
+      {textColorOpen && createPortal(
+        <div
+          data-format-palette="true"
+          onMouseDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          style={{
+            position: 'fixed',
+            top: colorPalettePos.top,
+            left: colorPalettePos.left,
+            zIndex: 10001,
+            padding: '8px 10px',
+            borderRadius: 8,
+            border: '1px solid var(--border-gold)',
+            background: 'rgba(20, 20, 20, 0.98)',
+            boxShadow: '0 16px 36px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(212, 175, 55, 0.2)',
+            backdropFilter: 'blur(16px)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6,
+            minWidth: 170,
+            userSelect: 'none',
+          }}
+        >
+          <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', padding: '0 2px' }}>
+            Text Color
+          </div>
+          <button
+            type="button"
+            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+            onClick={() => applyTextColor(null)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              width: '100%',
+              padding: '4px 6px',
+              background: !currentTextColor || currentTextColor === '#F5F1E8' ? 'rgba(212, 175, 55, 0.15)' : 'transparent',
+              border: '1px solid rgba(212, 175, 55, 0.3)',
+              borderRadius: 4,
+              color: '#F5F1E8',
+              fontSize: 11,
+              cursor: 'pointer',
+              fontFamily: 'var(--font-ui)',
+              textAlign: 'left',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(212, 175, 55, 0.25)'; }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = !currentTextColor || currentTextColor === '#F5F1E8' ? 'rgba(212, 175, 55, 0.15)' : 'transparent';
+            }}
+          >
+            <span style={{ width: 12, height: 12, borderRadius: 999, background: '#F5F1E8', border: '1px solid rgba(0,0,0,0.5)', flexShrink: 0 }} />
+            <span>Automatic (Default)</span>
+          </button>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(5, 1fr)',
+              gap: 5,
+              paddingTop: 2,
+            }}
+          >
+            {TEXT_COLORS.map((color) => {
+              const isSelected = currentTextColor === color;
+              return (
+                <button
+                  key={color}
+                  type="button"
+                  title={color}
+                  onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                  onClick={() => applyTextColor(color)}
+                  style={{
+                    width: 24,
+                    height: 24,
+                    background: color,
+                    border: isSelected ? '2px solid #d4af37' : '1px solid rgba(255, 255, 255, 0.18)',
+                    borderRadius: 3,
+                    cursor: 'pointer',
+                    padding: 0,
+                    boxShadow: isSelected ? '0 0 6px rgba(212, 175, 55, 0.6)' : 'none',
+                    transition: 'transform 0.1s ease',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.15)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+                />
+              );
+            })}
+          </div>
+        </div>,
+        document.body,
+      )}
+
+      {highlightColorOpen && createPortal(
+        <div
+          data-format-palette="true"
+          onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+          style={{
+            position: 'fixed',
+            top: colorPalettePos.top,
+            left: colorPalettePos.left,
+            zIndex: 10001,
+            padding: '8px 10px',
+            borderRadius: 8,
+            border: '1px solid var(--border-gold)',
+            background: 'rgba(20, 20, 20, 0.98)',
+            boxShadow: '0 16px 36px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(212, 175, 55, 0.2)',
+            backdropFilter: 'blur(16px)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6,
+            minWidth: 160,
+            userSelect: 'none',
+          }}
+        >
+          <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', padding: '0 2px' }}>
+            Highlight Color
+          </div>
+          <button
+            type="button"
+            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+            onClick={() => applyHighlightColor(null)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              width: '100%',
+              padding: '4px 6px',
+              background: !currentHighlight ? 'rgba(212, 175, 55, 0.15)' : 'transparent',
+              border: '1px solid rgba(212, 175, 55, 0.3)',
+              borderRadius: 4,
+              color: '#F5F1E8',
+              fontSize: 11,
+              cursor: 'pointer',
+              fontFamily: 'var(--font-ui)',
+              textAlign: 'left',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(212, 175, 55, 0.25)'; }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = !currentHighlight ? 'rgba(212, 175, 55, 0.15)' : 'transparent';
+            }}
+          >
+            <span style={{ width: 14, height: 14, borderRadius: 2, border: '1px dashed #999', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, color: '#ff4d4f', flexShrink: 0 }}>✕</span>
+            <span>No Color</span>
+          </button>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(5, 1fr)',
+              gap: 5,
+              paddingTop: 2,
+            }}
+          >
+            {HIGHLIGHT_COLORS.map((color) => {
+              const isSelected = currentHighlight === color;
+              return (
+                <button
+                  key={color}
+                  type="button"
+                  title={color}
+                  onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                  onClick={() => applyHighlightColor(color)}
+                  style={{
+                    width: 24,
+                    height: 24,
+                    background: color,
+                    border: isSelected ? '2px solid #d4af37' : '1px solid rgba(255, 255, 255, 0.18)',
+                    borderRadius: 3,
+                    cursor: 'pointer',
+                    padding: 0,
+                    boxShadow: isSelected ? '0 0 6px rgba(212, 175, 55, 0.6)' : 'none',
+                    transition: 'transform 0.1s ease',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.15)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+                />
+              );
+            })}
+          </div>
+        </div>,
+        document.body,
+      )}
+    </>
   );
 }

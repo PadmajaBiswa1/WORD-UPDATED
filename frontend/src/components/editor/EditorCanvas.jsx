@@ -122,6 +122,66 @@ export function EditorCanvas() {
     scrollPaddingX: 20 * scale,
   }), [layoutMetrics, scale]);
 
+  const borderMetrics = useMemo(() => {
+    const isBorderConfigured = Boolean(
+      design?.borderStyle &&
+      design.borderStyle !== 'none' &&
+      design?.borderSetting &&
+      design.borderSetting !== 'none' &&
+      design?.borderColor &&
+      design.borderColor !== 'transparent'
+    );
+    const borderSides = design?.borderSides;
+    const hasSides = isBorderConfigured && (borderSides
+      ? Boolean(borderSides.top || borderSides.right || borderSides.bottom || borderSides.left)
+      : true);
+    const hasBorder = isBorderConfigured && hasSides;
+    const activeSides = borderSides || { top: true, right: true, bottom: true, left: true };
+    const borderWidthPx = hasBorder ? Math.max(1, Math.round(Number(design.borderWidth || 2) * scale)) : 0;
+    const bStyle = design?.borderStyle || 'solid';
+    const bColor = design?.borderColor || '#6f5320';
+    const bInset = hasBorder
+      ? Math.round(Math.max(14 * scale, Math.min(scaledDimensions.padding - borderWidthPx - 4, Number(design?.borderDistance ?? 24) * scale)))
+      : 0;
+
+    const topBorderEdge = (hasBorder && activeSides.top !== false) ? (bInset + borderWidthPx) : 0;
+    const bottomBorderEdge = (hasBorder && activeSides.bottom !== false) ? (bInset + borderWidthPx) : 0;
+    const leftBorderEdge = (hasBorder && activeSides.left !== false) ? (bInset + borderWidthPx) : 0;
+    const rightBorderEdge = (hasBorder && activeSides.right !== false) ? (bInset + borderWidthPx) : 0;
+
+    // Header top offset: sits safely inside the page, clearing the top border frame and properly spaced above body content
+    const availableTopSpace = Math.max(16 * scale, scaledDimensions.padding - topBorderEdge);
+    const headerTopOffset = topBorderEdge > 0
+      ? Math.round(topBorderEdge + availableTopSpace * 0.25)
+      : Math.max(Math.round(28 * scale), Math.round(scaledDimensions.padding * 0.40));
+
+    // Footer offset from page bottom: sits safely inside the page, clearing the bottom border frame and properly spaced below body content
+    const availableBottomSpace = Math.max(20 * scale, scaledDimensions.padding - bottomBorderEdge);
+    const footerTopOffsetFromBottom = bottomBorderEdge > 0
+      ? Math.round(bottomBorderEdge + availableBottomSpace * 0.55)
+      : Math.max(Math.round(36 * scale), Math.round(scaledDimensions.padding * 0.55));
+
+    // Horizontal margins to ensure header/footer stay comfortably inside both page margins and page borders
+    const horizontalMargin = Math.max(
+      scaledDimensions.padding,
+      Math.max(leftBorderEdge, rightBorderEdge) + Math.round(12 * scale)
+    );
+
+    return {
+      hasBorder,
+      activeSides,
+      borderWidthPx,
+      bStyle,
+      bColor,
+      bInset,
+      topBorderEdge,
+      bottomBorderEdge,
+      headerTopOffset,
+      footerTopOffsetFromBottom,
+      horizontalMargin,
+    };
+  }, [design, scale, scaledDimensions.padding]);
+
   const recalcPages = useCallback(() => {
     clearTimeout(overflowTimer.current);
     overflowTimer.current = setTimeout(() => {
@@ -167,13 +227,14 @@ export function EditorCanvas() {
     const bodyFont = design.bodyFont || design.font || 'Crimson Pro';
     const accentColor = design.accent || '#c9a84c';
     const headingColor = design.heading || accentColor;
-    const subtleColor = design.subtle || '#444444';
+    const subtleColor = (design.subtle && design.subtle !== '#444444') ? design.subtle : '#F5F1E8';
     const lineSpacing = String(design.spacing || '1.7');
     const paragraphGap = Math.max(0.35, ((Number(lineSpacing) || 1.7) - 1) * 0.62);
 
     document.documentElement.style.setProperty('--gold', accentColor);
     document.documentElement.style.setProperty('--design-heading', headingColor);
     document.documentElement.style.setProperty('--design-subtle', subtleColor);
+    document.documentElement.style.setProperty('--text-doc', '#F5F1E8');
     document.documentElement.style.setProperty('--design-heading-font', `'${headingFont}', serif`);
     document.documentElement.style.setProperty('--design-font', `'${bodyFont}', serif`);
     document.documentElement.style.setProperty('--design-spacing', lineSpacing);
@@ -364,49 +425,30 @@ export function EditorCanvas() {
                   }}
                 >
                   {/* Inward Decorative Page Border (Word-style) */}
-                  {Boolean(
-                    design?.borderStyle &&
-                    design.borderStyle !== 'none' &&
-                    design?.borderSetting &&
-                    design.borderSetting !== 'none' &&
-                    design?.borderColor &&
-                    design.borderColor !== 'transparent'
-                  ) && (() => {
-                    const borderSides = design?.borderSides;
-                    const hasSides = borderSides
-                      ? Boolean(borderSides.top || borderSides.right || borderSides.bottom || borderSides.left)
-                      : true;
-                    if (!hasSides) return null;
-                    const activeSides = borderSides || { top: true, right: true, bottom: true, left: true };
-                    const borderWidthPx = Math.max(1, Math.round(Number(design.borderWidth || 2) * scale));
-                    const bStyle = design.borderStyle || 'solid';
-                    const bColor = design.borderColor || '#6f5320';
-                    const bInset = Math.round(Math.max(14 * scale, Math.min(scaledDimensions.padding - borderWidthPx - 4, Number(design?.borderDistance ?? 24) * scale)));
-                    return (
-                      <div
-                        data-etherx-page-border="true"
-                        style={{
-                          position: 'absolute',
-                          top: bInset,
-                          left: bInset,
-                          right: bInset,
-                          bottom: bInset,
-                          maxWidth: '100%',
-                          maxHeight: '100%',
-                          pointerEvents: 'none',
-                          borderTop: activeSides.top !== false ? `${borderWidthPx}px ${bStyle} ${bColor}` : 'none',
-                          borderRight: activeSides.right !== false ? `${borderWidthPx}px ${bStyle} ${bColor}` : 'none',
-                          borderBottom: activeSides.bottom !== false ? `${borderWidthPx}px ${bStyle} ${bColor}` : 'none',
-                          borderLeft: activeSides.left !== false ? `${borderWidthPx}px ${bStyle} ${bColor}` : 'none',
-                          boxSizing: 'border-box',
-                          boxShadow: design.borderSetting === 'shadow'
-                            ? `${Math.max(2, Math.round(3 * scale))}px ${Math.max(2, Math.round(3 * scale))}px 0px rgba(0,0,0,0.35)`
-                            : (design.borderSetting === '3d' ? 'inset 1px 1px 0px rgba(255,255,255,0.4), 1px 1px 0px rgba(0,0,0,0.25)' : 'none'),
-                          borderRadius: 1,
-                        }}
-                      />
-                    );
-                  })()}
+                  {borderMetrics.hasBorder && (
+                    <div
+                      data-etherx-page-border="true"
+                      style={{
+                        position: 'absolute',
+                        top: borderMetrics.bInset,
+                        left: borderMetrics.bInset,
+                        right: borderMetrics.bInset,
+                        bottom: borderMetrics.bInset,
+                        maxWidth: '100%',
+                        maxHeight: '100%',
+                        pointerEvents: 'none',
+                        borderTop: borderMetrics.activeSides.top !== false ? `${borderMetrics.borderWidthPx}px ${borderMetrics.bStyle} ${borderMetrics.bColor}` : 'none',
+                        borderRight: borderMetrics.activeSides.right !== false ? `${borderMetrics.borderWidthPx}px ${borderMetrics.bStyle} ${borderMetrics.bColor}` : 'none',
+                        borderBottom: borderMetrics.activeSides.bottom !== false ? `${borderMetrics.borderWidthPx}px ${borderMetrics.bStyle} ${borderMetrics.bColor}` : 'none',
+                        borderLeft: borderMetrics.activeSides.left !== false ? `${borderMetrics.borderWidthPx}px ${borderMetrics.bStyle} ${borderMetrics.bColor}` : 'none',
+                        boxSizing: 'border-box',
+                        boxShadow: design?.borderSetting === 'shadow'
+                          ? `${Math.max(2, Math.round(3 * scale))}px ${Math.max(2, Math.round(3 * scale))}px 0px rgba(0,0,0,0.35)`
+                          : (design?.borderSetting === '3d' ? 'inset 1px 1px 0px rgba(255,255,255,0.4), 1px 1px 0px rgba(0,0,0,0.25)' : 'none'),
+                        borderRadius: 1,
+                      }}
+                    />
+                  )}
                 {(design?.watermark || watermarkText) && (
                   <div
                     data-etherx-watermark="true"
@@ -484,14 +526,14 @@ export function EditorCanvas() {
             }}
           />
           <div aria-hidden="true" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 2 }}>
-            {Array.from({ length: pageCount }).map((_, i) => (
+            {(!headerFooter?.footerText && !headerFooter?.pageNumberEnabled) ? Array.from({ length: pageCount }).map((_, i) => (
               <div
                 key={`page-index-${i}`}
                 style={{
                   position: 'absolute',
-                  top: i * scaledDimensions.pageStep + scaledDimensions.pageHeight - Math.max(24, scaledDimensions.padding * 0.25),
-                  left: scaledDimensions.padding,
-                  right: scaledDimensions.padding,
+                  top: i * scaledDimensions.pageStep + scaledDimensions.pageHeight - borderMetrics.footerTopOffsetFromBottom + Math.round(6 * scale),
+                  left: borderMetrics.horizontalMargin,
+                  right: borderMetrics.horizontalMargin,
                   boxSizing: 'border-box',
                   textAlign: 'center',
                   fontSize: 10 * scale,
@@ -503,15 +545,15 @@ export function EditorCanvas() {
               >
                 {i + 1}
               </div>
-            ))}
+            )) : null}
             {headerFooter?.headerText ? Array.from({ length: pageCount }).map((_, i) => (
               <div
                 key={`header-${i}`}
                 style={{
                   position: 'absolute',
-                  top: i * scaledDimensions.pageStep + Math.max(16, scaledDimensions.padding * 0.22),
-                  left: scaledDimensions.padding,
-                  right: scaledDimensions.padding,
+                  top: i * scaledDimensions.pageStep + borderMetrics.headerTopOffset,
+                  left: borderMetrics.horizontalMargin,
+                  right: borderMetrics.horizontalMargin,
                   boxSizing: 'border-box',
                   textAlign: String(headerFooter.headerAlign || 'Center').toLowerCase(),
                   fontSize: 10 * scale,
@@ -519,7 +561,7 @@ export function EditorCanvas() {
                   fontFamily: 'var(--font-ui)',
                   pointerEvents: 'none',
                   userSelect: 'none',
-                  borderBottom: '1px dashed var(--border-gold, rgba(201, 168, 76, 0.5))',
+                  borderBottom: '1px dashed var(--border-gold, rgba(212, 175, 55, 0.35))',
                   paddingBottom: 6,
                 }}
               >
@@ -531,9 +573,9 @@ export function EditorCanvas() {
                 key={`footer-${i}`}
                 style={{
                   position: 'absolute',
-                  top: i * scaledDimensions.pageStep + scaledDimensions.pageHeight - Math.max(32, scaledDimensions.padding * 0.3),
-                  left: scaledDimensions.padding,
-                  right: scaledDimensions.padding,
+                  top: i * scaledDimensions.pageStep + scaledDimensions.pageHeight - borderMetrics.footerTopOffsetFromBottom,
+                  left: borderMetrics.horizontalMargin,
+                  right: borderMetrics.horizontalMargin,
                   boxSizing: 'border-box',
                   textAlign: String(headerFooter.footerAlign || 'Center').toLowerCase(),
                   fontSize: 10 * scale,
@@ -541,7 +583,7 @@ export function EditorCanvas() {
                   fontFamily: 'var(--font-ui)',
                   pointerEvents: 'none',
                   userSelect: 'none',
-                  borderTop: '1px dashed var(--border-gold, rgba(201, 168, 76, 0.5))',
+                  borderTop: '1px dashed var(--border-gold, rgba(212, 175, 55, 0.35))',
                   paddingTop: 6,
                 }}
               >
@@ -558,10 +600,10 @@ export function EditorCanvas() {
                   style={{
                     position: 'absolute',
                     top: isTop
-                      ? (i * scaledDimensions.pageStep + Math.max(32, scaledDimensions.padding * 0.3))
-                      : (i * scaledDimensions.pageStep + scaledDimensions.pageHeight - Math.max(28, scaledDimensions.padding * 0.25)),
-                    left: scaledDimensions.padding,
-                    right: scaledDimensions.padding,
+                      ? (i * scaledDimensions.pageStep + borderMetrics.headerTopOffset)
+                      : (i * scaledDimensions.pageStep + scaledDimensions.pageHeight - borderMetrics.footerTopOffsetFromBottom + Math.round(6 * scale)),
+                    left: borderMetrics.horizontalMargin,
+                    right: borderMetrics.horizontalMargin,
                     boxSizing: 'border-box',
                     textAlign: halign,
                     fontSize: 10 * scale,

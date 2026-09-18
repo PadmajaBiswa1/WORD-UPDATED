@@ -8,9 +8,9 @@ import { adminApi, getStoredUser } from '@/services/adminApi';
 
 const ROLE_COLORS = {
   Owner: { text: '#d4af37', bg: 'rgba(212,175,55,0.14)', border: 'rgba(212,175,55,0.35)' },
-  Admin: { text: '#a855f7', bg: 'rgba(168,85,247,0.14)', border: 'rgba(168,85,247,0.35)' },
-  Editor: { text: '#3b82f6', bg: 'rgba(59,130,246,0.14)', border: 'rgba(59,130,246,0.35)' },
-  Viewer: { text: '#94a3b8', bg: 'rgba(148,163,184,0.14)', border: 'rgba(148,163,184,0.35)' },
+  Admin: { text: '#d4af37', bg: 'rgba(212,175,55,0.14)', border: 'rgba(212,175,55,0.35)' },
+  Editor: { text: '#d4af37', bg: 'rgba(212,175,55,0.14)', border: 'rgba(212,175,55,0.35)' },
+  Viewer: { text: '#d4af37', bg: 'rgba(212,175,55,0.14)', border: 'rgba(212,175,55,0.35)' },
 };
 
 const DEPARTMENTS = ['All', 'Executive', 'Engineering', 'Product', 'Design', 'Marketing', 'Legal', 'General'];
@@ -394,7 +394,7 @@ export function UsersRolesSection() {
                             <button
                               style={{
                                 ...styles.actionIconBtn,
-                                color: member.status === 'active' ? '#ef4444' : '#10b981',
+                                color: '#d4af37',
                               }}
                               title={member.status === 'active' ? 'Deactivate Account' : 'Reactivate Account'}
                               onClick={() => handleToggleStatus(member)}
@@ -406,7 +406,7 @@ export function UsersRolesSection() {
                           {/* Delete Member */}
                           {canEditThisUser ? (
                             <button
-                              style={{ ...styles.actionIconBtn, color: '#ef4444' }}
+                              style={{ ...styles.actionIconBtn, color: '#d4af37' }}
                               title="Remove from Organization"
                               onClick={() => setDeletingMember(member)}
                             >
@@ -654,8 +654,8 @@ export function UsersRolesSection() {
 
               {editingMember.role === 'Owner' && targetRole !== 'Owner' && (
                 <div style={styles.warningBox}>
-                  <AlertTriangle size={16} color="#f59e0b" />
-                  <span style={{ fontSize: 12, color: '#f59e0b' }}>
+                  <AlertTriangle size={16} color="#d4af37" />
+                  <span style={{ fontSize: 12, color: '#d4af37' }}>
                     Demoting an Owner requires at least one other active Owner to remain in the organization.
                   </span>
                 </div>
@@ -680,8 +680,8 @@ export function UsersRolesSection() {
           <div style={{ ...styles.modalCard, maxWidth: 420 }}>
             <div style={styles.modalHeader}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <AlertTriangle size={18} color="#ef4444" />
-                <h3 style={{ ...styles.modalTitle, color: '#ef4444' }}>Confirm Member Removal</h3>
+                <AlertTriangle size={18} color="#d4af37" />
+                <h3 style={{ ...styles.modalTitle, color: '#d4af37' }}>Confirm Member Removal</h3>
               </div>
               <button style={styles.modalCloseBtn} onClick={() => setDeletingMember(null)}>
                 <X size={18} />
@@ -699,7 +699,7 @@ export function UsersRolesSection() {
                 Cancel
               </button>
               <button
-                style={{ ...styles.submitBtn, background: '#ef4444' }}
+                style={{ ...styles.submitBtn, background: 'linear-gradient(135deg, #d4af37 0%, #aa8528 100%)' }}
                 onClick={handleConfirmDelete}
                 disabled={deleteBusy}
               >
@@ -723,9 +723,9 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: 10,
-    background: 'rgba(16,185,129,0.12)',
-    border: '1px solid rgba(16,185,129,0.3)',
-    color: '#10b981',
+    background: 'rgba(212,175,55,0.12)',
+    border: '1px solid rgba(212,175,55,0.3)',
+    color: '#d4af37',
     padding: '12px 16px',
     borderRadius: 8,
     fontSize: 13,
@@ -889,20 +889,20 @@ const styles = {
   statusActive: {
     fontSize: 10,
     fontWeight: 700,
-    color: '#10b981',
-    background: 'rgba(16,185,129,0.1)',
+    color: '#d4af37',
+    background: 'rgba(212,175,55,0.12)',
     padding: '2px 7px',
     borderRadius: 4,
-    border: '1px solid rgba(16,185,129,0.25)',
+    border: '1px solid rgba(212,175,55,0.3)',
   },
   statusDeactivated: {
     fontSize: 10,
     fontWeight: 700,
-    color: '#ef4444',
-    background: 'rgba(239,68,68,0.1)',
+    color: '#d4af37',
+    background: 'rgba(212,175,55,0.06)',
     padding: '2px 7px',
     borderRadius: 4,
-    border: '1px solid rgba(239,68,68,0.25)',
+    border: '1px solid rgba(212,175,55,0.18)',
   },
   actionBtnsWrap: {
     display: 'flex',
@@ -1176,8 +1176,8 @@ const styles = {
     alignItems: 'center',
     gap: 10,
     padding: 10,
-    background: 'rgba(245,158,11,0.1)',
-    border: '1px solid rgba(245,158,11,0.25)',
+    background: 'rgba(212,175,55,0.1)',
+    border: '1px solid rgba(212,175,55,0.25)',
     borderRadius: 6,
   },
 };

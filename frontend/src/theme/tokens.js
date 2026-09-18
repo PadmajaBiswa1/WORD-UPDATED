@@ -26,12 +26,12 @@ export function applyTheme() {
     '--border-gold':   '#3d3000',
 
     // ── Text ─────────────────────────────────────────────────────
-    '--text-primary':   '#f0e6c8',
+    '--text-primary':   '#F5F1E8',
     '--text-secondary': '#d4b86a',
     '--text-muted':     '#9a8a6a',
     '--text-gold':      GOLD,
     '--text-heading':   '#e8d98a',
-    '--text-doc':       '#e8d98a',
+    '--text-doc':       '#F5F1E8',
     '--text-on-gold':   '#0a0800',
 
     // ── Gold accent ───────────────────────────────────────────────
