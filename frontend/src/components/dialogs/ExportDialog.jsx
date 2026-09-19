@@ -2,16 +2,15 @@ import { useState } from 'react';
 import { FileText, FileEdit, Globe, FileCode, BookOpen, Loader2, ArrowRight, Lock } from 'lucide-react';
 import { useUIStore, useDocumentStore, useEditorStore, useSubscriptionStore } from '@/store';
 import { Modal, Button, Stack } from '@/components/ui';
-import { exportToHtml, exportToPdf, exportToDocx, exportToMarkdown, exportToEpub } from '@/services/export';
+import { exportToHtml, exportToPdf, exportToDocx, downloadMarkdown, exportToEpub } from '@/services/export';
 import { canExportFormat } from '@/utils/featureGate';
 
 const OPTIONS = [
-  { id: 'pdf',      icon: FileText, label: 'PDF Document',        desc: 'Best for printing & sharing', requiredTier: 'free' },
-  { id: 'docx',     icon: FileEdit, label: 'Word Document',       desc: 'Open in Microsoft Word',      requiredTier: 'free' },
-  { id: 'markdown', icon: FileCode, label: 'Markdown (.md)',      desc: 'Plain text with markdown formatting', requiredTier: 'basic' },
-  { id: 'odt',      icon: FileEdit, label: 'OpenDocument (.odt)', desc: 'Open in LibreOffice / OpenOffice',    requiredTier: 'basic' },
-  { id: 'html',     icon: Globe,    label: 'Web Page (.html)',    desc: 'HTML file for browsers',      requiredTier: 'pro' },
-  { id: 'epub',     icon: BookOpen, label: 'EPUB eBook (.epub)',  desc: 'Standard e-book reader format', requiredTier: 'pro' },
+  { id: 'pdf',      label: 'PDF Document',         ext: '.pdf',  desc: 'Best for sharing and printing',       icon: FileText, requiredTier: 'free' },
+  { id: 'docx',     label: 'Word Document',        ext: '.docx', desc: 'Editable in Microsoft Word',          icon: FileEdit, requiredTier: 'free' },
+  { id: 'html',     label: 'Web Page',             ext: '.html', desc: 'Single file web page',                icon: Globe,    requiredTier: 'pro' },
+  { id: 'markdown', label: 'Markdown',             ext: '.md',   desc: 'Plain text with lightweight markup',  icon: FileCode, requiredTier: 'basic' },
+  { id: 'epub',     label: 'EPUB Publication',     ext: '.epub', desc: 'Electronic book format',              icon: BookOpen, requiredTier: 'pro' },
 ];
 
 export function ExportDialog() {
@@ -35,42 +34,20 @@ export function ExportDialog() {
     setLoading(type);
     try {
       const html = editor?.getHTML() || '';
-      if (type === 'html') exportToHtml(title, html);
-      else if (type === 'markdown' || type === 'md') {
-        exportToMarkdown(title, html);
+      if (type === 'html') {
+        exportToHtml(title, html);
+      } else if (type === 'markdown' || type === 'md') {
+        downloadMarkdown(title, html);
       } else if (type === 'epub') {
         await exportToEpub(title, html);
       } else if (type === 'odt') {
-        // Fallback for ODT: exports as HTML/DOCX styled blob or docx
         await exportToDocx(title, html);
       } else if (type === 'pdf') {
-        const el = document.getElementById('document-page-0') ||
-                   document.querySelector('.page') ||
-                   document.querySelector('.document-page') ||
-                   document.querySelector('.ProseMirror') ||
-                   document.querySelector('.document-editor');
         const pageSettings = {
           format: pageSize || 'a4',
           orientation: pageOrientation || 'portrait',
         };
-        if (el) {
-          await exportToPdf(title, el, pageSettings);
-        } else {
-          const frame = document.createElement('div');
-          frame.style.position = 'fixed';
-          frame.style.left = '-10000px';
-          frame.style.top = '0';
-          frame.style.width = '794px';
-          frame.style.background = '#ffffff';
-          frame.style.padding = '40px';
-          frame.innerHTML = html || '<p></p>';
-          document.body.appendChild(frame);
-          try {
-            await exportToPdf(title, frame, pageSettings);
-          } finally {
-            frame.remove();
-          }
-        }
+        await exportToPdf(title, html, pageSettings);
       } else if (type === 'docx') {
         await exportToDocx(title, html);
       }

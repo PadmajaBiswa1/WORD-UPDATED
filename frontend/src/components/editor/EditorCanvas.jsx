@@ -29,10 +29,13 @@ function getThemePageColor() {
 
 function getResolvedPageFill(design = {}) {
   const color = normalizeColor(design.pageColor);
-  if (color && (design.pageColorMode === 'custom' || !isThemeDefaultPageColor(color))) {
+  if (design.pageColorMode === 'custom' && color) {
     return color;
   }
-  return color || 'var(--bg-page)';
+  if (color && !isThemeDefaultPageColor(color)) {
+    return color;
+  }
+  return 'var(--bg-page)';
 }
 
 function colorFromString(seed = '') {
@@ -213,9 +216,10 @@ export function EditorCanvas() {
     const page = wrapRef.current;
     if (!page || !design) return;
     const pageFill = getResolvedPageFill(design);
-    const pageColorMode = pageFill === 'var(--bg-page)' ? 'theme' : 'custom';
+    const isTheme = pageFill === 'var(--bg-page)' || pageFill === '#1a1a1a';
+    const pageColorMode = isTheme ? 'theme' : (design.pageColorMode || 'custom');
     page.dataset.pageColorMode = pageColorMode;
-    page.dataset.pageColor = pageColorMode === 'theme' ? getThemePageColor() : pageFill;
+    page.dataset.pageColor = isTheme ? getThemePageColor() : pageFill;
     page.style.setProperty('--etherx-page-fill', pageFill);
     page.style.setProperty('--etherx-page-fill-image', design.pageFillImage || 'none');
     page.style.setProperty('--etherx-page-border-style', design.borderStyle || 'solid');

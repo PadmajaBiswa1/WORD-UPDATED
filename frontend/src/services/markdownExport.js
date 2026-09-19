@@ -240,7 +240,10 @@ function renderJsonNodes(nodes = [], indentLevel = 0) {
 export function htmlToMarkdown(html) {
   if (!html || typeof html !== 'string') return '';
 
-  let text = html;
+  let text = html
+    .replace(/<div[^>]*class="[^"]*(?:etherx-page-break|etherx-auto-page-break)[^"]*"[^>]*><\/div>/gi, '')
+    .replace(/<div[^>]*data-page-break="true"[^>]*><\/div>/gi, '')
+    .replace(/<div[^>]*data-etherx-auto-break="true"[^>]*><\/div>/gi, '');
 
   // Code blocks: <pre><code>...</code></pre>
   text = text.replace(/<pre[^>]*><code(?: class="(?:language-)?([^"]*)")?[^>]*>([\s\S]*?)<\/code><\/pre>/gi, (_, lang, code) => {
@@ -356,13 +359,23 @@ generator: "EtherX Word"
 }
 
 /**
+ * Creates a Blob containing the generated Markdown.
+ * @param {string} title
+ * @param {object|string} docJsonOrHtml
+ * @returns {Blob}
+ */
+export function buildMarkdownBlob(title, docJsonOrHtml) {
+  const md = exportToMarkdown(title, docJsonOrHtml);
+  return new Blob([md], { type: 'text/markdown;charset=utf-8' });
+}
+
+/**
  * Exports and initiates download of a .md file.
  * @param {string} title
  * @param {object|string} docJsonOrHtml
  */
 export function downloadMarkdown(title, docJsonOrHtml) {
-  const md = exportToMarkdown(title, docJsonOrHtml);
-  const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+  const blob = buildMarkdownBlob(title, docJsonOrHtml);
   saveAs(blob, `${sanitizeFilename(title)}.md`);
   return blob;
 }

@@ -119,7 +119,7 @@ const documentSchema = new mongoose.Schema({
     },
   ],
   design: {
-    pageColor: { type: String, default: '#fdfbf7' },
+    pageColor: { type: String, default: '#1a1a1a' },
     pageColorMode: { type: String, default: 'theme' },
     pageFillImage: { type: String, default: '' },
     borderSetting: { type: String, default: 'none' },
@@ -136,7 +136,7 @@ const documentSchema = new mongoose.Schema({
     pageShadow: { type: String, default: 'var(--shadow-page)' },
     accent: { type: String, default: '#c9a84c' },
     heading: { type: String, default: '#c9a84c' },
-    subtle: { type: String, default: '#444444' },
+    subtle: { type: String, default: '#F5F1E8' },
     font: { type: String, default: 'Crimson Pro' },
     spacing: { type: String, default: '1.7' },
     effect: { type: String, default: 'none' },

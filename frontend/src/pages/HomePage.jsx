@@ -6,14 +6,28 @@ import {
   X, FileText, CheckCheck, RotateCcw, Tag, Globe, Zap, Lock, ShieldCheck
 } from 'lucide-react';
 import mammoth from 'mammoth';
-import { documentApi, exportApi } from '@/services/api';
-import { buildDocxBlob, buildHtmlDocument, exportToDocx, exportToHtml, exportToPdf, exportToMarkdown, exportToEpub } from '@/services/export';
+import { documentApi } from '@/services/api';
+import {
+  buildDocxBlob,
+  buildHtmlBlob,
+  buildHtmlDocument,
+  buildPdfBlob,
+  exportToDocx,
+  exportToHtml,
+  exportToPdf,
+  downloadMarkdown,
+  buildMarkdownBlob,
+  exportToEpub,
+  buildEpubBlob,
+  sanitizeFilename,
+} from '@/services/export';
 import { buildAiResult, executePragnaAi, getPlainTextFromHtml, openTranslationUrl } from '@/services/ai';
 import { useUIStore, useDocumentStore, useSubscriptionStore } from '@/store';
 import { canAccessAi, canAccessTemplate, canCreateDocument, canExportFormat } from '@/utils/featureGate';
 import { getStoredUser } from '@/services/api';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { UpgradeModal } from '@/components/dialogs/UpgradeModal';
+import { clearLocalDraft, readLocalDraft } from '@/utils/draftStorage';
 
 const LOCAL_FILE_DOCS_KEY = 'etherx_file_docs';
 
@@ -36,7 +50,7 @@ function getSaveAsIcon(location) {
     browse: <svg {...iconStyle}><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>,
   };
   
-  return icons[location] || icons.cloud;
+  return icons[location] || icons.thisPc;
 }
 
 function getSaveAsLargeIcon(location) {
@@ -44,14 +58,13 @@ function getSaveAsLargeIcon(location) {
   
   const icons = {
     recent: <svg {...iconStyle}><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>,
-    cloud: <svg {...iconStyle}><path d="M3 11a4 4 0 0 1 4-4h1a4 4 0 0 1 7.753-1.1A4.5 4.5 0 1 1 21 11H3z" /></svg>,
     share: <svg {...iconStyle}><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" /></svg>,
     copyLink: <svg {...iconStyle}><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>,
     thisPc: <svg {...iconStyle}><rect x="2" y="3" width="20" height="14" rx="2" ry="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" /></svg>,
     browse: <svg {...iconStyle}><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>,
   };
   
-  return icons[location] || icons.cloud;
+  return icons[location] || icons.thisPc;
 }
 
 const SaveIcon = () => (
@@ -105,11 +118,10 @@ const SAVE_AS_FORMATS = [
 
 const SAVE_AS_LOCATIONS = [
   { key: 'recent', label: 'Recent', icon: '◷', area: 'leftTop' },
-  { key: 'cloud', label: 'EtherX Cloud', icon: '☁', area: 'personal' },
-  { key: 'share', label: 'Share Document', icon: '⇪', area: 'share' },
-  { key: 'copyLink', label: 'Copy Link', icon: '⎘', area: 'share' },
   { key: 'thisPc', label: 'This PC', icon: '🖥', area: 'other' },
   { key: 'browse', label: 'Browse Folder', icon: '📁', area: 'other' },
+  { key: 'share', label: 'Share Document', icon: '⇪', area: 'share' },
+  { key: 'copyLink', label: 'Copy Link', icon: '⎘', area: 'share' },
 ];
 
 const SAVE_AS_FAVORITES = [
@@ -578,64 +590,77 @@ function filePickerSupported() {
 }
 
 function pickerOptions(name, format) {
+  const clean = cleanBaseName(name) || 'document';
   const byFormat = {
     docx: {
-      suggestedName: `${name}.docx`,
-      types: [{ description: 'Word Document', accept: { 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'] } }],
+      suggestedName: `${clean}.docx`,
+      types: [{ description: 'Word Document (.docx)', accept: { 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'] } }],
     },
     pdf: {
-      suggestedName: `${name}.pdf`,
-      types: [{ description: 'PDF Document', accept: { 'application/pdf': ['.pdf'] } }],
+      suggestedName: `${clean}.pdf`,
+      types: [{ description: 'PDF Document (.pdf)', accept: { 'application/pdf': ['.pdf'] } }],
     },
     etherx: {
-      suggestedName: `${name}.ethex`,
-      types: [{ description: 'EtherX Document', accept: { 'application/json': ['.ethex'] } }],
+      suggestedName: `${clean}.ethex`,
+      types: [{ description: 'EtherX Document (.ethex)', accept: { 'application/json': ['.ethex'] } }],
     },
     html: {
-      suggestedName: `${name}.html`,
-      types: [{ description: 'Web Page', accept: { 'text/html': ['.html'] } }],
+      suggestedName: `${clean}.html`,
+      types: [{ description: 'Web Page (.html)', accept: { 'text/html': ['.html'] } }],
     },
     markdown: {
-      suggestedName: `${name}.md`,
-      types: [{ description: 'Markdown Document', accept: { 'text/markdown': ['.md'] } }],
+      suggestedName: `${clean}.md`,
+      types: [{ description: 'Markdown Document (.md)', accept: { 'text/markdown': ['.md'] } }],
+    },
+    epub: {
+      suggestedName: `${clean}.epub`,
+      types: [{ description: 'EPUB Publication (.epub)', accept: { 'application/epub+zip': ['.epub'] } }],
     },
   };
   return byFormat[format] || byFormat.docx;
 }
 
-async function saveWithFilePicker(name, format, content) {
-  if (!filePickerSupported()) return false;
-  // Let PDF, EPUB, and Markdown formats run through the dedicated client-side export pipelines
-  if (format === 'pdf' || format === 'epub' || format === 'markdown' || format === 'md') {
-    return false;
-  }
+async function generateFormatBlob(name, format, content) {
+  const normFormat = (format || 'docx').toLowerCase();
+  const safeContent = content || '<p></p>';
+  const safeName = cleanBaseName(name) || 'document';
 
+  if (normFormat === 'docx') {
+    return await buildDocxBlob(safeContent);
+  } else if (normFormat === 'pdf') {
+    const { blob } = await buildPdfBlob(safeName, safeContent);
+    return blob;
+  } else if (normFormat === 'html') {
+    return buildHtmlBlob(safeName, safeContent);
+  } else if (normFormat === 'markdown' || normFormat === 'md') {
+    return buildMarkdownBlob(safeName, safeContent);
+  } else if (normFormat === 'epub') {
+    const res = await buildEpubBlob(safeName, safeContent);
+    return res.blob;
+  } else {
+    const payload = {
+      title: safeName,
+      content: safeContent,
+      exportedAt: new Date().toISOString(),
+      format: 'ethex-document',
+    };
+    return new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
+  }
+}
+
+async function saveWithFilePicker(name, format, blob) {
+  if (!filePickerSupported()) return false;
   const { suggestedName, types } = pickerOptions(name, format);
   try {
     const handle = await window.showSaveFilePicker({ suggestedName, types });
     const writable = await handle.createWritable();
-
-    if (format === 'docx') {
-      const blob = await buildDocxBlob(content || '<p></p>');
-      await writable.write(blob);
-    } else if (format === 'html') {
-      const html = buildHtmlDocument(name, content || '<p></p>');
-      await writable.write(new Blob([html], { type: 'text/html;charset=utf-8' }));
-    } else {
-      const payload = {
-        title: cleanBaseName(name),
-        content: content || '<p></p>',
-        exportedAt: new Date().toISOString(),
-        format: 'ethex-document',
-      };
-      await writable.write(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' }));
-    }
-
+    await writable.write(blob);
     await writable.close();
     return true;
   } catch (error) {
     if (error?.name === 'AbortError') return null;
-    throw error;
+    console.warn('showSaveFilePicker error, falling back to download:', error?.message);
+    return false;
   }
 }
 
@@ -685,7 +710,7 @@ function createLocalDoc({ title, content, source = {} }) {
     title: title || 'Untitled Document',
     content: content || '<p></p>',
     updatedAt: new Date().toISOString(),
-    design: source.design,
+    design: source.design || { pageColor: '#1a1a1a', pageColorMode: 'theme' },
     headerFooter: source.headerFooter,
     comments: Array.isArray(source.comments) ? source.comments : [],
     trackChanges: Boolean(source.trackChanges),
@@ -722,7 +747,7 @@ export function HomePage() {
   const [search, setSearch] = useState('');
   const [saveAsName, setSaveAsName] = useState('');
   const [saveAsFormat, setSaveAsFormat] = useState('docx');
-  const [saveAsLocation, setSaveAsLocation] = useState('cloud');
+  const [saveAsLocation, setSaveAsLocation] = useState('thisPc');
   const [saveAsBusy, setSaveAsBusy] = useState(false);
   const [exportFormat, setExportFormat] = useState('pdf');
   const [exportBusy, setExportBusy] = useState(false);
@@ -824,19 +849,64 @@ export function HomePage() {
 
   const selectedDoc = useMemo(() => docs.find((d) => d.id === selectedDocId) || null, [docs, selectedDocId]);
   const saveAsSourceDoc = useMemo(() => {
-    if (selectedDoc) return selectedDoc;
-    if (!currentEditorId && !currentEditorContent) return null;
-    return {
-      id: currentEditorId,
-      title: currentEditorTitle || 'Untitled Document',
-      content: currentEditorContent || '<p></p>',
-      design: currentEditorDesign,
-      headerFooter: currentEditorHeaderFooter,
-      comments: currentEditorComments,
-      trackChanges: currentEditorTrackChanges,
-      localOnly: !currentEditorId,
-    };
+    // If the user came from /doc/new or is editing a new/unsaved doc, prioritize in-memory editor document
+    const isEditingNewDoc = returnTo === '/doc/new' || !currentEditorId || currentEditorId === 'new';
+    if (isEditingNewDoc && (currentEditorContent || currentEditorTitle)) {
+      return {
+        id: currentEditorId || 'new',
+        title: currentEditorTitle || 'Untitled Document',
+        content: currentEditorContent || '<p></p>',
+        design: currentEditorDesign,
+        headerFooter: currentEditorHeaderFooter,
+        comments: currentEditorComments,
+        trackChanges: currentEditorTrackChanges,
+        localOnly: true,
+      };
+    }
+
+    // If a document is selected from the list
+    if (selectedDoc) {
+      let resolvedContent = selectedDoc.content;
+
+      // If the selected document is currently open in the editor, use live editor content
+      if (currentEditorId === selectedDoc.id && currentEditorContent && currentEditorContent !== '<p></p>') {
+        resolvedContent = currentEditorContent;
+      } else {
+        // Check if there is a newer unsaved local draft for this document
+        try {
+          const draft = readLocalDraft(selectedDoc.id);
+          if (draft?.content && draft.content !== '<p></p>') {
+            resolvedContent = draft.content;
+          }
+        } catch {
+          // ignore draft read errors
+        }
+      }
+
+      return {
+        ...selectedDoc,
+        title: (currentEditorId === selectedDoc.id && currentEditorTitle) ? currentEditorTitle : selectedDoc.title,
+        content: resolvedContent || '<p></p>',
+      };
+    }
+
+    // Fallback to active editor state if any
+    if (currentEditorId || currentEditorContent) {
+      return {
+        id: currentEditorId,
+        title: currentEditorTitle || 'Untitled Document',
+        content: currentEditorContent || '<p></p>',
+        design: currentEditorDesign,
+        headerFooter: currentEditorHeaderFooter,
+        comments: currentEditorComments,
+        trackChanges: currentEditorTrackChanges,
+        localOnly: !currentEditorId,
+      };
+    }
+
+    return null;
   }, [
+    returnTo,
     selectedDoc,
     currentEditorId,
     currentEditorTitle,
@@ -848,12 +918,13 @@ export function HomePage() {
   ]);
 
   useEffect(() => {
-    if (!selectedDoc) {
+    const doc = saveAsSourceDoc;
+    if (!doc) {
       setSaveAsName('');
       return;
     }
-    setSaveAsName((current) => current || nextCopyName(selectedDoc.title));
-  }, [selectedDoc]);
+    setSaveAsName(nextCopyName(doc.title));
+  }, [saveAsSourceDoc?.id, saveAsSourceDoc?.title]);
 
   const visibleDocs = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -911,7 +982,11 @@ export function HomePage() {
   const createAiDocument = async (title, content) => {
     const safeTitle = title || 'AI Draft';
     try {
-      const created = await documentApi.create({ title: safeTitle, content });
+      const created = await documentApi.create({
+        title: safeTitle,
+        content,
+        design: { pageColor: '#1a1a1a', pageColorMode: 'theme' },
+      });
       const newId = String(created?.id || created?._id || created?.document?.id || created?.document?._id || 'new');
       setSelectedDocId(newId);
       toast('AI draft created', 'success');
@@ -1027,6 +1102,7 @@ export function HomePage() {
         const created = await documentApi.create({
           title: 'Untitled Document',
           content: '<p></p>',
+          design: { pageColor: '#1a1a1a', pageColorMode: 'theme' },
         });
         const newId = String(created?.id || created?._id || 'new');
         setSelectedDocId(newId);
@@ -1037,6 +1113,7 @@ export function HomePage() {
         const { doc } = createLocalDoc({
           title: 'Untitled Document',
           content: '<p></p>',
+          source: { design: { pageColor: '#1a1a1a', pageColorMode: 'theme' } },
         });
         setSelectedDocId(doc.id);
         resetDoc();
@@ -1054,7 +1131,8 @@ export function HomePage() {
       // Try to use backend template API first
       const created = await documentApi.create({ 
         title, 
-        content: templateContent(key)  // Use local template content as fallback data
+        content: templateContent(key),  // Use local template content as fallback data
+        design: { pageColor: '#1a1a1a', pageColorMode: 'theme' },
       });
       const newId = String(created?.id || created?._id || created?.document?.id || created?.document?._id || 'new');
       setSelectedDocId(newId);
@@ -1083,6 +1161,7 @@ export function HomePage() {
       } else {
         await documentApi.delete(doc.id);
       }
+      clearLocalDraft(doc.id);
 
       setDocs((prev) => {
         const next = prev.filter((d) => d.id !== doc.id);
@@ -1148,7 +1227,7 @@ export function HomePage() {
       if (key !== 'ai') setAiAction(null);
       if (key === 'saveAs' && saveAsSourceDoc) {
         setSaveAsName(nextCopyName(saveAsSourceDoc.title));
-        setSaveAsLocation('cloud');
+        setSaveAsLocation('thisPc');
       }
       return;
     }
@@ -1238,84 +1317,35 @@ export function HomePage() {
     }
 
     setExportBusy(true);
-    const exportLocally = async () => {
-      if (fmt === 'markdown' || fmt === 'md') {
-        exportToMarkdown(selectedDoc.title, selectedDoc.content || '<p></p>');
-        return;
-      }
-
-      if (fmt === 'epub') {
-        await exportToEpub(selectedDoc.title, selectedDoc.content || '<p></p>');
-        return;
-      }
-
-      if (fmt === 'docx') {
-        await exportToDocx(selectedDoc.title, selectedDoc.content || '<p></p>');
-        return;
-      }
-
-      if (fmt === 'pdf') {
-        const frame = document.createElement('div');
-        frame.style.position = 'fixed';
-        frame.style.left = '-10000px';
-        frame.style.top = '0';
-        frame.style.width = '794px';
-        frame.style.background = '#ffffff';
-        frame.style.padding = '40px';
-        frame.innerHTML = selectedDoc.content || '<p></p>';
-        document.body.appendChild(frame);
-        try {
-          await exportToPdf(selectedDoc.title, frame);
-        } finally {
-          frame.remove();
-        }
-        return;
-      }
-
-      exportToHtml(selectedDoc.title, selectedDoc.content || '<p></p>');
-    };
-
     try {
-      const blob = selectedDoc.localOnly
-        ? null
-        : fmt === 'pdf'
-          ? await exportApi.pdf(selectedDoc.id)
-          : fmt === 'docx'
-            ? await exportApi.docx(selectedDoc.id)
-            : await exportApi.html(selectedDoc.id);
-
-      if (!blob || blob.size === 0) {
-        await exportLocally();
-        toast(`Exported as ${fmt.toUpperCase()}`, 'success');
-        return;
+      let content = selectedDoc.content || '';
+      if (!content || content === '<p></p>') {
+        if (selectedDoc.id === currentEditorId && currentEditorContent && currentEditorContent !== '<p></p>') {
+          content = currentEditorContent;
+        } else if (selectedDoc.id) {
+          try {
+            const draft = readLocalDraft(selectedDoc.id);
+            if (draft?.content && draft.content !== '<p></p>') content = draft.content;
+          } catch {}
+        }
+        if ((!content || content === '<p></p>') && selectedDoc.id && !selectedDoc.localOnly) {
+          try {
+            const fullDoc = await documentApi.get(selectedDoc.id);
+            if (fullDoc?.content && fullDoc.content !== '<p></p>') content = fullDoc.content;
+          } catch (err) {
+            console.warn('Could not fetch full document before export:', err.message);
+          }
+        }
       }
+      if (!content) content = '<p></p>';
 
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.style.display = 'none';
-      a.download = `${selectedDoc.title}.${fmt === 'pdf' || fmt === 'docx' ? fmt : 'html'}`;
-      document.body.appendChild(a);
-      a.click();
-      // Defer cleanup so the browser has time to start the download
-      setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 1000);
-      toast('Export complete', 'success');
-    } catch {
-      try {
-        await exportLocally();
-        toast('Cloud export failed, exported locally', 'warning');
-      } catch {
-        const fallback = new Blob([selectedDoc.content || '<p></p>'], { type: 'text/html' });
-        const url = URL.createObjectURL(fallback);
-        const a = document.createElement('a');
-        a.href = url;
-        a.style.display = 'none';
-        a.download = `${selectedDoc.title}.html`;
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 1000);
-        toast('Cloud export failed, exported HTML locally', 'warning');
-      }
+      const cleanTitle = cleanBaseName(selectedDoc.title) || 'document';
+      const blob = await generateFormatBlob(cleanTitle, fmt, content);
+      const ext = fmt === 'etherx' ? 'ethex' : (fmt === 'markdown' ? 'md' : fmt);
+      downloadBlob(blob, `${cleanTitle}.${ext}`);
+      toast(`Exported as ${fmt.toUpperCase()}`, 'success');
+    } catch (err) {
+      toast(`Export failed: ${err.message}`, 'error');
     } finally {
       setExportBusy(false);
     }
@@ -1410,7 +1440,7 @@ export function HomePage() {
     }
 
     if (saveAsLocation === 'recent') {
-      toast('Choose EtherX Cloud, This PC, or Browse Folder to save', 'info');
+      toast('Choose This PC or Browse Folder to save', 'info');
       return;
     }
 
@@ -1432,47 +1462,43 @@ export function HomePage() {
       }
 
       const wantsLocalFile = saveAsLocation === 'thisPc' || saveAsLocation === 'browse';
-      const content = sourceDoc.content || '<p></p>';
 
-      if (wantsLocalFile || (saveAsLocation === 'cloud' && saveAsFormat !== 'etherx')) {
-        const pickerResult = await saveWithFilePicker(finalName, saveAsFormat, content);
+      if (wantsLocalFile) {
+        // Ensure content is fully hydrated
+        let content = sourceDoc.content || '';
+        if (!content || content === '<p></p>') {
+          if (sourceDoc.id) {
+            try {
+              const draft = readLocalDraft(sourceDoc.id);
+              if (draft?.content && draft.content !== '<p></p>') content = draft.content;
+            } catch {}
+          }
+          if ((!content || content === '<p></p>') && sourceDoc.id && !sourceDoc.localOnly) {
+            try {
+              const fullDoc = await documentApi.get(sourceDoc.id);
+              if (fullDoc?.content && fullDoc.content !== '<p></p>') content = fullDoc.content;
+            } catch (err) {
+              console.warn('Could not fetch full document before saveAs:', err.message);
+            }
+          }
+        }
+        if (!content) content = '<p></p>';
+
+        const blob = await generateFormatBlob(finalName, saveAsFormat, content);
+        const ext = saveAsFormat === 'etherx' ? 'ethex' : (saveAsFormat === 'markdown' ? 'md' : saveAsFormat);
+        const fileNameWithExt = `${finalName}.${ext}`;
+
+        const pickerResult = await saveWithFilePicker(finalName, saveAsFormat, blob);
         if (pickerResult === null) {
           toast('Save As cancelled', 'info');
           return;
         }
 
         if (pickerResult !== true) {
-          if (saveAsFormat === 'docx') {
-            await exportToDocx(finalName, content);
-          } else if (saveAsFormat === 'pdf') {
-            const frame = document.createElement('div');
-            frame.style.position = 'fixed';
-            frame.style.left = '-10000px';
-            frame.style.top = '0';
-            frame.style.width = '794px';
-            frame.style.background = '#ffffff';
-            frame.style.padding = '40px';
-            frame.innerHTML = content || '<p></p>';
-            document.body.appendChild(frame);
-            try {
-              await exportToPdf(finalName, frame);
-            } finally {
-              frame.remove();
-            }
-          } else if (saveAsFormat === 'html') {
-            exportToHtml(finalName, content);
-          } else if (saveAsFormat === 'markdown' || saveAsFormat === 'md') {
-            exportToMarkdown(finalName, content);
-          } else if (saveAsFormat === 'epub') {
-            await exportToEpub(finalName, content);
-          } else {
-            downloadEtherxFile(finalName, content);
-          }
+          downloadBlob(blob, fileNameWithExt);
         }
 
-        const destination = wantsLocalFile
-          ? (saveAsLocation === 'browse' ? 'the selected folder' : 'your computer')
-          : 'your computer because file exports are saved locally';
+        const destination = saveAsLocation === 'browse' ? 'the selected folder' : 'your computer';
         toast(`Saved to ${destination}`, 'success');
         setActiveMenu('home');
         return;
@@ -1579,6 +1605,7 @@ export function HomePage() {
         const created = await documentApi.create({
           title: fileName,
           content,
+          design: { pageColor: '#1a1a1a', pageColorMode: 'theme' },
         });
         const newId = String(created?.id || created?._id || created?.document?.id || created?.document?._id || 'new');
         toast('File opened as a new document (save to add to recent list)', 'success');
@@ -2010,7 +2037,7 @@ export function HomePage() {
                   ))}
 
                   <div style={{ ...styles.saveAsQuickAccessTitle, marginTop: 16 }}>LOCATIONS</div>
-                  {SAVE_AS_LOCATIONS.filter((item) => item.area === 'personal' || item.area === 'other').map((item) => (
+                  {SAVE_AS_LOCATIONS.filter((item) => item.area === 'other').map((item) => (
                     <button
                       key={item.key}
                       style={{
@@ -2043,10 +2070,7 @@ export function HomePage() {
                 {/* Main Content Area */}
                 <div style={styles.saveAsFormArea}>
                   {/* Current Location Card */}
-                  <div style={{
-                    ...styles.saveAsLocationCard,
-                    ...(saveAsLocation === 'cloud' ? { border: '2px solid #d4af37', borderRadius: 10 } : null),
-                  }}>
+                  <div style={styles.saveAsLocationCard}>
                     <div style={styles.saveAsLocationIcon}>{getSaveAsLargeIcon(saveAsLocation)}</div>
                     <div>
                       <div style={styles.saveAsLocationName}>
@@ -2054,7 +2078,6 @@ export function HomePage() {
                       </div>
                       <div style={styles.saveAsLocationPath}>
                         {saveAsLocation === 'thisPc' && 'Download to your computer'}
-                        {saveAsLocation === 'cloud' && 'Secure cloud storage - accessible from anywhere'}
                         {saveAsLocation === 'browse' && 'Choose a specific folder on your computer'}
                         {saveAsLocation === 'share' && 'Create shareable collaboration link'}
                         {saveAsLocation === 'copyLink' && 'Generate a link to share this document'}
@@ -2074,7 +2097,7 @@ export function HomePage() {
                           onClick={() => {
                             setSelectedDocId(doc.id);
                             setSaveAsName(nextCopyName(doc.title));
-                            setSaveAsLocation('cloud');
+                            setSaveAsLocation('thisPc');
                           }}
                         >
                           <span style={styles.saveAsRecentItemMain}>
@@ -2086,17 +2109,6 @@ export function HomePage() {
                       )) : (
                         <div style={styles.saveAsRecentEmpty}>No recent documents found.</div>
                       )}
-                    </div>
-                  )}
-
-                  {/* Info Banner */}
-                  {saveAsLocation === 'cloud' && (
-                    <div style={styles.saveAsInfoBanner}>
-                      <span style={styles.saveAsInfoIcon}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" /></svg></span>
-                      <div>
-                        <div style={styles.saveAsInfoTitle}>EtherX Cloud Storage</div>
-                        <div style={styles.saveAsInfoText}>Your document will be saved to your EtherX cloud account and can be accessed from any device. This is separate from Microsoft OneDrive.</div>
-                      </div>
                     </div>
                   )}
 

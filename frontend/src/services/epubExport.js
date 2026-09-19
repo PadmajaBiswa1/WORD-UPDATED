@@ -40,8 +40,23 @@ function cleanForXhtml(html = '', imageCollector = []) {
   if (!html) return '<p></p>';
 
   let cleaned = html
+    .replace(/<div[^>]*class="[^"]*(?:etherx-page-break|etherx-auto-page-break)[^"]*"[^>]*><\/div>/gi, '')
+    .replace(/<div[^>]*data-page-break="true"[^>]*><\/div>/gi, '')
+    .replace(/<div[^>]*data-etherx-auto-break="true"[^>]*><\/div>/gi, '')
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    // Remove dark theme off-white text color overrides
+    .replace(/style="([^"]*)"/gi, (match, styleBody) => {
+      const parts = styleBody.split(';').map((p) => p.trim()).filter(Boolean);
+      const updated = parts.filter((part) => {
+        const [prop, val] = part.split(':').map((s) => s.trim().toLowerCase());
+        if (prop === 'color' && (val?.includes('245') || val?.includes('f5f1e8') || val?.includes('fff'))) {
+          return false;
+        }
+        return true;
+      });
+      return updated.length ? `style="${updated.join('; ')}"` : '';
+    })
     // Extract base64 images into internal EPUB items
     .replace(/<img\s+([^>]*?)src=["']data:image\/(png|jpeg|jpg|webp|gif);base64,([A-Za-z0-9+/=]+)["']([^>]*?)(?:\s*\/)?>/gi, (match, before, ext, base64Data, after) => {
       const imgIdx = imageCollector.length + 1;
@@ -362,7 +377,7 @@ ${spineItems}
       type: 'blob',
       mimeType: 'application/epub+zip',
     });
-    if (typeof saveAs === 'function') {
+    if (typeof saveAs === 'function' && options.autoDownload !== false) {
       saveAs(blob, filename);
     }
   } else {
@@ -376,4 +391,15 @@ ${spineItems}
     filename,
     chapters: chapters.length,
   };
+}
+
+/**
+ * Builds an EPUB blob without initiating browser download.
+ */
+export async function buildEpubBlob(title, contentHtml, options = {}) {
+  const zip = new JSZip();
+  // Call exportToEpub logic without saveAs by temporarily shadowing saveAs or using internal helper
+  const filename = `${sanitizeFilename(title)}.epub`;
+  const res = await exportToEpub(title, contentHtml, { ...options, autoDownload: false });
+  return res;
 }

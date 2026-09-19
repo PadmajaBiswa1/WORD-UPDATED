@@ -207,7 +207,7 @@ export const useDocumentStore = create((set, get) => ({
       isDirty: false,
     })),
 
-  setTitle: (title) => set({ title, isDirty: true }),
+  setTitle: (title) => set({ title, isDirty: true, updatedAt: new Date() }),
   setContent: (content) => set({ content, isDirty: true, updatedAt: new Date() }),
   setDesign: (design = {}) =>
     set((state) => {
@@ -357,6 +357,8 @@ export const useDocumentStore = create((set, get) => ({
       try {
         window.localStorage.removeItem(`${DESIGN_STORAGE_PREFIX}${currentId}`);
         window.localStorage.removeItem(`${HEADER_FOOTER_STORAGE_PREFIX}${currentId}`);
+        window.localStorage.removeItem(`etherx_doc_draft_${currentId}`);
+        window.localStorage.removeItem(`etherx_doc_backup_${currentId}`);
       } catch {
         // ignore storage errors
       }
@@ -401,6 +403,10 @@ export const useUIStore = create((set) => ({
   drawSize: 4,
   drawOpacity: 0.4,
   watermarkText: '',
+  designPopover: null,
+  setDesignPopover: (popover) => set({ designPopover: popover }),
+  pageBordersModalOpen: false,
+  setPageBordersModalOpen: (open) => set({ pageBordersModalOpen: !!open }),
 
   copilotOpen: true,
   toggleCopilot: () => set((s) => ({ copilotOpen: !s.copilotOpen })),

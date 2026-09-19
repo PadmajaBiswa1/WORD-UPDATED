@@ -129,6 +129,7 @@ function HeroBtn({ icon, label, onClick, title, active, disabled, triggerName })
   return (
     <button
       data-design-trigger={triggerName ? 'true' : undefined}
+      data-design-name={triggerName || undefined}
       disabled={disabled}
       onClick={onClick}
       title={title || label}
@@ -215,7 +216,17 @@ function MiniAction({ icon, text, onClick, title, active, disabled, triggerName 
 }
 
 export function DesignTab() {
-  const { toast, watermarkText, setWatermarkText, setActiveTab, openDialog } = useUIStore();
+  const {
+    toast,
+    watermarkText,
+    setWatermarkText,
+    setActiveTab,
+    openDialog,
+    designPopover,
+    setDesignPopover,
+    pageBordersModalOpen,
+    setPageBordersModalOpen,
+  } = useUIStore();
   const { editor } = useEditorStore();
   const { design, setDesign } = useDocumentStore();
 
@@ -246,26 +257,125 @@ export function DesignTab() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const recognitionRef = useRef(null);
 
+  const openBorderModal = () => {
+    const hasActiveBorder = Boolean(
+      design?.borderSetting &&
+      design.borderSetting !== 'none' &&
+      design?.borderStyle &&
+      design.borderStyle !== 'none' &&
+      design?.borderColor &&
+      design.borderColor !== 'transparent'
+    );
+    const currentSetting = hasActiveBorder ? design.borderSetting : 'none';
+    const currentStyle = hasActiveBorder ? design.borderStyle : 'solid';
+    const currentColor = hasActiveBorder && design.borderColor ? design.borderColor : '#6f5320';
+    const currentWidth = Number(design?.borderWidth) || 2;
+    const currentDistance = Number(design?.borderDistance) || 24;
+    const currentSides = hasActiveBorder && design?.borderSides
+      ? {
+          top: design.borderSides.top !== false,
+          right: design.borderSides.right !== false,
+          bottom: design.borderSides.bottom !== false,
+          left: design.borderSides.left !== false,
+        }
+      : (hasActiveBorder
+          ? { top: true, right: true, bottom: true, left: true }
+          : { top: false, right: false, bottom: false, left: false });
+    setTempBorderSetting(currentSetting);
+    setTempBorderStyle(currentStyle);
+    setTempBorderColor(currentColor);
+    setTempBorderWidth(currentWidth);
+    setTempBorderDistance(currentDistance);
+    setTempBorderSides(currentSides);
+    tempBorderSettingRef.current = currentSetting;
+    tempBorderStyleRef.current = currentStyle;
+    tempBorderColorRef.current = currentColor;
+    tempBorderWidthRef.current = currentWidth;
+    tempBorderDistanceRef.current = currentDistance;
+    tempBorderSidesRef.current = currentSides;
+    setBorderModalOpen(true);
+    setPageBordersModalOpen?.(true);
+  };
+
+  const closeBorderModal = () => {
+    setBorderModalOpen(false);
+    setPageBordersModalOpen?.(false);
+  };
+
+  const openPopoverByName = (name, targetEl = null) => {
+    if (activePopover === name && !targetEl) {
+      setActivePopover(null);
+      setDesignPopover?.(null);
+      return;
+    }
+    const target = targetEl ||
+                   document.querySelector(`[data-design-name="${name}"]`) ||
+                   document.querySelector(`[data-design-trigger="${name}"]`);
+    if (target) {
+      const rect = target.getBoundingClientRect();
+      setPopoverPos({ top: rect.bottom + 6, left: Math.max(8, Math.min(window.innerWidth - 300, rect.left)) });
+    } else {
+      setPopoverPos({ top: 120, left: Math.max(16, window.innerWidth / 2 - 130) });
+    }
+    setActivePopover(name);
+    setDesignPopover?.(name);
+  };
+
+  const openPopover = (name, e) => {
+    e?.stopPropagation?.();
+    openPopoverByName(name, e?.currentTarget);
+  };
+
   useEffect(() => {
     const handleOutside = (e) => {
       if (!e.target.closest('[data-design-popover="true"]') && !e.target.closest('[data-design-trigger="true"]')) {
         setActivePopover(null);
+        setDesignPopover?.(null);
       }
     };
     window.addEventListener('mousedown', handleOutside);
     return () => window.removeEventListener('mousedown', handleOutside);
   }, []);
 
-  const openPopover = (name, e) => {
-    e.stopPropagation();
-    if (activePopover === name) {
-      setActivePopover(null);
-      return;
+  // Listen for design events from search bar or store updates
+  useEffect(() => {
+    const checkPending = () => {
+      const state = useUIStore.getState();
+      if (state.pageBordersModalOpen) {
+        openBorderModal();
+      }
+      if (state.designPopover) {
+        setTimeout(() => openPopoverByName(state.designPopover), 50);
+      }
+    };
+    checkPending();
+
+    const handleOpenDesignFeature = (e) => {
+      const feat = e.detail?.feature;
+      if (feat === 'pageBorder' || feat === 'pageBorders') {
+        openBorderModal();
+      } else if (feat) {
+        setTimeout(() => openPopoverByName(feat), 50);
+      }
+    };
+
+    window.addEventListener('etherx:open-design-feature', handleOpenDesignFeature);
+    return () => {
+      window.removeEventListener('etherx:open-design-feature', handleOpenDesignFeature);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (pageBordersModalOpen && !borderModalOpen) {
+      openBorderModal();
     }
-    const rect = e.currentTarget.getBoundingClientRect();
-    setPopoverPos({ top: rect.bottom + 6, left: Math.max(8, Math.min(window.innerWidth - 300, rect.left)) });
-    setActivePopover(name);
-  };
+  }, [pageBordersModalOpen]);
+
+  useEffect(() => {
+    if (designPopover && activePopover !== designPopover) {
+      openPopoverByName(designPopover);
+    }
+  }, [designPopover]);
 
   const handleApplyTheme = (theme) => {
     setDesign({
@@ -722,47 +832,11 @@ export function DesignTab() {
             onClick={(e) => openPopover('pageColor', e)}
           />
           <HeroBtn
+            triggerName="pageBorder"
             icon={<Square size={20} strokeWidth={1.75} />}
             label="Page Borders"
             title="Add or change the border around the page"
-            onClick={() => {
-              const hasActiveBorder = Boolean(
-                design?.borderSetting &&
-                design.borderSetting !== 'none' &&
-                design?.borderStyle &&
-                design.borderStyle !== 'none' &&
-                design?.borderColor &&
-                design.borderColor !== 'transparent'
-              );
-              const currentSetting = hasActiveBorder ? design.borderSetting : 'none';
-              const currentStyle = hasActiveBorder ? design.borderStyle : 'solid';
-              const currentColor = hasActiveBorder && design.borderColor ? design.borderColor : '#6f5320';
-              const currentWidth = Number(design?.borderWidth) || 2;
-              const currentDistance = Number(design?.borderDistance) || 24;
-              const currentSides = hasActiveBorder && design?.borderSides
-                ? {
-                    top: design.borderSides.top !== false,
-                    right: design.borderSides.right !== false,
-                    bottom: design.borderSides.bottom !== false,
-                    left: design.borderSides.left !== false,
-                  }
-                : (hasActiveBorder
-                    ? { top: true, right: true, bottom: true, left: true }
-                    : { top: false, right: false, bottom: false, left: false });
-              setTempBorderSetting(currentSetting);
-              setTempBorderStyle(currentStyle);
-              setTempBorderColor(currentColor);
-              setTempBorderWidth(currentWidth);
-              setTempBorderDistance(currentDistance);
-              setTempBorderSides(currentSides);
-              tempBorderSettingRef.current = currentSetting;
-              tempBorderStyleRef.current = currentStyle;
-              tempBorderColorRef.current = currentColor;
-              tempBorderWidthRef.current = currentWidth;
-              tempBorderDistanceRef.current = currentDistance;
-              tempBorderSidesRef.current = currentSides;
-              setBorderModalOpen(true);
-            }}
+            onClick={openBorderModal}
           />
         </div>
       </RibbonGroup>
@@ -1091,7 +1165,7 @@ export function DesignTab() {
 
       {/* ── BORDER MODAL ── */}
       {borderModalOpen && (
-        <Modal title="Borders and Shading" onClose={() => setBorderModalOpen(false)} width={620}>
+        <Modal title="Borders and Shading" onClose={closeBorderModal} width={620}>
           <Stack gap={14}>
             <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr 150px', gap: 16, alignItems: 'start' }}>
               {/* Setting */}
@@ -1353,7 +1427,7 @@ export function DesignTab() {
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, marginTop: 10 }}>
-              <Button variant="subtle" onClick={() => setBorderModalOpen(false)}>
+              <Button variant="subtle" onClick={closeBorderModal}>
                 Cancel
               </Button>
               <Button
@@ -1375,7 +1449,7 @@ export function DesignTab() {
                     borderDistance: distance,
                     borderSides: isNone ? { top: false, right: false, bottom: false, left: false } : sides,
                   });
-                  setBorderModalOpen(false);
+                  closeBorderModal();
                   toast(isNone ? 'Page borders removed' : 'Page borders updated', 'success');
                 }}
               >

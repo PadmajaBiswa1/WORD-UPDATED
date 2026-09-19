@@ -1,12 +1,11 @@
-// Centralized registry for searchable ribbon commands.
-// Tabs register commands through registerRibbonCommands().
+import { DEFAULT_COMMANDS } from './defaultCommands.js';
 
-let COMMANDS = [];
-let REGISTERED = false;
+let COMMANDS = [...DEFAULT_COMMANDS];
+let REGISTERED = true;
 
 export function resetCommandRegistry() {
-  COMMANDS = [];
-  REGISTERED = false;
+  COMMANDS = [...DEFAULT_COMMANDS];
+  REGISTERED = true;
 }
 
 export function registerCommand(def) {
@@ -74,20 +73,26 @@ export function searchCommands(query, { limit = 12 } = {}) {
 
     let score = 0;
 
-    if (hay.includes(q)) score += 60;
-    if (normalize(cmd.title).includes(q)) score += 60;
-    if (normalize(cmd.tab).includes(q)) score += 25;
-    if (normalize(cmd.group).includes(q)) score += 18;
+    const normTitle = normalize(cmd.title);
+    if (normTitle === q) score += 150;
+    else if (normTitle.startsWith(q)) score += 80;
+    else if (normTitle.includes(q)) score += 60;
+
+    if (hay.includes(q)) score += 40;
+    if (normalize(cmd.tab).includes(q)) score += 20;
+    if (normalize(cmd.group).includes(q)) score += 15;
+
+    // keyword exact match
+    if (cmd.keywords && cmd.keywords.some((kw) => normalize(kw) === q)) {
+      score += 100;
+    }
 
     // token matching
     tokens.forEach((t) => {
       if (!t) return;
+      if (normTitle.startsWith(t)) score += 15;
       if (hay.includes(t)) score += 10;
     });
-
-    // extra: prefix boost
-    const title = normalize(cmd.title);
-    if (tokens.some((t) => title.startsWith(t))) score += 12;
 
     return { cmd, score };
   })

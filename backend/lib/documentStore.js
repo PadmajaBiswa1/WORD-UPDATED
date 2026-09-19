@@ -37,7 +37,7 @@ function writeStore(store) {
 
 function defaultDesign() {
   return {
-    pageColor: '#fdfbf7',
+    pageColor: '#1a1a1a',
     pageColorMode: 'theme',
     pageFillImage: '',
     borderSetting: 'none',
@@ -49,7 +49,7 @@ function defaultDesign() {
     pageShadow: 'var(--shadow-page)',
     accent: '#c9a84c',
     heading: '#c9a84c',
-    subtle: '#444444',
+    subtle: '#F5F1E8',
     font: 'Crimson Pro',
     spacing: '1.7',
     effect: 'none',
