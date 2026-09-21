@@ -260,7 +260,19 @@ export function PictureFormatTab({ mode = 'auto' }) {
       toast('Select an image first', 'info');
       return;
     }
-    const attrs = editor.getAttributes('image') || {};
+    // Read attrs directly from the node at the saved position — this works
+    // even when focus is in an input field (editor.getAttributes returns {})
+    const pos = selectedNodePosRef.current;
+    let attrs = {};
+    if (pos != null) {
+      try {
+        const node = editor.state.doc.nodeAt(pos);
+        if (node?.type?.name === 'image') attrs = node.attrs || {};
+      } catch (_) {}
+    }
+    if (!Object.keys(attrs).length) {
+      attrs = editor.getAttributes('image') || {};
+    }
     const css = parseCssStyle(attrs.style || '');
     action(attrs, css);
   };
@@ -269,7 +281,20 @@ export function PictureFormatTab({ mode = 'auto' }) {
   // update is reliable even when focus was stolen by an input field.
   const updateImageAttrs = (attrsPatch = {}, cssPatch = {}) => {
     const pos = selectedNodePosRef.current;
-    const attrs = editor.getAttributes('image') || {};
+
+    // Read attrs from the document node directly (not editor.getAttributes which
+    // requires the image node to be currently selected — it returns {} otherwise)
+    let attrs = {};
+    if (pos != null) {
+      try {
+        const node = editor.state.doc.nodeAt(pos);
+        if (node?.type?.name === 'image') attrs = node.attrs || {};
+      } catch (_) {}
+    }
+    if (!Object.keys(attrs).length) {
+      attrs = editor.getAttributes('image') || {};
+    }
+
     const css = parseCssStyle(attrs.style || '');
     Object.entries(cssPatch).forEach(([k, v]) => {
       if (v === null || v === undefined || v === '') delete css[k];

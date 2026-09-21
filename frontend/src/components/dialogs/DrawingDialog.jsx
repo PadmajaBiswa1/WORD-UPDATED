@@ -33,6 +33,18 @@ export function DrawingDialog() {
     img.src = drawingEditSrc;
   }, [drawingEditSrc]);
 
+  // When dialog opens in edit mode: hide the image selection handles/border so
+  // the blue overlay doesn't bleed through the drawing canvas
+  useEffect(() => {
+    if (!isEditMode) return;
+    // Hide resize handles and selection border
+    window.dispatchEvent(new CustomEvent('image-handles-hide'));
+    // Also blur the editor so PictureFormatToolbar auto-hides
+    if (editor) {
+      try { editor.commands.blur(); } catch (_) {}
+    }
+  }, [isEditMode, editor]);
+
   const getPos = (e) => {
     const rect = canvasRef.current.getBoundingClientRect();
     const scaleX = W / rect.width;

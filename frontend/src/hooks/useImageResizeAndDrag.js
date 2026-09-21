@@ -802,6 +802,10 @@ export function useImageResizeAndDrag(editor, editorRef) {
     window.addEventListener('resize', onScrollOrResize);
     window.addEventListener('image-reposition-handles', onScrollOrResize);
 
+    // Allow external code (modals, dialogs) to force-hide the handles
+    const handleForceHide = () => syncOverlayBounds(null);
+    window.addEventListener('image-handles-hide', handleForceHide);
+
     // Event listeners
     window.addEventListener('pointerdown', handlePointerDown, { capture: true });
     window.addEventListener('pointermove', handlePointerMove, { passive: true });
@@ -819,6 +823,7 @@ export function useImageResizeAndDrag(editor, editorRef) {
       window.removeEventListener('scroll', onScrollOrResize, { capture: true });
       window.removeEventListener('resize', onScrollOrResize);
       window.removeEventListener('image-reposition-handles', onScrollOrResize);
+      window.removeEventListener('image-handles-hide', handleForceHide);
 
       window.removeEventListener('pointerdown', handlePointerDown, { capture: true });
       window.removeEventListener('pointermove', handlePointerMove);
