@@ -2,6 +2,8 @@
 //  EtherX Word — Local Draft Storage & Recovery Utilities
 // ═══════════════════════════════════════════════════════════════
 
+import { stripAutoPageBreaks } from '@/components/editor/PageBreak';
+
 export const DRAFT_STORAGE_PREFIX = 'etherx_doc_draft_';
 export const BACKUP_STORAGE_PREFIX = 'etherx_doc_backup_';
 
@@ -19,7 +21,7 @@ export function writeLocalDraft(id, data = {}) {
     const draft = {
       id,
       title: data.title,
-      content: data.content,
+      content: typeof data.content === 'string' ? stripAutoPageBreaks(data.content) : data.content,
       contentJson: data.contentJson,
       design: data.design,
       headerFooter: data.headerFooter,
@@ -60,7 +62,13 @@ export function readLocalDraft(id) {
       || window.localStorage.getItem(`${BACKUP_STORAGE_PREFIX}${id}`);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? parsed : null;
+    if (parsed && typeof parsed === 'object') {
+      if (typeof parsed.content === 'string') {
+        parsed.content = stripAutoPageBreaks(parsed.content);
+      }
+      return parsed;
+    }
+    return null;
   } catch {
     return null;
   }

@@ -80,8 +80,18 @@ export function EditorCanvas() {
 
     const handleOpenCrop = (e) => {
       const img = e.detail?.img || editor?.view?.dom?.querySelector('.ProseMirror-selectednode img, img.ProseMirror-selectednode');
-      if (img) {
-        setCropModal({ isOpen: true, imgElement: img });
+      if (img && editor) {
+        // Capture the node's position so we can target it after focus is lost
+        let pos = null;
+        try {
+          const sel = editor.state.selection;
+          if (sel?.node?.type?.name === 'image') {
+            pos = sel.from;
+          } else {
+            pos = editor.view.posAtDOM(img, 0);
+          }
+        } catch (_) { /* ignore */ }
+        setCropModal({ isOpen: true, imgElement: img, pos });
       }
     };
 
@@ -224,6 +234,16 @@ export function EditorCanvas() {
 
   useEffect(() => {
     recalcPages();
+
+    if (typeof document !== 'undefined' && document.fonts) {
+      if (document.fonts.ready) {
+        document.fonts.ready.then(recalcPages).catch(() => {});
+      }
+      document.fonts.addEventListener?.('loadingdone', recalcPages);
+      return () => {
+        document.fonts.removeEventListener?.('loadingdone', recalcPages);
+      };
+    }
   }, [recalcPages, zoom]);
 
   useEffect(() => {
@@ -531,13 +551,21 @@ export function EditorCanvas() {
           <ImageCropModal
             isOpen={cropModal.isOpen}
             imgElement={cropModal.imgElement}
-            onClose={() => setCropModal({ isOpen: false, imgElement: null })}
+            onClose={() => setCropModal({ isOpen: false, imgElement: null, pos: null })}
             onApplyCrop={(dataUrl, width, height) => {
               if (editor) {
-                editor.chain().focus().updateAttributes('image', {
+                const pos = cropModal.pos;
+                let chain = editor.chain();
+                if (pos != null) {
+                  chain = chain.setNodeSelection(pos);
+                } else {
+                  chain = chain.focus();
+                }
+                chain.updateAttributes('image', {
                   src: dataUrl,
                   width: String(width),
                   height: String(height),
+                  style: `width:${width}px;height:${height}px`,
                 }).run();
                 useUIStore.getState().toast('Image cropped successfully', 'success');
               }

@@ -40,7 +40,10 @@ export function isInsideSelectedImage(target, editor) {
 export function parseCssStyle(style = '') {
   const out = {};
   style.split(';').forEach((pair) => {
-    const [k, v] = pair.split(':').map((s) => s?.trim());
+    const idx = pair.indexOf(':');
+    if (idx < 1) return;
+    const k = pair.slice(0, idx).trim();
+    const v = pair.slice(idx + 1).trim();
     if (k && v) out[k] = v;
   });
   return out;

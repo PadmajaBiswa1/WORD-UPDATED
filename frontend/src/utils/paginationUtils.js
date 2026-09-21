@@ -48,7 +48,15 @@ export function calculatePageBreaks(content, pageSettings = {}) {
   let pageStartBlockIndex = 0;
 
   blocks.forEach((block, index) => {
-    const isPageBreak = block.classList?.contains('etherx-page-break') ||
+    const isAutoBreak = block.classList?.contains('etherx-auto-page-break') ||
+                        block.dataset?.etherxAutoBreak === 'true';
+    if (isAutoBreak) {
+      return;
+    }
+
+    const isPageBreak = block.classList?.contains('etherx-manual-page-break') ||
+                        block.dataset?.manual === 'true' ||
+                        block.classList?.contains('etherx-page-break') ||
                         block.dataset?.pageBreak === 'true' ||
                         block.style?.pageBreakAfter === 'always' ||
                         block.style?.pageBreakBefore === 'always';

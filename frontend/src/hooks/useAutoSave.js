@@ -3,6 +3,7 @@ import { useDocumentStore, useUIStore } from '@/store';
 import { documentApi, API_BASE, getStoredUser } from '@/services/api';
 import { encryptDocument } from '@/services/crypto';
 import { writeLocalDraft } from '@/utils/draftStorage';
+import { stripAutoPageBreaks } from '@/components/editor/PageBreak';
 
 const DELAY = 1000; // 1s inactivity debounce
 const MAX_WAIT = 3000; // 3s maximum throttle wait
@@ -67,7 +68,7 @@ export function useAutoSave() {
     try {
       console.log(`💾 Saving document ${docId}: "${title}" (manual=${manual})`);
 
-      let payloadContent = c;
+      let payloadContent = stripAutoPageBreaks(c);
       let payloadContentJson = contentJson;
       let currentSecurity = security ? { ...security } : null;
 
@@ -224,7 +225,7 @@ export function useAutoSave() {
 
         const payload = {
           title: store.title,
-          content: store.security?.protected ? '' : store.content,
+          content: store.security?.protected ? '' : stripAutoPageBreaks(store.content),
           contentJson: store.security?.protected ? null : store.contentJson,
           design: store.design,
           headerFooter: store.headerFooter,

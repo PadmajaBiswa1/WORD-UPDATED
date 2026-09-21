@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Crop, Sparkles, Waves, BoxSelect } from 'lucide-react';
 import { useEditorStore, useUIStore } from '@/store';
 import { Button, Divider, Tooltip, Select } from '@/components/ui';
@@ -37,7 +37,10 @@ const PICTURE_EFFECT_FILTERS = {
 const parseCssStyle = (style = '') => {
   const out = {};
   style.split(';').forEach((pair) => {
-    const [k, v] = pair.split(':').map((s) => s?.trim());
+    const idx = pair.indexOf(':');
+    if (idx < 1) return;
+    const k = pair.slice(0, idx).trim();
+    const v = pair.slice(idx + 1).trim();
     if (k && v) out[k] = v;
   });
   return out;
@@ -133,7 +136,7 @@ function WrapModeDiagram({ mode, active, onClick }) {
 export function PictureFormatTab({ mode = 'auto' }) {
   const isRibbon = mode === 'ribbon';
   const { editor } = useEditorStore();
-  const { toast } = useUIStore();
+  const { toast, openDrawingForEdit } = useUIStore();
   const [imgWidth, setImgWidth] = useState(240);
   const [imgHeight, setImgHeight] = useState(180);
   const [draftWidth, setDraftWidth] = useState('240');
@@ -156,11 +159,25 @@ export function PictureFormatTab({ mode = 'auto' }) {
   const [shapeInfo, setShapeInfo] = useState(null);
   const [shapeDraftText, setShapeDraftText] = useState('');
 
+  // Drawing detection
+  const [isDrawing, setIsDrawing] = useState(false);
+
+  // Track the ProseMirror node position of the currently selected image so
+  // we can re-target it even after focus leaves the editor (e.g. when user
+  // types in a width/height input field).
+  const selectedNodePosRef = useRef(null);
+
   useEffect(() => {
     if (!editor) return;
     const updateFromSelection = () => {
       const attrs = editor.getAttributes('image') || {};
       const css = parseCssStyle(attrs.style || '');
+
+      // Record node pos for later targeted updates
+      const sel = editor.state.selection;
+      if (sel?.node?.type?.name === 'image') {
+        selectedNodePosRef.current = sel.from;
+      }
 
       const isShapeDetected = isShapeSrc(attrs.src);
       setIsShape(isShapeDetected);
@@ -171,6 +188,14 @@ export function PictureFormatTab({ mode = 'auto' }) {
       } else {
         setShapeInfo(null);
       }
+
+      // Detect drawings by alt text or data attribute
+      const isDrawingDetected = (
+        attrs.alt === 'Drawing'
+        || attrs['data-drawing'] === 'true'
+        || attrs['data-drawing'] === true
+      );
+      setIsDrawing(isDrawingDetected && !isShapeDetected);
 
       const width = parseInt(String(attrs.width || css.width || '240'), 10) || 240;
       const height = parseInt(String(attrs.height || css.height || '180'), 10) || 180;
@@ -225,12 +250,13 @@ export function PictureFormatTab({ mode = 'auto' }) {
     };
   }, [editor]);
 
+  // Helper: re-select the image node by saved pos, then run action
   const withSelectedImage = (action) => {
     if (!editor) {
       toast('Editor is not ready yet', 'info');
       return;
     }
-    if (!isImageSelection(editor)) {
+    if (!isImageSelection(editor) && selectedNodePosRef.current == null) {
       toast('Select an image first', 'info');
       return;
     }
@@ -239,14 +265,24 @@ export function PictureFormatTab({ mode = 'auto' }) {
     action(attrs, css);
   };
 
+  // Update image attributes, always restoring NodeSelection first so the
+  // update is reliable even when focus was stolen by an input field.
   const updateImageAttrs = (attrsPatch = {}, cssPatch = {}) => {
+    const pos = selectedNodePosRef.current;
     const attrs = editor.getAttributes('image') || {};
     const css = parseCssStyle(attrs.style || '');
     Object.entries(cssPatch).forEach(([k, v]) => {
       if (v === null || v === undefined || v === '') delete css[k];
       else css[k] = v;
     });
-    editor.chain().focus().updateAttributes('image', {
+
+    let chain = editor.chain();
+    if (pos != null) {
+      chain = chain.setNodeSelection(pos);
+    } else {
+      chain = chain.focus();
+    }
+    chain.updateAttributes('image', {
       ...attrsPatch,
       style: toCssStyle(css),
     }).run();
@@ -701,6 +737,31 @@ export function PictureFormatTab({ mode = 'auto' }) {
                 }}
               >
                 <Crop size={14} style={{ marginRight: 4 }} /> Crop Image
+              </button>
+            )}
+            {isDrawing && (
+              <button
+                type="button"
+                onClick={() => {
+                  withSelectedImage((attrs) => {
+                    const pos = selectedNodePosRef.current;
+                    openDrawingForEdit(attrs.src, pos);
+                  });
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: '4px 10px',
+                  borderRadius: 4,
+                  fontSize: 12,
+                  border: '1px solid var(--gold)',
+                  background: 'rgba(212,175,55,0.08)',
+                  color: 'var(--gold)',
+                  cursor: 'pointer',
+                }}
+              >
+                ✏ Edit Drawing
               </button>
             )}
             <button

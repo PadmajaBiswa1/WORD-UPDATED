@@ -2,6 +2,7 @@
 //  EtherX Word — Central State (Zustand)
 // ═══════════════════════════════════════════════════════════════
 import { create } from 'zustand';
+import { stripAutoPageBreaks } from '@/components/editor/PageBreak';
 
 const DESIGN_STORAGE_PREFIX = 'etherx-doc-design:';
 const HEADER_FOOTER_STORAGE_PREFIX = 'etherx-doc-header-footer:';
@@ -142,7 +143,7 @@ export const useDocumentStore = create((set, get) => ({
         ...state,
         id: docId,
         title: doc.title || 'Untitled Document',
-        content: typeof doc.content === 'string' ? doc.content : '<p></p>',
+        content: typeof doc.content === 'string' ? stripAutoPageBreaks(doc.content) : '<p></p>',
         contentFormatVersion: doc.contentFormatVersion ?? 2,
         contentJson: doc.contentJson ?? null,
         styles: Array.isArray(doc.styles) ? doc.styles : [],
@@ -179,7 +180,7 @@ export const useDocumentStore = create((set, get) => ({
   applyRemoteUpdate: (patch = {}) =>
     set((state) => ({
       title: patch.title ?? state.title,
-      content: typeof patch.content === 'string' ? patch.content : state.content,
+      content: typeof patch.content === 'string' ? stripAutoPageBreaks(patch.content) : state.content,
       contentFormatVersion: patch.contentFormatVersion ?? state.contentFormatVersion,
       contentJson: patch.contentJson !== undefined ? patch.contentJson : state.contentJson,
       styles: Array.isArray(patch.styles) ? patch.styles : state.styles,
@@ -473,6 +474,16 @@ export const useUIStore = create((set) => ({
   openDialog: (name) => set((s) => ({ dialogs: { ...s.dialogs, [name]: true } })),
   closeDialog: (name) => set((s) => ({ dialogs: { ...s.dialogs, [name]: false } })),
   closeAll: () => set((s) => ({ dialogs: Object.fromEntries(Object.keys(s.dialogs).map((k) => [k, false])) })),
+
+  // Edit Drawing state — set before opening the drawing dialog
+  drawingEditSrc: null,
+  drawingEditPos: null,
+  openDrawingForEdit: (src, pos) => set((s) => ({
+    drawingEditSrc: src,
+    drawingEditPos: pos,
+    dialogs: { ...s.dialogs, drawing: true },
+  })),
+  clearDrawingEdit: () => set({ drawingEditSrc: null, drawingEditPos: null }),
 
   toasts: [],
   toast: (message, type = 'info', duration = 3200) =>

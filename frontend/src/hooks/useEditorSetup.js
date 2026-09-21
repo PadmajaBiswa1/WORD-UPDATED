@@ -105,6 +105,11 @@ const ResizableImage = Image.extend({
         parseHTML: (element) => element.getAttribute('data-z') || null,
         renderHTML: (attributes) => (attributes.zIndex ? { 'data-z': attributes.zIndex } : {}),
       },
+      'data-drawing': {
+        default: null,
+        parseHTML: (element) => element.getAttribute('data-drawing') || null,
+        renderHTML: (attributes) => (attributes['data-drawing'] ? { 'data-drawing': attributes['data-drawing'] } : {}),
+      },
     };
   },
 });
