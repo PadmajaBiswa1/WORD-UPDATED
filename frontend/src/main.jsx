@@ -15,11 +15,21 @@ function Root() {
   useEffect(() => {
     const timer = window.setTimeout(() => setShowSplash(false), 2800);
 
-    // Register Service Worker in production / supported environments
-    if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+    // Only register Service Worker in production builds (never on localhost / dev mode)
+    const isLocalhost = Boolean(
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1' ||
+      window.location.hostname.endsWith('.local')
+    );
+
+    if (!isLocalhost && import.meta.env.PROD && 'serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
       navigator.serviceWorker
         .register('/sw.js')
         .catch((err) => console.debug('SW registration skipped:', err?.message));
+    } else if (isLocalhost && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        registrations.forEach((r) => r.unregister());
+      }).catch(() => {});
     }
 
     return () => window.clearTimeout(timer);

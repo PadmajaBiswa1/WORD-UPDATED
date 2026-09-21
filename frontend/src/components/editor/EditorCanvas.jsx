@@ -190,17 +190,31 @@ export function EditorCanvas() {
     overflowTimer.current = setTimeout(() => {
       const proseEl = wrapRef.current?.querySelector('.ProseMirror');
       if (!proseEl) return;
-      const contentHeight = scaledDimensions.contentHeight || 1;
-      const heightBased = Math.max(1, Math.min(500, Math.ceil(proseEl.scrollHeight / contentHeight)));
       const markerEls = wrapRef.current?.querySelectorAll('div[data-page-break="true"], .etherx-page-break');
       const markerCount = markerEls ? markerEls.length : 0;
-      const pages = Math.max(1, Math.min(500, Math.max(markerCount + 1, heightBased)));
+      let pages = markerCount + 1;
+
+      // Check if trailing content overflows beyond the current page count
+      const lastChild = proseEl.lastElementChild;
+      if (lastChild) {
+        const proseRect = proseEl.getBoundingClientRect();
+        const lastRect = lastChild.getBoundingClientRect();
+        const lastBottom = (lastRect.bottom - proseRect.top) * scale;
+        const pageStep = layoutMetrics.pageHeight + PAGE_GAP;
+        const contentHeight = layoutMetrics.contentHeight;
+        const currentLimit = (pages - 1) * pageStep + contentHeight;
+        if (lastBottom > currentLimit + 10) {
+          pages += Math.max(1, Math.ceil((lastBottom - currentLimit) / pageStep));
+        }
+      }
+
+      pages = Math.max(1, Math.min(500, pages));
       const text = proseEl.innerText || '';
       const words = text.trim().split(/\s+/).filter(Boolean).length;
       setPageCount(pages);
       setStats({ wordCount: words, charCount: text.length, pageCount: pages });
     }, 120);
-  }, [setStats, scaledDimensions]);
+  }, [setStats, layoutMetrics, scale]);
 
   useEffect(() => {
     if (!editor) return;

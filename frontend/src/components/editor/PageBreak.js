@@ -76,22 +76,30 @@ function estimateNodeHeight(node) {
   }
 }
 
-function getNodeHeight(view, node, pos) {
+function measureBlock(view, node, pos) {
   const dom = getBlockDOM(view, pos);
+  let height = 0;
+  let marginTop = 0;
+  let marginBottom = 10;
+
   if (dom) {
     const rect = dom.getBoundingClientRect();
     if (Number.isFinite(rect.height) && rect.height > 0) {
-      const scale = useUIStore.getState().zoom / 100;
-      const naturalHeight = rect.height * scale;
-      let extraMargin = 0;
-      try {
-        const cs = window.getComputedStyle(dom);
-        extraMargin = (parseFloat(cs.marginTop) || 0) + (parseFloat(cs.marginBottom) || 0);
-      } catch {}
-      return Math.max(1, naturalHeight + extraMargin);
+      const scale = (useUIStore.getState().zoom || 100) / 100;
+      height = Math.max(1, rect.height * scale);
     }
+    try {
+      const cs = window.getComputedStyle(dom);
+      marginTop = parseFloat(cs.marginTop) || 0;
+      marginBottom = parseFloat(cs.marginBottom) || 0;
+    } catch {}
   }
-  return estimateNodeHeight(node);
+
+  if (!height) {
+    height = estimateNodeHeight(node);
+  }
+
+  return { height, marginTop, marginBottom };
 }
 
 function getContentHeightPx() {
@@ -146,101 +154,89 @@ function paginateDocument(view, heightCache) {
   }
 
   const nextNodes = [];
-  let pageAccumHeight = 0;
+  let currentPage = 0;
+  let currentY = 0; // Relative to start of ProseMirror content (Page 0 starts at 0)
+  let prevBottomMargin = 0;
   let pageHasContent = false;
 
   for (let index = 0; index < sourceBlocks.length; index += 1) {
     const current = sourceBlocks[index];
     const { node, pos } = current;
 
+    // Handle Manual Page Breaks
     if (isManualPageBreak(node)) {
-      const fillHeight = Math.max(1, pageStep - pageAccumHeight);
+      const fillHeight = Math.max(1, (currentPage + 1) * pageStep - currentY);
       nextNodes.push(pageBreakType.create({ auto: false, fillHeight }));
-      pageAccumHeight = 0;
+      currentPage += 1;
+      currentY = currentPage * pageStep;
+      prevBottomMargin = 0;
       pageHasContent = false;
       continue;
     }
 
-    let nodeHeight;
+    let measured;
     if (heightCache) {
       const cacheKey = String(current.pos);
       const hash = getNodeHash(node);
       const cached = heightCache.get(cacheKey);
       if (cached && cached.hash === hash) {
-        nodeHeight = cached.height;
+        measured = cached.measured;
       } else {
-        nodeHeight = Math.max(1, getNodeHeight(view, node, pos));
-        heightCache.set(cacheKey, { hash, height: nodeHeight });
+        measured = measureBlock(view, node, pos);
+        heightCache.set(cacheKey, { hash, measured });
       }
     } else {
-      nodeHeight = Math.max(1, getNodeHeight(view, node, pos));
+      measured = measureBlock(view, node, pos);
     }
 
-    const isHeading = ['heading'].includes(node.type.name);
-    let spaceBefore = 0;
-    if (isHeading) {
-      const level = node.attrs?.level || 1;
-      spaceBefore = level === 1 ? 24 : 16;
-    }
-    let spaceAfter = 8;
-    if (isHeading) {
-      const level = node.attrs?.level || 1;
-      spaceAfter = level === 1 ? 8 : (level === 2 ? 6 : 4);
-    }
+    const { height: nodeHeight, marginTop, marginBottom } = measured;
 
-    const totalNodeHeight = nodeHeight + spaceBefore + spaceAfter;
-    const next = sourceBlocks[index + 1];
+    // CSS margin collapsing with previous block on the same page
+    const effectiveMarginTop = pageHasContent ? Math.max(prevBottomMargin, marginTop) : 0;
+    const proposedTop = currentY + effectiveMarginTop;
+    const proposedBottom = proposedTop + nodeHeight;
 
-    const fitsCurrentPage = (pageAccumHeight + totalNodeHeight) <= contentHeight;
-    const shouldKeepWithNext = isKeepWithNextBlock(node) && next && !isPageBreakNode(next.node);
+    const pageContentLimit = currentPage * pageStep + contentHeight;
+    const fitsCurrentPage = proposedBottom <= pageContentLimit;
 
-    let nextWouldOverflow = false;
-    if (shouldKeepWithNext && next) {
-      const nextHeight = Math.max(1, getNodeHeight(view, next.node, next.pos));
-      nextWouldOverflow = (pageAccumHeight + totalNodeHeight + nextHeight) > contentHeight;
-    }
-
-    if (pageHasContent && (!fitsCurrentPage || nextWouldOverflow)) {
-      const availableSpace = contentHeight - pageAccumHeight;
-      const isLongParagraph = node.type.name === 'paragraph' &&
-                              node.childCount === 1 &&
-                              node.firstChild.isText &&
-                              node.textContent.length > 120 &&
-                              availableSpace >= 96;
-
-      if (isLongParagraph) {
-        const fullText = node.textContent;
-        const approxChars = Math.floor((availableSpace / totalNodeHeight) * fullText.length);
-        let splitIdx = fullText.lastIndexOf(' ', Math.max(20, approxChars));
-        if (splitIdx > 20 && splitIdx < fullText.length - 20) {
-          const part1 = fullText.slice(0, splitIdx);
-          const part2 = fullText.slice(splitIdx).trimStart();
-          const p1 = schema.nodes.paragraph.create(node.attrs, schema.text(part1));
-          const p2 = schema.nodes.paragraph.create(node.attrs, schema.text(part2));
-
-          nextNodes.push(p1);
-          const fillHeight = Math.max(1, pageStep - (pageAccumHeight + availableSpace));
-          nextNodes.push(pageBreakType.create({ auto: true, fillHeight }));
-          nextNodes.push(p2);
-
-          const p2Height = Math.max(1, (nodeHeight * (part2.length / fullText.length)));
-          pageAccumHeight = p2Height + spaceAfter;
-          pageHasContent = true;
-          continue;
-        }
+    // "Keep with next" for headings so a heading doesn't sit orphaned at page bottom
+    let keepWithNextOverflow = false;
+    if (isKeepWithNextBlock(node) && sourceBlocks[index + 1]) {
+      const nextBlock = sourceBlocks[index + 1];
+      if (!isPageBreakNode(nextBlock.node)) {
+        const nextMeasured = measureBlock(view, nextBlock.node, nextBlock.pos);
+        const nextProposedBottom = proposedBottom + Math.max(marginBottom, nextMeasured.marginTop) + nextMeasured.height;
+        keepWithNextOverflow = nextProposedBottom > pageContentLimit;
       }
+    }
 
-      if (nextNodes[nextNodes.length - 1]?.type?.name !== 'pageBreak') {
-        const fillHeight = Math.max(1, pageStep - pageAccumHeight);
-        nextNodes.push(pageBreakType.create({ auto: true, fillHeight }));
-      }
-      pageAccumHeight = 0;
+    if (pageHasContent && (!fitsCurrentPage || keepWithNextOverflow)) {
+      // Must break to next page!
+      // Fill remaining space on currentPage + dead zone to reach start of currentPage + 1
+      const fillHeight = Math.max(1, (currentPage + 1) * pageStep - currentY);
+      nextNodes.push(pageBreakType.create({ auto: true, fillHeight }));
+
+      // Advance to next page
+      currentPage += 1;
+      currentY = currentPage * pageStep;
+      prevBottomMargin = 0;
       pageHasContent = false;
-    }
 
-    nextNodes.push(node);
-    pageAccumHeight += totalNodeHeight;
-    pageHasContent = true;
+      // On new page, top margin is 0 because page top margin provides the spacing
+      const newPageTop = currentY;
+      const newPageBottom = newPageTop + nodeHeight;
+
+      nextNodes.push(node);
+      currentY = newPageBottom;
+      prevBottomMargin = marginBottom;
+      pageHasContent = true;
+    } else {
+      // Fits on current page (or forced because page is empty)
+      nextNodes.push(node);
+      currentY = proposedBottom;
+      prevBottomMargin = marginBottom;
+      pageHasContent = true;
+    }
   }
 
   const currentNodes = [];
@@ -248,7 +244,20 @@ function paginateDocument(view, heightCache) {
     currentNodes.push(node);
   });
 
-  if (currentNodes.length === nextNodes.length && currentNodes.every((node, index) => node.eq(nextNodes[index]))) {
+  if (
+    currentNodes.length === nextNodes.length &&
+    currentNodes.every((node, index) => {
+      const next = nextNodes[index];
+      if (!node.eq(next)) return false;
+      if (isPageBreakNode(node)) {
+        return (
+          Number(node.attrs?.fillHeight) === Number(next.attrs?.fillHeight) &&
+          Boolean(node.attrs?.auto) === Boolean(next.attrs?.auto)
+        );
+      }
+      return true;
+    })
+  ) {
     return false;
   }
 
@@ -353,6 +362,16 @@ export const PageBreak = Node.create({
       if (isAuto) {
         return {
           dom,
+          update: (updatedNode) => {
+            if (updatedNode.type.name !== 'pageBreak') return false;
+            const nextAuto = Boolean(updatedNode.attrs?.auto);
+            if (!nextAuto) return false;
+            const nextHeight = Math.max(1, Number(updatedNode.attrs?.fillHeight) || CONTENT_H);
+            dom.style.height = `${nextHeight}px`;
+            dom.setAttribute('data-etherx-auto-break', 'true');
+            dom.className = 'etherx-page-break etherx-auto-page-break';
+            return true;
+          },
           stopEvent: () => true,
           ignoreMutation: () => true,
         };
@@ -389,6 +408,16 @@ export const PageBreak = Node.create({
 
       return {
         dom,
+        update: (updatedNode) => {
+          if (updatedNode.type.name !== 'pageBreak') return false;
+          const nextAuto = Boolean(updatedNode.attrs?.auto);
+          if (nextAuto) return false;
+          const nextHeight = Math.max(1, Number(updatedNode.attrs?.fillHeight) || CONTENT_H);
+          dom.style.height = `${nextHeight}px`;
+          dom.setAttribute('data-etherx-auto-break', 'false');
+          dom.className = 'etherx-page-break';
+          return true;
+        },
         stopEvent: () => true,
         ignoreMutation: () => true,
       };

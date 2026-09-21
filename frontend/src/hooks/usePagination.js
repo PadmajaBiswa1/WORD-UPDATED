@@ -23,7 +23,9 @@ export function usePagination() {
         // Update status bar if it exists
         const statusBar = document.querySelector('[data-status="pageCount"]');
         if (statusBar) {
-          statusBar.textContent = `Page ${Math.max(1, Math.ceil(pm.offsetHeight / 1123))} of ${result.totalPages}`;
+          const total = Math.max(1, result.totalPages || 1);
+          const current = Math.min(total, (useUIStore.getState().activePage || 0) + 1);
+          statusBar.textContent = `Page ${current} of ${total}`;
         }
       } catch (err) {
         // Silent fail - pagination calculation is non-critical

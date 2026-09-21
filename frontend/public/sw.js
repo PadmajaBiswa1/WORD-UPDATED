@@ -10,7 +10,14 @@ const PRECACHE_URLS = [
   '/assets/etherx-favicon.png'
 ];
 
+// Disable and clean up Service Worker on localhost / development
+const isLocal = self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1';
+
 self.addEventListener('install', (event) => {
+  if (isLocal) {
+    self.skipWaiting();
+    return;
+  }
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(PRECACHE_URLS).catch((err) => {
@@ -21,6 +28,14 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
+  if (isLocal) {
+    event.waitUntil(
+      caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
+        .then(() => self.registration.unregister())
+        .then(() => self.clients.claim())
+    );
+    return;
+  }
   event.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
@@ -31,6 +46,8 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  if (isLocal) return;
+
   const { request } = event;
   const url = new URL(request.url);
 

@@ -476,6 +476,31 @@ body {
 .ProseMirror > * { margin-top: 0; margin-bottom: 10pt; }
 .ProseMirror > *:last-child { margin-bottom: 0; }
 
+/* ══ EtherX Page Break & Pagination Boundary Rules ══ */
+.etherx-page-break {
+  display: block !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  pointer-events: none;
+  user-select: none;
+  position: relative;
+  box-sizing: border-box;
+  clear: both;
+}
+
+.etherx-auto-page-break {
+  opacity: 0 !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
+}
+
+/* Ensure the first element on a new page starts cleanly flush at the page top margin */
+.etherx-page-break + * {
+  margin-top: 0 !important;
+}
+
 .ProseMirror p,
 .ProseMirror li,
 .ProseMirror blockquote {
