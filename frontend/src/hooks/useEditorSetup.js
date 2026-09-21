@@ -383,8 +383,14 @@ export function useEditorSetup() {
   }, [editor, content, beginProgrammaticChange]);
 
   useEffect(() => {
-    if (editor) setEditor(editor);
-    return () => { if (editor) setEditor(null); };
+    if (editor) {
+      setEditor(editor);
+      if (typeof window !== 'undefined') window.__ETHERX_EDITOR__ = editor;
+    }
+    return () => {
+      if (editor) setEditor(null);
+      if (typeof window !== 'undefined') window.__ETHERX_EDITOR__ = null;
+    };
   }, [editor, setEditor]);
 
   // Handle Track Changes state toggle

@@ -1053,6 +1053,8 @@ export function ViewTab() {
   const { editor } = useEditorStore();
   const {
     zoom, setZoom, toggleFullscreen, fullscreen,
+    isFitPage, toggleFitPage,
+    isPageWidth, togglePageWidth,
     sidebarOpen, toggleSidebar,
     rulerVisible, toggleRuler,
     gridlinesVisible, toggleGridlines,
@@ -1085,14 +1087,8 @@ export function ViewTab() {
     applyGridlines(!gridlinesVisible);
   };
 
-  const applyRuler = (on) => {
-    const ruler = document.getElementById('etherx-ruler');
-    if (ruler) ruler.style.display = on ? 'flex' : 'none';
-  };
-
   const handleRuler = () => {
     toggleRuler();
-    applyRuler(!rulerVisible);
   };
 
   const toggleFocus = () => {
@@ -1182,9 +1178,9 @@ export function ViewTab() {
 
       <RibbonGroup label="Zoom">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon={<ZoomIn size={20} strokeWidth={1.75} />} label="100%" title="Zoom to 100%" active={zoom === 100} onClick={() => setZoom(100)} />
-          <HeroBtn icon={<Maximize2 size={20} strokeWidth={1.75} />} label="Fit Page" title="Fit Page to Window" active={zoom === 85} onClick={() => setZoom(85)} />
-          <HeroBtn icon={<MoveHorizontal size={20} strokeWidth={1.75} />} label="Page Width" title="Fit Page Width" active={zoom === 110} onClick={() => setZoom(110)} />
+          <HeroBtn icon={<ZoomIn size={20} strokeWidth={1.75} />} label="100%" title="Zoom to 100%" active={zoom === 100 && !isFitPage && !isPageWidth} onClick={() => setZoom(100)} />
+          <HeroBtn icon={<Maximize2 size={20} strokeWidth={1.75} />} label="Fit Page" title="Fit Page to Window (Toggle)" active={isFitPage} onClick={toggleFitPage} />
+          <HeroBtn icon={<MoveHorizontal size={20} strokeWidth={1.75} />} label="Page Width" title="Fit Page Width (Toggle)" active={isPageWidth} onClick={togglePageWidth} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
               <Button style={{ height: 22, padding: '0 6px', fontSize: 11 }} onClick={() => setZoom(Math.max(25, zoom - 10))}>−</Button>
@@ -1204,7 +1200,7 @@ export function ViewTab() {
           <HeroBtn
             icon={fullscreen ? <Minimize size={20} strokeWidth={1.75} /> : <Maximize size={20} strokeWidth={1.75} />}
             label={fullscreen ? 'Exit Full' : 'Fullscreen'}
-            title="Toggle Fullscreen"
+            title={fullscreen ? 'Exit Fullscreen' : 'Toggle Fullscreen'}
             active={fullscreen}
             onClick={toggleFullscreen}
           />

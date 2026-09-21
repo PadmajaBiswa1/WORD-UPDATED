@@ -106,6 +106,8 @@ export function RibbonFeatureSearch({ compactWidth = 190, onActivateTab: onActiv
       toggleGridlines,
       toggleSidebar,
       toggleFullscreen,
+      toggleFitPage: useUIStore.getState().toggleFitPage,
+      togglePageWidth: useUIStore.getState().togglePageWidth,
       setZoom,
       zoom,
       setPageOrientation,

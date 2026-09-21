@@ -444,6 +444,13 @@ export function useImageResizeAndDrag(editor, editorRef) {
 
     // Sync handles and selection border to current selection
     const syncHandlesToSelection = () => {
+      // If any dialog/modal is open, hide the overlay completely
+      const uiState = useUIStore.getState();
+      const anyDialogOpen = Object.values(uiState.dialogs || {}).some(Boolean);
+      if (anyDialogOpen) {
+        syncOverlayBounds(null);
+        return;
+      }
       if (!isImageSelection(editor)) {
         syncOverlayBounds(null);
         return;
@@ -802,9 +809,17 @@ export function useImageResizeAndDrag(editor, editorRef) {
     window.addEventListener('resize', onScrollOrResize);
     window.addEventListener('image-reposition-handles', onScrollOrResize);
 
-    // Allow external code (modals, dialogs) to force-hide the handles
-    const handleForceHide = () => syncOverlayBounds(null);
-    window.addEventListener('image-handles-hide', handleForceHide);
+    // Hide selection overlay immediately when any modal/dialog opens
+    const hideOverlayNow = () => syncOverlayBounds(null);
+    window.addEventListener('open-image-crop-modal', hideOverlayNow);
+    window.addEventListener('open-drawing-for-edit', hideOverlayNow);
+
+    const unsubUI = useUIStore.subscribe((state) => {
+      const anyOpen = Object.values(state.dialogs || {}).some(Boolean);
+      if (anyOpen) {
+        syncOverlayBounds(null);
+      }
+    });
 
     // Event listeners
     window.addEventListener('pointerdown', handlePointerDown, { capture: true });
@@ -823,7 +838,9 @@ export function useImageResizeAndDrag(editor, editorRef) {
       window.removeEventListener('scroll', onScrollOrResize, { capture: true });
       window.removeEventListener('resize', onScrollOrResize);
       window.removeEventListener('image-reposition-handles', onScrollOrResize);
-      window.removeEventListener('image-handles-hide', handleForceHide);
+      window.removeEventListener('open-image-crop-modal', hideOverlayNow);
+      window.removeEventListener('open-drawing-for-edit', hideOverlayNow);
+      if (typeof unsubUI === 'function') unsubUI();
 
       window.removeEventListener('pointerdown', handlePointerDown, { capture: true });
       window.removeEventListener('pointermove', handlePointerMove);

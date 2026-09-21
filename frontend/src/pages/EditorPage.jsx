@@ -66,6 +66,20 @@ export function EditorPage({ isShared = false }) {
     }
   }, [activeDocId, disableCollaboration, enableCollaboration]);
 
+  // Sync store with native fullscreen state
+  useEffect(() => {
+    const handleFsChange = () => {
+      const isFs = Boolean(document.fullscreenElement || document.webkitFullscreenElement);
+      useUIStore.setState({ fullscreen: isFs });
+    };
+    document.addEventListener('fullscreenchange', handleFsChange);
+    document.addEventListener('webkitfullscreenchange', handleFsChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFsChange);
+      document.removeEventListener('webkitfullscreenchange', handleFsChange);
+    };
+  }, []);
+
   // Load doc when routeId / isShared / documentId changes.
   useEffect(() => {
     const { reset, hydrateDocument, setId, toast, save: triggerSave } = actionsRef.current;

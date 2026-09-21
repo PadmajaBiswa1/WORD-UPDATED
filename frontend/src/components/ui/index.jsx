@@ -507,7 +507,7 @@ export function Modal({ title, onClose, children, width = 480, noPad = false }) 
   return (
     <div onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       style={{
-        position: 'fixed', inset: 0, zIndex: 1000,
+        position: 'fixed', inset: 0, zIndex: 9500,
         background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(6px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>

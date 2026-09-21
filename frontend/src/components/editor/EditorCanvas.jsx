@@ -62,12 +62,14 @@ export function EditorCanvas() {
   const scale     = zoom / 100;
   const wrapRef   = useRef();
   const scrollRef = useRef();
+  const rulerContainerRef = useRef(null);
   const contentScale = 1 / scale;
   const [pageCount, setPageCount] = useState(1);
   const [remoteCarets, setRemoteCarets] = useState([]);
   const [remoteSelections, setRemoteSelections] = useState([]);
   const [contextMenu, setContextMenu] = useState({ isOpen: false, x: 0, y: 0, imgElement: null });
   const [cropModal, setCropModal] = useState({ isOpen: false, imgElement: null });
+  const [scrollbarWidth, setScrollbarWidth] = useState(0);
   const overflowTimer = useRef(null);
 
   useEffect(() => {
@@ -375,6 +377,9 @@ export function EditorCanvas() {
     const scrollEl = scrollRef.current;
     if (!scrollEl) return;
     const onScroll = () => {
+      if (rulerContainerRef.current) {
+        rulerContainerRef.current.scrollLeft = scrollEl.scrollLeft;
+      }
       const approx = Math.floor((scrollEl.scrollTop + scaledDimensions.pageHeight * 0.35) / scaledDimensions.pageStep);
       const clamped = Math.max(0, Math.min(pageCount - 1, approx));
       setActivePage(clamped);
@@ -388,11 +393,58 @@ export function EditorCanvas() {
     return () => clearTimeout(overflowTimer.current);
   }, []);
 
+  useEffect(() => {
+    const scrollEl = scrollRef.current;
+    if (!scrollEl) return;
+    const updateScrollbar = () => {
+      const sbWidth = Math.max(0, scrollEl.offsetWidth - scrollEl.clientWidth);
+      setScrollbarWidth(sbWidth);
+    };
+    updateScrollbar();
+    let ro = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(updateScrollbar);
+      ro.observe(scrollEl);
+    }
+    window.addEventListener('resize', updateScrollbar);
+    return () => {
+      if (ro) ro.disconnect();
+      window.removeEventListener('resize', updateScrollbar);
+    };
+  }, [rulerVisible, pageCount, zoom]);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
       {rulerVisible && (
-        <div id="etherx-ruler" style={{ borderBottom: '1px solid var(--border)', display: 'flex' }}>
-          <HorizontalRuler />
+        <div
+          ref={rulerContainerRef}
+          id="etherx-ruler"
+          style={{
+            borderBottom: '1px solid var(--border)',
+            background: 'var(--bg-app)',
+            overflowX: 'hidden',
+            overflowY: 'hidden',
+            width: '100%',
+            height: 24,
+            flexShrink: 0,
+            boxSizing: 'border-box',
+            paddingRight: scrollbarWidth,
+          }}
+        >
+          <div
+            id="editor-ruler-align-wrapper"
+            style={{
+              minWidth: '100%',
+              width: 'max-content',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              padding: `0 ${scaledDimensions.scrollPaddingX}px`,
+              boxSizing: 'border-box',
+            }}
+          >
+            <HorizontalRuler pageWidth={scaledDimensions.pageWidth} />
+          </div>
         </div>
       )}
       <div

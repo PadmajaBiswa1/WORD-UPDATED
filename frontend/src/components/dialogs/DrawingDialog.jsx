@@ -33,18 +33,6 @@ export function DrawingDialog() {
     img.src = drawingEditSrc;
   }, [drawingEditSrc]);
 
-  // When dialog opens in edit mode: hide the image selection handles/border so
-  // the blue overlay doesn't bleed through the drawing canvas
-  useEffect(() => {
-    if (!isEditMode) return;
-    // Hide resize handles and selection border
-    window.dispatchEvent(new CustomEvent('image-handles-hide'));
-    // Also blur the editor so PictureFormatToolbar auto-hides
-    if (editor) {
-      try { editor.commands.blur(); } catch (_) {}
-    }
-  }, [isEditMode, editor]);
-
   const getPos = (e) => {
     const rect = canvasRef.current.getBoundingClientRect();
     const scaleX = W / rect.width;
@@ -121,7 +109,15 @@ export function DrawingDialog() {
     if (!editor) return;
 
     if (isEditMode && drawingEditPos != null) {
-      // Replace existing drawing node at the saved position
+      // Replace existing drawing node at the saved position, preserving width/height
+      let curW = String(W);
+      let curH = String(H);
+      try {
+        const node = editor.state.doc.nodeAt(drawingEditPos);
+        if (node?.attrs?.width) curW = String(node.attrs.width);
+        if (node?.attrs?.height) curH = String(node.attrs.height);
+      } catch (_) {}
+
       editor
         .chain()
         .focus()
@@ -130,11 +126,14 @@ export function DrawingDialog() {
           src: img,
           alt: 'Drawing',
           'data-drawing': 'true',
+          width: curW,
+          height: curH,
+          style: `width:${curW}px;height:${curH}px;display:block;margin:12px auto;`,
         })
         .run();
       toast('Drawing updated!', 'success');
     } else {
-      // Insert new drawing after current selection
+      // Insert new drawing after current selection with explicit 560x360 size
       const insertPos = editor.state.selection.to;
       editor
         .chain()
@@ -142,7 +141,17 @@ export function DrawingDialog() {
         .setTextSelection(insertPos)
         .insertContent([
           { type: 'paragraph' },
-          { type: 'image', attrs: { src: img, alt: 'Drawing', 'data-drawing': 'true' } },
+          {
+            type: 'image',
+            attrs: {
+              src: img,
+              alt: 'Drawing',
+              'data-drawing': 'true',
+              width: String(W),
+              height: String(H),
+              style: `width:${W}px;height:${H}px;display:block;margin:12px auto;`,
+            },
+          },
           { type: 'paragraph' },
         ])
         .run();

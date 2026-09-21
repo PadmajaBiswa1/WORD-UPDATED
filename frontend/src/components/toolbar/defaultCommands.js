@@ -1,4 +1,5 @@
 import { runDictation, runImageTextCapture, runReadAloud, runSmartSuggestions } from '@/utils/smartFeatures';
+import { useUIStore } from '@/store';
 
 export const DEFAULT_COMMANDS = [
   // ── HOME TAB: Clipboard ──
@@ -1635,7 +1636,7 @@ export const DEFAULT_COMMANDS = [
     tab: 'view',
     group: 'Zoom',
     keywords: ['fit page', 'fit to page', 'full page zoom', 'whole page'],
-    run: ({ setZoom }) => setZoom?.(85),
+    run: ({ toggleFitPage, setZoom }) => (toggleFitPage ? toggleFitPage() : setZoom?.(85)),
   },
   {
     id: 'view-pagewidth',
@@ -1643,7 +1644,7 @@ export const DEFAULT_COMMANDS = [
     tab: 'view',
     group: 'Zoom',
     keywords: ['page width', 'fit width', 'zoom to width'],
-    run: ({ setZoom }) => setZoom?.(110),
+    run: ({ togglePageWidth, setZoom }) => (togglePageWidth ? togglePageWidth() : (useUIStore?.getState?.()?.togglePageWidth?.() || setZoom?.(110))),
   },
   {
     id: 'view-zoom75',

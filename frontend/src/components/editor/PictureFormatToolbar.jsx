@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useEditorStore } from '@/store';
+import { useEditorStore, useUIStore } from '@/store';
 import { PictureFormatTab } from '@/components/toolbar/tabs/PictureFormatTab';
 import { getSelectedImageElement, isImageSelection } from '@/utils/imageSelection';
 
@@ -250,6 +250,15 @@ export function PictureFormatToolbar({ editor, scrollContainerRef }) {
     document.addEventListener('selectionchange', syncFromSelection);
     window.addEventListener('resize', handleWindowInteraction);
     window.addEventListener('open-image-edit-panel', handleOpenEditPanel);
+    window.addEventListener('open-image-crop-modal', hideToolbar);
+    window.addEventListener('open-drawing-for-edit', hideToolbar);
+
+    const unsubUI = useUIStore.subscribe((state) => {
+      const anyOpen = Object.values(state.dialogs || {}).some(Boolean);
+      if (anyOpen) {
+        hideToolbar();
+      }
+    });
 
     const scrollEl = scrollContainerRef?.current;
     if (scrollEl) scrollEl.addEventListener('scroll', handleWindowInteraction, { passive: true });
@@ -260,6 +269,9 @@ export function PictureFormatToolbar({ editor, scrollContainerRef }) {
       document.removeEventListener('selectionchange', syncFromSelection);
       window.removeEventListener('resize', handleWindowInteraction);
       window.removeEventListener('open-image-edit-panel', handleOpenEditPanel);
+      window.removeEventListener('open-image-crop-modal', hideToolbar);
+      window.removeEventListener('open-drawing-for-edit', hideToolbar);
+      if (typeof unsubUI === 'function') unsubUI();
       if (scrollEl) scrollEl.removeEventListener('scroll', handleWindowInteraction);
     };
   }, [editor, hideToolbar, mounted, positionToolbar, scrollContainerRef, showToolbar]);

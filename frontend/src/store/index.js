@@ -389,6 +389,10 @@ export const useUIStore = create((set) => ({
   fullscreen: false,
   ribbonCollapsed: false,
   zoom: 100,
+  isFitPage: false,
+  preFitZoom: 100,
+  isPageWidth: false,
+  prePageWidthZoom: 100,
   activeTab: 'home',
   activePage: 0,
   headerFooterTab: 'header',
@@ -413,11 +417,100 @@ export const useUIStore = create((set) => ({
   toggleCopilot: () => set((s) => ({ copilotOpen: !s.copilotOpen })),
   setCopilotOpen: (open) => set({ copilotOpen: !!open }),
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
-  toggleFullscreen: () => set((s) => ({ fullscreen: !s.fullscreen })),
+  toggleFullscreen: async () => {
+    if (typeof document === 'undefined') return;
+    const s = useUIStore.getState();
+    const isNativeFs = Boolean(document.fullscreenElement || document.webkitFullscreenElement);
+    const isCurrentlyFs = isNativeFs || s.fullscreen;
+
+    if (isCurrentlyFs) {
+      try {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+          await document.webkitExitFullscreen();
+        }
+      } catch (e) {
+        // ignore error if not in native fs
+      }
+      set({ fullscreen: false });
+    } else {
+      try {
+        const root = document.documentElement;
+        if (root.requestFullscreen) {
+          await root.requestFullscreen();
+        } else if (root.webkitRequestFullscreen) {
+          await root.webkitRequestFullscreen();
+        }
+        set({ fullscreen: true });
+      } catch (e) {
+        // Fallback to CSS fullscreen
+        set({ fullscreen: true });
+      }
+    }
+  },
   toggleRibbon: () => set((s) => ({ ribbonCollapsed: !s.ribbonCollapsed })),
   toggleRuler: () => set((s) => ({ rulerVisible: !s.rulerVisible })),
   toggleGridlines: () => set((s) => ({ gridlinesVisible: !s.gridlinesVisible })),
-  setZoom: (z) => set({ zoom: Math.min(200, Math.max(25, z)) }),
+  setZoom: (z) => set({ zoom: Math.min(200, Math.max(25, z)), isFitPage: false, isPageWidth: false }),
+  toggleFitPage: () => {
+    const s = useUIStore.getState();
+    if (s.isFitPage) {
+      set({
+        zoom: s.preFitZoom || 100,
+        isFitPage: false,
+      });
+    } else {
+      let fit = 85;
+      if (typeof document !== 'undefined') {
+        const scrollEl = document.getElementById('editor-scroll-area');
+        const pageEl = document.getElementById('document-page-0');
+        if (scrollEl && scrollEl.clientHeight > 150) {
+          const naturalH = pageEl?.offsetHeight
+            ? (pageEl.offsetHeight / ((s.zoom || 100) / 100))
+            : 1123;
+          const availH = scrollEl.clientHeight - 48;
+          fit = Math.max(25, Math.min(200, Math.round((availH / naturalH) * 100)));
+        }
+      }
+      const targetFit = (fit === s.zoom) ? (s.zoom === 100 ? 80 : 100) : fit;
+      set({
+        preFitZoom: s.zoom,
+        zoom: targetFit,
+        isFitPage: true,
+        isPageWidth: false,
+      });
+    }
+  },
+  togglePageWidth: () => {
+    const s = useUIStore.getState();
+    if (s.isPageWidth) {
+      set({
+        zoom: s.prePageWidthZoom || 100,
+        isPageWidth: false,
+      });
+    } else {
+      let fitWidth = 110;
+      if (typeof document !== 'undefined') {
+        const scrollEl = document.getElementById('editor-scroll-area');
+        const pageEl = document.getElementById('document-page-0');
+        if (scrollEl && scrollEl.clientWidth > 200) {
+          const availW = Math.max(100, scrollEl.clientWidth - 56);
+          const naturalW = pageEl?.offsetWidth
+            ? Math.round(pageEl.offsetWidth / ((s.zoom || 100) / 100))
+            : 794;
+          fitWidth = Math.max(25, Math.min(200, Math.round((availW / naturalW) * 100)));
+        }
+      }
+      const targetFit = (fitWidth === s.zoom) ? (s.zoom === 100 ? 115 : 100) : fitWidth;
+      set({
+        prePageWidthZoom: s.zoom,
+        zoom: targetFit,
+        isPageWidth: true,
+        isFitPage: false,
+      });
+    }
+  },
   setActiveTab: (t) => set({ activeTab: t }),
   setActivePage: (p) => set({ activePage: p }),
   setHeaderFooterTab: (t) => set({ headerFooterTab: t }),

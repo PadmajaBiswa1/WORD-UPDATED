@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useUIStore } from '@/store';
-import { MARGIN_MAP } from '@/utils/pageLayout';
+import { MARGIN_MAP, getLayoutMetrics } from '@/utils/pageLayout';
 
 const PIXELS_PER_INCH = 96;
 const PIXELS_PER_CM = PIXELS_PER_INCH / 2.54;
@@ -21,13 +21,13 @@ function getNearestMarginPreset(px) {
   return nearest[0];
 }
 
-export function HorizontalRuler() {
-  const { zoom, pageMargin, setPageMargin, toast } = useUIStore();
+export function HorizontalRuler({ pageWidth: propPageWidth }) {
+  const { zoom, pageMargin, setPageMargin, pageSize, pageOrientation, toast } = useUIStore();
   const [draggingMargin, setDraggingMargin] = useState(null);
   const rulerRef = useRef(null);
   const dragPositionRef = useRef(null);
 
-  const scale = zoom / 100;
+  const scale = (zoom || 100) / 100;
   const rulerHeight = 24;
   const majorTickHeight = 8;
   const minorTickHeight = 4;
@@ -36,16 +36,18 @@ export function HorizontalRuler() {
   const unit = 'inch';
   const unitWidth = unit === 'inch' ? inchWidth : cmWidth;
 
-  const marginPx = (MARGIN_MAP[pageMargin] || MARGIN_MAP.normal) * scale;
+  const layoutMetrics = getLayoutMetrics({ size: pageSize, orientation: pageOrientation, margin: pageMargin });
+  const actualPageWidth = Math.round(propPageWidth || (layoutMetrics.pageWidth * scale));
+
+  const marginPx = Math.round((MARGIN_MAP[pageMargin] || MARGIN_MAP.normal) * scale);
   const leftMargin = marginPx;
   const rightMargin = marginPx;
 
   const commitMargin = () => {
     if (!draggingMargin || !rulerRef.current || dragPositionRef.current === null) return;
 
-    const rect = rulerRef.current.getBoundingClientRect();
     const rawPx = draggingMargin === 'right'
-      ? rect.width - dragPositionRef.current
+      ? actualPageWidth - dragPositionRef.current
       : dragPositionRef.current;
     const nextMargin = getNearestMarginPreset(Math.max(0, rawPx / scale));
 
@@ -53,7 +55,9 @@ export function HorizontalRuler() {
     toast(`Margin: ${nextMargin}`, 'info');
   };
 
-  const handleMouseDown = (marginType) => {
+  const handleMouseDown = (marginType, e) => {
+    e.preventDefault();
+    e.stopPropagation();
     setDraggingMargin(marginType);
     dragPositionRef.current = null;
   };
@@ -68,7 +72,8 @@ export function HorizontalRuler() {
     if (!draggingMargin || !rulerRef.current) return;
 
     const rect = rulerRef.current.getBoundingClientRect();
-    dragPositionRef.current = e.clientX - rect.left;
+    const pos = Math.max(0, Math.min(actualPageWidth, e.clientX - rect.left));
+    dragPositionRef.current = pos;
   };
 
   useEffect(() => {
@@ -80,102 +85,155 @@ export function HorizontalRuler() {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [draggingMargin]);
+  }, [draggingMargin, actualPageWidth]);
 
   return (
     <div
       ref={rulerRef}
+      id="etherx-horizontal-ruler"
       style={{
-        width: '100%',
+        width: actualPageWidth,
+        minWidth: actualPageWidth,
+        maxWidth: actualPageWidth,
         height: rulerHeight,
-        backgroundColor: '#2a2a2a',
+        backgroundColor: '#262626',
+        borderLeft: '1px solid #404040',
+        borderRight: '1px solid #404040',
         borderBottom: '1px solid #404040',
         display: 'flex',
         alignItems: 'flex-end',
         position: 'relative',
         overflow: 'hidden',
         userSelect: 'none',
+        boxSizing: 'border-box',
+        boxShadow: '0 1px 4px rgba(0, 0, 0, 0.25)',
       }}
     >
+      {/* Left shaded margin region */}
+      <div
+        style={{
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          width: leftMargin,
+          height: rulerHeight,
+          backgroundColor: 'rgba(0, 0, 0, 0.35)',
+          borderRight: '1px solid rgba(255, 255, 255, 0.1)',
+          pointerEvents: 'none',
+        }}
+      />
+
+      {/* Right shaded margin region */}
+      <div
+        style={{
+          position: 'absolute',
+          right: 0,
+          top: 0,
+          width: rightMargin,
+          height: rulerHeight,
+          backgroundColor: 'rgba(0, 0, 0, 0.35)',
+          borderLeft: '1px solid rgba(255, 255, 255, 0.1)',
+          pointerEvents: 'none',
+        }}
+      />
+
+      {/* SVG Tick marks aligned with page inches */}
       <svg
-        width="100%"
+        width={actualPageWidth}
         height={rulerHeight}
-        style={{ position: 'absolute', left: 0, top: 0 }}
+        style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none' }}
       >
-        {Array.from({ length: Math.ceil(1000 / unitWidth) }).map((_, i) => {
-          const x = i * unitWidth;
-          const isMajor = i % 1 === 0;
-          const isSubMajor = i % 0.5 === 0;
+        {Array.from({ length: Math.floor(actualPageWidth / (unitWidth / 8)) + 1 }).map((_, stepIdx) => {
+          const x = stepIdx * (unitWidth / 8);
+          if (x > actualPageWidth) return null;
+          const isMajor = stepIdx % 8 === 0;
+          const isHalf = stepIdx % 4 === 0 && !isMajor;
+          const isQuarter = stepIdx % 2 === 0 && !isMajor && !isHalf;
+          const tickHeight = isMajor ? 8 : (isHalf ? 6 : (isQuarter ? 4 : 2.5));
+          const stroke = isMajor ? '#b0b0b0' : (isHalf ? '#888888' : '#5c5c5c');
 
           return (
-            <g key={i}>
-              {isMajor && (
-                <>
-                  <line
-                    x1={x}
-                    y1={rulerHeight}
-                    x2={x}
-                    y2={rulerHeight - majorTickHeight}
-                    stroke="#b0b0b0"
-                    strokeWidth="1"
-                  />
-                  <text
-                    x={x + 2}
-                    y={rulerHeight - majorTickHeight - 2}
-                    fontSize="10"
-                    fill="#b0b0b0"
-                    fontFamily="var(--font-ui, 'Segoe UI', sans-serif)"
-                  >
-                    {i}
-                  </text>
-                </>
-              )}
-              {isSubMajor && !isMajor && (
-                <line
-                  x1={x}
-                  y1={rulerHeight}
-                  x2={x}
-                  y2={rulerHeight - minorTickHeight}
-                  stroke="#808080"
-                  strokeWidth="1"
-                />
+            <g key={stepIdx}>
+              <line
+                x1={x}
+                y1={rulerHeight}
+                x2={x}
+                y2={rulerHeight - tickHeight}
+                stroke={stroke}
+                strokeWidth="1"
+              />
+              {isMajor && stepIdx > 0 && x + 12 <= actualPageWidth && (
+                <text
+                  x={x + 3}
+                  y={rulerHeight - 8 - 2}
+                  fontSize="9"
+                  fill="#b8b8b8"
+                  fontFamily="var(--font-ui, 'Segoe UI', sans-serif)"
+                  fontWeight="500"
+                >
+                  {stepIdx / 8}
+                </text>
               )}
             </g>
           );
         })}
       </svg>
 
+      {/* Left Margin drag marker */}
       <div
-        onMouseDown={() => handleMouseDown('left')}
+        onMouseDown={(e) => handleMouseDown('left', e)}
         style={{
           position: 'absolute',
-          left: leftMargin - 4,
+          left: leftMargin - 6,
           top: 0,
-          width: 8,
+          width: 12,
           height: rulerHeight,
           cursor: 'col-resize',
-          backgroundColor: draggingMargin === 'left' ? '#d4af37' : 'transparent',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
           zIndex: 10,
-          transition: draggingMargin === 'left' ? 'none' : 'background-color 0.2s',
         }}
         title="Drag to adjust left margin"
-      />
+      >
+        <div
+          style={{
+            width: 3,
+            height: 14,
+            backgroundColor: draggingMargin === 'left' ? '#d4af37' : '#9e9e9e',
+            borderRadius: 1,
+            boxShadow: '0 0 2px rgba(0,0,0,0.5)',
+          }}
+        />
+      </div>
 
+      {/* Right Margin drag marker */}
       <div
-        onMouseDown={() => handleMouseDown('right')}
+        onMouseDown={(e) => handleMouseDown('right', e)}
         style={{
           position: 'absolute',
-          right: rightMargin - 4,
+          left: actualPageWidth - rightMargin - 6,
           top: 0,
-          width: 8,
+          width: 12,
           height: rulerHeight,
           cursor: 'col-resize',
-          backgroundColor: draggingMargin === 'right' ? '#d4af37' : 'transparent',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
           zIndex: 10,
-          transition: draggingMargin === 'right' ? 'none' : 'background-color 0.2s',
         }}
         title="Drag to adjust right margin"
-      />
+      >
+        <div
+          style={{
+            width: 3,
+            height: 14,
+            backgroundColor: draggingMargin === 'right' ? '#d4af37' : '#9e9e9e',
+            borderRadius: 1,
+            boxShadow: '0 0 2px rgba(0,0,0,0.5)',
+          }}
+        />
+      </div>
     </div>
   );
 }

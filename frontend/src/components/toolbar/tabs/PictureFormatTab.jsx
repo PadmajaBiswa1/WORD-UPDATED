@@ -250,67 +250,136 @@ export function PictureFormatTab({ mode = 'auto' }) {
     };
   }, [editor]);
 
+  // Bulletproof helper: locate the targeted image node and its doc position
+  const findCurrentImageNode = () => {
+    if (!editor || editor.isDestroyed) return null;
+    const { state } = editor;
+
+    // 1. Check saved pos
+    const savedPos = selectedNodePosRef.current;
+    if (savedPos != null && savedPos >= 0 && savedPos < state.doc.content.size) {
+      const node = state.doc.nodeAt(savedPos);
+      if (node && node.type.name === 'image') {
+        return { pos: savedPos, node };
+      }
+    }
+
+    // 2. Check current selection
+    const sel = state.selection;
+    if (sel?.node?.type?.name === 'image') {
+      return { pos: sel.from, node: sel.node };
+    }
+
+    // 3. Check around selection (from, from - 1, to)
+    if (sel) {
+      const nodeAtFrom = state.doc.nodeAt(sel.from);
+      if (nodeAtFrom?.type?.name === 'image') {
+        return { pos: sel.from, node: nodeAtFrom };
+      }
+      if (sel.from > 0) {
+        const nodeBefore = state.doc.nodeAt(sel.from - 1);
+        if (nodeBefore?.type?.name === 'image') {
+          return { pos: sel.from - 1, node: nodeBefore };
+        }
+      }
+    }
+
+    // 4. Check DOM selected image element
+    const domImg = getSelectedImageElement(editor);
+    if (domImg) {
+      try {
+        const domPos = editor.view.posAtDOM(domImg, 0);
+        if (typeof domPos === 'number' && domPos >= 0 && domPos < state.doc.content.size) {
+          const node = state.doc.nodeAt(domPos);
+          if (node && node.type.name === 'image') {
+            return { pos: domPos, node };
+          }
+        }
+      } catch (_) {}
+    }
+
+    // 5. Check any selectednode img in ProseMirror
+    if (typeof document !== 'undefined') {
+      const anySelectedImg = document.querySelector('.ProseMirror img.ProseMirror-selectednode, .ProseMirror .ProseMirror-selectednode img, .ProseMirror img');
+      if (anySelectedImg) {
+        try {
+          const domPos = editor.view.posAtDOM(anySelectedImg, 0);
+          if (typeof domPos === 'number' && domPos >= 0 && domPos < state.doc.content.size) {
+            const node = state.doc.nodeAt(domPos);
+            if (node && node.type.name === 'image') {
+              return { pos: domPos, node };
+            }
+          }
+        } catch (_) {}
+      }
+    }
+
+    // 6. Search document for first image
+    let found = null;
+    state.doc.descendants((node, pos) => {
+      if (node.type.name === 'image') {
+        found = { pos, node };
+        return false;
+      }
+    });
+
+    return found;
+  };
+
   // Helper: re-select the image node by saved pos, then run action
   const withSelectedImage = (action) => {
     if (!editor) {
       toast('Editor is not ready yet', 'info');
       return;
     }
-    if (!isImageSelection(editor) && selectedNodePosRef.current == null) {
+    const info = findCurrentImageNode();
+    if (!info) {
       toast('Select an image first', 'info');
       return;
     }
-    // Read attrs directly from the node at the saved position — this works
-    // even when focus is in an input field (editor.getAttributes returns {})
-    const pos = selectedNodePosRef.current;
-    let attrs = {};
-    if (pos != null) {
-      try {
-        const node = editor.state.doc.nodeAt(pos);
-        if (node?.type?.name === 'image') attrs = node.attrs || {};
-      } catch (_) {}
-    }
-    if (!Object.keys(attrs).length) {
-      attrs = editor.getAttributes('image') || {};
-    }
+    selectedNodePosRef.current = info.pos;
+    const attrs = info.node.attrs || {};
     const css = parseCssStyle(attrs.style || '');
     action(attrs, css);
   };
 
-  // Update image attributes, always restoring NodeSelection first so the
-  // update is reliable even when focus was stolen by an input field.
+  // Low-level helper: directly patch the image node at `pos` using a raw
+  // ProseMirror transaction. This never calls focus() or relies on the
+  // TipTap selection state, so it works even when focus is in a toolbar input.
+  const patchImageNode = (pos, attrsPatch = {}, cssPatch = {}) => {
+    if (pos == null || !editor || editor.isDestroyed) return false;
+    try {
+      const { state } = editor;
+      const node = state.doc.nodeAt(pos);
+      if (!node || node.type.name !== 'image') return false;
+
+      const css = parseCssStyle(node.attrs.style || '');
+      Object.entries(cssPatch).forEach(([k, v]) => {
+        if (v === null || v === undefined || v === '') delete css[k];
+        else css[k] = v;
+      });
+
+      const newAttrs = {
+        ...node.attrs,
+        ...attrsPatch,
+        style: toCssStyle(css),
+      };
+
+      const tr = state.tr.setNodeMarkup(pos, undefined, newAttrs);
+      editor.view.dispatch(tr);
+      return true;
+    } catch (err) {
+      console.warn('[patchImageNode] failed:', err);
+      return false;
+    }
+  };
+
+  // Public wrapper used by all format controls that need to update image attrs.
   const updateImageAttrs = (attrsPatch = {}, cssPatch = {}) => {
-    const pos = selectedNodePosRef.current;
-
-    // Read attrs from the document node directly (not editor.getAttributes which
-    // requires the image node to be currently selected — it returns {} otherwise)
-    let attrs = {};
-    if (pos != null) {
-      try {
-        const node = editor.state.doc.nodeAt(pos);
-        if (node?.type?.name === 'image') attrs = node.attrs || {};
-      } catch (_) {}
-    }
-    if (!Object.keys(attrs).length) {
-      attrs = editor.getAttributes('image') || {};
-    }
-
-    const css = parseCssStyle(attrs.style || '');
-    Object.entries(cssPatch).forEach(([k, v]) => {
-      if (v === null || v === undefined || v === '') delete css[k];
-      else css[k] = v;
-    });
-
-    let chain = editor.chain();
-    if (pos != null) {
-      chain = chain.setNodeSelection(pos);
-    } else {
-      chain = chain.focus();
-    }
-    chain.updateAttributes('image', {
-      ...attrsPatch,
-      style: toCssStyle(css),
-    }).run();
+    const info = findCurrentImageNode();
+    if (!info) return;
+    selectedNodePosRef.current = info.pos;
+    patchImageNode(info.pos, attrsPatch, cssPatch);
   };
 
   const cropImage = () => {
@@ -322,41 +391,75 @@ export function PictureFormatTab({ mode = 'auto' }) {
     });
   };
 
+  // Resize image by dimension — works even when toolbar input has focus
   const resizeImage = (dimension, value) => {
-    withSelectedImage(() => {
-      const numValue = parseInt(value, 10) || 0;
-      const clamped = Math.max(20, Math.min(2000, numValue));
-      if (dimension === 'width') {
-        updateImageAttrs({ width: String(clamped) }, { width: `${clamped}px` });
-        setImgWidth(clamped);
-        setDraftWidth(String(clamped));
-      } else {
-        updateImageAttrs({ height: String(clamped) }, { height: `${clamped}px` });
-        setImgHeight(clamped);
-        setDraftHeight(String(clamped));
-      }
-      window.dispatchEvent(new CustomEvent('image-reposition-handles'));
-    });
+    if (!editor) return;
+    const numValue = parseInt(value, 10);
+    if (!numValue || numValue <= 0) return;
+    const clamped = Math.max(20, Math.min(2000, numValue));
+
+    const info = findCurrentImageNode();
+    if (!info) {
+      toast('Select an image first', 'info');
+      return;
+    }
+    const { pos, node } = info;
+    selectedNodePosRef.current = pos;
+
+    const currentAttrs = node.attrs || {};
+    const currentCss = parseCssStyle(currentAttrs.style || '');
+
+    // Existing dimensions: fallback to DOM image size or state
+    const domImg = getSelectedImageElement(editor);
+    const existingW = parseInt(String(currentAttrs.width || currentCss.width || domImg?.offsetWidth || imgWidth || '240'), 10) || 240;
+    const existingH = parseInt(String(currentAttrs.height || currentCss.height || domImg?.offsetHeight || imgHeight || '180'), 10) || 180;
+
+    let targetW = existingW;
+    let targetH = existingH;
+
+    if (dimension === 'width') {
+      targetW = clamped;
+      setImgWidth(clamped);
+      setDraftWidth(String(clamped));
+    } else {
+      targetH = clamped;
+      setImgHeight(clamped);
+      setDraftHeight(String(clamped));
+    }
+
+    // Always set BOTH width and height so the image never collapses to 0 height/width
+    const attrsPatch = {
+      width: String(targetW),
+      height: String(targetH),
+    };
+    const cssPatch = {
+      width: `${targetW}px`,
+      height: `${targetH}px`,
+      display: currentCss.display || 'block',
+    };
+
+    patchImageNode(pos, attrsPatch, cssPatch);
+    window.dispatchEvent(new CustomEvent('image-reposition-handles'));
   };
 
   const commitWidth = () => {
     const trimmed = draftWidth.trim();
     const parsed = parseInt(trimmed, 10);
-    if (trimmed === '' || Number.isNaN(parsed)) {
+    if (trimmed === '' || Number.isNaN(parsed) || parsed <= 0) {
       setDraftWidth(String(imgWidth));
       return;
     }
-    resizeImage('width', trimmed);
+    resizeImage('width', parsed);
   };
 
   const commitHeight = () => {
     const trimmed = draftHeight.trim();
     const parsed = parseInt(trimmed, 10);
-    if (trimmed === '' || Number.isNaN(parsed)) {
+    if (trimmed === '' || Number.isNaN(parsed) || parsed <= 0) {
       setDraftHeight(String(imgHeight));
       return;
     }
-    resizeImage('height', trimmed);
+    resizeImage('height', parsed);
   };
 
   const rotateLeft = () => {
@@ -740,7 +843,7 @@ export function PictureFormatTab({ mode = 'auto' }) {
     }
 
     sections.push({
-      title: 'Size & Crop',
+      title: isRibbon ? 'Size & Crop' : 'Crop & Rotate',
       content: (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -770,6 +873,8 @@ export function PictureFormatTab({ mode = 'auto' }) {
                 onClick={() => {
                   withSelectedImage((attrs) => {
                     const pos = selectedNodePosRef.current;
+                    // Dispatch event first so overlay hides before dialog appears
+                    window.dispatchEvent(new CustomEvent('open-drawing-for-edit'));
                     openDrawingForEdit(attrs.src, pos);
                   });
                 }}
@@ -805,40 +910,42 @@ export function PictureFormatTab({ mode = 'auto' }) {
               Reset
             </button>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <span style={miniLabel}>Width</span>
-              <input
-                type="number"
-                value={draftWidth}
-                onChange={(e) => setDraftWidth(e.target.value)}
-                onBlur={commitWidth}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') e.currentTarget.blur();
-                  if (e.key === 'Escape') { setDraftWidth(String(imgWidth)); e.currentTarget.blur(); }
-                }}
-                style={numberInputStyle}
-                min={20}
-                max={2000}
-              />
+          {isRibbon && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span style={miniLabel}>Width</span>
+                <input
+                  type="number"
+                  value={draftWidth}
+                  onChange={(e) => setDraftWidth(e.target.value)}
+                  onBlur={commitWidth}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') e.currentTarget.blur();
+                    if (e.key === 'Escape') { setDraftWidth(String(imgWidth)); e.currentTarget.blur(); }
+                  }}
+                  style={numberInputStyle}
+                  min={20}
+                  max={2000}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span style={miniLabel}>Height</span>
+                <input
+                  type="number"
+                  value={draftHeight}
+                  onChange={(e) => setDraftHeight(e.target.value)}
+                  onBlur={commitHeight}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') e.currentTarget.blur();
+                    if (e.key === 'Escape') { setDraftHeight(String(imgHeight)); e.currentTarget.blur(); }
+                  }}
+                  style={numberInputStyle}
+                  min={20}
+                  max={2000}
+                />
+              </div>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <span style={miniLabel}>Height</span>
-              <input
-                type="number"
-                value={draftHeight}
-                onChange={(e) => setDraftHeight(e.target.value)}
-                onBlur={commitHeight}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') e.currentTarget.blur();
-                  if (e.key === 'Escape') { setDraftHeight(String(imgHeight)); e.currentTarget.blur(); }
-                }}
-                style={numberInputStyle}
-                min={20}
-                max={2000}
-              />
-            </div>
-          </div>
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 6, alignItems: 'end' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <span style={miniLabel}>Rotation</span>
