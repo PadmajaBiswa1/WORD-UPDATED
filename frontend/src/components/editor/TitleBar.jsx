@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Save, Undo2, Redo2, FolderOpen, FileEdit, Sparkles, Zap } from 'lucide-react';
 import { useCollaborationStore, useDocumentStore, useEditorStore, useUIStore, useSubscriptionStore } from '@/store';
@@ -21,6 +22,10 @@ export function TitleBar({ onSave }) {
   const setTitle = useDocumentStore((s) => s.setTitle);
   const resetDocument = useDocumentStore((s) => s.reset);
   const editor = useEditorStore((s) => s.editor);
+  const undoStack = useDocumentStore((s) => s.undoStack);
+  const redoStack = useDocumentStore((s) => s.redoStack);
+  const undoDocumentAction = useDocumentStore((s) => s.undoDocumentAction);
+  const redoDocumentAction = useDocumentStore((s) => s.redoDocumentAction);
   const collaborators = useCollaborationStore((s) => s.collaborators);
   const collabStatus = useCollaborationStore((s) => s.status);
   const resetCollaboration = useCollaborationStore((s) => s.reset);
@@ -28,17 +33,31 @@ export function TitleBar({ onSave }) {
   const plan = useSubscriptionStore((s) => s.plan);
   const openUpgradeModal = useSubscriptionStore((s) => s.openUpgradeModal);
 
-  const canUndo = Boolean(editor?.can?.().undo?.());
-  const canRedo = Boolean(editor?.can?.().redo?.());
+  const [editorCanUndo, setEditorCanUndo] = useState(false);
+  const [editorCanRedo, setEditorCanRedo] = useState(false);
+
+  useEffect(() => {
+    if (!editor) return;
+    const updateCan = () => {
+      setEditorCanUndo(Boolean(editor.can().undo()));
+      setEditorCanRedo(Boolean(editor.can().redo()));
+    };
+    updateCan();
+    editor.on('transaction', updateCan);
+    return () => {
+      editor.off('transaction', updateCan);
+    };
+  }, [editor]);
+
+  const canUndo = (undoStack && undoStack.length > 0) || editorCanUndo;
+  const canRedo = (redoStack && redoStack.length > 0) || editorCanRedo;
 
   const handleUndo = () => {
-    if (!editor) return;
-    editor.chain().focus().undo().run();
+    undoDocumentAction();
   };
 
   const handleRedo = () => {
-    if (!editor) return;
-    editor.chain().focus().redo().run();
+    redoDocumentAction();
   };
 
   const handleLogout = () => {

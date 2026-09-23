@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   LayoutGrid, RotateCw, Maximize2, Columns2, WrapText, Layers,
-  BringToFront, SendToBack, ZoomIn, ZoomOut, Trash2, BookOpen, Lock,
+  BringToFront, SendToBack, ZoomIn, ZoomOut, Trash2,
   Hash, Minus, Scissors, Check
 } from 'lucide-react';
 import { useDocumentStore, useEditorStore, useUIStore } from '@/store';
@@ -248,30 +248,38 @@ const metricSelectStyle = {
 export function LayoutTab() {
   const { editor } = useEditorStore();
   const pageCount = useDocumentStore((s) => s.pageCount);
+  const layout = useDocumentStore((s) => s.layout);
+  const setLayout = useDocumentStore((s) => s.setLayout);
   const {
     pageMargin,
-    setPageMargin,
     pageSize,
-    setPageSize,
     pageOrientation,
-    setPageOrientation,
     pageColumns,
-    setPageColumns,
     sidebarOpen,
     toggleSidebar,
     toast,
     openDialog,
   } = useUIStore();
 
-  const [lineNumbersOn, setLineNumbersOn] = useState(false);
-  const [hyphenationOn, setHyphenationOn] = useState(false);
+  const [lineNumbersOn, setLineNumbersOn] = useState(Boolean(layout?.lineNumbers));
+  const [hyphenationOn, setHyphenationOn] = useState(Boolean(layout?.hyphenation));
   const [indentLeftCm, setIndentLeftCm] = useState(0);
   const [indentRightCm, setIndentRightCm] = useState(0);
   const [spacingBeforePt, setSpacingBeforePt] = useState(0);
   const [spacingAfterPt, setSpacingAfterPt] = useState(8);
   const [breakAction, setBreakAction] = useState('');
 
-  const sizeLabel = useMemo(() => (PAGE_SIZES[pageSize] || PAGE_SIZES.a4).label, [pageSize]);
+  const activeMargin = layout?.pageMargin || pageMargin || 'normal';
+  const activeOrientation = layout?.pageOrientation || pageOrientation || 'portrait';
+  const activeSize = layout?.pageSize || pageSize || 'a4';
+  const activeColumns = layout?.pageColumns !== undefined ? layout.pageColumns : (pageColumns || 1);
+
+  const sizeLabel = useMemo(() => (PAGE_SIZES[activeSize] || PAGE_SIZES.a4).label, [activeSize]);
+
+  useEffect(() => {
+    setLineNumbersOn(Boolean(layout?.lineNumbers));
+    setHyphenationOn(Boolean(layout?.hyphenation));
+  }, [layout?.lineNumbers, layout?.hyphenation]);
 
   const applyParagraphLayout = (patch = {}) => {
     if (!editor) return toast('Editor is not ready yet', 'info');
@@ -387,21 +395,16 @@ export function LayoutTab() {
   };
 
   const toggleLineNumbers = () => {
-    const pm = document.querySelector('.ProseMirror');
-    if (!pm) return;
     const next = !lineNumbersOn;
     setLineNumbersOn(next);
-    pm.classList.toggle('etherx-line-numbers', next);
+    setLayout({ lineNumbers: next });
     toast(next ? 'Line numbers on' : 'Line numbers off', 'info');
   };
 
   const toggleHyphenation = () => {
-    const pm = document.querySelector('.ProseMirror');
-    if (!pm) return;
     const next = !hyphenationOn;
     setHyphenationOn(next);
-    pm.style.hyphens = next ? 'auto' : 'manual';
-    pm.lang = next ? 'en' : '';
+    setLayout({ hyphenation: next });
     toast(next ? 'Hyphenation on' : 'Hyphenation off', 'info');
   };
 
@@ -476,7 +479,7 @@ export function LayoutTab() {
           <PageSetupControl
             icon={<LayoutGrid size={13} strokeWidth={1.75} />}
             label="Margins"
-            value={pageMargin}
+            value={activeMargin}
             options={[
               { value: 'normal', label: 'Normal' },
               { value: 'narrow', label: 'Narrow' },
@@ -484,7 +487,7 @@ export function LayoutTab() {
               { value: 'wide', label: 'Wide' },
             ]}
             onChange={(next) => {
-              setPageMargin(next);
+              setLayout({ pageMargin: next });
               toast(`Margins: ${next}`, 'success');
             }}
             width={94}
@@ -492,13 +495,13 @@ export function LayoutTab() {
           <PageSetupControl
             icon={<RotateCw size={13} strokeWidth={1.75} />}
             label="Orientation"
-            value={pageOrientation}
+            value={activeOrientation}
             options={[
               { value: 'portrait', label: 'Portrait' },
               { value: 'landscape', label: 'Landscape' },
             ]}
             onChange={(next) => {
-              setPageOrientation(next);
+              setLayout({ pageOrientation: next });
               toast(`Orientation: ${next}`, 'success');
             }}
             width={94}
@@ -506,7 +509,7 @@ export function LayoutTab() {
           <PageSetupControl
             icon={<Maximize2 size={13} strokeWidth={1.75} />}
             label="Size"
-            value={pageSize}
+            value={activeSize}
             options={[
               { value: 'a4', label: 'A4' },
               { value: 'letter', label: 'Letter' },
@@ -514,7 +517,7 @@ export function LayoutTab() {
               { value: 'a3', label: 'A3' },
             ]}
             onChange={(next) => {
-              setPageSize(next);
+              setLayout({ pageSize: next });
               toast(`Size: ${(PAGE_SIZES[next] || PAGE_SIZES.a4).label}`, 'success');
             }}
             width={88}
@@ -522,7 +525,7 @@ export function LayoutTab() {
           <PageSetupControl
             icon={<Columns2 size={13} strokeWidth={1.75} />}
             label="Columns"
-            value={String(pageColumns)}
+            value={String(activeColumns)}
             options={[
               { value: '1', label: 'One' },
               { value: '2', label: 'Two' },
@@ -530,7 +533,7 @@ export function LayoutTab() {
             ]}
             onChange={(next) => {
               const c = Number(next);
-              setPageColumns(c);
+              setLayout({ pageColumns: c });
               toast(`Columns: ${c}`, 'success');
             }}
             width={80}
@@ -759,61 +762,6 @@ export function LayoutTab() {
             </div>
             <IconTextButton icon={<Trash2 size={13} strokeWidth={1.75} />} text="Remove Image" onClick={removeSelectedImage} />
           </div>
-        </div>
-      </Group>
-
-      <Group title="Structure & Security">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 74 }}>
-          <button
-            onClick={() => openDialog('masterDoc')}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 4,
-              width: 68,
-              height: 70,
-              background: 'transparent',
-              border: '1px solid transparent',
-              borderRadius: 4,
-              cursor: 'pointer',
-              color: 'var(--text-primary)',
-              fontFamily: 'var(--font-ui)',
-              fontSize: 11,
-              transition: 'background 0.1s, border-color 0.1s',
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'transparent'; }}
-          >
-            <BookOpen size={20} strokeWidth={1.75} />
-            <span>Master Doc</span>
-          </button>
-          <button
-            onClick={() => openDialog('security')}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 4,
-              width: 68,
-              height: 70,
-              background: 'transparent',
-              border: '1px solid transparent',
-              borderRadius: 4,
-              cursor: 'pointer',
-              color: 'var(--text-primary)',
-              fontFamily: 'var(--font-ui)',
-              fontSize: 11,
-              transition: 'background 0.1s, border-color 0.1s',
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'transparent'; }}
-          >
-            <Lock size={20} strokeWidth={1.75} />
-            <span>Security</span>
-          </button>
         </div>
       </Group>
     </>

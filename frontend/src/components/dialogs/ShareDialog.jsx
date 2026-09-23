@@ -48,20 +48,40 @@ async function copyTextToClipboard(value) {
   return copied;
 }
 
-export function ShareDialog() {
+export function ShareDialog({
+  documentId: propDocId,
+  documentTitle: propTitle,
+  documentContent: propContent,
+  onClose: propOnClose,
+} = {}) {
   const { id: routeId } = useParams();
   const { closeDialog, toast } = useUIStore();
-  const { id, title, content, setId, setLastSaved } = useDocumentStore();
+  const { id, title: storeTitle, content: storeContent, setId, setLastSaved } = useDocumentStore();
   const { collaborators, connected, enableCollaboration } = useCollaborationStore();
   const { plan, openUpgradeModal } = useSubscriptionStore();
-  const activeDocumentId = routeId || id;
+  const [internalDocId, setInternalDocId] = useState(propDocId || null);
+
+  useEffect(() => {
+    if (propDocId) {
+      setInternalDocId(propDocId);
+    }
+  }, [propDocId]);
+
+  const activeDocumentId = internalDocId || propDocId || routeId || id;
+  const docTitle = propTitle || storeTitle || 'Untitled Document';
+  const docContent = propContent || storeContent || '<p></p>';
   const [copied, setCopied] = useState(false);
   const [email,  setEmail]  = useState('');
   const [role,   setRole]   = useState('viewer');
   const [working, setWorking] = useState(false);
   const [invitedCollaborators, setInvitedCollaborators] = useState([]);
 
-  const shareUrl = activeDocumentId
+  const handleClose = () => {
+    if (propOnClose) propOnClose();
+    closeDialog('shareDoc');
+  };
+
+  const shareUrl = (activeDocumentId && !String(activeDocumentId).startsWith('local-') && activeDocumentId !== 'new')
     ? buildSharedUrl(activeDocumentId)
     : 'A share link will be generated when you click Copy Link.';
 
@@ -125,17 +145,21 @@ export function ShareDialog() {
   }, [collaborators, invitedCollaborators]);
 
   const ensureShareableDocument = async () => {
-    if (activeDocumentId) return activeDocumentId; // Current route/store document is shareable
+    if (activeDocumentId && !String(activeDocumentId).startsWith('local-') && activeDocumentId !== 'new') {
+      return activeDocumentId;
+    }
     
     try {
-      const created = await documentApi.create({ title, content });
+      const created = await documentApi.create({ title: docTitle, content: docContent });
       const newId = String(created?.id || created?._id || created?.document?.id || created?.document?._id || '');
       if (!newId) throw new Error('The document could not be created');
+      setInternalDocId(newId);
       setId(newId);
       if (created?.updatedAt) setLastSaved(created.updatedAt);
       await loadInvitedCollaborators(newId);
-      // Update URL without navigation
-      window.history.replaceState(null, '', `/doc/${newId}`);
+      if (window.location.pathname.startsWith('/doc/')) {
+        window.history.replaceState(null, '', `/doc/${newId}`);
+      }
       return newId;
     } catch (error) {
       console.error('Failed to create shareable document:', error);
@@ -256,7 +280,7 @@ export function ShareDialog() {
             toEmail: sharedEmail,
             toName: sharedEmail,
             inviterName: getStoredUser().name || getStoredUser().email || 'A collaborator',
-            documentTitle: title || 'Untitled Document',
+            documentTitle: docTitle || 'Untitled Document',
             shareUrl: response?.shareUrl || buildSharedUrl(docId),
             role,
           });
@@ -295,7 +319,7 @@ export function ShareDialog() {
   };
 
   return (
-    <Modal title="Share Document" onClose={() => closeDialog('shareDoc')} width={480}>
+    <Modal title="Share Document" onClose={handleClose} width={480}>
       <Stack gap={16}>
         {plan === 'free' ? (
           <div style={{
@@ -476,7 +500,7 @@ export function ShareDialog() {
           </div>
         </div>
 
-        <Button variant="subtle" onClick={() => closeDialog('shareDoc')}>Done</Button>
+        <Button variant="subtle" onClick={handleClose}>Done</Button>
       </Stack>
     </Modal>
   );

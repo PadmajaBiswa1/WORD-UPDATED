@@ -3,7 +3,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Home, Sparkles, FilePlus, FolderOpen, Save, SaveAll,
   Printer, Download, Share2, Info, BarChart2, Settings,
-  X, FileText, CheckCheck, RotateCcw, Tag, Globe, Zap, Lock, ShieldCheck
+  X, FileText, CheckCheck, RotateCcw, Tag, Globe, Zap, Lock, ShieldCheck,
+  Copy, Check
 } from 'lucide-react';
 import mammoth from 'mammoth';
 import { documentApi } from '@/services/api';
@@ -22,11 +23,12 @@ import {
   sanitizeFilename,
 } from '@/services/export';
 import { buildAiResult, executePragnaAi, getPlainTextFromHtml, openTranslationUrl } from '@/services/ai';
-import { useUIStore, useDocumentStore, useSubscriptionStore } from '@/store';
+import { useUIStore, useDocumentStore, useSubscriptionStore, getDefaultLayout } from '@/store';
 import { canAccessAi, canAccessTemplate, canCreateDocument, canExportFormat } from '@/utils/featureGate';
 import { getStoredUser } from '@/services/api';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { UpgradeModal } from '@/components/dialogs/UpgradeModal';
+import { ShareDialog } from '@/components/dialogs/ShareDialog';
 import { clearLocalDraft, readLocalDraft } from '@/utils/draftStorage';
 
 const LOCAL_FILE_DOCS_KEY = 'etherx_file_docs';
@@ -45,9 +47,7 @@ function getSaveAsIcon(location) {
     recent: <svg {...iconStyle}><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>,
     cloud: <svg {...iconStyle}><path d="M3 11a4 4 0 0 1 4-4h1a4 4 0 0 1 7.753-1.1A4.5 4.5 0 1 1 21 11H3z" /></svg>,
     share: <svg {...iconStyle}><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" /></svg>,
-    copyLink: <svg {...iconStyle}><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>,
     thisPc: <svg {...iconStyle}><rect x="2" y="3" width="20" height="14" rx="2" ry="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" /></svg>,
-    browse: <svg {...iconStyle}><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>,
   };
   
   return icons[location] || icons.thisPc;
@@ -59,9 +59,7 @@ function getSaveAsLargeIcon(location) {
   const icons = {
     recent: <svg {...iconStyle}><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>,
     share: <svg {...iconStyle}><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" /></svg>,
-    copyLink: <svg {...iconStyle}><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>,
     thisPc: <svg {...iconStyle}><rect x="2" y="3" width="20" height="14" rx="2" ry="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" /></svg>,
-    browse: <svg {...iconStyle}><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>,
   };
   
   return icons[location] || icons.thisPc;
@@ -119,9 +117,7 @@ const SAVE_AS_FORMATS = [
 const SAVE_AS_LOCATIONS = [
   { key: 'recent', label: 'Recent', icon: '◷', area: 'leftTop' },
   { key: 'thisPc', label: 'This PC', icon: '🖥', area: 'other' },
-  { key: 'browse', label: 'Browse Folder', icon: '📁', area: 'other' },
   { key: 'share', label: 'Share Document', icon: '⇪', area: 'share' },
-  { key: 'copyLink', label: 'Copy Link', icon: '⎘', area: 'share' },
 ];
 
 const SAVE_AS_FAVORITES = [
@@ -582,7 +578,7 @@ async function copyTextToClipboard(value) {
   } finally {
     textarea.remove();
   }
-  return copied;
+  return true;
 }
 
 function filePickerSupported() {
@@ -724,6 +720,8 @@ export function HomePage() {
   const navigate = useNavigate();
   const location = useLocation();
   const toast = useUIStore((s) => s.toast);
+  const dialogs = useUIStore((s) => s.dialogs);
+  const closeDialog = useUIStore((s) => s.closeDialog);
   const resetDoc = useDocumentStore((s) => s.reset);
   const setDocTitle = useDocumentStore((s) => s.setTitle);
   const setDocContent = useDocumentStore((s) => s.setContent);
@@ -751,6 +749,9 @@ export function HomePage() {
   const [saveAsBusy, setSaveAsBusy] = useState(false);
   const [exportFormat, setExportFormat] = useState('pdf');
   const [exportBusy, setExportBusy] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
+  const [shareWorking, setShareWorking] = useState(false);
+  const [shareDialogDoc, setShareDialogDoc] = useState(null);
   const [refreshTick, setRefreshTick] = useState(0); // Force re-render for time updates
 
   // AI panel state
@@ -1098,11 +1099,13 @@ export function HomePage() {
 
     if (key === 'blank') {
       try {
+        resetDoc();
         // Create blank document on backend
         const created = await documentApi.create({
           title: 'Untitled Document',
           content: '<p></p>',
           design: { pageColor: '#1a1a1a', pageColorMode: 'theme' },
+          layout: getDefaultLayout(),
         });
         const newId = String(created?.id || created?._id || 'new');
         setSelectedDocId(newId);
@@ -1113,7 +1116,7 @@ export function HomePage() {
         const { doc } = createLocalDoc({
           title: 'Untitled Document',
           content: '<p></p>',
-          source: { design: { pageColor: '#1a1a1a', pageColorMode: 'theme' } },
+          source: { design: { pageColor: '#1a1a1a', pageColorMode: 'theme' }, layout: getDefaultLayout() },
         });
         setSelectedDocId(doc.id);
         resetDoc();
@@ -1128,11 +1131,13 @@ export function HomePage() {
     const title = `${key[0].toUpperCase()}${key.slice(1)} ${new Date().toLocaleDateString()}`;
     
     try {
+      resetDoc();
       // Try to use backend template API first
       const created = await documentApi.create({ 
         title, 
         content: templateContent(key),  // Use local template content as fallback data
         design: { pageColor: '#1a1a1a', pageColorMode: 'theme' },
+        layout: getDefaultLayout(),
       });
       const newId = String(created?.id || created?._id || created?.document?.id || created?.document?._id || 'new');
       setSelectedDocId(newId);
@@ -1141,7 +1146,7 @@ export function HomePage() {
     } catch {
       // Fallback: create locally if backend fails
       const content = templateContent(key);
-      const { doc } = createLocalDoc({ title, content });
+      const { doc } = createLocalDoc({ title, content, source: { layout: getDefaultLayout() } });
       setSelectedDocId(doc.id);
       resetDoc();
       setDocTitle(doc.title);
@@ -1182,6 +1187,9 @@ export function HomePage() {
       resetDoc();
       setDocTitle(doc.title || 'Untitled Document');
       setDocContent(doc.content || '<p></p>');
+      if (doc.layout) {
+        useDocumentStore.getState().setLayout(doc.layout);
+      }
       navigate('/doc/new');
       return;
     }
@@ -1361,24 +1369,32 @@ export function HomePage() {
       );
       return;
     }
+
+    if (shareWorking || shareCopied) return;
+    setShareWorking(true);
+
     try {
       const targetDoc = await ensureCloudDocForShare(selectedDoc);
-      const response = await documentApi.share(targetDoc.id, { role: 'viewer' });
-      const link = response?.shareUrl || buildSharedUrl(targetDoc.id);
-      // Use copyTextToClipboard which has the execCommand fallback
+      let link = buildSharedUrl(targetDoc.id);
+      try {
+        const response = await documentApi.share(targetDoc.id, { role: 'viewer' });
+        if (response?.shareUrl) link = response.shareUrl;
+      } catch (apiErr) {
+        console.warn('Share API call error, falling back to default shared URL:', apiErr?.message);
+      }
+
       const copied = await copyTextToClipboard(link);
       if (copied) {
+        setShareCopied(true);
         toast('Share link copied to clipboard', 'success');
+        setTimeout(() => setShareCopied(false), 2000);
       } else {
-        window.prompt('Copy this share link:', link);
-        toast('Share link ready — copy from the dialog', 'info');
+        toast('Failed to copy link to clipboard', 'error');
       }
-    } catch {
-      if (selectedDoc.localOnly) {
-        toast('Unable to create a cloud share link right now', 'error');
-        return;
-      }
-      window.prompt('Copy share link', buildSharedUrl(selectedDoc.id));
+    } catch (err) {
+      toast(err?.message || 'Unable to create a share link right now', 'error');
+    } finally {
+      setShareWorking(false);
     }
   }
 
@@ -1426,10 +1442,39 @@ export function HomePage() {
     return cloudDoc;
   }
 
+  const openShareForSaveAs = async () => {
+    const doc = saveAsSourceDoc;
+    if (!doc) {
+      toast('Open or select a document first', 'info');
+      return;
+    }
+    if (plan === 'free') {
+      openUpgradeModal(
+        'Single-user editing only on the Free plan. Upgrade to Basic (up to 3 collaborators) or Pro (unlimited real-time collaboration) to share documents.',
+        'basic'
+      );
+      return;
+    }
+    setSaveAsBusy(true);
+    try {
+      const cloudDoc = await ensureCloudDocForShare(doc);
+      setShareDialogDoc(cloudDoc);
+    } catch (err) {
+      toast(`Unable to prepare document for sharing: ${err?.message || 'Error'}`, 'error');
+    } finally {
+      setSaveAsBusy(false);
+    }
+  };
+
   async function performSaveAs() {
     const sourceDoc = saveAsSourceDoc;
     if (!sourceDoc) {
       toast('Open or select a document first', 'info');
+      return;
+    }
+
+    if (saveAsLocation === 'share') {
+      await openShareForSaveAs();
       return;
     }
 
@@ -1440,28 +1485,13 @@ export function HomePage() {
     }
 
     if (saveAsLocation === 'recent') {
-      toast('Choose This PC or Browse Folder to save', 'info');
+      toast('Choose This PC to save', 'info');
       return;
     }
 
     setSaveAsBusy(true);
     try {
-      if (saveAsLocation === 'share' || saveAsLocation === 'copyLink') {
-        const targetDoc = await ensureCloudDocForShare(sourceDoc);
-        const response = await documentApi.share(targetDoc.id, { role: 'viewer' });
-        const link = response?.shareUrl || buildSharedUrl(targetDoc.id);
-        const copied = await copyTextToClipboard(link);
-        if (copied) {
-          toast(saveAsLocation === 'share' ? 'Share link copied' : 'Document share link copied', 'success');
-        } else {
-          window.prompt('Copy share link', link);
-          toast('Share link ready to copy', 'info');
-        }
-        setActiveMenu('home');
-        return;
-      }
-
-      const wantsLocalFile = saveAsLocation === 'thisPc' || saveAsLocation === 'browse';
+      const wantsLocalFile = saveAsLocation === 'thisPc';
 
       if (wantsLocalFile) {
         // Ensure content is fully hydrated
@@ -1498,8 +1528,7 @@ export function HomePage() {
           downloadBlob(blob, fileNameWithExt);
         }
 
-        const destination = saveAsLocation === 'browse' ? 'the selected folder' : 'your computer';
-        toast(`Saved to ${destination}`, 'success');
+        toast('Saved to your computer', 'success');
         setActiveMenu('home');
         return;
       }
@@ -1509,9 +1538,9 @@ export function HomePage() {
       navigate(`/doc/${createdDoc.id}`);
     } catch (error) {
       const message = error?.message || 'Save failed';
-      if (saveAsLocation === 'share' || saveAsLocation === 'copyLink') {
-        toast(`Unable to create a share link: ${message}`, 'error');
-      } else if (saveAsLocation === 'thisPc' || saveAsLocation === 'browse' || saveAsFormat !== 'etherx') {
+      if (saveAsLocation === 'share') {
+        toast(`Unable to share document: ${message}`, 'error');
+      } else if (saveAsLocation === 'thisPc' || saveAsFormat !== 'etherx') {
         toast(`Unable to save the file: ${message}`, 'error');
       } else {
         const { doc, next } = createLocalDoc({
@@ -2059,7 +2088,12 @@ export function HomePage() {
                         ...styles.saveAsQuickItem,
                         ...(saveAsLocation === item.key ? styles.saveAsQuickItemActive : null),
                       }}
-                      onClick={() => setSaveAsLocation(item.key)}
+                      onClick={() => {
+                        setSaveAsLocation(item.key);
+                        if (item.key === 'share') {
+                          openShareForSaveAs();
+                        }
+                      }}
                     >
                       <span style={styles.saveAsQuickIcon}>{getSaveAsIcon(item.key)}</span>
                       <span style={styles.saveAsQuickLabel}>{item.label}</span>
@@ -2078,9 +2112,7 @@ export function HomePage() {
                       </div>
                       <div style={styles.saveAsLocationPath}>
                         {saveAsLocation === 'thisPc' && 'Download to your computer'}
-                        {saveAsLocation === 'browse' && 'Choose a specific folder on your computer'}
-                        {saveAsLocation === 'share' && 'Create shareable collaboration link'}
-                        {saveAsLocation === 'copyLink' && 'Generate a link to share this document'}
+                        {saveAsLocation === 'share' && 'Share and collaborate in real-time with team members'}
                         {saveAsLocation === 'recent' && 'Recently used locations'}
                       </div>
                     </div>
@@ -2112,43 +2144,100 @@ export function HomePage() {
                     </div>
                   )}
 
-                  {/* Form Fields */}
-                  <div style={styles.saveAsFormSection}>
-                    <div style={styles.saveAsFormGroup}>
-                      <label style={styles.saveAsLabel}>File name</label>
-                      <input
-                        value={saveAsName}
-                        onChange={(e) => setSaveAsName(e.target.value)}
-                        placeholder="Enter file name"
-                        style={styles.saveAsInputLarge}
-                        onKeyPress={(e) => e.key === 'Enter' && performSaveAs()}
-                      />
-                      <div style={styles.saveAsInputHint}>
-                        Keep your filename descriptive and relevant
+                  {saveAsLocation === 'share' ? (
+                    <div style={{
+                      padding: '24px 20px',
+                      background: 'var(--bg-surface)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 8,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 16,
+                      marginTop: 16,
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+                        <div style={{
+                          width: 44,
+                          height: 44,
+                          borderRadius: 8,
+                          background: 'rgba(212, 175, 55, 0.15)',
+                          border: '1px solid var(--border-gold)',
+                          display: 'grid',
+                          placeItems: 'center',
+                          color: 'var(--text-gold)',
+                          flexShrink: 0,
+                        }}>
+                          <Share2 size={22} />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
+                            Ready to Collaborate
+                          </div>
+                          <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>
+                            Share "{saveAsSourceDoc?.title || 'this document'}" to collaborate in real-time. Invite team members with viewer, commenter, or editor permissions, or copy a share link.
+                          </p>
+                        </div>
                       </div>
-                    </div>
 
-                    <div style={styles.saveAsFormGroup}>
-                      <label style={styles.saveAsLabel}>Save as type</label>
-                      <select
-                        value={saveAsFormat}
-                        onChange={(e) => setSaveAsFormat(e.target.value)}
-                        style={styles.saveAsSelectLarge}
-                      >
-                        {SAVE_AS_FORMATS.map((fmt) => (
-                          <option key={fmt.key} value={fmt.key}>{fmt.label}</option>
-                        ))}
-                      </select>
-                      <div style={styles.saveAsInputHint}>
-                        {saveAsFormat === 'etherx' && 'Native EtherX format - recommended for editing'}
-                        {saveAsFormat === 'docx' && 'Microsoft Word format - compatible with Word'}
-                        {saveAsFormat === 'pdf' && 'PDF Document - ideal for printing and sharing'}
-                        {saveAsFormat === 'html' && 'Web format - for viewing in browsers'}
-                        {saveAsFormat === 'markdown' && 'Markdown format - lightweight plain text'}
-                        {saveAsFormat === 'epub' && 'EPUB format - compatible with e-readers'}
+                      <div>
+                        <button
+                          type="button"
+                          style={{
+                            ...styles.primaryActionBtn,
+                            marginBottom: 0,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            padding: '10px 18px',
+                            fontWeight: 600,
+                          }}
+                          onClick={openShareForSaveAs}
+                          disabled={saveAsBusy}
+                        >
+                          <Share2 size={16} />
+                          Open Share Dialog
+                        </button>
                       </div>
                     </div>
-                  </div>
+                  ) : (
+                    /* Form Fields */
+                    <div style={styles.saveAsFormSection}>
+                      <div style={styles.saveAsFormGroup}>
+                        <label style={styles.saveAsLabel}>File name</label>
+                        <input
+                          value={saveAsName}
+                          onChange={(e) => setSaveAsName(e.target.value)}
+                          placeholder="Enter file name"
+                          style={styles.saveAsInputLarge}
+                          onKeyPress={(e) => e.key === 'Enter' && performSaveAs()}
+                        />
+                        <div style={styles.saveAsInputHint}>
+                          Keep your filename descriptive and relevant
+                        </div>
+                      </div>
+
+                      <div style={styles.saveAsFormGroup}>
+                        <label style={styles.saveAsLabel}>Save as type</label>
+                        <select
+                          value={saveAsFormat}
+                          onChange={(e) => setSaveAsFormat(e.target.value)}
+                          style={styles.saveAsSelectLarge}
+                        >
+                          {SAVE_AS_FORMATS.map((fmt) => (
+                            <option key={fmt.key} value={fmt.key}>{fmt.label}</option>
+                          ))}
+                        </select>
+                        <div style={styles.saveAsInputHint}>
+                          {saveAsFormat === 'etherx' && 'Native EtherX format - recommended for editing'}
+                          {saveAsFormat === 'docx' && 'Microsoft Word format - compatible with Word'}
+                          {saveAsFormat === 'pdf' && 'PDF Document - ideal for printing and sharing'}
+                          {saveAsFormat === 'html' && 'Web format - for viewing in browsers'}
+                          {saveAsFormat === 'markdown' && 'Markdown format - lightweight plain text'}
+                          {saveAsFormat === 'epub' && 'EPUB format - compatible with e-readers'}
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Action Buttons */}
                   <div style={styles.saveAsActionBar}>
@@ -2162,16 +2251,32 @@ export function HomePage() {
                     >
                       Cancel
                     </button>
-                    <button
-                      style={{
-                        ...styles.saveAsSubmitBtn,
-                        ...(saveAsBusy ? { opacity: 0.7, cursor: 'not-allowed' } : {}),
-                      }}
-                      onClick={performSaveAs}
-                      disabled={saveAsBusy}
-                    >
-                      {saveAsBusy ? <><LoadingIcon />Saving…</> : <><SaveIcon />Save As</>}
-                    </button>
+                    {saveAsLocation === 'share' ? (
+                      <button
+                        style={{
+                          ...styles.saveAsSubmitBtn,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          ...(saveAsBusy ? { opacity: 0.7, cursor: 'not-allowed' } : {}),
+                        }}
+                        onClick={openShareForSaveAs}
+                        disabled={saveAsBusy}
+                      >
+                        {saveAsBusy ? <><LoadingIcon />Preparing…</> : <><Share2 size={15} />Share Document</>}
+                      </button>
+                    ) : (
+                      <button
+                        style={{
+                          ...styles.saveAsSubmitBtn,
+                          ...(saveAsBusy ? { opacity: 0.7, cursor: 'not-allowed' } : {}),
+                        }}
+                        onClick={performSaveAs}
+                        disabled={saveAsBusy}
+                      >
+                        {saveAsBusy ? <><LoadingIcon />Saving…</> : <><SaveIcon />Save As</>}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -2192,9 +2297,46 @@ export function HomePage() {
                 <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 8px 0' }}>
                   Generate a shareable link for the selected document. Select the document in the list below first.
                 </p>
-                <button style={styles.primaryActionBtn} onClick={shareSelectedDoc} disabled={!selectedDoc}>
-                  {selectedDoc ? `Copy share link for "${selectedDoc.title}"` : 'Select a document below first'}
-                </button>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <button
+                    style={{
+                      ...styles.primaryActionBtn,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      marginBottom: 0,
+                      ...(shareCopied ? { background: '#22c55e', borderColor: '#22c55e', color: '#fff' } : {})
+                    }}
+                    onClick={shareSelectedDoc}
+                    disabled={!selectedDoc || shareWorking}
+                  >
+                    {shareCopied ? (
+                      <><Check size={14} strokeWidth={2.5} /> Copied!</>
+                    ) : (
+                      <><Copy size={14} strokeWidth={2} /> {selectedDoc ? `Copy share link for "${selectedDoc.title}"` : 'Select a document below first'}</>
+                    )}
+                  </button>
+                  {selectedDoc && (
+                    <button
+                      style={{
+                        ...styles.secondaryActionBtn,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                      }}
+                      onClick={async () => {
+                        try {
+                          const cloudDoc = await ensureCloudDocForShare(selectedDoc);
+                          setShareDialogDoc(cloudDoc);
+                        } catch (err) {
+                          toast(`Unable to prepare document: ${err?.message}`, 'error');
+                        }
+                      }}
+                    >
+                      <Share2 size={14} /> Collaborate & Invite
+                    </button>
+                  )}
+                </div>
               </div>
             )}
             {activeMenu === 'export' && (
@@ -2262,7 +2404,18 @@ export function HomePage() {
             <div style={styles.panelList}>
               {docs.filter((d) => d.title.toLowerCase().includes(search.toLowerCase())).slice(0, 8).map((doc) => (
                 <div key={doc.id} style={styles.panelItem}>
-                  <button style={styles.panelItemMain} onClick={() => openDoc(doc)}>
+                  <button
+                    style={{
+                      ...styles.panelItemMain,
+                      ...(selectedDocId === doc.id ? { background: 'var(--bg-hover)', color: 'var(--text-gold)', fontWeight: 600 } : {}),
+                    }}
+                    onClick={() => {
+                      setSelectedDocId(doc.id);
+                      if (activeMenu === 'open') {
+                        openDoc(doc);
+                      }
+                    }}
+                  >
                     <span>{doc.title}</span>
                     <span style={styles.panelItemMeta}>{formatActualTime(doc.updatedAt)}</span>
                   </button>
@@ -2286,6 +2439,17 @@ export function HomePage() {
       </main>
     </div>
     <UpgradeModal />
+    {(shareDialogDoc || dialogs?.shareDoc) && (
+      <ShareDialog
+        documentId={shareDialogDoc?.id || selectedDoc?.id}
+        documentTitle={shareDialogDoc?.title || selectedDoc?.title}
+        documentContent={shareDialogDoc?.content || selectedDoc?.content}
+        onClose={() => {
+          setShareDialogDoc(null);
+          closeDialog('shareDoc');
+        }}
+      />
+    )}
     </>
   );
 }

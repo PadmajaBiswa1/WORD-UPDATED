@@ -68,6 +68,29 @@ function defaultHeaderFooter() {
   };
 }
 
+function defaultLayout() {
+  return {
+    pageSize: 'a4',
+    pageOrientation: 'portrait',
+    pageMargin: 'normal',
+    pageColumns: 1,
+    lineNumbers: false,
+    hyphenation: false,
+  };
+}
+
+function normalizeLayout(layout) {
+  if (!layout || typeof layout !== 'object') return defaultLayout();
+  return {
+    pageSize: layout.pageSize || 'a4',
+    pageOrientation: layout.pageOrientation || 'portrait',
+    pageMargin: layout.pageMargin || 'normal',
+    pageColumns: typeof layout.pageColumns === 'number' ? layout.pageColumns : (parseInt(layout.pageColumns, 10) || 1),
+    lineNumbers: Boolean(layout.lineNumbers),
+    hyphenation: Boolean(layout.hyphenation),
+  };
+}
+
 function defaultAiProfile() {
   return {
     tone: 'balanced',
@@ -252,6 +275,7 @@ function normalizeDoc(document) {
       ? { ...defaultDesign(), ...document.design }
       : defaultDesign(),
     headerFooter: normalizeHeaderFooter(document.headerFooter),
+    layout: normalizeLayout(document.layout),
     ipfsHash: document.ipfsHash || null,
     ipfsGatewayUrl: document.ipfsGatewayUrl || null,
     ipfsPinnedAt: document.ipfsPinnedAt || null,
@@ -375,6 +399,7 @@ async function createDocument(input = {}, user = {}) {
     signatures: Array.isArray(input.signatures) ? input.signatures : [],
     design: input.design && typeof input.design === 'object' ? { ...defaultDesign(), ...input.design } : defaultDesign(),
     headerFooter: normalizeHeaderFooter(input.headerFooter),
+    layout: normalizeLayout(input.layout),
   });
 
   if (!isMongoConnected()) {
@@ -452,6 +477,9 @@ async function updateDocument(id, input = {}, options = {}) {
   if (input.headerFooter && typeof input.headerFooter === 'object') {
     next.headerFooter = normalizeHeaderFooter({ ...(current.headerFooter || {}), ...input.headerFooter });
   }
+  if (input.layout && typeof input.layout === 'object') {
+    next.layout = normalizeLayout({ ...(current.layout || {}), ...input.layout });
+  }
 
   if (typeof input.ipfsHash === 'string' || input.ipfsHash === null) next.ipfsHash = input.ipfsHash || null;
   if (typeof input.ipfsGatewayUrl === 'string' || input.ipfsGatewayUrl === null) next.ipfsGatewayUrl = input.ipfsGatewayUrl || null;
@@ -467,7 +495,8 @@ async function updateDocument(id, input = {}, options = {}) {
     || (input.references && typeof input.references === 'object')
     || Array.isArray(input.documentParts)
     || (input.design && typeof input.design === 'object')
-    || (input.headerFooter && typeof input.headerFooter === 'object');
+    || (input.headerFooter && typeof input.headerFooter === 'object')
+    || (input.layout && typeof input.layout === 'object');
 
   if (hasCollabMutation) {
     next.revision = Number(current.revision || 0) + 1;

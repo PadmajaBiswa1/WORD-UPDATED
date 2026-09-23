@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  MoveVertical, Sparkles, Check, Droplet, Square, Mic, Volume2, PenTool, BookOpen, Lock
+  MoveVertical, Sparkles, Check, Droplet, Square, Mic, Volume2, PenTool, BookOpen
 } from 'lucide-react';
 import { useUIStore, useEditorStore, useDocumentStore } from '@/store';
 import { Modal, Button, Label, Stack, Input } from '@/components/ui';
@@ -863,7 +863,6 @@ export function DesignTab() {
       <RibbonGroup label="Protection">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
           <HeroBtn icon={<BookOpen size={20} strokeWidth={1.75} />} label="Master Doc" title="Master Document & Subdocuments" onClick={() => openDialog('masterDoc')} />
-          <HeroBtn icon={<Lock size={20} strokeWidth={1.75} />} label="Security" title="Document Password & Encryption" onClick={() => openDialog('security')} />
         </div>
       </RibbonGroup>
 

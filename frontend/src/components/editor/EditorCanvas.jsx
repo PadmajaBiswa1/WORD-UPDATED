@@ -53,7 +53,7 @@ function colorFromString(seed = '') {
 
 export function EditorCanvas() {
   const editor    = useEditorSetup();
-  const { zoom, setActivePage, rulerVisible, pageSize, pageOrientation, pageMargin, pageColumns, watermarkText }  = useUIStore();
+  const { zoom, setActivePage, rulerVisible, gridlinesVisible, pageSize, pageOrientation, pageMargin, pageColumns, watermarkText }  = useUIStore();
   const design = useDocumentStore((s) => s.design);
   const documentId = useDocumentStore((s) => s.id);
   const { setStats, headerFooter, setHeaderFooter } = useDocumentStore();
@@ -512,8 +512,27 @@ export function EditorCanvas() {
                     boxShadow: 'var(--etherx-page-shadow, var(--shadow-page))',
                     borderRadius: 2,
                     boxSizing: 'border-box',
+                    overflow: 'hidden',
                   }}
                 >
+                  {/* Gridlines Overlay */}
+                  {gridlinesVisible && (
+                    <div
+                      data-etherx-gridlines="true"
+                      aria-hidden="true"
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        pointerEvents: 'none',
+                        zIndex: 1,
+                        backgroundImage: `
+                          linear-gradient(to right, rgba(201, 168, 76, 0.16) 1px, transparent 1px),
+                          linear-gradient(to bottom, rgba(201, 168, 76, 0.16) 1px, transparent 1px)
+                        `,
+                        backgroundSize: `${20 * scale}px ${20 * scale}px`,
+                      }}
+                    />
+                  )}
                   {/* Inward Decorative Page Border (Word-style) */}
                   {borderMetrics.hasBorder && (
                     <div
@@ -659,8 +678,6 @@ export function EditorCanvas() {
                   fontFamily: 'var(--font-ui)',
                   pointerEvents: 'none',
                   userSelect: 'none',
-                  borderBottom: '1px dashed var(--border-gold, rgba(212, 175, 55, 0.35))',
-                  paddingBottom: 6,
                 }}
               >
                 {headerFooter.headerText}
@@ -681,8 +698,6 @@ export function EditorCanvas() {
                   fontFamily: 'var(--font-ui)',
                   pointerEvents: 'none',
                   userSelect: 'none',
-                  borderTop: '1px dashed var(--border-gold, rgba(212, 175, 55, 0.35))',
-                  paddingTop: 6,
                 }}
               >
                 {headerFooter.footerText}

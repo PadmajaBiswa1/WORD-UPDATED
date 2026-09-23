@@ -1,6 +1,8 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
+import { PenLine, Pipette, Undo2, Redo2 } from 'lucide-react';
 import { useUIStore, useEditorStore } from '@/store';
 import { Modal, Button, Tooltip } from '@/components/ui';
+import { PenCustomizerPopover } from '@/components/editor/PenCustomizerPanel';
 
 const TOOLS  = [{ id:'pen', icon:'✏', label:'Pen' }, { id:'highlighter', icon:'🖍', label:'Highlighter' }, { id:'eraser', icon:'⬜', label:'Eraser' }];
 const COLORS = ['#d4af37','#e8d98a','#ffffff','#ff5555','#55ff88','#55aaff','#ff55ff','#000000'];
@@ -10,13 +12,21 @@ export function DrawingDialog() {
   const {
     closeDialog, toast,
     drawTool, drawColor, drawSize, drawOpacity,
-    setDrawTool, setDrawColor, setDrawSize,
+    setDrawTool, setDrawColor, setDrawSize, setDrawOpacity,
     drawingEditSrc, drawingEditPos, clearDrawingEdit,
   } = useUIStore();
   const { editor } = useEditorStore();
   const canvasRef = useRef();
+  const customizerBtnRef = useRef(null);
+  const colorInputRef = useRef(null);
+  const [customizerOpen, setCustomizerOpen] = useState(false);
   const [drawing, setDrawing] = useState(false);
+  const isDrawingRef = useRef(false);
   const lastPos = useRef(null);
+  const undoStackRef = useRef([]);
+  const redoStackRef = useRef([]);
+  const [canUndoStroke, setCanUndoStroke] = useState(false);
+  const [canRedoStroke, setCanRedoStroke] = useState(false);
 
   const isEditMode = Boolean(drawingEditSrc);
   const W = 560, H = 360;
@@ -43,19 +53,92 @@ export function DrawingDialog() {
     };
   };
 
-  const toRgba = (hex, alpha) => {
-    const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || '');
-    if (!m) return hex;
-    return `rgba(${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}, ${alpha})`;
+  const toRgba = (hex, alpha = 1) => {
+    if (!hex) return `rgba(0,0,0,${alpha})`;
+    let c = String(hex).replace('#', '').trim();
+    if (c.length === 3) {
+      c = c.split('').map((ch) => ch + ch).join('');
+    }
+    if (c.length === 6) {
+      const num = parseInt(c, 16);
+      if (!isNaN(num)) {
+        const r = (num >> 16) & 255;
+        const g = (num >> 8) & 255;
+        const b = num & 255;
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+      }
+    }
+    return hex;
   };
 
+  const saveCanvasSnapshot = useCallback(() => {
+    if (!canvasRef.current) return;
+    const ctx = canvasRef.current.getContext('2d');
+    const snapshot = ctx.getImageData(0, 0, W, H);
+    undoStackRef.current.push(snapshot);
+    if (undoStackRef.current.length > 50) undoStackRef.current.shift();
+    redoStackRef.current = [];
+    setCanUndoStroke(true);
+    setCanRedoStroke(false);
+  }, [W, H]);
+
+  const undoStroke = useCallback(() => {
+    if (!canvasRef.current || undoStackRef.current.length === 0) return;
+    const ctx = canvasRef.current.getContext('2d');
+    const current = ctx.getImageData(0, 0, W, H);
+    redoStackRef.current.push(current);
+    const prev = undoStackRef.current.pop();
+    ctx.putImageData(prev, 0, 0);
+    setCanUndoStroke(undoStackRef.current.length > 0);
+    setCanRedoStroke(true);
+    toast('Undone drawing stroke', 'info');
+  }, [W, H, toast]);
+
+  const redoStroke = useCallback(() => {
+    if (!canvasRef.current || redoStackRef.current.length === 0) return;
+    const ctx = canvasRef.current.getContext('2d');
+    const current = ctx.getImageData(0, 0, W, H);
+    undoStackRef.current.push(current);
+    const next = redoStackRef.current.pop();
+    ctx.putImageData(next, 0, 0);
+    setCanUndoStroke(true);
+    setCanRedoStroke(redoStackRef.current.length > 0);
+    toast('Redone drawing stroke', 'info');
+  }, [W, H, toast]);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const mod = e.ctrlKey || e.metaKey;
+      const key = e.key.toLowerCase();
+      const isZ = key === 'z' || e.code === 'KeyZ';
+      const isY = key === 'y' || e.code === 'KeyY';
+
+      if (mod && !e.shiftKey && !e.altKey && isZ) {
+        e.preventDefault();
+        e.stopPropagation();
+        undoStroke();
+        return;
+      }
+      if (mod && !e.altKey && (isY || (e.shiftKey && isZ))) {
+        e.preventDefault();
+        e.stopPropagation();
+        redoStroke();
+        return;
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, [undoStroke, redoStroke]);
+
   const startDraw = (e) => {
+    saveCanvasSnapshot();
+    isDrawingRef.current = true;
     setDrawing(true);
     lastPos.current = getPos(e);
   };
 
   const draw = (e) => {
-    if (!drawing || !lastPos.current) return;
+    if (!isDrawingRef.current || !lastPos.current) return;
     const ctx = canvasRef.current.getContext('2d');
     const pos = getPos(e);
 
@@ -76,7 +159,7 @@ export function DrawingDialog() {
       ctx.lineWidth   = drawSize * 4;
     } else {
       ctx.globalCompositeOperation = 'source-over';
-      ctx.strokeStyle = drawColor;
+      ctx.strokeStyle = toRgba(drawColor, drawOpacity ?? 1);
       ctx.lineWidth   = drawSize;
     }
     ctx.stroke();
@@ -89,11 +172,14 @@ export function DrawingDialog() {
     // Reset composite after eraser stroke so subsequent draws work normally
     const ctx = canvasRef.current.getContext('2d');
     ctx.globalCompositeOperation = 'source-over';
+    isDrawingRef.current = false;
     setDrawing(false);
     lastPos.current = null;
   };
 
   const clearCanvas = () => {
+    if (!canvasRef.current) return;
+    saveCanvasSnapshot();
     const ctx = canvasRef.current.getContext('2d');
     ctx.clearRect(0, 0, W, H);
   };
@@ -184,14 +270,88 @@ export function DrawingDialog() {
 
           <div style={{ width:1, height:24, background:'var(--border)' }} />
 
+          {/* Pen Customizer Popover Trigger */}
+          <Tooltip text="Customize Pen (Color, Thickness, Opacity)">
+            <button
+              ref={customizerBtnRef}
+              type="button"
+              onClick={() => setCustomizerOpen((prev) => !prev)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                padding: '4px 8px',
+                borderRadius: 'var(--radius-sm)',
+                cursor: 'pointer',
+                fontSize: 12,
+                background: customizerOpen ? 'var(--bg-active)' : 'var(--bg-elevated)',
+                border: customizerOpen ? '1px solid var(--gold)' : '1px solid var(--border)',
+                color: 'var(--text-primary)',
+              }}
+            >
+              <PenLine size={13} style={{ color: 'var(--gold)' }} />
+              <span>Pen Settings</span>
+              <div
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: '50%',
+                  background: drawColor || '#d4af37',
+                  opacity: drawOpacity ?? 1,
+                  border: '1px solid var(--border-gold)',
+                  marginLeft: 2,
+                }}
+              />
+            </button>
+          </Tooltip>
+
+          <PenCustomizerPopover
+            triggerRef={customizerBtnRef}
+            isOpen={customizerOpen}
+            onClose={() => setCustomizerOpen(false)}
+            onAction={() => {
+              setDrawTool('pen');
+              setCustomizerOpen(false);
+            }}
+            actionLabel="Apply to Pen"
+            title="Pen Customization"
+          />
+
+          <div style={{ width:1, height:24, background:'var(--border)' }} />
+
           {/* Colors */}
-          <div style={{ display:'flex', gap:3, flexWrap:'wrap' }}>
+          <div style={{ display:'flex', gap:3, alignItems: 'center', flexWrap:'wrap' }}>
             {COLORS.map((c) => (
               <button key={c} onClick={() => setDrawColor(c)} style={{
                 width:20, height:20, background:c, border: drawColor===c ? '2px solid var(--gold)':'1px solid var(--border)',
                 borderRadius:3, cursor:'pointer', padding:0,
               }} />
             ))}
+            <div
+              onClick={() => colorInputRef.current?.click()}
+              title="Custom Color"
+              style={{
+                position: 'relative',
+                width: 20,
+                height: 20,
+                background: drawColor,
+                border: '1px dashed var(--gold)',
+                borderRadius: 3,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Pipette size={10} style={{ color: '#fff', mixBlendMode: 'difference' }} />
+              <input
+                ref={colorInputRef}
+                type="color"
+                value={drawColor.startsWith('#') && drawColor.length === 7 ? drawColor : '#d4af37'}
+                onChange={(e) => setDrawColor(e.target.value)}
+                style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%' }}
+              />
+            </div>
           </div>
 
           <div style={{ width:1, height:24, background:'var(--border)' }} />
@@ -206,6 +366,52 @@ export function DrawingDialog() {
                 borderRadius:'50%', cursor:'pointer',
               }} />
             ))}
+          </div>
+
+          <div style={{ width:1, height:24, background:'var(--border)' }} />
+
+          {/* Undo / Redo */}
+          <div style={{ display:'flex', gap:3, alignItems:'center' }}>
+            <Tooltip text="Undo Stroke (Ctrl+Z)">
+              <button
+                type="button"
+                onClick={undoStroke}
+                disabled={!canUndoStroke}
+                style={{
+                  background: 'var(--bg-elevated)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '4px 8px',
+                  cursor: canUndoStroke ? 'pointer' : 'not-allowed',
+                  opacity: canUndoStroke ? 1 : 0.45,
+                  display: 'flex',
+                  alignItems: 'center',
+                  color: 'var(--text-primary)',
+                }}
+              >
+                <Undo2 size={13} />
+              </button>
+            </Tooltip>
+            <Tooltip text="Redo Stroke (Ctrl+Y)">
+              <button
+                type="button"
+                onClick={redoStroke}
+                disabled={!canRedoStroke}
+                style={{
+                  background: 'var(--bg-elevated)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '4px 8px',
+                  cursor: canRedoStroke ? 'pointer' : 'not-allowed',
+                  opacity: canRedoStroke ? 1 : 0.45,
+                  display: 'flex',
+                  alignItems: 'center',
+                  color: 'var(--text-primary)',
+                }}
+              >
+                <Redo2 size={13} />
+              </button>
+            </Tooltip>
           </div>
 
           <div style={{ marginLeft:'auto', display:'flex', gap:6 }}>

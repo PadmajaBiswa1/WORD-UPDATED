@@ -63,6 +63,40 @@ function writeStoredHeaderFooter(docId, headerFooter) {
   }
 }
 
+const LAYOUT_STORAGE_PREFIX = 'etherx-doc-layout:';
+
+export const getDefaultLayout = () => ({
+  pageSize: 'a4',
+  pageOrientation: 'portrait',
+  pageMargin: 'normal',
+  pageColumns: 1,
+  lineNumbers: false,
+  hyphenation: false,
+});
+
+export const baseLayoutState = () => getDefaultLayout();
+
+function readStoredLayout(docId) {
+  if (typeof window === 'undefined' || !docId) return null;
+  try {
+    const raw = window.localStorage.getItem(`${LAYOUT_STORAGE_PREFIX}${docId}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredLayout(docId, layout) {
+  if (typeof window === 'undefined' || !docId) return;
+  try {
+    window.localStorage.setItem(`${LAYOUT_STORAGE_PREFIX}${docId}`, JSON.stringify(layout || {}));
+  } catch {
+    // ignore storage errors
+  }
+}
+
 const baseDocumentState = () => ({
   id: null,
   title: 'Untitled Document',
@@ -81,6 +115,9 @@ const baseDocumentState = () => ({
   currentUserRole: 'owner',
   design: baseDesignState(),
   headerFooter: getDefaultHeaderFooter(),
+  layout: baseLayoutState(),
+  undoStack: [],
+  redoStack: [],
   isDirty: false,
   isSaving: false,
   lastSaved: null,
@@ -129,6 +166,7 @@ export const useDocumentStore = create((set, get) => ({
       const docId = doc.id ?? doc._id ?? state.id ?? null;
       const storedDesign = readStoredDesign(docId);
       const storedHeaderFooter = readStoredHeaderFooter(docId);
+      const storedLayout = readStoredLayout(docId);
       const nextDesign = {
         ...baseDesignState(),
         ...(storedDesign || {}),
@@ -139,6 +177,30 @@ export const useDocumentStore = create((set, get) => ({
         ...(storedHeaderFooter || {}),
         ...(doc.headerFooter || {}),
       };
+      const nextLayout = {
+        ...baseLayoutState(),
+        ...(storedLayout || {}),
+        ...(doc.layout || doc.pageLayout || {}),
+      };
+
+      // Synchronize global useUIStore so canvas layout metrics update immediately
+      useUIStore.setState({
+        pageSize: nextLayout.pageSize || 'a4',
+        pageOrientation: nextLayout.pageOrientation || 'portrait',
+        pageMargin: nextLayout.pageMargin || 'normal',
+        pageColumns: nextLayout.pageColumns || 1,
+      });
+
+      // Synchronize DOM line numbers and hyphenation for active editor
+      if (typeof document !== 'undefined') {
+        const pm = document.querySelector('.ProseMirror');
+        if (pm) {
+          pm.classList.toggle('etherx-line-numbers', Boolean(nextLayout.lineNumbers));
+          pm.style.hyphens = nextLayout.hyphenation ? 'auto' : 'manual';
+          pm.lang = nextLayout.hyphenation ? 'en' : '';
+        }
+      }
+
       return {
         ...state,
         id: docId,
@@ -166,6 +228,7 @@ export const useDocumentStore = create((set, get) => ({
         currentUserRole: doc.currentUserRole || doc.role || state.currentUserRole || 'owner',
         design: nextDesign,
         headerFooter: nextHeaderFooter,
+        layout: nextLayout,
         isDirty: false,
         isSaving: false,
         lastSaved: doc.updatedAt ? new Date(doc.updatedAt) : state.lastSaved,
@@ -210,22 +273,40 @@ export const useDocumentStore = create((set, get) => ({
 
   setTitle: (title) => set({ title, isDirty: true, updatedAt: new Date() }),
   setContent: (content) => set({ content, isDirty: true, updatedAt: new Date() }),
-  setDesign: (design = {}) =>
+  setDesign: (design = {}, { recordUndo = true } = {}) =>
     set((state) => {
       const nextDesign = { ...state.design, ...design };
       writeStoredDesign(state.id, nextDesign);
+      const undoItem = recordUndo ? {
+        type: 'design',
+        description: 'Page Design',
+        prev: state.design,
+        next: nextDesign,
+        timestamp: Date.now(),
+      } : null;
       return {
         design: nextDesign,
+        undoStack: undoItem ? [...(state.undoStack || []).slice(-49), undoItem] : (state.undoStack || []),
+        redoStack: recordUndo ? [] : (state.redoStack || []),
         isDirty: true,
         updatedAt: new Date(),
       };
     }),
-  setHeaderFooter: (headerFooter = {}) =>
+  setHeaderFooter: (headerFooter = {}, { recordUndo = true } = {}) =>
     set((state) => {
       const nextHeaderFooter = { ...state.headerFooter, ...headerFooter };
       writeStoredHeaderFooter(state.id, nextHeaderFooter);
+      const undoItem = recordUndo ? {
+        type: 'headerFooter',
+        description: 'Header & Footer',
+        prev: state.headerFooter,
+        next: nextHeaderFooter,
+        timestamp: Date.now(),
+      } : null;
       return {
         headerFooter: nextHeaderFooter,
+        undoStack: undoItem ? [...(state.undoStack || []).slice(-49), undoItem] : (state.undoStack || []),
+        redoStack: recordUndo ? [] : (state.redoStack || []),
         isDirty: true,
         updatedAt: new Date(),
       };
@@ -352,16 +433,154 @@ export const useDocumentStore = create((set, get) => ({
       return { signatures: next, isDirty: true, updatedAt: new Date() };
     }),
   setCurrentUserRole: (currentUserRole) => set({ currentUserRole }),
+  setLayout: (patch = {}, { recordUndo = true } = {}) =>
+    set((state) => {
+      const nextLayout = { ...(state.layout || baseLayoutState()), ...patch };
+      const docId = state.id;
+      if (docId) {
+        writeStoredLayout(docId, nextLayout);
+      }
+      useUIStore.setState({
+        ...(patch.pageSize ? { pageSize: patch.pageSize } : {}),
+        ...(patch.pageOrientation ? { pageOrientation: patch.pageOrientation } : {}),
+        ...(patch.pageMargin ? { pageMargin: patch.pageMargin } : {}),
+        ...(patch.pageColumns !== undefined ? { pageColumns: patch.pageColumns } : {}),
+      });
+      if (typeof document !== 'undefined') {
+        const pm = document.querySelector('.ProseMirror');
+        if (pm) {
+          if (patch.lineNumbers !== undefined) {
+            pm.classList.toggle('etherx-line-numbers', Boolean(patch.lineNumbers));
+          }
+          if (patch.hyphenation !== undefined) {
+            pm.style.hyphens = patch.hyphenation ? 'auto' : 'manual';
+            pm.lang = patch.hyphenation ? 'en' : '';
+          }
+        }
+      }
+      const undoItem = recordUndo ? {
+        type: 'layout',
+        description: 'Page Setup',
+        prev: state.layout || baseLayoutState(),
+        next: nextLayout,
+        timestamp: Date.now(),
+      } : null;
+      return {
+        layout: nextLayout,
+        undoStack: undoItem ? [...(state.undoStack || []).slice(-49), undoItem] : (state.undoStack || []),
+        redoStack: recordUndo ? [] : (state.redoStack || []),
+        isDirty: true,
+        updatedAt: new Date(),
+      };
+    }),
+  undoDocumentAction: () => {
+    const state = get();
+    const editor = useEditorStore.getState().editor;
+    const { lastEditorChangeTime = 0 } = useEditorStore.getState();
+    const undoStack = state.undoStack || [];
+
+    if (undoStack.length > 0) {
+      const lastAppAction = undoStack[undoStack.length - 1];
+      const isAppActionNewer = lastAppAction.timestamp >= lastEditorChangeTime;
+
+      if (isAppActionNewer || !editor?.can?.().undo?.()) {
+        const item = undoStack[undoStack.length - 1];
+        const nextUndoStack = undoStack.slice(0, -1);
+        const nextRedoStack = [...(state.redoStack || []).slice(-49), item];
+
+        if (item.type === 'layout') {
+          state.setLayout(item.prev, { recordUndo: false });
+          useUIStore.getState().toast(`Undone: ${item.description || 'Page Setup'}`, 'info');
+        } else if (item.type === 'design') {
+          state.setDesign(item.prev, { recordUndo: false });
+          useUIStore.getState().toast(`Undone: ${item.description || 'Page Design'}`, 'info');
+        } else if (item.type === 'headerFooter') {
+          state.setHeaderFooter(item.prev, { recordUndo: false });
+          useUIStore.getState().toast(`Undone: ${item.description || 'Header & Footer'}`, 'info');
+        }
+
+        set({ undoStack: nextUndoStack, redoStack: nextRedoStack });
+        return true;
+      }
+    }
+
+    if (editor) {
+      const didUndo = editor.commands?.undo?.();
+      editor.view?.focus();
+      return Boolean(didUndo);
+    }
+    return false;
+  },
+  redoDocumentAction: () => {
+    const state = get();
+    const editor = useEditorStore.getState().editor;
+    const redoStack = state.redoStack || [];
+
+    if (redoStack.length > 0) {
+      const item = redoStack[redoStack.length - 1];
+      const nextRedoStack = redoStack.slice(0, -1);
+      const nextUndoStack = [...(state.undoStack || []).slice(-49), item];
+
+      if (item.type === 'layout') {
+        state.setLayout(item.next, { recordUndo: false });
+        useUIStore.getState().toast(`Redone: ${item.description || 'Page Setup'}`, 'info');
+      } else if (item.type === 'design') {
+        state.setDesign(item.next, { recordUndo: false });
+        useUIStore.getState().toast(`Redone: ${item.description || 'Page Design'}`, 'info');
+      } else if (item.type === 'headerFooter') {
+        state.setHeaderFooter(item.next, { recordUndo: false });
+        useUIStore.getState().toast(`Redone: ${item.description || 'Header & Footer'}`, 'info');
+      }
+
+      set({ undoStack: nextUndoStack, redoStack: nextRedoStack });
+      return true;
+    }
+
+    if (editor) {
+      const didRedo = editor.commands?.redo?.();
+      editor.view?.focus();
+      return Boolean(didRedo);
+    }
+    return false;
+  },
+  canUndoAction: () => {
+    const undoStack = get().undoStack || [];
+    if (undoStack.length > 0) return true;
+    const editor = useEditorStore.getState().editor;
+    return Boolean(editor?.can?.().undo?.());
+  },
+  canRedoAction: () => {
+    const redoStack = get().redoStack || [];
+    if (redoStack.length > 0) return true;
+    const editor = useEditorStore.getState().editor;
+    return Boolean(editor?.can?.().redo?.());
+  },
   reset: () => {
     const currentId = get().id;
     if (currentId) {
       try {
         window.localStorage.removeItem(`${DESIGN_STORAGE_PREFIX}${currentId}`);
         window.localStorage.removeItem(`${HEADER_FOOTER_STORAGE_PREFIX}${currentId}`);
+        window.localStorage.removeItem(`${LAYOUT_STORAGE_PREFIX}${currentId}`);
         window.localStorage.removeItem(`etherx_doc_draft_${currentId}`);
         window.localStorage.removeItem(`etherx_doc_backup_${currentId}`);
       } catch {
         // ignore storage errors
+      }
+    }
+    const def = getDefaultLayout();
+    useUIStore.setState({
+      pageSize: def.pageSize,
+      pageOrientation: def.pageOrientation,
+      pageMargin: def.pageMargin,
+      pageColumns: def.pageColumns,
+    });
+    if (typeof document !== 'undefined') {
+      const pm = document.querySelector('.ProseMirror');
+      if (pm) {
+        pm.classList.remove('etherx-line-numbers');
+        pm.style.hyphens = 'manual';
+        pm.lang = '';
       }
     }
     set(baseDocumentState());
@@ -399,6 +618,9 @@ export const useUIStore = create((set) => ({
 
   rulerVisible: false,
   gridlinesVisible: false,
+  toggleRuler: () => set((s) => ({ rulerVisible: !s.rulerVisible })),
+  toggleGridlines: () => set((s) => ({ gridlinesVisible: !s.gridlinesVisible })),
+  setGridlinesVisible: (visible) => set({ gridlinesVisible: Boolean(visible) }),
   pageOrientation: 'portrait',
   pageSize: 'a4',
   pageMargin: 'normal',
@@ -514,10 +736,34 @@ export const useUIStore = create((set) => ({
   setActiveTab: (t) => set({ activeTab: t }),
   setActivePage: (p) => set({ activePage: p }),
   setHeaderFooterTab: (t) => set({ headerFooterTab: t }),
-  setPageOrientation: (o) => set({ pageOrientation: o }),
-  setPageSize: (s) => set({ pageSize: s }),
-  setPageMargin: (m) => set({ pageMargin: m }),
-  setPageColumns: (c) => set({ pageColumns: c }),
+  setPageOrientation: (o) => {
+    set({ pageOrientation: o });
+    const docStore = useDocumentStore.getState();
+    if (docStore?.layout?.pageOrientation !== o) {
+      docStore?.setLayout?.({ pageOrientation: o });
+    }
+  },
+  setPageSize: (s) => {
+    set({ pageSize: s });
+    const docStore = useDocumentStore.getState();
+    if (docStore?.layout?.pageSize !== s) {
+      docStore?.setLayout?.({ pageSize: s });
+    }
+  },
+  setPageMargin: (m) => {
+    set({ pageMargin: m });
+    const docStore = useDocumentStore.getState();
+    if (docStore?.layout?.pageMargin !== m) {
+      docStore?.setLayout?.({ pageMargin: m });
+    }
+  },
+  setPageColumns: (c) => {
+    set({ pageColumns: c });
+    const docStore = useDocumentStore.getState();
+    if (docStore?.layout?.pageColumns !== c) {
+      docStore?.setLayout?.({ pageColumns: c });
+    }
+  },
   setDrawTool: (t) => set({ drawTool: t }),
   setDrawColor: (c) => set({ drawColor: c }),
   setDrawSize: (s) => set({ drawSize: s }),
@@ -604,6 +850,8 @@ export const useEditorStore = create((set) => ({
   endProgrammaticChange: () => set({ isProgrammaticChange: false, programmaticContent: null }),
   formatPainterMarks: null,
   setFormatPainterMarks: (marks) => set({ formatPainterMarks: marks }),
+  lastEditorChangeTime: 0,
+  recordEditorChange: () => set({ lastEditorChangeTime: Date.now() }),
 }));
 
 /* ── Collaboration Store ────────────────────────────────────── */
@@ -941,3 +1189,8 @@ export const useOfflineStore = create((set) => {
 });
 
 export { useSubscriptionStore } from './subscriptionStore';
+
+if (typeof window !== 'undefined') {
+  window.__DOC_STORE__ = useDocumentStore;
+  window.__UI_STORE__ = useUIStore;
+}

@@ -25,6 +25,7 @@ export function writeLocalDraft(id, data = {}) {
       contentJson: data.contentJson,
       design: data.design,
       headerFooter: data.headerFooter,
+      layout: data.layout,
       styles: data.styles,
       references: data.references,
       security: data.security,

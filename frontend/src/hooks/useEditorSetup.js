@@ -321,6 +321,7 @@ export function useEditorSetup() {
       },
     },
     onUpdate: ({ editor }) => {
+      useEditorStore.getState().recordEditorChange();
       const { isProgrammaticChange, programmaticContent, endProgrammaticChange } = useEditorStore.getState();
       const html = editor.getHTML();
       

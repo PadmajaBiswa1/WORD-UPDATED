@@ -106,12 +106,33 @@ export function useKeyboardShortcuts() {
       if (mod && key === 'b' && editor)   { e.preventDefault(); editor.chain().focus().toggleBold().run(); }
       if (mod && key === 'i' && editor)   { e.preventDefault(); editor.chain().focus().toggleItalic().run(); }
       if (mod && key === 'u' && editor)   { e.preventDefault(); editor.chain().focus().toggleUnderline().run(); }
-      if (mod && key === 'z' && editor) {
-        e.preventDefault();
-        if (e.shiftKey) editor.chain().focus().redo().run();
-        else editor.chain().focus().undo().run();
+      // If user is inside a native form input/textarea, preserve native browser undo/redo
+      const isFormInput = tag === 'input' || tag === 'textarea';
+      const isZ = key === 'z' || e.code === 'KeyZ';
+      const isY = key === 'y' || e.code === 'KeyY';
+
+      if (isFormInput && mod && (isZ || isY)) {
+        return;
       }
-      if (mod && key === 'y' && editor)   { e.preventDefault(); editor.chain().focus().redo().run(); }
+
+      // If Drawing canvas dialog is open, let DrawingDialog handle stroke undo/redo
+      if (useUIStore.getState().dialogs?.drawing && mod && (isZ || isY)) {
+        return;
+      }
+
+      // Universal Undo: Ctrl+Z
+      if (mod && !e.altKey && !e.shiftKey && isZ) {
+        e.preventDefault();
+        useDocumentStore.getState().undoDocumentAction();
+        return;
+      }
+
+      // Universal Redo: Ctrl+Y or Ctrl+Shift+Z
+      if (mod && !e.altKey && (isY || (e.shiftKey && isZ))) {
+        e.preventDefault();
+        useDocumentStore.getState().redoDocumentAction();
+        return;
+      }
 
       if ((e.key === 'Delete' || e.key === 'Backspace') && editor?.isActive('image')) {
         e.preventDefault();

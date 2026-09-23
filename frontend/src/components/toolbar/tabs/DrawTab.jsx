@@ -1,19 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   MousePointer, PenTool, Eraser, Undo2, Redo2, LassoSelect,
-  PenLine, Plus, Ruler, Layout, Palette, Hexagon, Sigma, RotateCcw, HelpCircle
+  PenLine, ChevronDown, Ruler, Layout, Hexagon, Sigma
 } from 'lucide-react';
 import { useUIStore, useEditorStore } from '@/store';
 import { Button, Tooltip } from '@/components/ui';
 import { RibbonGroup } from '../RibbonGroup';
-
-const DEFAULT_PENS = [
-  { id: 'black', color: '#111111', label: 'Black Pen', tool: 'pen', size: 4, opacity: 1 },
-  { id: 'red', color: '#e53935', label: 'Red Pen', tool: 'pen', size: 4, opacity: 1 },
-  { id: 'blue', color: '#1e88e5', label: 'Blue Pen', tool: 'pen', size: 4, opacity: 1 },
-  { id: 'green', color: '#0f9d58', label: 'Green Pen', tool: 'pen', size: 4, opacity: 1 },
-  { id: 'yellow', color: '#f1d302', label: 'Yellow Highlighter', tool: 'highlighter', size: 6, opacity: 0.4 },
-];
+import { PenCustomizerPopover } from '@/components/editor/PenCustomizerPanel';
 
 const THICKNESS_PRESETS = [
   { px: 2, label: '0.25 mm' },
@@ -135,8 +128,8 @@ export function DrawTab() {
   } = useUIStore();
   const { editor } = useEditorStore();
 
-  const [customPens, setCustomPens] = useState([]);
-  const [replayIndex, setReplayIndex] = useState(-1);
+  const [penPopoverOpen, setPenPopoverOpen] = useState(false);
+  const penBtnRef = useRef(null);
 
   const run = (fn) => {
     if (!editor) {
@@ -147,77 +140,10 @@ export function DrawTab() {
     editor.view?.focus();
   };
 
-  const pens = useMemo(() => [...DEFAULT_PENS, ...customPens], [customPens]);
-
   const activateTool = (tool, openCanvas = false) => {
     setDrawTool(tool);
     toast(`Active tool: ${tool}`, 'info');
     if (openCanvas) openDialog('drawing');
-  };
-
-  const selectPen = (pen) => {
-    setDrawTool(pen.tool);
-    setDrawColor(pen.color);
-    setDrawSize(pen.size);
-    setDrawOpacity(pen.opacity);
-    toast(`Selected ${pen.label}`, 'info');
-    openDialog('drawing');
-  };
-
-  const addPen = () => {
-    const hex = (window.prompt('Enter hex color (#RRGGBB)', '#7c3aed') || '').trim();
-    if (!/^#[0-9a-fA-F]{6}$/.test(hex)) {
-      toast('Invalid color format', 'warning');
-      return;
-    }
-    const pen = {
-      id: `pen-${Date.now()}`,
-      color: hex,
-      label: `Pen ${pens.length + 1}`,
-      tool: 'pen',
-      size: 4,
-      opacity: 1,
-    };
-    setCustomPens((prev) => [...prev, pen]);
-    setDrawColor(hex);
-    setDrawTool('pen');
-    setDrawSize(4);
-    setDrawOpacity(1);
-    openDialog('drawing');
-    toast('Custom pen added', 'success');
-  };
-
-  const formatBackground = () => {
-    const hex = (window.prompt('Paragraph background color (#RRGGBB)', '#fff7d6') || '').trim();
-    if (!/^#[0-9a-fA-F]{6}$/.test(hex)) {
-      toast('Invalid color format', 'warning');
-      return;
-    }
-    run(() => editor.chain().updateAttributes('paragraph', { style: `background-color:${hex};` }).run());
-    toast('Paragraph background updated', 'success');
-  };
-
-  const replayInk = () => {
-    const drawings = [...document.querySelectorAll('.ProseMirror img[alt="Drawing"], .ProseMirror img[data-ink="true"]')];
-    if (!drawings.length) {
-      toast('No ink drawings found to replay', 'info');
-      openDialog('drawing');
-      return;
-    }
-
-    const next = (replayIndex + 1 + drawings.length) % drawings.length;
-    setReplayIndex(next);
-
-    drawings.forEach((img) => {
-      img.style.outline = '';
-      img.style.outlineOffset = '';
-    });
-
-    const target = drawings[next];
-    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    target.style.outline = '2px solid var(--gold)';
-    target.style.outlineOffset = '2px';
-    toast(`Ink replay ${next + 1}/${drawings.length}`, 'success');
   };
 
   return (
@@ -236,34 +162,78 @@ export function DrawTab() {
       </RibbonGroup>
 
       <RibbonGroup label="Pens">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            {pens.map((pen) => (
-              <Tooltip key={pen.id} text={pen.label}>
-                <button
-                  onClick={() => selectPen(pen)}
-                  style={{
-                    width: 32,
-                    height: 64,
-                    border: drawColor === pen.color ? '1.5px solid var(--gold)' : '1px solid var(--border)',
-                    background: drawColor === pen.color ? 'var(--gold-dim, rgba(212,175,55,0.15))' : 'var(--bg-elevated)',
-                    borderRadius: 3,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '6px 2px 4px 2px',
-                    boxShadow: drawColor === pen.color ? '0 0 6px rgba(212,175,55,0.3)' : 'none',
-                  }}
-                >
-                  <PenLine size={16} strokeWidth={1.75} />
-                  <div style={{ width: 22, height: 6, borderRadius: 2, background: pen.color }} />
-                </button>
-              </Tooltip>
-            ))}
-          </div>
-          <HeroBtn icon={<Plus size={20} strokeWidth={1.75} />} label="Add Pen" title="Add Custom Color Pen" onClick={addPen} />
+        <div style={{ display: 'flex', alignItems: 'center', height: 74 }}>
+          <Tooltip text="Pen Tool — Click to customize color, thickness & opacity">
+            <button
+              ref={penBtnRef}
+              type="button"
+              onClick={() => {
+                setDrawTool('pen');
+                setPenPopoverOpen((prev) => !prev);
+              }}
+              style={{
+                border: (drawTool === 'pen' || penPopoverOpen) ? '1px solid var(--border-gold, #c9a84c)' : '1px solid transparent',
+                background: (drawTool === 'pen' || penPopoverOpen) ? 'var(--bg-hover, rgba(212,175,55,0.1))' : 'transparent',
+                borderRadius: 3,
+                cursor: 'pointer',
+                color: (drawTool === 'pen' || penPopoverOpen) ? 'var(--text-gold, #c9a84c)' : 'var(--text-primary)',
+                minWidth: 60,
+                height: 70,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 4,
+                padding: '4px 8px',
+                fontFamily: 'var(--font-ui)',
+                fontSize: 11,
+                transition: 'background 0.1s, border-color 0.1s',
+                whiteSpace: 'nowrap',
+              }}
+              onMouseEnter={(e) => {
+                if (drawTool !== 'pen' && !penPopoverOpen) {
+                  e.currentTarget.style.background = 'var(--bg-hover)';
+                  e.currentTarget.style.borderColor = 'var(--border)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (drawTool !== 'pen' && !penPopoverOpen) {
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.borderColor = 'transparent';
+                }
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <PenLine size={20} strokeWidth={1.75} style={{ color: drawColor || 'var(--gold)' }} />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                <span style={{ fontSize: 11, lineHeight: 1.1, fontWeight: 500 }}>Pen</span>
+                <ChevronDown size={10} style={{ opacity: 0.7 }} />
+              </div>
+              <div
+                style={{
+                  width: 30,
+                  height: 4,
+                  borderRadius: 2,
+                  background: drawColor || '#d4af37',
+                  opacity: drawOpacity ?? 1,
+                  boxShadow: '0 0 4px rgba(212,175,55,0.25)',
+                }}
+              />
+            </button>
+          </Tooltip>
+
+          <PenCustomizerPopover
+            triggerRef={penBtnRef}
+            isOpen={penPopoverOpen}
+            onClose={() => setPenPopoverOpen(false)}
+            onAction={() => {
+              openDialog('drawing');
+              setPenPopoverOpen(false);
+            }}
+            actionLabel="Start Drawing"
+            title="Pen Customization"
+          />
         </div>
       </RibbonGroup>
 
@@ -316,7 +286,6 @@ export function DrawTab() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
           <HeroBtn icon={<Ruler size={20} strokeWidth={1.75} />} label="Ruler" title="Toggle Drawing Ruler" active={rulerVisible} onClick={() => { toggleRuler(); toast(rulerVisible ? 'Ruler hidden' : 'Ruler shown', 'info'); }} />
           <HeroBtn icon={<Layout size={20} strokeWidth={1.75} />} label="Canvas" title="Insert Drawing Canvas" onClick={() => openDialog('drawing')} />
-          <HeroBtn icon={<Palette size={20} strokeWidth={1.75} />} label="Background" title="Format Drawing Background" onClick={formatBackground} />
         </div>
       </RibbonGroup>
 
@@ -324,13 +293,6 @@ export function DrawTab() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
           <HeroBtn icon={<Hexagon size={20} strokeWidth={1.75} />} label="To Shape" title="Convert Ink to Shapes" onClick={() => openDialog('insertShape')} />
           <HeroBtn icon={<Sigma size={20} strokeWidth={1.75} />} label="To Math" title="Convert Ink to Math Equations" onClick={() => openDialog('equation')} />
-        </div>
-      </RibbonGroup>
-
-      <RibbonGroup label="Replay & Help">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon={<RotateCcw size={20} strokeWidth={1.75} />} label="Replay" title="Replay Ink Strokes" onClick={replayInk} />
-          <HeroBtn icon={<HelpCircle size={20} strokeWidth={1.75} />} label="Help" title="Drawing Help & Reference" onClick={() => window.open('https://support.microsoft.com/en-us/office/draw-and-write-with-ink-in-office', '_blank', 'noopener,noreferrer')} />
         </div>
       </RibbonGroup>
     </>

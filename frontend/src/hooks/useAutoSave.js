@@ -31,6 +31,7 @@ export function useAutoSave() {
       contentJson,
       design,
       headerFooter,
+      layout,
       comments,
       trackChanges,
       security,
@@ -111,6 +112,7 @@ export function useAutoSave() {
         contentJson: payloadContentJson,
         design,
         headerFooter,
+        layout,
         comments,
         trackChanges,
         security: currentSecurity ? {

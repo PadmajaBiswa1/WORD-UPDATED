@@ -16,7 +16,7 @@ import { useCollaboration } from '@/hooks/useCollaboration';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { usePagination }  from '@/hooks/usePagination';
 import { useClipboardListener } from '@/hooks/useClipboardListener';
-import { useUIStore, useDocumentStore, useCollaborationStore, useSubscriptionStore } from '@/store';
+import { useUIStore, useDocumentStore, useCollaborationStore, useSubscriptionStore, getDefaultLayout } from '@/store';
 import { documentApi } from '@/services/api';
 import { readLocalDraft, writeLocalDraft } from '@/utils/draftStorage';
 
@@ -118,6 +118,7 @@ export function EditorPage({ isShared = false }) {
                 contentJson: localDraft.contentJson !== undefined ? localDraft.contentJson : doc?.contentJson,
                 design: localDraft.design ? { ...(doc?.design || {}), ...localDraft.design } : doc?.design,
                 headerFooter: localDraft.headerFooter ? { ...(doc?.headerFooter || {}), ...localDraft.headerFooter } : doc?.headerFooter,
+                layout: localDraft.layout ? { ...(doc?.layout || {}), ...localDraft.layout } : doc?.layout,
                 styles: Array.isArray(localDraft.styles) ? localDraft.styles : doc?.styles,
                 references: localDraft.references || doc?.references,
               };
@@ -168,6 +169,7 @@ export function EditorPage({ isShared = false }) {
           title: initialTitle,
           content: initialContent,
           design: { pageColor: getDefaultPageColor(), pageColorMode: 'theme' },
+          layout: getDefaultLayout(),
         })
         .then((created) => {
           const newId = String(created?.id || created?._id || '');

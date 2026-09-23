@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Crop, Sparkles, Waves, BoxSelect } from 'lucide-react';
+import { Crop, Sparkles, Waves, BoxSelect, PenLine } from 'lucide-react';
 import { useEditorStore, useUIStore } from '@/store';
 import { Button, Divider, Tooltip, Select } from '@/components/ui';
 import { getSelectedImageElement, isImageSelection } from '@/utils/imageSelection';
 import { isShapeSrc, parseShapeInfo, generateShapeDataUrl, SHAPE_PRESETS } from '@/utils/shapeUtils';
+import { PenCustomizerPopover } from '@/components/editor/PenCustomizerPanel';
 
 const BORDER_STYLES = [
   { value: 'solid', label: 'Solid' },
@@ -136,7 +137,16 @@ function WrapModeDiagram({ mode, active, onClick }) {
 export function PictureFormatTab({ mode = 'auto' }) {
   const isRibbon = mode === 'ribbon';
   const { editor } = useEditorStore();
-  const { toast, openDrawingForEdit } = useUIStore();
+  const {
+    toast,
+    openDrawingForEdit,
+    drawColor,
+    drawOpacity,
+    drawSize,
+    setDrawTool,
+  } = useUIStore();
+  const [isPenCustomizerOpen, setIsPenCustomizerOpen] = useState(false);
+  const penCustomizerBtnRef = useRef(null);
   const [imgWidth, setImgWidth] = useState(240);
   const [imgHeight, setImgHeight] = useState(180);
   const [draftWidth, setDraftWidth] = useState('240');
@@ -868,31 +878,81 @@ export function PictureFormatTab({ mode = 'auto' }) {
               </button>
             )}
             {isDrawing && (
-              <button
-                type="button"
-                onClick={() => {
-                  withSelectedImage((attrs) => {
-                    const pos = selectedNodePosRef.current;
-                    // Dispatch event first so overlay hides before dialog appears
-                    window.dispatchEvent(new CustomEvent('open-drawing-for-edit'));
-                    openDrawingForEdit(attrs.src, pos);
-                  });
-                }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  padding: '4px 10px',
-                  borderRadius: 4,
-                  fontSize: 12,
-                  border: '1px solid var(--gold)',
-                  background: 'rgba(212,175,55,0.08)',
-                  color: 'var(--gold)',
-                  cursor: 'pointer',
-                }}
-              >
-                ✏ Edit Drawing
-              </button>
+              <>
+                <button
+                  ref={penCustomizerBtnRef}
+                  type="button"
+                  onClick={() => setIsPenCustomizerOpen((prev) => !prev)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    padding: '4px 8px',
+                    borderRadius: 4,
+                    fontSize: 12,
+                    border: isPenCustomizerOpen ? '1px solid var(--gold)' : '1px solid var(--border)',
+                    background: isPenCustomizerOpen ? 'var(--gold-dim, rgba(212,175,55,0.15))' : 'var(--bg-surface)',
+                    color: isPenCustomizerOpen ? 'var(--gold)' : 'var(--text-primary)',
+                    cursor: 'pointer',
+                  }}
+                  title="Customize Pen (Color, Thickness, Opacity)"
+                >
+                  <PenLine size={13} style={{ color: 'var(--gold)' }} />
+                  <span>Pen</span>
+                  <div
+                    style={{
+                      width: 12,
+                      height: 12,
+                      borderRadius: '50%',
+                      background: drawColor || '#d4af37',
+                      opacity: drawOpacity ?? 1,
+                      border: '1px solid var(--border-gold)',
+                      marginLeft: 2,
+                    }}
+                  />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    withSelectedImage((attrs) => {
+                      const pos = selectedNodePosRef.current;
+                      // Dispatch event first so overlay hides before dialog appears
+                      window.dispatchEvent(new CustomEvent('open-drawing-for-edit'));
+                      openDrawingForEdit(attrs.src, pos);
+                    });
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    padding: '4px 10px',
+                    borderRadius: 4,
+                    fontSize: 12,
+                    border: '1px solid var(--gold)',
+                    background: 'rgba(212,175,55,0.08)',
+                    color: 'var(--gold)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  ✏ Edit Drawing
+                </button>
+                <PenCustomizerPopover
+                  triggerRef={penCustomizerBtnRef}
+                  isOpen={isPenCustomizerOpen}
+                  onClose={() => setIsPenCustomizerOpen(false)}
+                  align={isRibbon ? 'center' : 'right'}
+                  onAction={() => {
+                    setIsPenCustomizerOpen(false);
+                    withSelectedImage((attrs) => {
+                      const pos = selectedNodePosRef.current;
+                      window.dispatchEvent(new CustomEvent('open-drawing-for-edit'));
+                      openDrawingForEdit(attrs.src, pos);
+                    });
+                  }}
+                  actionLabel="Edit Drawing"
+                  title="Pen Customization"
+                />
+              </>
             )}
             <button
               type="button"

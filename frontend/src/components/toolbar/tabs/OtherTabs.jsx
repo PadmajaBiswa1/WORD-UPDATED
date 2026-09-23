@@ -1,14 +1,14 @@
 // ── Layout Tab ───────────────────────────────────────────────
 import { useEffect, useState, useRef } from 'react';
 import {
-  SpellCheck, BarChart3, BookOpen, Hash, Accessibility, Volume2,
+  SpellCheck, BarChart3, BookOpen, Hash, Accessibility, Volume2, VolumeX,
   Languages, Globe, MessageSquarePlus, Trash2, Eye, ChevronLeft, ChevronRight,
   FileDiff, Check, X, PanelLeftClose, History, ArrowLeftRight,
   ShieldAlert, Users, EyeOff, Mic, Headphones, ScanText, PenTool,
   Sparkles, Printer, ListTree, FileText, Focus, Ruler, Grid,
   Compass, LayoutGrid, ZoomIn, Maximize2, MoveHorizontal, ZoomOut,
   ExternalLink, Columns, Minimize, Maximize, FileCode2, ShieldCheck,
-  Terminal, Zap, CircleDot, ArrowUpDown, WrapText,
+  ArrowUpDown, WrapText,
   Layers, Crosshair, ArrowUp, ArrowDown, AlignLeft, RotateCw
 } from 'lucide-react';
 import { useUIStore, useEditorStore } from '@/store';
@@ -471,7 +471,7 @@ export function LayoutTab() {
 
 // ── Review Tab ───────────────────────────────────────────────
 import { useDocumentStore, useUIStore as useUI } from '@/store';
-import { runDictation, runImageTextCapture, runReadAloud, runSmartSuggestions } from '@/utils/smartFeatures';
+import { runDictation, runImageTextCapture, runReadAloud } from '@/utils/smartFeatures';
 import { parseVoiceCommand, executeVoiceCommand } from '@/services/voiceCommands';
 
 const MARKUP_OPTIONS = [
@@ -587,6 +587,7 @@ export function ReviewTab() {
   const { openDialog, toast } = useUI();
   const [markupMode, setMarkupMode] = useState('all');
   const [hideInk, setHideInk] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const [commentCursor, setCommentCursor] = useState(-1);
   const [voiceActive, setVoiceActive] = useState(false);
   const [voiceMode, setVoiceMode] = useState(null); // 'command' | 'typing'
@@ -605,6 +606,9 @@ export function ReviewTab() {
     return () => {
       if (voiceRecRef.current) {
         try { voiceRecRef.current.stop(); } catch {}
+      }
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
       }
     };
   }, []);
@@ -732,8 +736,37 @@ export function ReviewTab() {
     toast(`Markup view: ${MARKUP_OPTIONS.find((option) => option.value === value)?.label || value}`, 'info');
   };
 
-  const handleReadAloud = () => {
-    runReadAloud({ editor, toast });
+  const toggleReadAloud = () => {
+    if (!window.speechSynthesis) {
+      toast('Text-to-speech is not supported in this browser', 'warning');
+      return;
+    }
+    if (isSpeaking || window.speechSynthesis.speaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      toast('Speech stopped', 'info');
+      return;
+    }
+    let textToRead = '';
+    if (editor) {
+      const { from, to } = editor.state.selection;
+      if (from !== to) textToRead = editor.state.doc.textBetween(from, to, ' ').trim();
+      else textToRead = editor.state.doc.textBetween(0, editor.state.doc.content.size, ' ').trim();
+    }
+    if (!textToRead) {
+      toast('Select or write some text to read aloud', 'info');
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(textToRead);
+    utterance.rate = 1.0;
+    utterance.onstart = () => {
+      setIsSpeaking(true);
+      toast('Reading aloud...', 'success');
+    };
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+    window.speechSynthesis.speak(utterance);
   };
 
   const openThesaurus = () => {
@@ -958,7 +991,13 @@ export function ReviewTab() {
 
       <RibbonGroup label="Speech">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon={<Volume2 size={20} strokeWidth={1.75} />} label="Read Aloud" title="Read Text Aloud" onClick={handleReadAloud} />
+          <HeroBtn
+            icon={isSpeaking ? <VolumeX size={20} strokeWidth={1.75} /> : <Volume2 size={20} strokeWidth={1.75} />}
+            label={isSpeaking ? 'Stop' : 'Read Aloud'}
+            title={isSpeaking ? 'Stop Reading Aloud (Toggle Off)' : 'Read Text Aloud (Toggle On)'}
+            active={isSpeaking}
+            onClick={toggleReadAloud}
+          />
         </div>
       </RibbonGroup>
 
@@ -1040,7 +1079,6 @@ export function ReviewTab() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
             <MiniAction icon={<ScanText size={13} strokeWidth={1.75} />} text="OCR Scan" title="OCR (Image to Text)" onClick={() => runImageTextCapture({ editor, toast, mode: 'ocr' })} />
             <MiniAction icon={<PenTool size={13} strokeWidth={1.75} />} text="Handwriting" title="Handwriting Recognition" onClick={() => runImageTextCapture({ editor, toast, mode: 'handwriting' })} />
-            <MiniAction icon={<Sparkles size={13} strokeWidth={1.75} />} text="Suggestions" title="Smart Suggestions" onClick={() => runSmartSuggestions({ editor, toast })} />
           </div>
         </div>
       </RibbonGroup>
@@ -1073,18 +1111,9 @@ export function ViewTab() {
     toast(`${mode[0].toUpperCase()}${mode.slice(1)} mode enabled`, 'info');
   };
 
-  const applyGridlines = (on) => {
-    const el = document.getElementById('document-page-0');
-    if (!el) return;
-    el.style.backgroundImage = on
-      ? `repeating-linear-gradient(0deg,transparent,transparent 27px,rgba(212,175,55,0.08) 27px,rgba(212,175,55,0.08) 28px),
-         repeating-linear-gradient(90deg,transparent,transparent 27px,rgba(212,175,55,0.08) 27px,rgba(212,175,55,0.08) 28px)`
-      : '';
-  };
-
   const handleGridlines = () => {
     toggleGridlines();
-    applyGridlines(!gridlinesVisible);
+    toast(!gridlinesVisible ? 'Gridlines shown' : 'Gridlines hidden', 'info');
   };
 
   const handleRuler = () => {
@@ -1131,23 +1160,6 @@ export function ViewTab() {
       container.dataset.editorListener = 'true';
     }
     toast('Split view opened - synchronized preview', 'success');
-  };
-
-  const handleMacro = () => {
-    const script = window.prompt('Macro command (upper|lower|title)', 'upper');
-    if (!script || !editor) return;
-    const { from, to } = editor.state.selection;
-    if (from === to) {
-      toast('Select text to run macro', 'info');
-      return;
-    }
-    const selected = editor.state.doc.textBetween(from, to, ' ');
-    let transformed = selected;
-    if (script === 'upper') transformed = selected.toUpperCase();
-    if (script === 'lower') transformed = selected.toLowerCase();
-    if (script === 'title') transformed = selected.replace(/\w\S*/g, (w) => w[0].toUpperCase() + w.slice(1).toLowerCase());
-    editor.chain().focus().insertContentAt({ from, to }, transformed).run();
-    toast(`Macro applied: ${script}`, 'success');
   };
 
   return (
@@ -1211,16 +1223,6 @@ export function ViewTab() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
           <HeroBtn icon={<FileCode2 size={20} strokeWidth={1.75} />} label="Master Doc" title="Master Document & Subdocuments" onClick={() => openDialog('masterDoc')} />
           <HeroBtn icon={<ShieldCheck size={20} strokeWidth={1.75} />} label="Security" title="Security & Protection Settings" onClick={() => openDialog('security')} />
-        </div>
-      </RibbonGroup>
-
-      <RibbonGroup label="Macros">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon={<Terminal size={20} strokeWidth={1.75} />} label="Macros" title="View & Run Macros" onClick={handleMacro} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
-            <MiniAction icon={<Zap size={13} strokeWidth={1.75} />} text="Run Quick" title="Run Quick Macro" onClick={handleMacro} />
-            <MiniAction icon={<CircleDot size={13} strokeWidth={1.75} />} text="Record" title="Record Macro" onClick={() => toast('Macro recorder ready', 'info')} />
-          </div>
         </div>
       </RibbonGroup>
     </>

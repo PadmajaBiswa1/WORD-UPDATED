@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useUIStore } from '@/store';
 import { Modal, Button, Stack } from '@/components/ui';
+import { Rocket, Users, Sparkles, Target, Eye, Keyboard } from 'lucide-react';
 
 const HELP_SECTIONS = [
   {
     id: 'getting-started',
-    title: '🚀 Getting Started',
+    title: 'Getting Started',
+    icon: Rocket,
     content: `Welcome to EtherX Word! Here's how to get started:
 
 1. Create a New Document
@@ -30,7 +32,8 @@ const HELP_SECTIONS = [
   },
   {
     id: 'collaboration',
-    title: '👥 Real-Time Collaboration',
+    title: 'Real-Time Collaboration',
+    icon: Users,
     content: `Work together seamlessly with EtherX Word:
 
 1. Share Your Document
@@ -55,7 +58,8 @@ const HELP_SECTIONS = [
   },
   {
     id: 'formatting',
-    title: '✨ Formatting & Styling',
+    title: 'Formatting & Styling',
+    icon: Sparkles,
     content: `Master document formatting:
 
 1. Text Formatting (Home Tab)
@@ -80,7 +84,8 @@ const HELP_SECTIONS = [
   },
   {
     id: 'advanced',
-    title: '🎯 Advanced Features',
+    title: 'Advanced Features',
+    icon: Target,
     content: `Unlock powerful capabilities:
 
 1. Headers & Footers
@@ -110,7 +115,8 @@ const HELP_SECTIONS = [
   },
   {
     id: 'view-options',
-    title: '👁️ View & Display Options',
+    title: 'View & Display Options',
+    icon: Eye,
     content: `Customize your editing experience:
 
 1. View Modes
@@ -138,7 +144,8 @@ const HELP_SECTIONS = [
   },
   {
     id: 'keyboard-shortcuts',
-    title: '⌨️ Keyboard Shortcuts',
+    title: 'Keyboard Shortcuts',
+    icon: Keyboard,
     content: `Work faster with shortcuts:
 
 Document
@@ -178,51 +185,60 @@ export function HelpDialog() {
   const { closeDialog } = useUIStore();
   const [activeSection, setActiveSection] = useState('getting-started');
   const currentSection = HELP_SECTIONS.find((s) => s.id === activeSection);
+  const CurrentIcon = currentSection?.icon;
 
   return (
     <Modal title="Help & Tutorials" onClose={() => closeDialog('help')} width={700}>
       <div style={{ display: 'flex', gap: '20px', maxHeight: '500px' }}>
         {/* Sidebar Navigation */}
         <div style={{
-          minWidth: '180px',
+          minWidth: '200px',
           borderRight: '1px solid var(--border)',
           paddingRight: '16px',
           overflowY: 'auto',
         }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 12, textTransform: 'uppercase' }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Help Topics
           </div>
           <Stack gap={6}>
-            {HELP_SECTIONS.map((section) => (
-              <button
-                key={section.id}
-                onClick={() => setActiveSection(section.id)}
-                style={{
-                  padding: '8px 12px',
-                  background: activeSection === section.id ? 'var(--bg-active)' : 'transparent',
-                  border: '1px solid ' + (activeSection === section.id ? 'var(--gold)' : 'transparent'),
-                  borderRadius: 'var(--radius-sm)',
-                  color: activeSection === section.id ? 'var(--gold)' : 'var(--text-primary)',
-                  fontFamily: 'var(--font-ui)',
-                  fontSize: 13,
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  transition: 'var(--transition)',
-                }}
-                onMouseEnter={(e) => {
-                  if (activeSection !== section.id) {
-                    e.currentTarget.style.background = 'var(--bg-hover)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (activeSection !== section.id) {
-                    e.currentTarget.style.background = 'transparent';
-                  }
-                }}
-              >
-                {section.title.split(' ').slice(1).join(' ')}
-              </button>
-            ))}
+            {HELP_SECTIONS.map((section) => {
+              const Icon = section.icon;
+              const isActive = activeSection === section.id;
+              return (
+                <button
+                  key={section.id}
+                  onClick={() => setActiveSection(section.id)}
+                  style={{
+                    padding: '8px 12px',
+                    background: isActive ? 'var(--bg-active)' : 'transparent',
+                    border: '1px solid ' + (isActive ? 'var(--gold)' : 'transparent'),
+                    borderRadius: 'var(--radius-sm)',
+                    color: isActive ? 'var(--gold)' : 'var(--text-primary)',
+                    fontFamily: 'var(--font-ui)',
+                    fontSize: 13,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'var(--transition)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 9,
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isActive) {
+                      e.currentTarget.style.background = 'var(--bg-hover)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isActive) {
+                      e.currentTarget.style.background = 'transparent';
+                    }
+                  }}
+                >
+                  <Icon size={15} strokeWidth={1.75} style={{ flexShrink: 0, opacity: isActive ? 1 : 0.75 }} />
+                  <span>{section.title}</span>
+                </button>
+              );
+            })}
           </Stack>
         </div>
 
@@ -234,8 +250,12 @@ export function HelpDialog() {
             color: 'var(--text-primary)',
             marginBottom: 12,
             fontFamily: 'var(--font-ui)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 9,
           }}>
-            {currentSection?.title}
+            {CurrentIcon && <CurrentIcon size={18} strokeWidth={2} style={{ color: 'var(--gold)', flexShrink: 0 }} />}
+            <span>{currentSection?.title}</span>
           </div>
           <div style={{
             fontSize: 13,
