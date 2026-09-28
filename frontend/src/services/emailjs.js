@@ -1,15 +1,32 @@
 import emailjs from '@emailjs/browser';
 
-const EMAILJS_SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID;
-const EMAILJS_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
-const EMAILJS_PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
+export const EMAILJS_SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID || 'service_v623gmc';
+export const EMAILJS_PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY || 'vXfCjd5UZkaRfr7E5';
+export const EMAILJS_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID || 'template_anrgt1b';
+
+// Dedicated templates for Sign Up (OTP verification) and Reset Password
+export const EMAILJS_SIGNUP_TEMPLATE_ID =
+  import.meta.env.VITE_EMAILJS_SIGNUP_TEMPLATE_ID ||
+  import.meta.env.VITE_EMAILJS_TEMPLATE_ID ||
+  'template_anrgt1b';
+
+export const EMAILJS_RESET_PASSWORD_TEMPLATE_ID =
+  import.meta.env.VITE_EMAILJS_RESET_PASSWORD_TEMPLATE_ID ||
+  import.meta.env.VITE_EMAILJS_RESET_TEMPLATE_ID ||
+  'template_id5bqoi';
 
 if (EMAILJS_PUBLIC_KEY) {
   emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
 }
 
-function ensureEmailJsConfig() {
-  if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY) {
+export function getTemplateIdForPurpose(purpose) {
+  const isReset = purpose === 'reset' || purpose === 'forgot-password' || purpose === 'reset-password';
+  return isReset ? EMAILJS_RESET_PASSWORD_TEMPLATE_ID : EMAILJS_SIGNUP_TEMPLATE_ID;
+}
+
+function ensureEmailJsConfig(templateId = null) {
+  const targetTemplateId = templateId || EMAILJS_TEMPLATE_ID;
+  if (!EMAILJS_SERVICE_ID || !targetTemplateId || !EMAILJS_PUBLIC_KEY) {
     throw new Error('EmailJS is not configured in the frontend environment');
   }
 }
@@ -29,13 +46,16 @@ function baseTemplateParams({ toEmail, toName, message, subject, ...extra }) {
 }
 
 export async function sendOtpEmail({ toEmail, toName, code, purpose }) {
-  ensureEmailJsConfig();
+  const isReset = purpose === 'reset' || purpose === 'forgot-password' || purpose === 'reset-password';
+  const targetTemplateId = isReset ? EMAILJS_RESET_PASSWORD_TEMPLATE_ID : EMAILJS_SIGNUP_TEMPLATE_ID;
+
+  ensureEmailJsConfig(targetTemplateId);
 
   const otpText = String(code || '').trim();
-  const subject = purpose === 'reset'
+  const subject = isReset
     ? `Your EtherXWord reset code: ${otpText}`
     : `Your EtherXWord OTP: ${otpText}`;
-  const message = purpose === 'reset'
+  const message = isReset
     ? `Your EtherXWord password reset code is ${otpText}. It expires in 10 minutes.`
     : `Your EtherXWord verification code is ${otpText}. It expires in 10 minutes.`;
 
@@ -48,6 +68,12 @@ export async function sendOtpEmail({ toEmail, toName, code, purpose }) {
     verification_code: otpText,
     verificationCode: otpText,
     passcode: otpText,
+    reset_code: otpText,
+    resetCode: otpText,
+    reset_otp: otpText,
+    resetOtp: otpText,
+    reset_token: otpText,
+    token: otpText,
     expires_in: '10 minutes',
     expiresIn: '10 minutes',
     EXPIRES_IN: '10 minutes',
@@ -78,17 +104,17 @@ export async function sendOtpEmail({ toEmail, toName, code, purpose }) {
     EXPIRES_AT: '10 minutes',
     expiresAt: '10 minutes',
     purpose,
-    action_label: purpose === 'reset' ? 'reset your password' : 'verify your account',
-    action: purpose === 'reset' ? 'reset your password' : 'verify your account',
+    action_label: isReset ? 'reset your password' : 'verify your account',
+    action: isReset ? 'reset your password' : 'verify your account',
     subject,
     message,
     body: message,
     text: message,
   });
 
-  console.log('[EmailJS] Sending OTP with templateParams:', templateParams);
+  console.log(`[EmailJS] Sending OTP with template: ${targetTemplateId} (${isReset ? 'Reset Password' : 'Sign Up'}) to:`, toEmail);
 
-  return emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams, {
+  return emailjs.send(EMAILJS_SERVICE_ID, targetTemplateId, templateParams, {
     publicKey: EMAILJS_PUBLIC_KEY,
   });
 }

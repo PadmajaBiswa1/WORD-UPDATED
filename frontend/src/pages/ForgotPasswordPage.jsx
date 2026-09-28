@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authApi } from '@/services/api';
 import { sendOtpEmail } from '@/services/emailjs';
@@ -6,15 +6,23 @@ import { sendOtpEmail } from '@/services/emailjs';
 export function ForgotPasswordPage() {
   const navigate = useNavigate();
 
-  const [step, setStep]           = useState('email');  // 'email' | 'otp' | 'reset' | 'done'
-  const [email, setEmail]         = useState('');
-  const [otp, setOtp]             = useState('');
+  const [step, setStep]             = useState('email');  // 'email' | 'otp' | 'reset' | 'done'
+  const [email, setEmail]           = useState('');
+  const [otp, setOtp]               = useState('');
   const [resetToken, setResetToken] = useState('');
-  const [passwords, setPasswords] = useState({ password: '', confirm: '' });
-  const [focused, setFocused]     = useState('');
-  const [error, setError]         = useState('');
-  const [loading, setLoading]     = useState(false);
-  const [resent, setResent]       = useState(false);
+  const [passwords, setPasswords]   = useState({ password: '', confirm: '' });
+  const [focused, setFocused]       = useState('');
+  const [error, setError]           = useState('');
+  const [loading, setLoading]       = useState(false);
+  const [resending, setResending]   = useState(false);
+  const [cooldown, setCooldown]     = useState(0);
+  const [resent, setResent]         = useState(false);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setInterval(() => setCooldown((c) => c - 1), 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
 
   const handleSendOtp = async (e) => {
     e.preventDefault();
@@ -23,18 +31,22 @@ export function ForgotPasswordPage() {
     try {
       const response = await authApi.forgotPassword({ email });
       setStep('otp');
+      setLoading(false);
+      setCooldown(30);
 
+      // Dispatch reset email in background without blocking UI
       if (response?.otp) {
-        await sendOtpEmail({
+        sendOtpEmail({
           toEmail: email,
           toName: email,
           code: response.otp,
           purpose: 'reset',
+        }).catch((err) => {
+          console.warn('[EmailJS] Background reset send warning:', err);
         });
       }
     } catch (err) {
       setError(err.message);
-    } finally {
       setLoading(false);
     }
   };
@@ -70,21 +82,29 @@ export function ForgotPasswordPage() {
   };
 
   const handleResend = async () => {
+    if (resending || cooldown > 0) return;
     setError('');
+    setResending(true);
     try {
       const response = await authApi.resendOtp({ email, type: 'reset' });
+      setResent(true);
+      setResending(false);
+      setCooldown(30);
+      setTimeout(() => setResent(false), 4000);
+
       if (response?.otp) {
-        await sendOtpEmail({
+        sendOtpEmail({
           toEmail: email,
           toName: email,
           code: response.otp,
           purpose: 'reset',
+        }).catch((err) => {
+          console.warn('[EmailJS] Resend reset warning:', err);
         });
       }
-      setResent(true);
-      setTimeout(() => setResent(false), 4000);
     } catch (err) {
       setError(err.message);
+      setResending(false);
     }
   };
 
@@ -140,8 +160,21 @@ export function ForgotPasswordPage() {
             </form>
             <p className="auth-footer">
               Didn't receive it?{' '}
-              <button onClick={handleResend} className="auth-link" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                Resend OTP
+              <button
+                type="button"
+                onClick={handleResend}
+                disabled={resending || cooldown > 0}
+                className="auth-link"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: resending || cooldown > 0 ? 'not-allowed' : 'pointer',
+                  padding: 0,
+                  opacity: resending || cooldown > 0 ? 0.6 : 1,
+                  fontWeight: 500,
+                }}
+              >
+                {resending ? 'Resending OTP…' : cooldown > 0 ? `Resend OTP (${cooldown}s)` : 'Resend OTP'}
               </button>
             </p>
           </>

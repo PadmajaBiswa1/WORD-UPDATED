@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authApi } from '@/services/api';
 import { sendOtpEmail } from '@/services/emailjs';
@@ -22,14 +22,22 @@ function EyeIcon({ open }) {
 export function SignUpPage() {
   const navigate = useNavigate();
 
-  const [step, setStep]     = useState('form'); // 'form' | 'otp'
-  const [form, setForm]     = useState({ name: '', email: '', password: '', confirm: '' });
-  const [otp, setOtp]       = useState('');
-  const [focused, setFocused] = useState('');
-  const [error, setError]   = useState('');
-  const [loading, setLoading] = useState(false);
-  const [resent, setResent] = useState(false);
+  const [step, setStep]         = useState('form'); // 'form' | 'otp'
+  const [form, setForm]         = useState({ name: '', email: '', password: '', confirm: '' });
+  const [otp, setOtp]           = useState('');
+  const [focused, setFocused]   = useState('');
+  const [error, setError]       = useState('');
+  const [loading, setLoading]   = useState(false);
+  const [resending, setResending] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+  const [resent, setResent]     = useState(false);
   const [showPassword, setShowPassword] = useState({ password: false, confirm: false });
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setInterval(() => setCooldown((c) => c - 1), 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
 
   const handleSignup = async (e) => {
     e.preventDefault();
@@ -38,19 +46,25 @@ export function SignUpPage() {
     setLoading(true);
     try {
       const response = await authApi.signup({ name: form.name, email: form.email, password: form.password });
+      
+      // Advance to OTP step immediately without blocking UI on external email delivery
       setStep('otp');
+      setLoading(false);
+      setCooldown(30);
 
+      // Dispatch OTP email in background
       if (response?.otp) {
-        await sendOtpEmail({
+        sendOtpEmail({
           toEmail: form.email,
           toName: form.name,
           code: response.otp,
           purpose: 'verify',
+        }).catch((err) => {
+          console.warn('[EmailJS] Background signup send warning:', err);
         });
       }
     } catch (err) {
       setError(err.message);
-    } finally {
       setLoading(false);
     }
   };
@@ -72,21 +86,30 @@ export function SignUpPage() {
   };
 
   const handleResend = async () => {
+    if (resending || cooldown > 0) return;
     setError('');
+    setResending(true);
     try {
       const response = await authApi.resendOtp({ email: form.email, type: 'verify' });
+      setResent(true);
+      setResending(false);
+      setCooldown(30);
+      setTimeout(() => setResent(false), 4000);
+
+      // Dispatch OTP email in background
       if (response?.otp) {
-        await sendOtpEmail({
+        sendOtpEmail({
           toEmail: form.email,
           toName: form.name,
           code: response.otp,
           purpose: 'verify',
+        }).catch((err) => {
+          console.warn('[EmailJS] Resend background warning:', err);
         });
       }
-      setResent(true);
-      setTimeout(() => setResent(false), 4000);
     } catch (err) {
       setError(err.message);
+      setResending(false);
     }
   };
 
@@ -170,8 +193,21 @@ export function SignUpPage() {
             </form>
             <p className="auth-footer">
               Didn't receive it?{' '}
-              <button onClick={handleResend} className="auth-link" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                Resend OTP
+              <button
+                type="button"
+                onClick={handleResend}
+                disabled={resending || cooldown > 0}
+                className="auth-link"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: resending || cooldown > 0 ? 'not-allowed' : 'pointer',
+                  padding: 0,
+                  opacity: resending || cooldown > 0 ? 0.6 : 1,
+                  fontWeight: 500,
+                }}
+              >
+                {resending ? 'Resending OTP…' : cooldown > 0 ? `Resend OTP (${cooldown}s)` : 'Resend OTP'}
               </button>
             </p>
           </>

@@ -2,10 +2,12 @@ const axios = require('axios');
 
 function getEmailJsConfig() {
   return {
-    serviceId: process.env.EMAILJS_SERVICE_ID,
-    templateId: process.env.EMAILJS_TEMPLATE_ID,
-    publicKey: process.env.EMAILJS_PUBLIC_KEY,
-    privateKey: process.env.EMAILJS_PRIVATE_KEY,
+    serviceId: process.env.EMAILJS_SERVICE_ID || 'service_v623gmc',
+    templateId: process.env.EMAILJS_TEMPLATE_ID || 'template_anrgt1b',
+    signupTemplateId: process.env.EMAILJS_SIGNUP_TEMPLATE_ID || process.env.EMAILJS_TEMPLATE_ID || 'template_anrgt1b',
+    resetTemplateId: process.env.EMAILJS_RESET_PASSWORD_TEMPLATE_ID || process.env.EMAILJS_RESET_TEMPLATE_ID || 'template_id5bqoi',
+    publicKey: process.env.EMAILJS_PUBLIC_KEY || 'vXfCjd5UZkaRfr7E5',
+    privateKey: process.env.EMAILJS_PRIVATE_KEY || '6s_eK-pP44VIkCA8H-uSK',
   };
 }
 
@@ -13,20 +15,21 @@ function generateOTP() {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
 
-async function sendEmailJs(templateParams, toEmail, timeoutMs = 30000) {
+async function sendEmailJs(templateParams, toEmail, templateIdOverride = null, timeoutMs = 30000) {
   const { serviceId, templateId, publicKey, privateKey } = getEmailJsConfig();
+  const targetTemplateId = templateIdOverride || templateId;
 
-  if (!serviceId || !templateId || !publicKey || !privateKey) {
+  if (!serviceId || !targetTemplateId || !publicKey || !privateKey) {
     throw new Error('EmailJS credentials are not configured. Set EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, EMAILJS_PUBLIC_KEY, and EMAILJS_PRIVATE_KEY in backend/.env');
   }
 
   console.log('[EmailJS] Sending message to:', toEmail);
   console.log('[EmailJS] Service ID:', serviceId);
-  console.log('[EmailJS] Template ID:', templateId);
+  console.log('[EmailJS] Template ID:', targetTemplateId);
 
   const payload = {
     service_id: serviceId,
-    template_id: templateId,
+    template_id: targetTemplateId,
     user_id: publicKey,
     accessToken: privateKey,
     template_params: {
@@ -45,13 +48,18 @@ async function sendEmailJs(templateParams, toEmail, timeoutMs = 30000) {
   }
 
   return {
-    messageId: `emailjs:${serviceId}:${templateId}`,
+    messageId: `emailjs:${serviceId}:${targetTemplateId}`,
     response: response.data,
   };
 }
 
 async function sendOTPEmail(email, otp, type) {
-  const action = type === 'verify' ? 'verify your account' : 'reset your password';
+  const isReset = type === 'reset' || type === 'forgot-password' || type === 'reset-password';
+  const { signupTemplateId, resetTemplateId } = getEmailJsConfig();
+  const targetTemplateId = isReset ? resetTemplateId : signupTemplateId;
+  const action = isReset ? 'reset your password' : 'verify your account';
+
+  console.log(`[EmailJS] Preparing OTP email for ${email} with template ${targetTemplateId} (${isReset ? 'Reset Password' : 'Sign Up'})`);
 
   try {
     const result = await sendEmailJs(
@@ -59,6 +67,15 @@ async function sendOTPEmail(email, otp, type) {
         otp_code: otp,
         passcode: otp,
         otp: otp,
+        code: otp,
+        reset_code: otp,
+        resetCode: otp,
+        reset_otp: otp,
+        resetOtp: otp,
+        reset_token: otp,
+        token: otp,
+        verification_code: otp,
+        verificationCode: otp,
         action,
         action_label: action,
         expires_in: '10 minutes',
@@ -93,9 +110,10 @@ async function sendOTPEmail(email, otp, type) {
         message: `Use the code below to ${action}. It expires in 10 minutes.`,
       },
       email,
+      targetTemplateId,
     );
 
-    console.log('✅ OTP email sent to', email, '| MessageId:', result.messageId);
+    console.log(`✅ OTP email sent to ${email} using template ${targetTemplateId} | MessageId: ${result.messageId}`);
     return result;
   } catch (err) {
     console.error('❌ Failed to send OTP email:', err.message);

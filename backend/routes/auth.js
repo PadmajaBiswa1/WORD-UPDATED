@@ -206,8 +206,11 @@ router.post('/signup', async (req, res) => {
       }
 
       const otp = generateOTP();
-      await OTP.deleteMany({ email: normalizedEmail, type: 'verify' });
-      await OTP.create({ email: normalizedEmail, otp, type: 'verify', expiresAt: new Date(Date.now() + 10 * 60 * 1000) });
+      await OTP.findOneAndUpdate(
+        { email: normalizedEmail, type: 'verify' },
+        { otp, expiresAt: new Date(Date.now() + 10 * 60 * 1000) },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
 
       return res.status(201).json({
         message: 'Account created. Check your email for the OTP.',
@@ -269,8 +272,10 @@ router.post('/verify-otp', async (req, res) => {
       if (!record || record.otp !== otp || record.expiresAt < new Date())
         return res.status(400).json({ message: 'Invalid or expired OTP' });
 
-      await User.updateOne({ email: normalizedEmail }, { isVerified: true });
-      await OTP.deleteMany({ email: normalizedEmail, type: 'verify' });
+      await Promise.all([
+        User.updateOne({ email: normalizedEmail }, { isVerified: true }),
+        OTP.deleteMany({ email: normalizedEmail, type: 'verify' }),
+      ]);
 
       const user  = await User.findOne({ email: normalizedEmail });
       const token = signToken(user);
@@ -301,7 +306,7 @@ router.post('/verify-otp', async (req, res) => {
 // ── POST /api/auth/resend-otp ─────────────────────────────────
 router.post('/resend-otp', async (req, res) => {
   try {
-    const { email, type } = req.body;
+    const { email, type = 'verify' } = req.body;
     const normalizedEmail = String(email || '').trim().toLowerCase();
 
     if (isMongoConnected()) {
@@ -309,8 +314,11 @@ router.post('/resend-otp', async (req, res) => {
       if (!user) return res.status(404).json({ message: 'Email not found' });
 
       const otp = generateOTP();
-      await OTP.deleteMany({ email: normalizedEmail, type });
-      await OTP.create({ email: normalizedEmail, otp, type, expiresAt: new Date(Date.now() + 10 * 60 * 1000) });
+      await OTP.findOneAndUpdate(
+        { email: normalizedEmail, type },
+        { otp, expiresAt: new Date(Date.now() + 10 * 60 * 1000) },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
 
       return res.json({ message: 'OTP resent', otp });
     }
@@ -338,8 +346,38 @@ router.post('/signin', async (req, res) => {
     const suppliedPassword = String(password || '');
 
     if (isMongoConnected()) {
-      const user = await User.findOne({ email: normalizedEmail });
-      if (!user || !(await user.comparePassword(suppliedPassword))) {
+      let user = await User.findOne({ email: normalizedEmail });
+
+      // Seamless fallback: If user was in local seed store, migrate to Mongo
+      if (!user) {
+        const localUsers = readUsersStore();
+        const localUser = localUsers.find((candidate) => String(candidate.email || '').toLowerCase() === normalizedEmail);
+        if (localUser) {
+          const passMatch = await bcrypt.compare(suppliedPassword, localUser.passwordHash || localUser.password || '');
+          if (passMatch) {
+            try {
+              user = await User.create({
+                name: localUser.name,
+                email: normalizedEmail,
+                password: suppliedPassword,
+                isVerified: localUser.isVerified ?? true,
+                role: localUser.role || 'Viewer',
+                plan: localUser.plan || 'free',
+                department: localUser.department || 'General',
+              });
+            } catch {
+              user = await User.findOne({ email: normalizedEmail });
+            }
+          }
+        }
+      }
+
+      if (!user) {
+        return res.status(401).json({ message: 'Invalid email or password' });
+      }
+
+      const isMatch = await user.comparePassword(suppliedPassword);
+      if (!isMatch) {
         return res.status(401).json({ message: 'Invalid email or password' });
       }
 
@@ -348,6 +386,13 @@ router.post('/signin', async (req, res) => {
           message: 'Please verify your email first',
           needsVerification: true,
         });
+      }
+
+      // Opportunistically re-hash legacy cost-12 passwords to cost-10 for 4x faster future signins
+      if (user.password && user.password.startsWith('$2b$12$')) {
+        bcrypt.hash(suppliedPassword, 10).then((newHash) => {
+          User.updateOne({ _id: user._id }, { password: newHash }).catch(() => {});
+        }).catch(() => {});
       }
 
       const token = signToken(user);
@@ -392,8 +437,11 @@ router.post('/forgot-password', async (req, res) => {
       if (!user) return res.json({ message: 'If that email exists, an OTP has been sent.', otp: null });
 
       const otp = generateOTP();
-      await OTP.deleteMany({ email: normalizedEmail, type: 'reset' });
-      await OTP.create({ email: normalizedEmail, otp, type: 'reset', expiresAt: new Date(Date.now() + 10 * 60 * 1000) });
+      await OTP.findOneAndUpdate(
+        { email: normalizedEmail, type: 'reset' },
+        { otp, expiresAt: new Date(Date.now() + 10 * 60 * 1000) },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
 
       return res.json({ message: 'If that email exists, an OTP has been sent.', otp });
     }
@@ -462,8 +510,10 @@ router.post('/reset-password', async (req, res) => {
       if (!user) return res.status(404).json({ message: 'User not found' });
 
       user.password = password;
-      await user.save();
-      await OTP.deleteMany({ email: payload.email, type: 'reset' });
+      await Promise.all([
+        user.save(),
+        OTP.deleteMany({ email: payload.email, type: 'reset' }),
+      ]);
 
       return res.json({ message: 'Password reset successfully' });
     }
