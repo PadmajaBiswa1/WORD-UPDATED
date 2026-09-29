@@ -616,22 +616,22 @@ function pickerOptions(name, format) {
   return byFormat[format] || byFormat.docx;
 }
 
-async function generateFormatBlob(name, format, content) {
+async function generateFormatBlob(name, format, content, options = {}) {
   const normFormat = (format || 'docx').toLowerCase();
   const safeContent = content || '<p></p>';
   const safeName = cleanBaseName(name) || 'document';
 
   if (normFormat === 'docx') {
-    return await buildDocxBlob(safeContent);
+    return await buildDocxBlob(safeContent, options);
   } else if (normFormat === 'pdf') {
-    const { blob } = await buildPdfBlob(safeName, safeContent);
+    const { blob } = await buildPdfBlob(safeName, safeContent, options);
     return blob;
   } else if (normFormat === 'html') {
-    return buildHtmlBlob(safeName, safeContent);
+    return buildHtmlBlob(safeName, safeContent, options);
   } else if (normFormat === 'markdown' || normFormat === 'md') {
-    return buildMarkdownBlob(safeName, safeContent);
+    return buildMarkdownBlob(safeName, safeContent, options);
   } else if (normFormat === 'epub') {
-    const res = await buildEpubBlob(safeName, safeContent);
+    const res = await buildEpubBlob(safeName, safeContent, options);
     return res.blob;
   } else {
     const payload = {
@@ -1348,7 +1348,17 @@ export function HomePage() {
       if (!content) content = '<p></p>';
 
       const cleanTitle = cleanBaseName(selectedDoc.title) || 'document';
-      const blob = await generateFormatBlob(cleanTitle, fmt, content);
+      const exportOptions = {
+        headerFooter: selectedDoc.headerFooter,
+        design: selectedDoc.design,
+        pageSettings: {
+          format: selectedDoc.layout?.size || 'a4',
+          orientation: selectedDoc.layout?.orientation || 'portrait',
+          margin: selectedDoc.layout?.margin || 'normal',
+        },
+        watermark: selectedDoc.design?.watermark || '',
+      };
+      const blob = await generateFormatBlob(cleanTitle, fmt, content, exportOptions);
       const ext = fmt === 'etherx' ? 'ethex' : (fmt === 'markdown' ? 'md' : fmt);
       downloadBlob(blob, `${cleanTitle}.${ext}`);
       toast(`Exported as ${fmt.toUpperCase()}`, 'success');
@@ -1512,9 +1522,17 @@ export function HomePage() {
             }
           }
         }
-        if (!content) content = '<p></p>';
-
-        const blob = await generateFormatBlob(finalName, saveAsFormat, content);
+        const exportOptions = {
+          headerFooter: sourceDoc.headerFooter,
+          design: sourceDoc.design,
+          pageSettings: {
+            format: sourceDoc.layout?.size || 'a4',
+            orientation: sourceDoc.layout?.orientation || 'portrait',
+            margin: sourceDoc.layout?.margin || 'normal',
+          },
+          watermark: sourceDoc.design?.watermark || '',
+        };
+        const blob = await generateFormatBlob(finalName, saveAsFormat, content, exportOptions);
         const ext = saveAsFormat === 'etherx' ? 'ethex' : (saveAsFormat === 'markdown' ? 'md' : saveAsFormat);
         const fileNameWithExt = `${finalName}.${ext}`;
 

@@ -241,9 +241,8 @@ export function htmlToMarkdown(html) {
   if (!html || typeof html !== 'string') return '';
 
   let text = html
-    .replace(/<div[^>]*class="[^"]*(?:etherx-page-break|etherx-auto-page-break)[^"]*"[^>]*><\/div>/gi, '')
-    .replace(/<div[^>]*data-page-break="true"[^>]*><\/div>/gi, '')
-    .replace(/<div[^>]*data-etherx-auto-break="true"[^>]*><\/div>/gi, '');
+    .replace(/<div\b[^>]*?(?:data-page-break=["']true["']|class=["'][^"']*?etherx-page-break[^"']*?["']|data-etherx-auto-break=["']true["'])[^>]*>(?:&nbsp;|\s)*<\/div>/gi, '\n\n---\n\n')
+    .replace(/<div[^>]*data-page-break="true"[^>]*><\/div>/gi, '\n\n---\n\n');
 
   // Code blocks: <pre><code>...</code></pre>
   text = text.replace(/<pre[^>]*><code(?: class="(?:language-)?([^"]*)")?[^>]*>([\s\S]*?)<\/code><\/pre>/gi, (_, lang, code) => {

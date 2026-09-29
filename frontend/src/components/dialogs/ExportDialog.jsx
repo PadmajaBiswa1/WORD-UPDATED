@@ -14,8 +14,8 @@ const OPTIONS = [
 ];
 
 export function ExportDialog() {
-  const { closeDialog, toast, pageSize, pageOrientation } = useUIStore();
-  const { title }   = useDocumentStore();
+  const { closeDialog, toast, pageSize, pageOrientation, pageMargin, watermarkText } = useUIStore();
+  const { title, headerFooter, design } = useDocumentStore();
   const { editor }  = useEditorStore();
   const { plan, openUpgradeModal } = useSubscriptionStore();
   const [loading, setLoading] = useState(null);
@@ -34,22 +34,29 @@ export function ExportDialog() {
     setLoading(type);
     try {
       const html = editor?.getHTML() || '';
-      if (type === 'html') {
-        exportToHtml(title, html);
-      } else if (type === 'markdown' || type === 'md') {
-        downloadMarkdown(title, html);
-      } else if (type === 'epub') {
-        await exportToEpub(title, html);
-      } else if (type === 'odt') {
-        await exportToDocx(title, html);
-      } else if (type === 'pdf') {
-        const pageSettings = {
+      const exportOptions = {
+        headerFooter,
+        design,
+        pageSettings: {
           format: pageSize || 'a4',
           orientation: pageOrientation || 'portrait',
-        };
-        await exportToPdf(title, html, pageSettings);
+          margin: pageMargin || 'normal',
+        },
+        watermark: watermarkText,
+      };
+
+      if (type === 'html') {
+        exportToHtml(title, html, exportOptions);
+      } else if (type === 'markdown' || type === 'md') {
+        downloadMarkdown(title, html, exportOptions);
+      } else if (type === 'epub') {
+        await exportToEpub(title, html, exportOptions);
+      } else if (type === 'odt') {
+        await exportToDocx(title, html, exportOptions);
+      } else if (type === 'pdf') {
+        await exportToPdf(title, html, exportOptions);
       } else if (type === 'docx') {
-        await exportToDocx(title, html);
+        await exportToDocx(title, html, exportOptions);
       }
       toast(`Exported as ${type.toUpperCase()}`, 'success');
       closeDialog('exportDoc');

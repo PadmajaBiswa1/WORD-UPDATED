@@ -40,9 +40,8 @@ function cleanForXhtml(html = '', imageCollector = []) {
   if (!html) return '<p></p>';
 
   let cleaned = html
-    .replace(/<div[^>]*class="[^"]*(?:etherx-page-break|etherx-auto-page-break)[^"]*"[^>]*><\/div>/gi, '')
-    .replace(/<div[^>]*data-page-break="true"[^>]*><\/div>/gi, '')
-    .replace(/<div[^>]*data-etherx-auto-break="true"[^>]*><\/div>/gi, '')
+    .replace(/<div\b[^>]*?(?:data-page-break=["']true["']|class=["'][^"']*?etherx-page-break[^"']*?["']|data-etherx-auto-break=["']true["'])[^>]*>(?:&nbsp;|\s)*<\/div>/gi, '<div style="page-break-after: always; break-after: page;"></div>')
+    .replace(/<div[^>]*data-page-break="true"[^>]*><\/div>/gi, '<div style="page-break-after: always; break-after: page;"></div>')
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
     // Remove dark theme off-white text color overrides
