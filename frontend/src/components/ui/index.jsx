@@ -19,6 +19,8 @@ export function Button({ children, onClick, onMouseDown, variant = 'ghost', size
   const pad = { xs: '2px 5px', sm: '3px 8px', md: '6px 14px', lg: '8px 20px' }[size] || '3px 8px';
   const fz  = { xs: '11px', sm: '12px', md: '13px', lg: '14px' }[size] || '12px';
 
+  const cleanStyle = style ? Object.fromEntries(Object.entries(style).filter(([, val]) => val !== undefined)) : {};
+
   return (
     <button
       title={title}
@@ -36,7 +38,7 @@ export function Button({ children, onClick, onMouseDown, variant = 'ghost', size
         opacity: disabled ? 0.4 : 1,
         transition: 'background 0.1s, border-color 0.1s, color 0.1s',
         userSelect: 'none', whiteSpace: 'nowrap', outline: 'none',
-        ...style,
+        ...cleanStyle,
       }}
       className={className}
       onMouseEnter={(e) => {
@@ -158,7 +160,7 @@ export function Tooltip({ children, text, shortcut, placement = 'top', delay = 4
 }
 
 /* ── Select ─────────────────────────────────────────────────── */
-export function Select({ value, onChange, options = [], width = 120, title, searchable = false, searchPlaceholder, onFocus, style = {} }) {
+export function Select({ value, onChange, options = [], width = 120, minMenuWidth, title, searchable = false, searchPlaceholder, onFocus, style = {} }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
@@ -187,6 +189,9 @@ export function Select({ value, onChange, options = [], width = 120, title, sear
     || { value: '', label: '' };
 
   const normalizedQuery = query.trim().toLowerCase();
+  const numericQuery = parseFloat(normalizedQuery);
+  const isNumeric = !isNaN(numericQuery) && numericQuery > 0 && String(numericQuery) === normalizedQuery.replace(/pt$/, '');
+
   const filteredOptions = options.filter((option) => {
     if (!normalizedQuery) return true;
     const searchHaystack = [option.label, option.value, option.searchTerms]
@@ -196,6 +201,15 @@ export function Select({ value, onChange, options = [], width = 120, title, sear
       .toLowerCase();
     return searchHaystack.includes(normalizedQuery);
   });
+
+  const displayOptions = [...filteredOptions];
+  if (isNumeric && !filteredOptions.some((o) => String(o.value) === String(numericQuery))) {
+    displayOptions.unshift({
+      value: String(numericQuery),
+      label: `${numericQuery} pt`,
+      isCustom: true,
+    });
+  }
 
   const updateMenuPosition = () => {
     const triggerRect = triggerRef.current?.getBoundingClientRect();
@@ -210,10 +224,12 @@ export function Select({ value, onChange, options = [], width = 120, title, sear
       ? Math.max(8, triggerRect.top - menuHeight - 4)
       : Math.min(window.innerHeight - menuHeight - 8, triggerRect.bottom + 4);
 
+    const resolvedWidth = Math.max(triggerRect.width, minMenuWidth || (searchable ? 64 : 48));
+
     setMenuStyle({
       top,
-      left: Math.max(8, Math.min(triggerRect.left, window.innerWidth - triggerRect.width - 8)),
-      width: triggerRect.width,
+      left: Math.max(8, Math.min(triggerRect.left, window.innerWidth - resolvedWidth - 8)),
+      width: resolvedWidth,
       maxHeight: menuHeight,
     });
   };
@@ -283,7 +299,7 @@ export function Select({ value, onChange, options = [], width = 120, title, sear
             color: styles.color,
             border: styles.border,
             borderRadius: 2,
-            padding: '0 22px 0 6px',
+            padding: '0 18px 0 6px',
             fontSize: '12px',
             fontFamily: selected?.style?.fontFamily || 'var(--font-ui)',
             cursor: 'pointer',
@@ -292,12 +308,12 @@ export function Select({ value, onChange, options = [], width = 120, title, sear
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            gap: 8,
+            gap: 4,
             overflow: 'hidden',
             whiteSpace: 'nowrap',
             textAlign: 'left',
             backgroundImage: `linear-gradient(45deg, transparent 50%, ${styles.arrowColor} 50%), linear-gradient(135deg, ${styles.arrowColor} 50%, transparent 50%)`,
-            backgroundPosition: 'calc(100% - 12px) 9px, calc(100% - 7px) 9px',
+            backgroundPosition: 'calc(100% - 10px) 9px, calc(100% - 5px) 9px',
             backgroundSize: '5px 5px, 5px 5px',
             backgroundRepeat: 'no-repeat',
             ...style,
@@ -339,14 +355,15 @@ export function Select({ value, onChange, options = [], width = 120, title, sear
                 onKeyDown={(event) => {
                   if (event.key === 'ArrowDown') {
                     event.preventDefault();
-                    setActiveIndex((current) => Math.min(current + 1, Math.max(filteredOptions.length - 1, 0)));
+                    setActiveIndex((current) => Math.min(current + 1, Math.max(displayOptions.length - 1, 0)));
                   } else if (event.key === 'ArrowUp') {
                     event.preventDefault();
                     setActiveIndex((current) => Math.max(current - 1, 0));
                   } else if (event.key === 'Enter') {
                     event.preventDefault();
-                    const next = filteredOptions[activeIndex] || filteredOptions[0];
+                    const next = displayOptions[activeIndex] || displayOptions[0];
                     if (next) choose(next.value);
+                    else if (isNumeric) choose(String(numericQuery));
                   } else if (event.key === 'Escape') {
                     event.preventDefault();
                     setOpen(false);
@@ -361,7 +378,7 @@ export function Select({ value, onChange, options = [], width = 120, title, sear
                    color: styles.color,
                    border: '1px solid #3d3000',
                   borderRadius: 4,
-                  padding: '0 8px',
+                  padding: '0 6px',
                   fontSize: 12,
                   fontFamily: 'var(--font-ui)',
                   outline: 'none',
@@ -370,9 +387,10 @@ export function Select({ value, onChange, options = [], width = 120, title, sear
                  onBlur={(e) => (e.currentTarget.style.borderColor = '#3d3000')}
               />
             </div>
-            <div style={{ maxHeight: menuStyle.maxHeight - 40, overflowY: 'auto', padding: 4 }}>
-              {filteredOptions.length > 0 ? filteredOptions.map((option, index) => {
+            <div style={{ maxHeight: menuStyle.maxHeight - 40, overflowY: 'auto', padding: 3, scrollbarWidth: 'thin' }}>
+              {displayOptions.length > 0 ? displayOptions.map((option, index) => {
                 const isActive = index === activeIndex;
+                const isSelected = String(option.value).toLowerCase() === normalizedVal;
                 return (
                   <button
                     key={option.value}
@@ -382,27 +400,29 @@ export function Select({ value, onChange, options = [], width = 120, title, sear
                     onClick={() => choose(option.value)}
                     style={{
                       width: '100%',
-                      minHeight: 28,
-                      padding: '5px 8px',
+                      minHeight: 24,
+                      padding: '4px 6px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      gap: 10,
+                      gap: 4,
                       border: 'none',
-                      borderRadius: 4,
+                      borderRadius: 3,
                       cursor: 'pointer',
-                       background: isActive ? '#1f1800' : 'transparent',
-                      color: styles.color,
+                      background: isActive ? '#1f1800' : (isSelected ? 'rgba(201, 168, 76, 0.12)' : 'transparent'),
+                      color: isSelected ? 'var(--gold)' : (isActive ? '#f0e6c8' : styles.color),
                       fontFamily: option.style?.fontFamily || 'var(--font-ui)',
                       fontSize: 12,
+                      fontWeight: isSelected ? 600 : 400,
                       textAlign: 'left',
                     }}
                   >
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{option.label}</span>
+                    {option.isCustom && <span style={{ fontSize: 9, color: 'var(--gold)', opacity: 0.8 }}>custom</span>}
                   </button>
                 );
               }) : (
-                <div style={{ padding: '10px 8px', color: 'var(--text-muted)', fontFamily: 'var(--font-ui)', fontSize: 12 }}>
+                <div style={{ padding: '10px 8px', color: 'var(--text-muted)', fontFamily: 'var(--font-ui)', fontSize: 12, textAlign: 'center' }}>
                   No results
                 </div>
               )}

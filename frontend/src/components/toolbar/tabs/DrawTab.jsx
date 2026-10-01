@@ -242,41 +242,51 @@ export function DrawTab() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, justifyContent: 'center' }}>
             <span style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--text-muted)' }}>THICKNESS</span>
             <div style={{ display: 'flex', gap: 3 }}>
-              {THICKNESS_PRESETS.map((t) => (
-                <Button
-                  key={t.px}
-                  style={{
-                    height: 22,
-                    padding: '0 5px',
-                    fontSize: 10,
-                    border: drawSize === t.px ? '1px solid var(--border-gold)' : undefined,
-                    background: drawSize === t.px ? 'var(--bg-hover)' : undefined,
-                  }}
-                  onClick={() => { setDrawSize(t.px); toast(`Ink thickness: ${t.label}`, 'info'); }}
-                >
-                  {t.label}
-                </Button>
-              ))}
+              {THICKNESS_PRESETS.map((t) => {
+                const isActive = drawSize === t.px;
+                return (
+                  <Button
+                    key={t.px}
+                    active={isActive}
+                    style={{
+                      height: 22,
+                      padding: '0 5px',
+                      fontSize: 10,
+                      border: isActive ? '1px solid var(--border-gold)' : '1px solid transparent',
+                      background: isActive ? 'var(--bg-hover)' : 'transparent',
+                      color: isActive ? 'var(--gold)' : 'var(--text-primary)',
+                    }}
+                    onClick={() => { setDrawSize(t.px); toast(`Ink thickness: ${t.label}`, 'info'); }}
+                  >
+                    {t.label}
+                  </Button>
+                );
+              })}
             </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, justifyContent: 'center', paddingLeft: 6, borderLeft: '1px solid var(--border)' }}>
             <span style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--text-muted)' }}>OPACITY</span>
             <div style={{ display: 'flex', gap: 3 }}>
-              {HIGHLIGHT_OPACITY.map((o) => (
-                <Button
-                  key={o.label}
-                  style={{
-                    height: 22,
-                    padding: '0 5px',
-                    fontSize: 10,
-                    border: Math.abs(drawOpacity - o.value) < 0.01 ? '1px solid var(--border-gold)' : undefined,
-                    background: Math.abs(drawOpacity - o.value) < 0.01 ? 'var(--bg-hover)' : undefined,
-                  }}
-                  onClick={() => { setDrawOpacity(o.value); toast(`Highlighter opacity: ${o.label}`, 'info'); }}
-                >
-                  {o.label}
-                </Button>
-              ))}
+              {HIGHLIGHT_OPACITY.map((o) => {
+                const isActive = Math.abs(drawOpacity - o.value) < 0.01;
+                return (
+                  <Button
+                    key={o.label}
+                    active={isActive}
+                    style={{
+                      height: 22,
+                      padding: '0 5px',
+                      fontSize: 10,
+                      border: isActive ? '1px solid var(--border-gold)' : '1px solid transparent',
+                      background: isActive ? 'var(--bg-hover)' : 'transparent',
+                      color: isActive ? 'var(--gold)' : 'var(--text-primary)',
+                    }}
+                    onClick={() => { setDrawOpacity(o.value); toast(`Highlighter opacity: ${o.label}`, 'info'); }}
+                  >
+                    {o.label}
+                  </Button>
+                );
+              })}
             </div>
           </div>
         </div>

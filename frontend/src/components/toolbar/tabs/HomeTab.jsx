@@ -4,7 +4,8 @@ import {
   Clipboard, Scissors, Copy, Paintbrush, History,
   AlignLeft, AlignCenter, AlignRight, AlignJustify, Pilcrow,
   List, ListOrdered, ListTodo, Quote, Outdent, Indent, MoveVertical,
-  Search, Undo2, Redo2, MousePointerClick, HelpCircle
+  Search, Undo2, Redo2, MousePointerClick, HelpCircle,
+  Subscript, Superscript
 } from 'lucide-react';
 import { useEditorStore, useUIStore, useSubscriptionStore } from '@/store';
 import { canAccessAi } from '@/utils/featureGate';
@@ -95,7 +96,16 @@ const QUICK_STYLES = [
     id: 'code',
     label: 'Code',
     desc: 'Inline monospaced code',
-    preview: { fontSize: 11, fontFamily: 'monospace', color: '#93c5fd' },
+    preview: {
+      fontSize: 10,
+      fontFamily: "'JetBrains Mono', monospace",
+      color: '#93c5fd',
+      background: '#282c34',
+      border: '1px solid rgba(255, 255, 255, 0.2)',
+      borderRadius: '3px',
+      padding: '1px 5px',
+      display: 'inline-block',
+    },
   },
 ];
 
@@ -697,7 +707,7 @@ export function HomeTab() {
               fontFamily={fontFamily}
               fontSize={fontSize}
               familyWidth={116}
-              sizeWidth={42}
+              sizeWidth={48}
             />
             <Tooltip text="Increase Font Size" shortcut="Ctrl+Shift+>"><Button style={{ ...toolBtn, width: 22 }} onClick={growFont}>A^</Button></Tooltip>
             <Tooltip text="Decrease Font Size" shortcut="Ctrl+Shift+<"><Button style={{ ...toolBtn, width: 22 }} onClick={shrinkFont}>Av</Button></Tooltip>
@@ -708,8 +718,8 @@ export function HomeTab() {
             <Tooltip text="Italic" shortcut="Ctrl+I"><Button style={{ ...toolBtn, width: 24 }} active={editor.isActive('italic')} onClick={() => run(() => editor.chain().toggleItalic().run())}><i style={{ fontFamily: 'serif' }}>I</i></Button></Tooltip>
             <Tooltip text="Underline" shortcut="Ctrl+U"><Button style={{ ...toolBtn, width: 24 }} active={editor.isActive('underline')} onClick={() => run(() => editor.chain().toggleUnderline().run())}><u>U</u></Button></Tooltip>
             <Tooltip text="Strikethrough"><Button style={{ ...toolBtn, width: 24 }} active={editor.isActive('strike')} onClick={() => run(() => editor.chain().toggleStrike().run())}>ab</Button></Tooltip>
-            <Tooltip text="Subscript" shortcut="Ctrl+="><Button style={{ ...toolBtn, width: 24 }} active={editor.isActive('subscript')} onClick={() => run(() => editor.chain().toggleSubscript().run())}>x2</Button></Tooltip>
-            <Tooltip text="Superscript" shortcut="Ctrl+Shift+="><Button style={{ ...toolBtn, width: 24 }} active={editor.isActive('superscript')} onClick={() => run(() => editor.chain().toggleSuperscript().run())}>x2</Button></Tooltip>
+            <Tooltip text="Subscript" shortcut="Ctrl+="><Button style={{ ...toolBtn, width: 24 }} active={editor.isActive('subscript')} onClick={() => run(() => editor.chain().toggleSubscript().run())}><Subscript size={14} strokeWidth={2} /></Button></Tooltip>
+            <Tooltip text="Superscript" shortcut="Ctrl+Shift+="><Button style={{ ...toolBtn, width: 24 }} active={editor.isActive('superscript')} onClick={() => run(() => editor.chain().toggleSuperscript().run())}><Superscript size={14} strokeWidth={2} /></Button></Tooltip>
           </div>
           {/* Row 3: Colors & Special formatting */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 2, height: 24 }}>

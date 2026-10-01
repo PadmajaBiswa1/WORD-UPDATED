@@ -679,15 +679,20 @@ body {
 }
 
 .ProseMirror code {
-  font-family: 'JetBrains Mono', monospace;
-  background: var(--bg-code); padding: .1em .35em;
-  border-radius: 3px; font-size: .88em;
+  font-family: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+  background: var(--bg-code, #282c34);
+  color: var(--text-code, #93c5fd);
+  border: 1px solid var(--border-code, rgba(255, 255, 255, 0.16));
+  padding: .15em .45em;
+  border-radius: 4px;
+  font-size: .88em;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
 }
 .ProseMirror pre {
-  background: var(--bg-code); border: 1px solid var(--border);
+  background: var(--bg-code, #282c34); border: 1px solid var(--border);
   border-radius: var(--radius-md); padding: 1em; overflow-x: auto;
 }
-.ProseMirror pre code { background: transparent; padding: 0; font-size: .85em; }
+.ProseMirror pre code { background: transparent; border: none; box-shadow: none; padding: 0; color: inherit; font-size: .85em; }
 
 .ProseMirror hr { border:none; border-top:1px solid var(--gold); opacity:.35; margin:1.6em 0; }
 .ProseMirror a  { color: var(--gold); text-decoration: underline; text-underline-offset: 2px; }

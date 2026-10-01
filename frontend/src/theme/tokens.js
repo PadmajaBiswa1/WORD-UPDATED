@@ -16,7 +16,9 @@ export function applyTheme() {
     '--bg-hover':    '#1f1800',
     '--bg-active':   '#1a1a1a',
     '--bg-page':     '#1a1a1a',
-    '--bg-code':     '#161616',
+    '--bg-code':     '#282c34',
+    '--border-code': 'rgba(255, 255, 255, 0.16)',
+    '--text-code':   '#93c5fd',
     '--bg-th':       '#1c1c1c',
     '--bg-sidebar':  '#0e0e0e',
 

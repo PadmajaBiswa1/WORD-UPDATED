@@ -142,8 +142,11 @@ export function useFontFormattingControls(editor) {
 
   const applyFontSize = useCallback((value) => {
     if (!editor || !value) return;
-    const next = String(value);
-    setFontSize(next);
+    const raw = String(value).trim();
+    const cleanNum = raw.replace(/pt$/i, '').trim();
+    if (!cleanNum || isNaN(Number(cleanNum))) return;
+
+    setFontSize(cleanNum);
 
     const chain = editor.chain().focus();
     
@@ -156,7 +159,7 @@ export function useFontFormattingControls(editor) {
       }
     }
 
-    chain.setFontSize(`${next}pt`).run();
+    chain.setFontSize(`${cleanNum}pt`).run();
   }, [editor, setFontSize]);
 
   return { applyFontFamily, applyFontSize, snapshotSelection, restoreSelection };
@@ -167,7 +170,7 @@ export function FontFormattingControls({
   fontFamily: fontFamilyProp,
   fontSize: fontSizeProp,
   familyWidth = 140,
-  sizeWidth = 64,
+  sizeWidth = 48,
   searchable = true,
   searchPlaceholder = 'Search fonts...',
   applyFontFamily: applyFontFamilyProp,
@@ -215,9 +218,10 @@ export function FontFormattingControls({
         onFocus={handleFocus}
         options={FONT_SIZE_OPTIONS}
         width={sizeWidth}
+        minMenuWidth={64}
         title="Font Size"
         searchable={true}
-        searchPlaceholder="Size..."
+        searchPlaceholder="Size"
       />
     </>
   );
