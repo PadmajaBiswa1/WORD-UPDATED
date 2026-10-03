@@ -279,7 +279,7 @@ export function ImageCropModal({ isOpen, onClose, imgElement, onApplyCrop }) {
                   width: 10,
                   height: 10,
                   background: '#fff',
-                  border: '1.5px solid #1a73e8',
+                  border: '1.5px solid #c9a84c',
                   boxShadow: '0 1px 4px rgba(0,0,0,0.4)',
                   cursor,
                   ...pos,

@@ -159,7 +159,7 @@ function getHandleContainer() {
           'height:10px',
           'border-radius:50%',
           'background:#ffffff',
-          'border:1.5px solid #1a73e8',
+          'border:1.5px solid #c9a84c',
           'box-shadow:0 1px 4px rgba(0,0,0,0.3)',
           'pointer-events:none',
           'transition:background 0.12s ease, transform 0.12s ease',
@@ -174,7 +174,7 @@ function getHandleContainer() {
           'height:6px',
           'border-radius:3px',
           'background:#ffffff',
-          'border:1.5px solid #1a73e8',
+          'border:1.5px solid #c9a84c',
           'box-shadow:0 1px 4px rgba(0,0,0,0.3)',
           'pointer-events:none',
           'transition:background 0.12s ease, transform 0.12s ease',
@@ -189,7 +189,7 @@ function getHandleContainer() {
           'height:14px',
           'border-radius:3px',
           'background:#ffffff',
-          'border:1.5px solid #1a73e8',
+          'border:1.5px solid #c9a84c',
           'box-shadow:0 1px 4px rgba(0,0,0,0.3)',
           'pointer-events:none',
           'transition:background 0.12s ease, transform 0.12s ease',
@@ -201,7 +201,7 @@ function getHandleContainer() {
       h.addEventListener('mouseenter', () => {
         h.style.transform = 'translate(-50%, -50%) scale(1.22)';
         const child = h.firstElementChild;
-        if (child && def.dir !== 'rot') child.style.background = '#e8f0fe';
+        if (child && def.dir !== 'rot') child.style.background = '#fffbeb';
       });
       h.addEventListener('mouseleave', () => {
         h.style.transform = 'translate(-50%, -50%)';
@@ -228,8 +228,8 @@ function getSelectionBorder() {
       'position:absolute',
       'pointer-events:none',
       'z-index:9989',
-      'border:1.5px solid #1a73e8',
-      'box-shadow:0 0 0 1px rgba(26,115,232,0.18)',
+      'border:1.5px solid #c9a84c',
+      'box-shadow:0 0 0 1px rgba(201,168,76,0.22)',
       'border-radius:2px',
       'display:none',
       'box-sizing:border-box',

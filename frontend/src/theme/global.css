@@ -718,14 +718,9 @@ body.etherx-is-resizing img,
 
 .ProseMirror img.ProseMirror-selectednode,
 .ProseMirror .ProseMirror-selectednode img {
-  outline: 2px solid var(--gold);
-  outline-offset: 2px;
+  outline: none;
   position: relative;
   cursor: move;
-  background-image: radial-gradient(6px circle at calc(100% - 3px) calc(100% - 3px), var(--gold), var(--gold) 70%, transparent 70%);
-  background-size: 12px 12px;
-  background-position: -12px -12px;
-  background-repeat: no-repeat;
 }
 
 /* Tables */
