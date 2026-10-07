@@ -24,6 +24,11 @@ const documentSchema = new mongoose.Schema({
     },
   ],
   shareLinkEnabled: { type: Boolean, default: false },
+  shareLinkRole: {
+    type: String,
+    enum: ['owner', 'editor', 'commenter', 'viewer'],
+    default: 'editor',
+  },
   versions: [
     {
       id: { type: String },

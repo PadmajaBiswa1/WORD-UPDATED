@@ -3,6 +3,7 @@ import { useDocumentStore, useUIStore } from '@/store';
 import { documentApi, API_BASE, getStoredUser } from '@/services/api';
 import { encryptDocument } from '@/services/crypto';
 import { writeLocalDraft } from '@/utils/draftStorage';
+import { updateCachedRecentDoc } from '@/utils/recentDocsCache';
 import { stripAutoPageBreaks } from '@/components/editor/PageBreak';
 
 const DELAY = 1000; // 1s inactivity debounce
@@ -148,6 +149,14 @@ export function useAutoSave() {
         pendingSaveRef.current = true;
       }
 
+      updateCachedRecentDoc(docId, {
+        title,
+        content: payloadContent,
+        design,
+        headerFooter,
+        updatedAt: new Date().toISOString(),
+      });
+
       console.log(`✅ Document ${docId} saved successfully`);
       if (manual) {
         toast('Document saved', 'success');
@@ -155,6 +164,13 @@ export function useAutoSave() {
     } catch (err) {
       console.error(`❌ Save failed for ${docId}:`, err);
       writeLocalDraft(docId, { ...useDocumentStore.getState(), isDirty: true });
+      updateCachedRecentDoc(docId, {
+        title,
+        content: payloadContent,
+        design,
+        headerFooter,
+        updatedAt: new Date().toISOString(),
+      });
       toast(manual ? 'Save failed' : 'Auto-save failed - changes saved locally', 'error');
     } finally {
       isSavingRef.current = false;

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useCollaborationStore, useDocumentStore, useEditorStore, useUIStore } from '@/store';
 import { getCollab, initCollab } from '@/services/websocket';
+import { stripAutoPageBreaks } from '@/components/editor/PageBreak';
 
 const CHANGE_DEBOUNCE_MS = 500;
 const COMMENT_DEBOUNCE_MS = 250;
@@ -73,9 +74,10 @@ export function useCollaboration(docId) {
       if (!data) return;
       const documentState = data.document || {};
       if (typeof documentState.content === 'string') {
-        suppressNextContentBroadcast.current = documentState.content;
-        useDocumentStore.getState().applyRemoteUpdate(documentState);
-        lastSentContent.current = documentState.content;
+        const cleaned = stripAutoPageBreaks(documentState.content);
+        suppressNextContentBroadcast.current = cleaned;
+        useDocumentStore.getState().applyRemoteUpdate({ ...documentState, content: cleaned });
+        lastSentContent.current = cleaned;
       }
       if (Array.isArray(documentState.comments)) {
         const key = commentsKey(documentState.comments);
@@ -144,14 +146,22 @@ export function useCollaboration(docId) {
 
       const currentRevision = Number(useDocumentStore.getState().revision || 0);
       const incomingRevision = Number(nextDocument.revision ?? data.revision);
-      if (Number.isFinite(incomingRevision) && incomingRevision <= currentRevision) return;
+      const currentContent = useDocumentStore.getState().content;
 
       if (typeof nextDocument.content === 'string') {
-        suppressNextContentBroadcast.current = nextDocument.content;
-        useDocumentStore.getState().applyRemoteUpdate(nextDocument);
-        lastSentContent.current = nextDocument.content;
+        const cleanedContent = stripAutoPageBreaks(nextDocument.content);
+        // Only drop if content is identical and revision is not newer
+        if (cleanedContent === currentContent && Number.isFinite(incomingRevision) && incomingRevision <= currentRevision) {
+          return;
+        }
+        suppressNextContentBroadcast.current = cleanedContent;
+        useDocumentStore.getState().applyRemoteUpdate({ ...nextDocument, content: cleanedContent });
+        lastSentContent.current = cleanedContent;
         setLastRemoteEditAt(new Date(nextDocument.updatedAt || Date.now()));
+      } else {
+        useDocumentStore.getState().applyRemoteUpdate(nextDocument);
       }
+
       if (Array.isArray(nextDocument.comments)) {
         const key = commentsKey(nextDocument.comments);
         suppressNextCommentBroadcast.current = key;
@@ -192,14 +202,15 @@ export function useCollaboration(docId) {
 
     const offConflict = collab.on('conflict', ({ document: latestDocument }) => {
       if (latestDocument && typeof latestDocument === 'object') {
-        suppressNextContentBroadcast.current = latestDocument.content;
+        const cleanedContent = typeof latestDocument.content === 'string' ? stripAutoPageBreaks(latestDocument.content) : '';
+        suppressNextContentBroadcast.current = cleanedContent;
         suppressNextCommentBroadcast.current = commentsKey(latestDocument.comments || []);
-        useDocumentStore.getState().applyRemoteUpdate(latestDocument);
+        useDocumentStore.getState().applyRemoteUpdate({ ...latestDocument, content: cleanedContent });
         useDocumentStore.getState().replaceComments(latestDocument.comments || []);
         if (Number.isFinite(Number(latestDocument.revision))) {
           setRevision(Number(latestDocument.revision));
         }
-        lastSentContent.current = latestDocument.content || '';
+        lastSentContent.current = cleanedContent;
         lastSentComments.current = commentsKey(latestDocument.comments || []);
       }
       toast('Synced latest version after simultaneous edits', 'warning');

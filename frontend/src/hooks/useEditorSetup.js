@@ -29,9 +29,11 @@ import Superscript from '@tiptap/extension-superscript';
 import FontFamily from '@tiptap/extension-font-family';
 import Blockquote from '@tiptap/extension-blockquote';
 import { PageBreak } from '@/components/editor/PageBreak';
+import { TrailingNode } from '@/components/editor/TrailingNode';
 import { ProductivityExtension } from '@/services/productivityExtension';
 import { useEditorStore, useDocumentStore, useUIStore } from '@/store';
 import { normalizeFontFamily } from '@/components/toolbar/fontFormatting.jsx';
+import { focusBelowBlockOrDocEnd } from '@/utils/editorCursorPlacement';
 
 const LANGUAGE_KEY = 'etherx-language';
 
@@ -156,13 +158,45 @@ const BlockStyle = Extension.create({
   addGlobalAttributes() {
     return [
       {
-        types: ['paragraph', 'heading', 'blockquote'],
+        types: ['paragraph', 'heading', 'blockquote', 'table', 'tableCell', 'tableHeader', 'tableRow'],
         attributes: {
           style: {
             default: null,
             parseHTML: (element) => element.getAttribute('style'),
             renderHTML: (attributes) =>
               attributes.style ? { style: attributes.style } : {},
+          },
+        },
+      },
+      {
+        types: ['table'],
+        attributes: {
+          align: {
+            default: null,
+            parseHTML: (element) => {
+              const alignAttr = element.getAttribute('align') || element.getAttribute('data-align');
+              if (alignAttr) return alignAttr.toLowerCase();
+              const style = element.style;
+              if (style?.marginLeft === 'auto' && style?.marginRight === 'auto') return 'center';
+              if (style?.marginLeft === 'auto' && (style?.marginRight === '0' || style?.marginRight === '0px')) return 'right';
+              if ((style?.marginLeft === '0' || style?.marginLeft === '0px') && style?.marginRight === 'auto') return 'left';
+              return null;
+            },
+            renderHTML: (attributes) => {
+              if (!attributes.align) return {};
+              return {
+                align: attributes.align,
+                'data-align': attributes.align,
+              };
+            },
+          },
+          width: {
+            default: null,
+            parseHTML: (element) => element.getAttribute('width') || element.style?.width || null,
+            renderHTML: (attributes) => {
+              if (!attributes.width) return {};
+              return { width: attributes.width };
+            },
           },
         },
       },
@@ -221,6 +255,88 @@ const Deletion = Mark.create({
   },
   renderHTML({ HTMLAttributes }) {
     return ['span', HTMLAttributes, 0];
+  },
+});
+
+const TableExitKeymap = Extension.create({
+  name: 'tableExitKeymap',
+
+  addKeyboardShortcuts() {
+    return {
+      ArrowDown: ({ editor }) => {
+        const { state } = editor;
+        const { selection } = state;
+        const { $from } = selection;
+
+        if (selection.node && selection.node.type.name === 'image') {
+          const afterPos = selection.to;
+          const nextNode = state.doc.nodeAt(afterPos);
+          if (nextNode && nextNode.type.name === 'paragraph') {
+            return editor.chain().focus().setTextSelection(afterPos + 1).run();
+          }
+          return editor
+            .chain()
+            .focus()
+            .insertContentAt(afterPos, { type: 'paragraph' })
+            .setTextSelection(afterPos + 1)
+            .run();
+        }
+
+        let tableDepth = -1;
+        for (let d = $from.depth; d > 0; d--) {
+          if ($from.node(d).type.name === 'table') {
+            tableDepth = d;
+            break;
+          }
+        }
+
+        if (tableDepth === -1) {
+          return false;
+        }
+
+        const tableNode = $from.node(tableDepth);
+        const rowIndex = $from.index(tableDepth);
+        const isLastRow = rowIndex === tableNode.childCount - 1;
+
+        if (!isLastRow) {
+          return false;
+        }
+
+        const tableAfterPos = $from.after(tableDepth);
+        const nextNode = state.doc.nodeAt(tableAfterPos);
+
+        if (nextNode && nextNode.type.name === 'paragraph') {
+          return editor.chain().focus().setTextSelection(tableAfterPos + 1).run();
+        }
+
+        return editor
+          .chain()
+          .focus()
+          .insertContentAt(tableAfterPos, { type: 'paragraph' })
+          .setTextSelection(tableAfterPos + 1)
+          .run();
+      },
+      Enter: ({ editor }) => {
+        const { state } = editor;
+        const { selection } = state;
+
+        if (selection.node && selection.node.type.name === 'image') {
+          const afterPos = selection.to;
+          const nextNode = state.doc.nodeAt(afterPos);
+          if (nextNode && nextNode.type.name === 'paragraph') {
+            return editor.chain().focus().setTextSelection(afterPos + 1).run();
+          }
+          return editor
+            .chain()
+            .focus()
+            .insertContentAt(afterPos, { type: 'paragraph' })
+            .setTextSelection(afterPos + 1)
+            .run();
+        }
+
+        return false;
+      },
+    };
   },
 });
 
@@ -309,6 +425,8 @@ export function useEditorSetup() {
     Insertion,
     Deletion,
     ProductivityExtension,
+    TrailingNode,
+    TableExitKeymap,
   ], []);
 
   const editor = useTiptap({
@@ -318,6 +436,16 @@ export function useEditorSetup() {
     editorProps: {
       attributes: {
         spellcheck: String(spellCheck),
+      },
+      handleClick: (view, pos, event) => {
+        if (event.target.tagName === 'IMG' || event.target.closest('td, th')) {
+          return false;
+        }
+        const textBlock = event.target.closest('p, h1, h2, h3, h4, h5, h6, li, blockquote');
+        if (textBlock && textBlock.textContent.trim().length > 0) {
+          return false;
+        }
+        return focusBelowBlockOrDocEnd(view, event.clientX, event.clientY);
       },
     },
     onUpdate: ({ editor }) => {
@@ -369,7 +497,7 @@ export function useEditorSetup() {
     editor.view.dom.setAttribute('spellcheck', String(spellCheck));
   }, [editor, spellCheck]);
 
-  // When document content is loaded externally (open file/doc), apply it to editor.
+  // When document content is loaded externally (open file/doc/collab update), apply it to editor.
   useEffect(() => {
     if (!editor || typeof content !== 'string') return;
     
@@ -379,8 +507,15 @@ export function useEditorSetup() {
     // Skip if content is already in sync
     if (editor.getHTML() === content) return;
     
+    const { from, to } = editor.state.selection;
     beginProgrammaticChange(content);
     editor.commands.setContent(content || '<p></p>', false);
+    try {
+      const docSize = editor.state.doc.content.size;
+      const safeFrom = Math.min(Math.max(0, from), docSize);
+      const safeTo = Math.min(Math.max(0, to), docSize);
+      editor.commands.setTextSelection({ from: safeFrom, to: safeTo });
+    } catch {}
   }, [editor, content, beginProgrammaticChange]);
 
   useEffect(() => {

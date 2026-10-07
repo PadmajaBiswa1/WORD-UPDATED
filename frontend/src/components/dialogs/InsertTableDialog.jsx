@@ -8,14 +8,42 @@ export function InsertTableDialog() {
   const [rows, setRows] = useState(3);
   const [cols, setCols] = useState(3);
   const [header, setHeader] = useState(true);
+  const [alignment, setAlignment] = useState('left'); // 'left' | 'center' | 'right'
   const [hoverCell, setHoverCell] = useState(null); // {r, c}
 
   const GRID = 12; // Increased from 8 to 12 for more visual options
 
-  const insertTable = (r = rows, c = cols) => {
+  const insertTable = (r = rows, c = cols, align = alignment) => {
     const nextRows = Math.max(1, parseInt(String(r), 10) || 3);
     const nextCols = Math.max(1, parseInt(String(c), 10) || 3);
     editor?.chain().focus().insertTable({ rows: nextRows, cols: nextCols, withHeaderRow: header }).run();
+    if (align) {
+      setTimeout(() => {
+        if (!editor) return;
+        const { state, view } = editor;
+        const { $from } = state.selection;
+        for (let d = $from.depth; d > 0; d--) {
+          if ($from.node(d).type.name === 'table') {
+            const tablePos = $from.before(d);
+            const tableNode = $from.node(d);
+            let marginStyle = 'margin-left: 0; margin-right: auto;';
+            if (align === 'center') {
+              marginStyle = 'margin-left: auto; margin-right: auto;';
+            } else if (align === 'right') {
+              marginStyle = 'margin-left: auto; margin-right: 0;';
+            }
+            view.dispatch(state.tr.setNodeMarkup(tablePos, undefined, {
+              ...tableNode.attrs,
+              align,
+              'data-align': align,
+              class: `table-align-${align}`,
+              style: marginStyle,
+            }));
+            break;
+          }
+        }
+      }, 50);
+    }
     closeDialog('insertTable');
   };
 
@@ -55,6 +83,29 @@ export function InsertTableDialog() {
           <div style={{ display:'flex', gap:16, marginTop: 8 }}>
             <NumberInput label="Rows" value={rows} onChange={setRows} min={1} max={100} />
             <NumberInput label="Columns" value={cols} onChange={setCols} min={1} max={50} />
+          </div>
+        </div>
+
+        {/* Table Alignment */}
+        <div>
+          <Label>Table Alignment</Label>
+          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+            {[
+              { id: 'left', label: 'Left' },
+              { id: 'center', label: 'Center' },
+              { id: 'right', label: 'Right' },
+            ].map((opt) => (
+              <Button
+                key={opt.id}
+                type="button"
+                variant={alignment === opt.id ? 'primary' : 'subtle'}
+                size="sm"
+                onClick={() => setAlignment(opt.id)}
+                style={{ flex: 1 }}
+              >
+                {opt.label}
+              </Button>
+            ))}
           </div>
         </div>
 

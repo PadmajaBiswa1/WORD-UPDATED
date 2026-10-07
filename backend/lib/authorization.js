@@ -27,13 +27,13 @@ function isGuestOrUnauthenticated(user = {}) {
 }
 
 /**
- * Determines whether a document is private (has an authenticated owner).
+ * Determines whether a document is private (has an owner).
  */
 function isPrivateDocument(document) {
   if (!document) return false;
   const ownerId = normalizeIdentifier(document.owner?.id);
   const ownerEmail = normalizeIdentifier(document.owner?.email);
-  return Boolean((ownerId && ownerId !== 'guest-user') || ownerEmail);
+  return Boolean(ownerId || ownerEmail);
 }
 
 /**
@@ -50,29 +50,48 @@ function getEffectiveRole(document, user = {}) {
   const isGuest = isGuestOrUnauthenticated(user);
   const userId = normalizeIdentifier(user?.id);
   const userEmail = normalizeIdentifier(user?.email);
+  const ownerId = normalizeIdentifier(document.owner?.id);
+  const ownerEmail = normalizeIdentifier(document.owner?.email);
 
   // 1. Guest / Unauthenticated user handling
   if (isGuest) {
-    // If document is private (owned by an authenticated user):
-    // Only grant read-only access if shared with public (shareLinkEnabled) or explicitly shared with public/guest viewer role
+    // If document is private (has an owner):
+    // Only grant access if shared with link (shareLinkEnabled) or explicitly shared with this guest
     if (isPrivateDocument(document)) {
+      // If the guest is the original creator with matching session id or email (not generic 'guest-user')
+      if (
+        (userId && ownerId && userId === ownerId && !['guest-user', 'guest'].includes(userId)) ||
+        (userEmail && ownerEmail && userEmail === ownerEmail)
+      ) {
+        return 'owner';
+      }
+
       if (document.shareLinkEnabled === true) {
-        return 'viewer';
+        const linkEntry = Array.isArray(document.sharedWith)
+          ? document.sharedWith.find((entry) => !entry?.email && !entry?.id)
+          : null;
+        const candidateRole = String(linkEntry?.role || document.shareLinkRole || 'editor').toLowerCase();
+        if (['owner', 'editor', 'commenter', 'viewer'].includes(candidateRole)) {
+          return candidateRole;
+        }
+        return 'editor';
       }
 
       if (Array.isArray(document.sharedWith)) {
-        const publicMatch = document.sharedWith.find((entry) => {
+        const match = document.sharedWith.find((entry) => {
           const shareId = normalizeIdentifier(entry?.id);
           const shareEmail = normalizeIdentifier(entry?.email);
-          return !shareId && !shareEmail || shareId === 'guest-user' || shareId === 'public';
+          return (userId && shareId === userId && !['guest-user', 'guest'].includes(userId)) ||
+                 (userEmail && shareEmail === userEmail);
         });
 
-        if (publicMatch) {
-          return 'viewer';
+        if (match) {
+          const candidateRole = String(match.role || 'editor').toLowerCase();
+          return ['owner', 'editor', 'commenter', 'viewer'].includes(candidateRole) ? candidateRole : 'editor';
         }
       }
 
-      // Private document not shared with public/viewer -> strictly no access
+      // Private document not shared -> strictly no access
       return null;
     }
 
@@ -88,9 +107,6 @@ function getEffectiveRole(document, user = {}) {
   }
 
   // Owner check
-  const ownerId = normalizeIdentifier(document.owner?.id);
-  const ownerEmail = normalizeIdentifier(document.owner?.email);
-
   if ((ownerId && userId && ownerId === userId) || (ownerEmail && userEmail && ownerEmail === userEmail)) {
     return 'owner';
   }
@@ -124,7 +140,13 @@ function getEffectiveRole(document, user = {}) {
         }
       }
     }
-    return 'viewer';
+    if (document.shareLinkRole) {
+      const roleStr = String(document.shareLinkRole).toLowerCase();
+      if (['editor', 'commenter', 'viewer'].includes(roleStr)) {
+        return roleStr;
+      }
+    }
+    return 'editor';
   }
 
   return null;
@@ -170,21 +192,12 @@ function checkPermission(document, user = {}, action = 'read', context = {}) {
     allowCopy: true,
   };
 
-  // Enforce read-only restriction for guest / unauthenticated users
-  if (isGuest) {
-    if (act === 'read') {
-      return { allowed: true, role: 'viewer' };
-    }
-    if (act === 'export') {
-      if (accessPolicy.allowDownload === false) {
-        return { allowed: false, role: 'viewer', reason: 'Export is disabled by document access policy' };
-      }
-      return { allowed: true, role: 'viewer' };
-    }
+  // For administrative actions on private documents, require owner authentication
+  if (isGuest && isPrivateDocument(document) && ['share', 'security', 'delete'].includes(act)) {
     return {
       allowed: false,
-      role: 'viewer',
-      reason: 'Unauthenticated and guest users have read-only access to documents',
+      role,
+      reason: 'Administrative actions require document owner authentication',
     };
   }
 

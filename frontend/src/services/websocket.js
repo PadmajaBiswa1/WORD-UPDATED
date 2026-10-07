@@ -11,21 +11,44 @@ function randomId(prefix = 'session') {
 
 function currentUser() {
   const stored = getStoredUser();
-  const name = stored.name || stored.email || `Guest ${Math.floor(Math.random() * 90 + 10)}`;
+  let guestId = '';
+  let guestName = '';
+  if (typeof window !== 'undefined') {
+    try {
+      guestId = window.sessionStorage?.getItem('etherx_guest_id');
+      if (!guestId) {
+        guestId = `guest-${Math.random().toString(36).slice(2, 8)}`;
+        window.sessionStorage?.setItem('etherx_guest_id', guestId);
+      }
+      guestName = window.sessionStorage?.getItem('etherx_guest_name');
+      if (!guestName) {
+        guestName = `Guest ${Math.floor(Math.random() * 900 + 100)}`;
+        window.sessionStorage?.setItem('etherx_guest_name', guestName);
+      }
+    } catch {}
+  }
+  const name = stored.name || stored.email || guestName || 'Guest User';
   const email = stored.email || '';
-  const id = stored.id || email || name.toLowerCase().replace(/\s+/g, '-');
+  const id = stored.id || email || guestId || 'guest-user';
   return { id, name, email, role: 'editor' };
 }
 
 async function publish(docId, body) {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('etherx_token') : null;
+  const headers = {
+    'Content-Type': 'application/json',
+    'X-EtherX-User-Id': body.user?.id || '',
+    'X-EtherX-User-Name': body.user?.name || '',
+    'X-EtherX-User-Email': body.user?.email || '',
+    'X-Session-Id': body.sessionId || '',
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const response = await fetch(`${API_BASE}/documents/${encodeURIComponent(docId)}/collaboration/publish`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-EtherX-User-Id': body.user?.id || '',
-      'X-EtherX-User-Name': body.user?.name || '',
-      'X-EtherX-User-Email': body.user?.email || '',
-    },
+    headers,
     body: JSON.stringify(body),
     keepalive: body.type === 'leave',
   });
@@ -56,6 +79,7 @@ export class CollabSocket {
   }
 
   connect() {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('etherx_token') : null;
     const params = new URLSearchParams({
       sessionId: this.sessionId,
       id: this.user.id || '',
@@ -63,6 +87,9 @@ export class CollabSocket {
       email: this.user.email || '',
       role: this.user.role || 'editor',
     });
+    if (token) {
+      params.set('token', token);
+    }
     this.source = new EventSource(`${API_BASE}/documents/${encodeURIComponent(this.docId)}/collaboration/stream?${params.toString()}`);
 
     this.source.onopen = () => {
@@ -132,6 +159,9 @@ let _instance = null;
 export const initCollab = (docId) => {
   _instance?.disconnect();
   _instance = new CollabSocket(docId);
+  if (typeof window !== 'undefined') {
+    window.__ETHERX_COLLAB__ = _instance;
+  }
   _instance.connect();
   return _instance;
 };

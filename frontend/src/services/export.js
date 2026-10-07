@@ -275,10 +275,31 @@ export function buildHtmlDocument(title, rawHtml, options = {}) {
       width: 100%;
       margin: 1.5em 0;
     }
+    table[align="center"], table[data-align="center"], table.table-align-center {
+      margin-left: auto !important;
+      margin-right: auto !important;
+    }
+    table[align="right"], table[data-align="right"], table.table-align-right {
+      margin-left: auto !important;
+      margin-right: 0 !important;
+    }
+    table[align="left"], table[data-align="left"], table.table-align-left {
+      margin-left: 0 !important;
+      margin-right: auto !important;
+    }
     th, td {
       border: 1px solid #d0d0d0;
       padding: 8px 12px;
       text-align: left;
+    }
+    th[style*="text-align: center"], td[style*="text-align: center"], th[align="center"], td[align="center"] {
+      text-align: center !important;
+    }
+    th[style*="text-align: right"], td[style*="text-align: right"], th[align="right"], td[align="right"] {
+      text-align: right !important;
+    }
+    th[style*="text-align: justify"], td[style*="text-align: justify"] {
+      text-align: justify !important;
     }
     th { background-color: #f7f7f7; font-weight: 600; }
     img { max-width: 100%; height: auto; border-radius: 4px; display: block; margin: 12px auto; }
@@ -624,16 +645,56 @@ export async function buildPdfBlob(title, htmlOrEl, options = {}) {
       });
       contentEl.querySelectorAll('table').forEach((tbl) => {
         tbl.style.borderCollapse = 'collapse';
-        tbl.style.width = '100%';
-        tbl.style.margin = '12pt 0';
+        tbl.style.boxSizing = 'border-box';
+
+        // Check alignment from align attr, data-align attr, style, or class
+        const alignAttr = (tbl.getAttribute('align') || tbl.getAttribute('data-align') || '').toLowerCase();
+        const mLeft = tbl.style.marginLeft;
+        const mRight = tbl.style.marginRight;
+        const isCenter = alignAttr === 'center' || (mLeft === 'auto' && mRight === 'auto') || tbl.classList.contains('table-align-center');
+        const isRight = alignAttr === 'right' || (mLeft === 'auto' && (mRight === '0' || mRight === '0px')) || tbl.classList.contains('table-align-right');
+
+        if (isCenter) {
+          tbl.style.marginLeft = 'auto';
+          tbl.style.marginRight = 'auto';
+          tbl.style.marginTop = tbl.style.marginTop || '12pt';
+          tbl.style.marginBottom = tbl.style.marginBottom || '12pt';
+        } else if (isRight) {
+          tbl.style.marginLeft = 'auto';
+          tbl.style.marginRight = '0';
+          tbl.style.marginTop = tbl.style.marginTop || '12pt';
+          tbl.style.marginBottom = tbl.style.marginBottom || '12pt';
+        } else {
+          tbl.style.marginLeft = '0';
+          tbl.style.marginRight = 'auto';
+          tbl.style.marginTop = tbl.style.marginTop || '12pt';
+          tbl.style.marginBottom = tbl.style.marginBottom || '12pt';
+        }
+
+        const rawWidth = tbl.style.width || tbl.getAttribute('width');
+        if (rawWidth) {
+          tbl.style.width = rawWidth;
+        } else if (!isCenter && !isRight) {
+          tbl.style.width = '100%';
+        } else {
+          tbl.style.maxWidth = '100%';
+          if (!tbl.style.width) tbl.style.width = '100%';
+        }
       });
       contentEl.querySelectorAll('th, td').forEach((cell) => {
-        cell.style.border = '1px solid #d0d0d0';
-        cell.style.padding = '6px 10px';
+        if (!cell.style.border) cell.style.border = '1px solid #d0d0d0';
+        if (!cell.style.padding) cell.style.padding = '6px 10px';
+        cell.style.boxSizing = 'border-box';
+        const cellAlign = cell.style.textAlign || cell.getAttribute('align');
+        if (cellAlign) {
+          cell.style.textAlign = cellAlign;
+        }
       });
       contentEl.querySelectorAll('th').forEach((th) => {
-        th.style.backgroundColor = '#f7f7f7';
-        th.style.fontWeight = '600';
+        if (!th.style.backgroundColor) {
+          th.style.backgroundColor = '#f7f7f7';
+        }
+        th.style.fontWeight = th.style.fontWeight || '600';
       });
       contentEl.querySelectorAll('img').forEach((img) => {
         img.style.maxWidth = '100%';
@@ -788,6 +849,10 @@ export async function buildDocxBlob(rawHtml, options = {}) {
     TableCell,
     HeadingLevel,
     AlignmentType,
+    WidthType,
+    BorderStyle,
+    ShadingType,
+    VerticalAlign,
     ThematicBreak,
     PageBreak,
     Header,
@@ -1035,6 +1100,26 @@ export async function buildDocxBlob(rawHtml, options = {}) {
 
     // Tables
     if (tag === 'table') {
+      const alignAttr = (node.getAttribute('align') || node.getAttribute('data-align') || '').toLowerCase();
+      const mLeft = node.style?.marginLeft;
+      const mRight = node.style?.marginRight;
+      let tableAlignment = AlignmentType.LEFT;
+      if (alignAttr === 'center' || (mLeft === 'auto' && mRight === 'auto') || node.classList.contains('table-align-center')) {
+        tableAlignment = AlignmentType.CENTER;
+      } else if (alignAttr === 'right' || (mLeft === 'auto' && (mRight === '0' || mRight === '0px')) || node.classList.contains('table-align-right')) {
+        tableAlignment = AlignmentType.RIGHT;
+      }
+
+      // Check table width
+      let tableWidth = { size: 100, type: WidthType.PERCENTAGE };
+      const rawWidth = node.style?.width || node.getAttribute('width');
+      if (rawWidth && rawWidth.includes('%')) {
+        const pct = parseInt(rawWidth, 10);
+        if (pct > 0 && pct <= 100) {
+          tableWidth = { size: pct, type: WidthType.PERCENTAGE };
+        }
+      }
+
       const rows = [];
       const trs = node.querySelectorAll('tr');
       for (const tr of Array.from(trs)) {
@@ -1042,6 +1127,15 @@ export async function buildDocxBlob(rawHtml, options = {}) {
         for (const cell of Array.from(tr.querySelectorAll('td, th'))) {
           const isHeader = cell.tagName.toLowerCase() === 'th';
           const cellParas = [];
+
+          // Determine cell text alignment
+          const cellAlignRaw = (cell.style?.textAlign || cell.getAttribute('align') || '').toLowerCase();
+          let cellAlign = undefined;
+          if (cellAlignRaw === 'center') cellAlign = AlignmentType.CENTER;
+          else if (cellAlignRaw === 'right') cellAlign = AlignmentType.RIGHT;
+          else if (cellAlignRaw === 'justify') cellAlign = AlignmentType.JUSTIFIED;
+          else if (cellAlignRaw === 'left') cellAlign = AlignmentType.LEFT;
+
           if (cell.children.length > 0) {
             for (const child of Array.from(cell.childNodes)) {
               const res = await parseBlockElement(child);
@@ -1053,16 +1147,52 @@ export async function buildDocxBlob(rawHtml, options = {}) {
             cellParas.push(new Paragraph({
               children: parseInlineNodes(cell, isHeader ? { bold: true, font: bodyFont } : { font: bodyFont }),
               spacing: { after: 60 },
+              alignment: cellAlign,
             }));
+          } else if (cellAlign) {
+            // Apply cell alignment to paragraphs that don't have explicit alignment
+            cellParas.forEach((p) => {
+              if (p && !p.alignment && cellAlign) {
+                p.alignment = cellAlign;
+              }
+            });
           }
-          cells.push(new TableCell({ children: cellParas }));
+
+          // Shading for header or custom background
+          let shading = undefined;
+          if (isHeader) {
+            shading = { fill: 'F7F7F7', type: ShadingType.CLEAR };
+          } else if (cell.style?.backgroundColor) {
+            const hex = normalizeExportColor(cell.style.backgroundColor, true);
+            if (hex) {
+              shading = { fill: hex.replace('#', ''), type: ShadingType.CLEAR };
+            }
+          }
+
+          cells.push(new TableCell({
+            children: cellParas,
+            shading,
+            margins: { top: 120, bottom: 120, left: 160, right: 160 },
+          }));
         }
         if (cells.length) {
           rows.push(new TableRow({ children: cells }));
         }
       }
       if (rows.length) {
-        return new Table({ rows });
+        return new Table({
+          rows,
+          alignment: tableAlignment,
+          width: tableWidth,
+          borders: {
+            top: { style: BorderStyle.SINGLE, size: 4, color: 'D0D0D0' },
+            bottom: { style: BorderStyle.SINGLE, size: 4, color: 'D0D0D0' },
+            left: { style: BorderStyle.SINGLE, size: 4, color: 'D0D0D0' },
+            right: { style: BorderStyle.SINGLE, size: 4, color: 'D0D0D0' },
+            insideHorizontal: { style: BorderStyle.SINGLE, size: 4, color: 'D0D0D0' },
+            insideVertical: { style: BorderStyle.SINGLE, size: 4, color: 'D0D0D0' },
+          },
+        });
       }
       return null;
     }

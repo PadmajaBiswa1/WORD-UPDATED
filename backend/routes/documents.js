@@ -222,7 +222,7 @@ router.get('/test/ipfs-status', async (req, res) => {
 router.get('/:id/access', async (req, res) => {
   try {
     const user = requestUser(req);
-    const document = await getDocument(req.params.id, user);
+    const document = await getDocument(req.params.id);
     if (!document) return res.status(404).json({ message: 'Document not found' });
 
     const perm = checkPermission(document, user, 'read');
@@ -245,7 +245,7 @@ router.get('/:id/access', async (req, res) => {
 router.post('/:id/access', async (req, res) => {
   try {
     const user = requestUser(req);
-    const document = await getDocument(req.params.id, user);
+    const document = await getDocument(req.params.id);
     if (!document) return res.status(404).json({ message: 'Document not found' });
 
     const perm = checkPermission(document, user, 'share');
@@ -299,7 +299,7 @@ router.post('/:id/access', async (req, res) => {
 router.patch('/:id/access/:entryId', async (req, res) => {
   try {
     const user = requestUser(req);
-    const document = await getDocument(req.params.id, user);
+    const document = await getDocument(req.params.id);
     if (!document) return res.status(404).json({ message: 'Document not found' });
 
     const perm = checkPermission(document, user, 'share');
@@ -351,7 +351,7 @@ router.patch('/:id/access/:entryId', async (req, res) => {
 router.delete('/:id/access/:entryId', async (req, res) => {
   try {
     const user = requestUser(req);
-    const document = await getDocument(req.params.id, user);
+    const document = await getDocument(req.params.id);
     if (!document) return res.status(404).json({ message: 'Document not found' });
 
     const perm = checkPermission(document, user, 'share');
@@ -684,7 +684,7 @@ async function handleShareDocument(req, res) {
   const shareRequestId = `share-${Date.now()}`;
   try {
     const user = requestUser(req);
-    const document = await getDocument(req.params.id, user);
+    const document = await getDocument(req.params.id);
     if (!document) {
       return res.status(404).json({ message: 'Document not found' });
     }
@@ -754,7 +754,7 @@ router.get('/:id/collaboration/stream', async (req, res) => {
   try {
     const docId = req.params.id;
     const user = requestUser(req);
-    const document = await getDocument(docId, user);
+    const document = await getDocument(docId);
     if (!document) return res.status(404).json({ message: 'Document not found' });
 
     const perm = checkPermission(document, user, 'read');
@@ -809,8 +809,13 @@ router.get('/:id/collaboration/stream', async (req, res) => {
 router.post('/:id/collaboration/publish', async (req, res) => {
   try {
     const user = requestUser(req);
-    const document = await getDocument(req.params.id, user);
+    const document = await getDocument(req.params.id);
     if (!document) return res.status(404).json({ message: 'Document not found' });
+
+    const readPerm = checkPermission(document, user, 'read');
+    if (!readPerm.allowed) {
+      return res.status(403).json({ message: 'Access denied to document collaboration', reason: readPerm.reason });
+    }
 
     const { type, payload = {}, sessionId } = req.body || {};
     if (!type || !sessionId) {
@@ -1021,7 +1026,7 @@ router.get('/:id/ipfs-info', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const user = requestUser(req);
-    const document = await getDocument(req.params.id, user);
+    const document = await getDocument(req.params.id);
     if (!document) return res.status(404).json({ message: 'Document not found' });
 
     const perm = checkPermission(document, user, 'read');
@@ -1041,7 +1046,7 @@ router.get('/:id', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const user = requestUser(req);
-    const document = await getDocument(req.params.id, user);
+    const document = await getDocument(req.params.id);
     if (!document) return res.status(404).json({ message: 'Document not found' });
 
     const perm = checkPermission(document, user, 'edit');
@@ -1056,6 +1061,19 @@ router.put('/:id', async (req, res) => {
       await dispatchCommentNotifications(updated, req.body.comments, user);
     }
 
+    const clientSessionId = req.headers['x-session-id'] || 'rest-save';
+    broadcast(
+      req.params.id,
+      'change',
+      {
+        sessionId: clientSessionId,
+        user,
+        payload: updated,
+        revision: updated.revision,
+      },
+      { excludeSessionId: clientSessionId }
+    );
+
     res.json(updated);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -1065,7 +1083,7 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const user = requestUser(req);
-    const document = await getDocument(req.params.id, user);
+    const document = await getDocument(req.params.id);
     if (!document) return res.status(404).json({ message: 'Document not found' });
 
     const perm = checkPermission(document, user, 'delete');

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  MoveVertical, Sparkles, Check, Droplet, Square, Mic, Volume2, PenTool, BookOpen
+  MoveVertical, Sparkles, Check, Droplet, Square, Mic, Volume2, PenTool, BookOpen,
+  AlignLeft, AlignCenter, AlignRight
 } from 'lucide-react';
 import { useUIStore, useEditorStore, useDocumentStore } from '@/store';
 import { Modal, Button, Label, Stack, Input } from '@/components/ui';
@@ -558,6 +559,75 @@ export function DesignTab() {
     }
   };
 
+  const applyTableAlignment = (align) => {
+    if (!editor) return;
+    editor.view.focus();
+
+    const { state, view } = editor;
+    const { $from } = state.selection;
+    let foundTableDepth = -1;
+    for (let d = $from.depth; d > 0; d--) {
+      if ($from.node(d).type.name === 'table') {
+        foundTableDepth = d;
+        break;
+      }
+    }
+
+    const setAlignOnPos = (pos, node) => {
+      const currentStyle = node.attrs.style || '';
+      const cleanedStyle = currentStyle
+        .split(';')
+        .map((s) => s.trim())
+        .filter((s) => s && !s.startsWith('margin-left') && !s.startsWith('margin-right') && !s.startsWith('margin:'))
+        .join('; ');
+
+      let marginStyle = 'margin-left: 0; margin-right: auto;';
+      if (align === 'center') {
+        marginStyle = 'margin-left: auto; margin-right: auto;';
+      } else if (align === 'right') {
+        marginStyle = 'margin-left: auto; margin-right: 0;';
+      }
+
+      const newStyle = cleanedStyle ? `${cleanedStyle}; ${marginStyle}` : marginStyle;
+      const newClass = (node.attrs.class || '')
+        .replace(/\btable-align-(left|center|right)\b/g, '')
+        .trim();
+
+      const tr = state.tr.setNodeMarkup(pos, undefined, {
+        ...node.attrs,
+        align,
+        'data-align': align,
+        class: newClass ? `${newClass} table-align-${align}` : `table-align-${align}`,
+        style: newStyle,
+      });
+      view.dispatch(tr);
+      toast(`Table aligned ${align}`, 'success');
+    };
+
+    if (foundTableDepth > 0) {
+      const tablePos = $from.before(foundTableDepth);
+      const tableNode = $from.node(foundTableDepth);
+      setAlignOnPos(tablePos, tableNode);
+      return;
+    }
+
+    let firstTablePos = null;
+    let firstTableNode = null;
+    state.doc.descendants((node, pos) => {
+      if (node.type.name === 'table' && firstTablePos === null) {
+        firstTablePos = pos;
+        firstTableNode = node;
+        return false;
+      }
+    });
+
+    if (firstTablePos !== null) {
+      setAlignOnPos(firstTablePos, firstTableNode);
+    } else {
+      toast('Place cursor inside a table to change its alignment', 'info');
+    }
+  };
+
   return (
     <>
       {/* ── Group 1: Document Formatting (Themes) ── */}
@@ -799,6 +869,69 @@ export function DesignTab() {
                 </div>
               </button>
             ))}
+          </div>
+          <div style={{ width: 1, height: 50, background: 'var(--border)', margin: '0 4px' }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, justifyContent: 'center' }}>
+            <span style={{ fontSize: 9.5, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>Table Align</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <button
+                type="button"
+                onClick={() => applyTableAlignment('left')}
+                title="Align Table Left"
+                style={{
+                  width: 26,
+                  height: 26,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '1px solid var(--border)',
+                  borderRadius: 3,
+                  background: 'var(--bg-elevated)',
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                }}
+              >
+                <AlignLeft size={13} strokeWidth={2} />
+              </button>
+              <button
+                type="button"
+                onClick={() => applyTableAlignment('center')}
+                title="Center Table on Page"
+                style={{
+                  width: 26,
+                  height: 26,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '1px solid var(--border)',
+                  borderRadius: 3,
+                  background: 'var(--bg-elevated)',
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                }}
+              >
+                <AlignCenter size={13} strokeWidth={2} />
+              </button>
+              <button
+                type="button"
+                onClick={() => applyTableAlignment('right')}
+                title="Align Table Right"
+                style={{
+                  width: 26,
+                  height: 26,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '1px solid var(--border)',
+                  borderRadius: 3,
+                  background: 'var(--bg-elevated)',
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                }}
+              >
+                <AlignRight size={13} strokeWidth={2} />
+              </button>
+            </div>
           </div>
         </div>
       </RibbonGroup>

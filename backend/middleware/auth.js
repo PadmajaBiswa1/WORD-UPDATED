@@ -14,7 +14,13 @@ function extractToken(req) {
     if (candidate) return candidate;
   }
 
-  // 2. Verified cookie session (cookie: token=...; etherx_token=...; session=...)
+  // 2. Query param for EventSource/SSE (browser EventSource cannot set custom headers)
+  if (req.query?.token && typeof req.query.token === 'string') {
+    const candidate = req.query.token.trim();
+    if (candidate) return candidate;
+  }
+
+  // 3. Verified cookie session (cookie: token=...; etherx_token=...; session=...)
   const cookieHeader = req.headers?.cookie;
   if (cookieHeader && typeof cookieHeader === 'string') {
     const cookies = cookieHeader.split(';');
@@ -68,11 +74,15 @@ function extractUserFromRequest(req) {
     };
   }
 
-  // Fallback: strictly guest / unauthenticated
+  // Fallback: guest user with request headers / query info if available
+  const guestId = req.headers?.['x-etherx-user-id'] || req.headers?.['x-user-id'] || req.query?.id || 'guest-user';
+  const guestName = req.headers?.['x-etherx-user-name'] || req.headers?.['x-user-name'] || req.query?.name || 'Guest User';
+  const guestEmail = req.headers?.['x-etherx-user-email'] || req.headers?.['x-user-email'] || req.query?.email || '';
+
   return {
-    id: 'guest-user',
-    name: 'Guest User',
-    email: '',
+    id: String(guestId).trim(),
+    name: String(guestName).trim(),
+    email: String(guestEmail).trim().toLowerCase(),
     isGuest: true,
     isAuthenticated: false,
   };

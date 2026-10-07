@@ -725,8 +725,42 @@ body.etherx-is-resizing img,
 
 /* Tables */
 .ProseMirror table { border-collapse:collapse; width:100%; margin:1em 0; table-layout: fixed; }
+.ProseMirror table[align="center"],
+.ProseMirror table[data-align="center"],
+.ProseMirror table.table-align-center {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+.ProseMirror table[align="right"],
+.ProseMirror table[data-align="right"],
+.ProseMirror table.table-align-right {
+  margin-left: auto !important;
+  margin-right: 0 !important;
+}
+.ProseMirror table[align="left"],
+.ProseMirror table[data-align="left"],
+.ProseMirror table.table-align-left {
+  margin-left: 0 !important;
+  margin-right: auto !important;
+}
 .ProseMirror th, .ProseMirror td {
   border:1px solid var(--border); padding:6px 10px; text-align:left; min-width:60px; position:relative;
+}
+.ProseMirror th[style*="text-align: center"],
+.ProseMirror td[style*="text-align: center"],
+.ProseMirror th[align="center"],
+.ProseMirror td[align="center"] {
+  text-align: center !important;
+}
+.ProseMirror th[style*="text-align: right"],
+.ProseMirror td[style*="text-align: right"],
+.ProseMirror th[align="right"],
+.ProseMirror td[align="right"] {
+  text-align: right !important;
+}
+.ProseMirror th[style*="text-align: justify"],
+.ProseMirror td[style*="text-align: justify"] {
+  text-align: justify !important;
 }
 .ProseMirror th {
   background: var(--bg-th); font-weight:600; color:var(--gold);
@@ -852,6 +886,7 @@ body.etherx-is-resizing img,
   overflow-wrap: break-word;
   word-break:    break-word;
   overflow-x:    hidden;
+  min-height:    100%;
 }
 
 /* ── Prevent paragraphs & headings splitting across pages ───── */
@@ -866,6 +901,7 @@ body.etherx-is-resizing img,
   page-break-inside:  avoid;
   overflow-wrap:      break-word;
   word-break:         break-word;
+  min-height:         1.25em;
 }
 
 /* ── Keep tables, lists, images fully intact ────────────────── */

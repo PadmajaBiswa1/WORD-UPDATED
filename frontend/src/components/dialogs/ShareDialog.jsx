@@ -72,7 +72,7 @@ export function ShareDialog({
   const docContent = propContent || storeContent || '<p></p>';
   const [copied, setCopied] = useState(false);
   const [email,  setEmail]  = useState('');
-  const [role,   setRole]   = useState('viewer');
+  const [role,   setRole]   = useState('editor');
   const [working, setWorking] = useState(false);
   const [invitedCollaborators, setInvitedCollaborators] = useState([]);
 

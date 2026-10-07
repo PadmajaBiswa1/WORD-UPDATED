@@ -221,6 +221,7 @@ function normalizeDoc(document) {
         }))
       : [],
     shareLinkEnabled: document.shareLinkEnabled === true,
+    shareLinkRole: ['owner', 'editor', 'commenter', 'viewer'].includes(document.shareLinkRole) ? document.shareLinkRole : 'editor',
     versions: Array.isArray(document.versions) ? document.versions : [],
     comments: Array.isArray(document.comments) ? document.comments.map(normalizeComment) : [],
     trackChanges: Boolean(document.trackChanges),
@@ -300,59 +301,110 @@ function sanitizeUser(user = {}) {
   return { id, name, email };
 }
 
+function normStr(val) {
+  return String(val || '').trim().toLowerCase();
+}
+
 async function listDocuments(user = {}) {
   const normalizedUser = sanitizeUser(user);
+
+  const email = normStr(normalizedUser.email);
+  const id = normStr(normalizedUser.id);
+  const isGenericGuest = !email && (!id || id === 'guest-user' || id === 'guest');
+
+  const filterFn = (document) => {
+    if (!document) return false;
+    const docOwnerId = normStr(document.owner?.id);
+    const docOwnerEmail = normStr(document.owner?.email);
+
+    // Is current user the owner?
+    const isOwner = (email && docOwnerEmail && email === docOwnerEmail) ||
+                    (!isGenericGuest && id && docOwnerId && id === docOwnerId);
+    if (isOwner) return true;
+
+    // Has this document been explicitly shared with this user's email or id?
+    if (Array.isArray(document.sharedWith)) {
+      const isSharedToUser = document.sharedWith.some((entry) => {
+        const shareEmail = normStr(entry?.email);
+        const shareId = normStr(entry?.id);
+        return (email && shareEmail && email === shareEmail) ||
+               (!isGenericGuest && id && shareId && id === shareId);
+      });
+      if (isSharedToUser) return true;
+    }
+
+    return false;
+  };
 
   if (!isMongoConnected()) {
     const store = readStore();
     return store.documents
       .map(normalizeDoc)
-      .filter((document) => !document.owner || canAccessDocument(document, normalizedUser))
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+      .filter(filterFn)
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+      .map((d) => {
+        if (d && typeof d.content === 'string' && d.content.includes('data:image/')) {
+          return {
+            ...d,
+            content: d.content.replace(/src="data:image\/[^;]+;base64,[^"]+"/gi, 'src=""'),
+          };
+        }
+        return d;
+      });
   }
 
-  const email = String(normalizedUser.email || '').trim().toLowerCase();
-  const id = String(normalizedUser.id || '').trim().toLowerCase();
-
   let query;
-  if (id === 'guest-user') {
-    query = {
-      $or: [
-        { 'owner.id': 'guest-user' },
-        { 'owner.id': { $exists: false } },
-        { 'owner.id': null },
-      ],
-    };
+  if (isGenericGuest) {
+    query = { 'owner.id': '__unmatched_anonymous__' };
   } else {
     query = {
       $or: [
-        { 'owner.id': id },
-        { 'owner.email': email },
-        { 'sharedWith.email': email },
-        { 'sharedWith.id': id },
+        ...(id ? [{ 'owner.id': id }] : []),
+        ...(email ? [{ 'owner.email': email }] : []),
+        ...(email ? [{ 'sharedWith.email': email }] : []),
+        ...(id ? [{ 'sharedWith.id': id }] : []),
       ],
     };
   }
 
   try {
-    const docs = await Document.find(query).sort({ updatedAt: -1 });
-    return docs.map((d) => normalizeDoc(d.toObject()));
+    const docs = await Document.find(query)
+      .select('-versions -contentJson')
+      .sort({ updatedAt: -1 })
+      .lean();
+    return docs.map((d) => {
+      const normalized = normalizeDoc(d);
+      if (normalized && typeof normalized.content === 'string' && normalized.content.includes('data:image/')) {
+        normalized.content = normalized.content.replace(/src="data:image\/[^;]+;base64,[^"]+"/gi, 'src=""');
+      }
+      return normalized;
+    });
   } catch (err) {
     console.warn('MongoDB find failed, falling back to local store:', err.message);
     const store = readStore();
     return store.documents
       .map(normalizeDoc)
-      .filter((document) => !document.owner || canAccessDocument(document, normalizedUser))
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+      .filter(filterFn)
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+      .map((d) => {
+        if (d && typeof d.content === 'string' && d.content.includes('data:image/')) {
+          return {
+            ...d,
+            content: d.content.replace(/src="data:image\/[^;]+;base64,[^"]+"/gi, 'src=""'),
+          };
+        }
+        return d;
+      });
   }
 }
 
-async function getDocument(id, user = {}) {
+async function getDocument(id, user = null) {
   if (!isMongoConnected()) {
     const store = readStore();
     const document = store.documents.find((entry) => entry.id === id);
     const normalized = document ? normalizeDoc(document) : null;
     if (!normalized) return null;
+    if (!user) return normalized;
     if (!normalized.owner) return normalized;
     return canAccessDocument(normalized, user) ? normalized : null;
   }
@@ -361,6 +413,7 @@ async function getDocument(id, user = {}) {
     const doc = await Document.findOne({ id });
     if (!doc) return null;
     const normalized = normalizeDoc(doc.toObject());
+    if (!user) return normalized;
     if (!canAccessDocument(normalized, user)) return null;
     return normalized;
   } catch (err) {
@@ -369,6 +422,7 @@ async function getDocument(id, user = {}) {
     const document = store.documents.find((entry) => entry.id === id);
     const normalized = document ? normalizeDoc(document) : null;
     if (!normalized) return null;
+    if (!user) return normalized;
     if (!normalized.owner) return normalized;
     return canAccessDocument(normalized, user) ? normalized : null;
   }
@@ -470,6 +524,9 @@ async function updateDocument(id, input = {}, options = {}) {
   }
   if (Array.isArray(input.documentParts)) next.documentParts = input.documentParts;
   if (Array.isArray(input.signatures)) next.signatures = input.signatures;
+  if (typeof input.shareLinkEnabled === 'boolean') next.shareLinkEnabled = input.shareLinkEnabled;
+  if (typeof input.shareLinkRole === 'string') next.shareLinkRole = input.shareLinkRole;
+  if (Array.isArray(input.sharedWith)) next.sharedWith = input.sharedWith;
 
   if (input.design && typeof input.design === 'object') {
     next.design = { ...defaultDesign(), ...(current.design || {}), ...input.design };
@@ -588,7 +645,8 @@ async function shareDocument(id, share = {}) {
   if (!current) return null;
 
   const email = String(share.email || '').trim().toLowerCase();
-  const role = ['owner', 'editor', 'commenter', 'viewer'].includes(share.role) ? share.role : 'viewer';
+  const roleCandidate = share.role || share.shareRole;
+  const role = ['owner', 'editor', 'commenter', 'viewer'].includes(roleCandidate) ? roleCandidate : 'editor';
 
   if (!email) {
     const shareEntry = {
@@ -598,6 +656,13 @@ async function shareDocument(id, share = {}) {
       sharedAt: new Date().toISOString(),
     };
     current.shareLinkEnabled = true;
+    current.shareLinkRole = role;
+    const existingIndex = current.sharedWith.findIndex((entry) => !entry?.email && !entry?.id);
+    if (existingIndex >= 0) {
+      current.sharedWith[existingIndex] = { ...current.sharedWith[existingIndex], ...shareEntry };
+    } else {
+      current.sharedWith = [shareEntry, ...current.sharedWith];
+    }
     current.updatedAt = new Date().toISOString();
     const updated = await updateDocument(id, current, { createVersion: false });
     return { share: shareEntry, document: updated };

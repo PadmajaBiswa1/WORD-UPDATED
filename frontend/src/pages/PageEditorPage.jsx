@@ -9,6 +9,7 @@ import { ToastContainer } from '@/components/ui/Toast';
 import { useUIStore, useDocumentStore } from '@/store';
 import { documentApi } from '@/services/api';
 import { upsertLocalDoc } from '@/services/storageFallback';
+import { updateCachedRecentDoc } from '@/utils/recentDocsCache';
 
 export function PageEditorPage() {
   const fullscreen = useUIStore((s) => s.fullscreen);
@@ -28,6 +29,11 @@ export function PageEditorPage() {
       }
       upsertLocalDoc({
         id: id || 'doc_current',
+        title: title || 'Untitled Document',
+        content: content || '<p></p>',
+        updatedAt: new Date().toISOString(),
+      });
+      updateCachedRecentDoc(id || 'doc_current', {
         title: title || 'Untitled Document',
         content: content || '<p></p>',
         updatedAt: new Date().toISOString(),

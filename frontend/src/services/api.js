@@ -29,13 +29,23 @@ function sanitizeHeader(val = '') {
 
 function getUserHeaders() {
   const user = getStoredUser();
-  const name = sanitizeHeader(user.name || user.email || 'Guest User');
+  let guestId = '';
+  let guestName = '';
+  if (typeof window !== 'undefined') {
+    try {
+      guestId = window.sessionStorage?.getItem('etherx_guest_id') || '';
+      guestName = window.sessionStorage?.getItem('etherx_guest_name') || '';
+    } catch {}
+  }
+  const name = sanitizeHeader(user.name || user.email || guestName || 'Guest User');
   const email = sanitizeHeader(user.email || '');
-  const id = sanitizeHeader(user.id || email || name.toLowerCase().replace(/\s+/g, '-'));
+  const id = sanitizeHeader(user.id || email || guestId || name.toLowerCase().replace(/\s+/g, '-'));
+  const collabSessionId = typeof window !== 'undefined' ? window.__ETHERX_COLLAB__?.sessionId : '';
   return {
     'X-EtherX-User-Id': id,
     'X-EtherX-User-Name': name,
     'X-EtherX-User-Email': email,
+    ...(collabSessionId ? { 'X-Session-Id': collabSessionId } : {}),
   };
 }
 

@@ -628,7 +628,7 @@ export const useUIStore = create((set) => ({
   drawTool: 'pen',
   drawColor: '#111111',
   drawSize: 4,
-  drawOpacity: 0.4,
+  drawOpacity: 1.0,
   watermarkText: '',
   designPopover: null,
   setDesignPopover: (popover) => set({ designPopover: popover }),

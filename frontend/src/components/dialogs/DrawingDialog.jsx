@@ -22,7 +22,9 @@ export function DrawingDialog() {
   const [customizerOpen, setCustomizerOpen] = useState(false);
   const [drawing, setDrawing] = useState(false);
   const isDrawingRef = useRef(false);
-  const lastPos = useRef(null);
+  const pointsRef = useRef([]);
+  const strokeStartSnapshotRef = useRef(null);
+  const lastMidpointRef = useRef(null);
   const undoStackRef = useRef([]);
   const redoStackRef = useRef([]);
   const [canUndoStroke, setCanUndoStroke] = useState(false);
@@ -130,51 +132,198 @@ export function DrawingDialog() {
     return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [undoStroke, redoStroke]);
 
+  const getEffectiveOpacity = useCallback(() => {
+    if (drawTool === 'highlighter') {
+      return (drawOpacity && drawOpacity < 1) ? drawOpacity : 0.4;
+    }
+    // Pen tool: defaults to solid 1.0 (unless customized)
+    return (drawTool === 'pen' && (drawOpacity == null || drawOpacity === 0.4)) ? 1 : (drawOpacity ?? 1);
+  }, [drawTool, drawOpacity]);
+
+  const configureContext = useCallback((ctx) => {
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.imageSmoothingEnabled = true;
+
+    if (drawTool === 'eraser') {
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.strokeStyle = 'rgba(0,0,0,1)';
+      ctx.fillStyle = 'rgba(0,0,0,1)';
+      ctx.lineWidth = drawSize * 4;
+    } else if (drawTool === 'highlighter') {
+      ctx.globalCompositeOperation = 'source-over';
+      const op = getEffectiveOpacity();
+      const color = toRgba(drawColor, op);
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = drawSize * 4;
+    } else {
+      ctx.globalCompositeOperation = 'source-over';
+      const op = getEffectiveOpacity();
+      const color = toRgba(drawColor, op);
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = drawSize;
+    }
+  }, [drawTool, drawSize, drawColor, getEffectiveOpacity]);
+
+  const renderFullSmoothPath = useCallback((ctx, pts) => {
+    if (!pts || pts.length === 0) return;
+    configureContext(ctx);
+
+    if (pts.length === 1) {
+      ctx.beginPath();
+      ctx.arc(pts[0].x, pts[0].y, Math.max(1, ctx.lineWidth / 2), 0, Math.PI * 2);
+      ctx.fill();
+      return;
+    }
+
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+
+    if (pts.length === 2) {
+      ctx.lineTo(pts[1].x, pts[1].y);
+      ctx.stroke();
+      return;
+    }
+
+    let prevMid = {
+      x: (pts[0].x + pts[1].x) / 2,
+      y: (pts[0].y + pts[1].y) / 2,
+    };
+    ctx.lineTo(prevMid.x, prevMid.y);
+
+    for (let i = 1; i < pts.length - 1; i++) {
+      const currMid = {
+        x: (pts[i].x + pts[i + 1].x) / 2,
+        y: (pts[i].y + pts[i + 1].y) / 2,
+      };
+      ctx.quadraticCurveTo(pts[i].x, pts[i].y, currMid.x, currMid.y);
+      prevMid = currMid;
+    }
+
+    ctx.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y);
+    ctx.stroke();
+  }, [configureContext]);
+
   const startDraw = (e) => {
+    if (e.button != null && e.button !== 0) return;
+    try {
+      e.target.setPointerCapture?.(e.pointerId);
+    } catch (_) {}
+
     saveCanvasSnapshot();
     isDrawingRef.current = true;
     setDrawing(true);
-    lastPos.current = getPos(e);
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    strokeStartSnapshotRef.current = ctx.getImageData(0, 0, W, H);
+
+    const pos = getPos(e);
+    pointsRef.current = [pos];
+    lastMidpointRef.current = pos;
+
+    configureContext(ctx);
+
+    // Initial dot so tapping creates a solid mark
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, Math.max(1, ctx.lineWidth / 2), 0, Math.PI * 2);
+    ctx.fill();
   };
 
   const draw = (e) => {
-    if (!isDrawingRef.current || !lastPos.current) return;
-    const ctx = canvasRef.current.getContext('2d');
-    const pos = getPos(e);
+    if (!isDrawingRef.current || !canvasRef.current) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
 
-    ctx.beginPath();
-    ctx.moveTo(lastPos.current.x, lastPos.current.y);
-    ctx.lineTo(pos.x, pos.y);
-    ctx.lineCap  = 'round';
-    ctx.lineJoin = 'round';
+    const events = (typeof e.getCoalescedEvents === 'function')
+      ? e.getCoalescedEvents()
+      : [e];
 
-    if (drawTool === 'eraser') {
-      // Smooth, continuous erase using destination-out composite
-      ctx.globalCompositeOperation = 'destination-out';
-      ctx.strokeStyle = 'rgba(0,0,0,1)';
-      ctx.lineWidth   = drawSize * 4;
-    } else if (drawTool === 'highlighter') {
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.strokeStyle = toRgba(drawColor, drawOpacity ?? 0.4);
-      ctx.lineWidth   = drawSize * 4;
-    } else {
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.strokeStyle = toRgba(drawColor, drawOpacity ?? 1);
-      ctx.lineWidth   = drawSize;
+    const isTranslucent = drawTool === 'highlighter' || getEffectiveOpacity() < 1;
+
+    for (const evt of events) {
+      const pos = getPos(evt);
+      const pts = pointsRef.current;
+      const last = pts[pts.length - 1];
+
+      // Filter redundant micro-movements (< 0.5px)
+      if (last && Math.hypot(pos.x - last.x, pos.y - last.y) < 0.5) {
+        continue;
+      }
+
+      pts.push(pos);
+
+      if (!isTranslucent) {
+        configureContext(ctx);
+        if (pts.length === 2) {
+          const mid = {
+            x: (pts[0].x + pts[1].x) / 2,
+            y: (pts[0].y + pts[1].y) / 2,
+          };
+          ctx.beginPath();
+          ctx.moveTo(pts[0].x, pts[0].y);
+          ctx.lineTo(mid.x, mid.y);
+          ctx.stroke();
+          lastMidpointRef.current = mid;
+        } else if (pts.length > 2) {
+          const prevPoint = pts[pts.length - 2];
+          const currPoint = pts[pts.length - 1];
+          const mid = {
+            x: (prevPoint.x + currPoint.x) / 2,
+            y: (prevPoint.y + currPoint.y) / 2,
+          };
+          ctx.beginPath();
+          ctx.moveTo(lastMidpointRef.current.x, lastMidpointRef.current.y);
+          ctx.quadraticCurveTo(prevPoint.x, prevPoint.y, mid.x, mid.y);
+          ctx.stroke();
+          lastMidpointRef.current = mid;
+        }
+      }
     }
-    ctx.stroke();
 
-    lastPos.current = pos;
+    if (isTranslucent) {
+      if (strokeStartSnapshotRef.current) {
+        ctx.putImageData(strokeStartSnapshotRef.current, 0, 0);
+      }
+      renderFullSmoothPath(ctx, pointsRef.current);
+    }
   };
 
-  const stopDraw = () => {
-    if (!canvasRef.current) return;
-    // Reset composite after eraser stroke so subsequent draws work normally
+  const stopDraw = (e) => {
+    if (!isDrawingRef.current || !canvasRef.current) return;
+    try {
+      e?.target?.releasePointerCapture?.(e.pointerId);
+    } catch (_) {}
+
     const ctx = canvasRef.current.getContext('2d');
+    const isTranslucent = drawTool === 'highlighter' || getEffectiveOpacity() < 1;
+
+    if (!isTranslucent) {
+      const pts = pointsRef.current;
+      if (pts.length > 1 && lastMidpointRef.current) {
+        const last = pts[pts.length - 1];
+        configureContext(ctx);
+        ctx.beginPath();
+        ctx.moveTo(lastMidpointRef.current.x, lastMidpointRef.current.y);
+        ctx.lineTo(last.x, last.y);
+        ctx.stroke();
+      }
+    } else {
+      if (strokeStartSnapshotRef.current) {
+        ctx.putImageData(strokeStartSnapshotRef.current, 0, 0);
+      }
+      renderFullSmoothPath(ctx, pointsRef.current);
+    }
+
     ctx.globalCompositeOperation = 'source-over';
     isDrawingRef.current = false;
     setDrawing(false);
-    lastPos.current = null;
+    pointsRef.current = [];
+    lastMidpointRef.current = null;
+    strokeStartSnapshotRef.current = null;
   };
 
   const clearCanvas = () => {
@@ -297,7 +446,7 @@ export function DrawingDialog() {
                   height: 10,
                   borderRadius: '50%',
                   background: drawColor || '#d4af37',
-                  opacity: drawOpacity ?? 1,
+                  opacity: getEffectiveOpacity(),
                   border: '1px solid var(--border-gold)',
                   marginLeft: 2,
                 }}
@@ -423,9 +572,23 @@ export function DrawingDialog() {
         </div>
 
         {/* Canvas */}
-        <canvas ref={canvasRef} width={W} height={H}
-          onMouseDown={startDraw} onMouseMove={draw} onMouseUp={stopDraw} onMouseLeave={stopDraw}
-          style={{ cursor: drawTool==='eraser'?'cell':'crosshair', display:'block', width:'100%', background:'#ffffff' }} />
+        <canvas
+          ref={canvasRef}
+          width={W}
+          height={H}
+          onPointerDown={startDraw}
+          onPointerMove={draw}
+          onPointerUp={stopDraw}
+          onPointerCancel={stopDraw}
+          style={{
+            cursor: drawTool === 'eraser' ? 'cell' : 'crosshair',
+            display: 'block',
+            width: '100%',
+            background: '#ffffff',
+            touchAction: 'none',
+            userSelect: 'none',
+          }}
+        />
       </div>
     </Modal>
   );

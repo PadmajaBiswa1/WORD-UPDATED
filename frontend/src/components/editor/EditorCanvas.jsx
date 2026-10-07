@@ -11,6 +11,7 @@ import { ImageContextMenu } from './ImageContextMenu';
 import { InlinePragnaTrigger } from './InlinePragnaTrigger';
 import { useUIStore, useDocumentStore, useCollaborationStore } from '@/store';
 import { getLayoutMetrics, PAGE_GAP, PAGE_BORDER_WIDTH } from '@/utils/pageLayout';
+import { focusBelowBlockOrDocEnd } from '@/utils/editorCursorPlacement';
 
 const HEADER_FOOTER_STORAGE_KEY = 'etherx-header-footer-meta';
 const THEME_DEFAULT_PAGE_COLORS = new Set(['#ffffff', '#fff', '#fdfbf7', '#1a1a1a']);
@@ -413,6 +414,44 @@ export function EditorCanvas() {
     };
   }, [rulerVisible, pageCount, zoom]);
 
+  const handlePaperClick = useCallback((e) => {
+    if (!editor) return;
+
+    if (
+      e.target.closest(
+        'button, input, select, textarea, [data-resize-handle], .picture-format-toolbar, .floating-format-toolbar, [role="dialog"], [role="menu"], [data-picture-format-toolbar="true"]'
+      )
+    ) {
+      return;
+    }
+
+    if (e.target.tagName === 'IMG' || e.target.closest('td, th')) {
+      return;
+    }
+
+    const textBlock = e.target.closest('p, h1, h2, h3, h4, h5, h6, li, blockquote');
+    if (textBlock && textBlock.textContent.trim().length > 0) {
+      return;
+    }
+
+    focusBelowBlockOrDocEnd(editor, e.clientX, e.clientY);
+  }, [editor]);
+
+  const handlePaperMouseDown = useCallback((e) => {
+    if (!editor) return;
+
+    if (
+      e.target.closest(
+        '.ProseMirror, button, input, select, textarea, [data-resize-handle], .picture-format-toolbar, .floating-format-toolbar, [role="dialog"], [role="menu"]'
+      )
+    ) {
+      return;
+    }
+
+    e.preventDefault();
+    focusBelowBlockOrDocEnd(editor, e.clientX, e.clientY);
+  }, [editor]);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
       {rulerVisible && (
@@ -450,6 +489,11 @@ export function EditorCanvas() {
       <div
         ref={scrollRef}
         id="editor-scroll-area"
+        onClick={(e) => {
+          if (e.target === scrollRef.current) {
+            handlePaperClick(e);
+          }
+        }}
         style={{
           flex: 1,
           overflowY: 'auto',
@@ -460,6 +504,11 @@ export function EditorCanvas() {
       >
         <div
           id="editor-canvas-align-wrapper"
+          onClick={(e) => {
+            if (e.target.id === 'editor-canvas-align-wrapper') {
+              handlePaperClick(e);
+            }
+          }}
           style={{
             minWidth: '100%',
             width: 'max-content',
@@ -473,6 +522,8 @@ export function EditorCanvas() {
           <div
             ref={wrapRef}
             id="document-page-0"
+            onClick={handlePaperClick}
+            onMouseDown={handlePaperMouseDown}
             style={{
               boxSizing: 'border-box',
               width: scaledDimensions.pageWidth,
@@ -605,7 +656,7 @@ export function EditorCanvas() {
               style={{ position: 'absolute', top: i * scaledDimensions.pageStep, left: 0, width: 1, height: 1, pointerEvents: 'none' }}
             />
           ))}
-          <div style={{ position: 'relative', zIndex: 1, transform: `scale(${contentScale})`, transformOrigin: 'top left', width: `${100 * scale}%` }}>
+          <div style={{ position: 'relative', zIndex: 1, transform: `scale(${contentScale})`, transformOrigin: 'top left', width: `${100 * scale}%`, minHeight: scaledDimensions.contentHeight }}>
             <EditorContent editor={editor} />
           </div>
           <FloatingFormatToolbar editor={editor} scrollContainerRef={scrollRef} />

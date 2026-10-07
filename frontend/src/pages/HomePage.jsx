@@ -30,6 +30,12 @@ import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { UpgradeModal } from '@/components/dialogs/UpgradeModal';
 import { ShareDialog } from '@/components/dialogs/ShareDialog';
 import { clearLocalDraft, readLocalDraft } from '@/utils/draftStorage';
+import {
+  readCachedRecentDocs,
+  writeCachedRecentDocs,
+  updateCachedRecentDoc,
+  removeCachedRecentDoc,
+} from '@/utils/recentDocsCache';
 
 const LOCAL_FILE_DOCS_KEY = 'etherx_file_docs';
 
@@ -37,6 +43,13 @@ function getLocalDocsStorageKey() {
   const user = getStoredUser();
   const scope = user?.id || user?.email || 'guest';
   return `${LOCAL_FILE_DOCS_KEY}:${String(scope).toLowerCase()}`;
+}
+
+function getInitialRecentDocs() {
+  const cached = readCachedRecentDocs();
+  if (cached && cached.length > 0) return cached;
+  const locals = readLocalDocs();
+  return locals;
 }
 
 // SVG Icon Components
@@ -738,10 +751,22 @@ export function HomePage() {
   const openUpgradeModal = useSubscriptionStore((s) => s.openUpgradeModal);
   const fetchSubscription = useSubscriptionStore((s) => s.fetchSubscription);
 
+  const currentDocIdFromRoute = (() => {
+    const p = location.state?.returnTo || '';
+    const m = p.match(/^\/doc\/([^/]+)$/);
+    return m?.[1] || null;
+  })();
+
   const [activeMenu, setActiveMenu] = useState('home');
-  const [loading, setLoading] = useState(true);
-  const [docs, setDocs] = useState([]);
-  const [selectedDocId, setSelectedDocId] = useState(null);
+  const [docs, setDocs] = useState(() => getInitialRecentDocs());
+  const [loading, setLoading] = useState(() => getInitialRecentDocs().length === 0);
+  const [selectedDocId, setSelectedDocId] = useState(() => {
+    const initial = getInitialRecentDocs();
+    if (currentDocIdFromRoute && initial.some((d) => d.id === currentDocIdFromRoute)) {
+      return currentDocIdFromRoute;
+    }
+    return initial[0]?.id || null;
+  });
   const [search, setSearch] = useState('');
   const [saveAsName, setSaveAsName] = useState('');
   const [saveAsFormat, setSaveAsFormat] = useState('docx');
@@ -800,16 +825,9 @@ export function HomePage() {
     return () => clearInterval(timer);
   }, []);
 
-  const currentDocIdFromRoute = (() => {
-    const p = location.state?.returnTo || '';
-    const m = p.match(/^\/doc\/([^/]+)$/);
-    return m?.[1] || null;
-  })();
-
   useEffect(() => {
     let alive = true;
     async function loadDocs() {
-      setLoading(true);
       try {
         const data = await documentApi.list();
         const list = Array.isArray(data) ? data : data.documents || data.items || [];
@@ -829,16 +847,18 @@ export function HomePage() {
           localOnly: Boolean(d.localOnly),
         }))];
         setDocs(normalized);
+        writeCachedRecentDocs(normalized);
         if (currentDocIdFromRoute && normalized.some((d) => d.id === currentDocIdFromRoute)) {
           setSelectedDocId(currentDocIdFromRoute);
-        } else if (normalized[0]) {
+        } else if (!selectedDocId && normalized[0]) {
           setSelectedDocId(normalized[0].id);
         }
       } catch {
-        const fallback = readLocalDocs();
+        const fallback = getInitialRecentDocs();
         if (!alive) return;
-        setDocs(fallback);
-        setSelectedDocId(fallback[0]?.id || null);
+        if (fallback.length > 0) {
+          setDocs(fallback);
+        }
       } finally {
         if (alive) setLoading(false);
       }
@@ -934,14 +954,18 @@ export function HomePage() {
   }, [docs, search]);
 
   const syncDocRecord = (docId, patch) => {
-    setDocs((prev) => prev.map((doc) => {
-      if (String(doc.id) !== String(docId)) return doc;
-      return {
-        ...doc,
-        ...patch,
-        updatedAt: new Date().toISOString(),
-      };
-    }));
+    setDocs((prev) => {
+      const next = prev.map((doc) => {
+        if (String(doc.id) !== String(docId)) return doc;
+        return {
+          ...doc,
+          ...patch,
+          updatedAt: new Date().toISOString(),
+        };
+      });
+      writeCachedRecentDocs(next);
+      return next;
+    });
   };
 
   const persistSelectedDocPatch = async (patch = {}) => {
@@ -962,6 +986,7 @@ export function HomePage() {
         nextLocalDocs.unshift(nextDoc);
       }
       writeLocalDocs(nextLocalDocs);
+      updateCachedRecentDoc(selectedDoc.id, nextDoc);
       setDocs((prev) => prev.map((doc) => String(doc.id) === String(selectedDoc.id) ? nextDoc : doc));
       if (nextPatch.title) setDocTitle(nextPatch.title);
       if (nextPatch.content) setDocContent(nextPatch.content);
@@ -971,6 +996,7 @@ export function HomePage() {
     try {
       await documentApi.save(selectedDoc.id, nextPatch);
       syncDocRecord(selectedDoc.id, nextPatch);
+      updateCachedRecentDoc(selectedDoc.id, nextPatch);
       if (nextPatch.title) setDocTitle(nextPatch.title);
       if (nextPatch.content) setDocContent(nextPatch.content);
       return { ...selectedDoc, ...nextPatch };
@@ -989,6 +1015,18 @@ export function HomePage() {
         design: { pageColor: '#1a1a1a', pageColorMode: 'theme' },
       });
       const newId = String(created?.id || created?._id || created?.document?.id || created?.document?._id || 'new');
+      const newDoc = {
+        id: newId,
+        title: safeTitle,
+        content,
+        design: { pageColor: '#1a1a1a', pageColorMode: 'theme' },
+        updatedAt: new Date().toISOString(),
+        comments: [],
+        trackChanges: false,
+        localOnly: false,
+      };
+      updateCachedRecentDoc(newId, newDoc);
+      setDocs((prev) => [newDoc, ...prev.filter((d) => d.id !== newId)]);
       setSelectedDocId(newId);
       toast('AI draft created', 'success');
       navigate(`/doc/${newId}`);
@@ -996,6 +1034,7 @@ export function HomePage() {
     } catch {
       const { doc } = createLocalDoc({ title: safeTitle, content });
       const next = upsertLocalDoc(doc);
+      updateCachedRecentDoc(doc.id, doc);
       setDocs(next);
       setSelectedDocId(doc.id);
       resetDoc();
@@ -1167,9 +1206,11 @@ export function HomePage() {
         await documentApi.delete(doc.id);
       }
       clearLocalDraft(doc.id);
+      removeCachedRecentDoc(doc.id);
 
       setDocs((prev) => {
         const next = prev.filter((d) => d.id !== doc.id);
+        writeCachedRecentDocs(next);
         if (selectedDocId === doc.id) {
           setSelectedDocId(next[0]?.id || null);
         }
@@ -1387,7 +1428,7 @@ export function HomePage() {
       const targetDoc = await ensureCloudDocForShare(selectedDoc);
       let link = buildSharedUrl(targetDoc.id);
       try {
-        const response = await documentApi.share(targetDoc.id, { role: 'viewer' });
+        const response = await documentApi.share(targetDoc.id, { role: 'editor' });
         if (response?.shareUrl) link = response.shareUrl;
       } catch (apiErr) {
         console.warn('Share API call error, falling back to default shared URL:', apiErr?.message);
@@ -1439,7 +1480,12 @@ export function HomePage() {
       localOnly: false,
     };
     if (newId) {
-      setDocs((prev) => [newDoc, ...prev.filter((d) => d.id !== newId)]);
+      updateCachedRecentDoc(newId, newDoc);
+      setDocs((prev) => {
+        const next = [newDoc, ...prev.filter((d) => d.id !== newId)];
+        writeCachedRecentDocs(next);
+        return next;
+      });
       setSelectedDocId(newId);
     }
     return newDoc;
@@ -1801,6 +1847,8 @@ export function HomePage() {
               <div style={styles.sectionLabel}>RECENT DOCUMENTS</div>
               {loading ? (
                 <div style={styles.empty}>Loading...</div>
+              ) : visibleDocs.length === 0 ? (
+                <div style={styles.empty}>No recent documents</div>
               ) : (
                 <div style={styles.recentsWrap}>
                   {visibleDocs.map((doc) => (
