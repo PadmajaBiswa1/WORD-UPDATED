@@ -132,7 +132,10 @@ export function useAutoSave() {
       };
 
       // 1. Send payload to backend
-      await documentApi.save(docId, payload);
+      const savedDoc = await documentApi.save(docId, payload);
+      if (savedDoc && Number.isFinite(Number(savedDoc.revision))) {
+        useDocumentStore.getState().setRevision(Number(savedDoc.revision));
+      }
 
       // 2. Check if newer edits were made while save was in flight
       const latestStore = useDocumentStore.getState();

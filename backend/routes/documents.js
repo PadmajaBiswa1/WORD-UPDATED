@@ -31,6 +31,8 @@ const {
   unregisterClient,
   updatePresence,
   writeEvent,
+  getLastEditSession,
+  setLastEditSession,
 } = require('../lib/collaborationHub');
 
 const User = require('../models/User');
@@ -843,13 +845,21 @@ router.post('/:id/collaboration/publish', async (req, res) => {
       }
 
       const baseRevision = Number(payload.baseRevision);
-      if (Number.isFinite(baseRevision) && baseRevision !== Number(document.revision || 0)) {
+      const currentRevision = Number(document.revision || 0);
+      const lastSessionId = getLastEditSession(req.params.id);
+      const isSameSession = sessionId && lastSessionId === sessionId;
+      const isDocOwner = user?.id && document.owner?.id && user.id === document.owner.id;
+      const isOwnEdit = isSameSession || isDocOwner;
+
+      if (Number.isFinite(baseRevision) && baseRevision !== currentRevision && !isOwnEdit) {
         return res.status(409).json({
           message: 'Revision conflict',
           document,
-          expectedRevision: document.revision || 0,
+          expectedRevision: currentRevision,
         });
       }
+
+      setLastEditSession(req.params.id, sessionId);
 
       const nextDocument = await updateDocument(
         req.params.id,
@@ -882,13 +892,21 @@ router.post('/:id/collaboration/publish', async (req, res) => {
       }
 
       const baseRevision = Number(payload.baseRevision);
-      if (Number.isFinite(baseRevision) && baseRevision !== Number(document.revision || 0)) {
+      const currentRevision = Number(document.revision || 0);
+      const lastSessionId = getLastEditSession(req.params.id);
+      const isSameSession = sessionId && lastSessionId === sessionId;
+      const isDocOwner = user?.id && document.owner?.id && user.id === document.owner.id;
+      const isOwnEdit = isSameSession || isDocOwner;
+
+      if (Number.isFinite(baseRevision) && baseRevision !== currentRevision && !isOwnEdit) {
         return res.status(409).json({
           message: 'Revision conflict',
           document,
-          expectedRevision: document.revision || 0,
+          expectedRevision: currentRevision,
         });
       }
+
+      setLastEditSession(req.params.id, sessionId);
 
       const updatedComments = Array.isArray(payload.comments) ? payload.comments : document.comments;
       const nextDocument = await updateDocument(
@@ -1062,6 +1080,7 @@ router.put('/:id', async (req, res) => {
     }
 
     const clientSessionId = req.headers['x-session-id'] || 'rest-save';
+    setLastEditSession(req.params.id, clientSessionId);
     broadcast(
       req.params.id,
       'change',

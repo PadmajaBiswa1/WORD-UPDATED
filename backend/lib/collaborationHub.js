@@ -74,6 +74,18 @@ function unregisterClient(docId, sessionId) {
   broadcastPresence(docId);
 }
 
+const lastEditSessions = new Map();
+
+function getLastEditSession(docId) {
+  return lastEditSessions.get(docId) || null;
+}
+
+function setLastEditSession(docId, sessionId) {
+  if (sessionId) {
+    lastEditSessions.set(docId, sessionId);
+  }
+}
+
 module.exports = {
   broadcast,
   broadcastPresence,
@@ -82,4 +94,6 @@ module.exports = {
   unregisterClient,
   updatePresence,
   writeEvent,
+  getLastEditSession,
+  setLastEditSession,
 };

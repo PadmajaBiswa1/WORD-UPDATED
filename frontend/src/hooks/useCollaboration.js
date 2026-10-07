@@ -119,20 +119,21 @@ export function useCollaboration(docId) {
 
     const offChange = collab.on('change', (data) => {
       if (!data || data.sessionId === collab.sessionId) return;
+      if (data.sessionId === 'rest-save' && data.user?.id && (data.user.id === collab.user?.id || data.user.email === collab.user?.email)) {
+        return;
+      }
       const nextDocument = data.payload || {};
 
       // Typing indicator: mark remote collaborator as typing briefly when changes arrive.
       try {
         const remoteUser = data?.user || {};
         const remoteSessionId = remoteUser?.id || remoteUser?.sessionId || data?.uid || remoteUser?.uid;
-        const typingName = remoteUser?.name || data?.userName || 'Someone';
         if (remoteSessionId && remoteSessionId !== collab.sessionId) {
           const timers = typingTimersRef.current;
           const key = remoteSessionId;
           if (timers.has(key)) clearTimeout(timers.get(key));
           const timeoutId = setTimeout(() => {
             const nowTyping = Array.from(typingTimersRef.current.keys()).filter((k) => k !== key);
-            // Store expects objects; keep minimal shape.
             setTypingUsers(nowTyping.map((sid) => ({ sessionId: sid, name: sid })));
           }, 1800);
           timers.set(key, timeoutId);
@@ -144,28 +145,44 @@ export function useCollaboration(docId) {
         // ignore typing indicator errors
       }
 
-      const currentRevision = Number(useDocumentStore.getState().revision || 0);
+      const currentStore = useDocumentStore.getState();
+      const currentRevision = Number(currentStore.revision || 0);
       const incomingRevision = Number(nextDocument.revision ?? data.revision);
-      const currentContent = useDocumentStore.getState().content;
+      const currentContent = currentStore.content;
+
+      if (Number.isFinite(incomingRevision) && incomingRevision <= currentRevision) {
+        return;
+      }
+
+      // When the user has uncommitted local edits, never overwrite their active typing
+      if (currentStore.isDirty) {
+        if (Number.isFinite(incomingRevision)) {
+          setRevision(incomingRevision);
+        }
+        if (Array.isArray(nextDocument.comments)) {
+          currentStore.replaceComments(nextDocument.comments);
+        }
+        return;
+      }
 
       if (typeof nextDocument.content === 'string') {
         const cleanedContent = stripAutoPageBreaks(nextDocument.content);
-        // Only drop if content is identical and revision is not newer
-        if (cleanedContent === currentContent && Number.isFinite(incomingRevision) && incomingRevision <= currentRevision) {
+        if (cleanedContent === currentContent) {
+          if (Number.isFinite(incomingRevision)) setRevision(incomingRevision);
           return;
         }
         suppressNextContentBroadcast.current = cleanedContent;
-        useDocumentStore.getState().applyRemoteUpdate({ ...nextDocument, content: cleanedContent });
+        currentStore.applyRemoteUpdate({ ...nextDocument, content: cleanedContent });
         lastSentContent.current = cleanedContent;
         setLastRemoteEditAt(new Date(nextDocument.updatedAt || Date.now()));
       } else {
-        useDocumentStore.getState().applyRemoteUpdate(nextDocument);
+        currentStore.applyRemoteUpdate(nextDocument);
       }
 
       if (Array.isArray(nextDocument.comments)) {
         const key = commentsKey(nextDocument.comments);
         suppressNextCommentBroadcast.current = key;
-        useDocumentStore.getState().replaceComments(nextDocument.comments);
+        currentStore.replaceComments(nextDocument.comments);
         lastSentComments.current = key;
       }
       if (Number.isFinite(incomingRevision)) {
@@ -200,20 +217,44 @@ export function useCollaboration(docId) {
       setLastSyncedAt(new Date());
     });
 
-    const offConflict = collab.on('conflict', ({ document: latestDocument }) => {
+    const offConflict = collab.on('conflict', ({ document: latestDocument, expectedRevision }) => {
+      const currentStore = useDocumentStore.getState();
+      const nextRevision = Number(expectedRevision ?? latestDocument?.revision);
+      if (Number.isFinite(nextRevision)) {
+        setRevision(nextRevision);
+      }
+
+      // CRITICAL: NEVER overwrite local content if user is currently editing or has uncommitted changes!
+      // The user's typed changes must ALWAYS STAY!
+      const currentContent = currentStore.content;
+      const editorHtml = editor ? editor.getHTML() : currentContent;
+
+      if (currentStore.isDirty || editorHtml !== (latestDocument?.content || '')) {
+        // Re-broadcast local changes with the newly aligned revision so changes are persisted
+        clearTimeout(changeTimer.current);
+        changeTimer.current = setTimeout(() => {
+          collab.broadcastChange({
+            title: currentStore.title,
+            content: editorHtml,
+            comments: currentStore.comments,
+            trackChanges: currentStore.trackChanges,
+            baseRevision: nextRevision,
+            updatedAt: new Date().toISOString(),
+          });
+          lastSentContent.current = editorHtml;
+        }, 150);
+        return;
+      }
+
+      // Only if editor has no uncommitted changes, sync with remote
       if (latestDocument && typeof latestDocument === 'object') {
         const cleanedContent = typeof latestDocument.content === 'string' ? stripAutoPageBreaks(latestDocument.content) : '';
-        suppressNextContentBroadcast.current = cleanedContent;
-        suppressNextCommentBroadcast.current = commentsKey(latestDocument.comments || []);
-        useDocumentStore.getState().applyRemoteUpdate({ ...latestDocument, content: cleanedContent });
-        useDocumentStore.getState().replaceComments(latestDocument.comments || []);
-        if (Number.isFinite(Number(latestDocument.revision))) {
-          setRevision(Number(latestDocument.revision));
+        if (cleanedContent && cleanedContent !== currentContent) {
+          suppressNextContentBroadcast.current = cleanedContent;
+          currentStore.applyRemoteUpdate({ ...latestDocument, content: cleanedContent });
+          lastSentContent.current = cleanedContent;
         }
-        lastSentContent.current = cleanedContent;
-        lastSentComments.current = commentsKey(latestDocument.comments || []);
       }
-      toast('Synced latest version after simultaneous edits', 'warning');
     });
 
     return () => {
