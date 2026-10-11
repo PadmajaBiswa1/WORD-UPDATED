@@ -540,8 +540,8 @@ router.post('/reset-password', async (req, res) => {
 const OAUTH_STATE_COOKIE = 'wx_oauth_state';
 const OAUTH_PROVIDERS = {
   google: {
-    clientId: () => process.env.GOOGLE_CLIENT_ID,
-    clientSecret: () => process.env.GOOGLE_CLIENT_SECRET,
+    clientId: () => (process.env.GOOGLE_CLIENT_ID || '').trim(),
+    clientSecret: () => (process.env.GOOGLE_CLIENT_SECRET || '').trim(),
     authorizeUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
     scope: 'openid email profile',
     async exchange(code, redirectUri) {
@@ -567,8 +567,8 @@ const OAUTH_PROVIDERS = {
     },
   },
   github: {
-    clientId: () => process.env.GITHUB_CLIENT_ID,
-    clientSecret: () => process.env.GITHUB_CLIENT_SECRET,
+    clientId: () => (process.env.GITHUB_CLIENT_ID || '').trim(),
+    clientSecret: () => (process.env.GITHUB_CLIENT_SECRET || '').trim(),
     authorizeUrl: 'https://github.com/login/oauth/authorize',
     scope: 'read:user user:email',
     async exchange(code, redirectUri) {
