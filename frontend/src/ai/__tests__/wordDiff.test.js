@@ -36,4 +36,27 @@ describe('diffWords', () => {
     const b = 'b '.repeat(700);
     expect(diffWords(a, b)).toEqual([{ type: 'delete', text: a }, { type: 'insert', text: b }]);
   });
+
+  it('keeps Indic words with combining marks whole', () => {
+    expect(tokenize('ಕನ್ನಡ')).toEqual(['ಕನ್ನಡ']);
+    expect(tokenize('हिन्दी भाषा')).toEqual(['हिन्दी', ' ', 'भाषा']);
+  });
+
+  it('diffs Kannada as whole words, never a lone vowel sign', () => {
+    expect(diffWords('ನಾನು ಕನ್ನಡ ಕಲಿತೆ', 'ನಾನು ಕನ್ನಡಿ ಕಲಿತೆ')).toEqual([
+      { type: 'equal', text: 'ನಾನು ' },
+      { type: 'delete', text: 'ಕನ್ನಡ' },
+      { type: 'insert', text: 'ಕನ್ನಡಿ' },
+      { type: 'equal', text: ' ಕಲಿತೆ' },
+    ]);
+  });
+
+  it('diffs Hindi as whole words, never a lone vowel sign', () => {
+    expect(diffWords('वह भाषा बोलता है', 'वह भाषी बोलता है')).toEqual([
+      { type: 'equal', text: 'वह ' },
+      { type: 'delete', text: 'भाषा' },
+      { type: 'insert', text: 'भाषी' },
+      { type: 'equal', text: ' बोलता है' },
+    ]);
+  });
 });

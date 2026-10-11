@@ -1,6 +1,7 @@
 // Word-level diff used to turn Pragna's rewrites into reviewable suggestions.
 
-const TOKEN = /\s+|[\p{L}\p{N}_]+|[^\s\p{L}\p{N}_]/gu;
+// Words include combining marks (Indic vowel signs, viramas) and ZWNJ/ZWJ so they never split.
+const TOKEN = /\s+|[\p{L}\p{M}\p{N}_\u200C\u200D]+|[^\s\p{L}\p{M}\p{N}_\u200C\u200D]/gu;
 const MAX_CELLS = 250000; // LCS table size guard (~500 x 500 tokens)
 
 export function tokenize(text = '') {
