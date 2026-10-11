@@ -7,6 +7,7 @@ export function useDocumentAgent(editor) {
   const [steps, setSteps] = useState([]);
   const [lastRun, setLastRun] = useState(null);
   const controllerRef = useRef(null);
+  const runCounterRef = useRef(0);
 
   const run = useCallback(async (prompt, history = []) => {
     if (!editor || running) return null;
@@ -23,8 +24,10 @@ export function useDocumentAgent(editor) {
         onStep: (step) => setSteps((prev) => [...prev, step]),
         signal: controller.signal,
       });
-      setLastRun(result);
-      return result;
+      runCounterRef.current += 1;
+      const tagged = { ...result, runId: runCounterRef.current };
+      setLastRun(tagged);
+      return tagged;
     } finally {
       setRunning(false);
       controllerRef.current = null;
@@ -34,5 +37,5 @@ export function useDocumentAgent(editor) {
   const stop = useCallback(() => controllerRef.current?.abort(), []);
   const undoRun = useCallback(() => (lastRun?.recorder ? lastRun.recorder.undo() : false), [lastRun]);
 
-  return { run, stop, running, steps, lastRun, undoRun };
+  return { run, stop, running, steps, lastRun, lastRunId: lastRun?.runId ?? null, undoRun };
 }

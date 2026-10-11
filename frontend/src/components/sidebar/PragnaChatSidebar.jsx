@@ -418,6 +418,22 @@ Ask me anything or attach files below.`,
     toast('Image URL attached', 'info');
   };
 
+  const handleUndoAgentRun = (msg) => {
+    const undone = agent.undoRun();
+    const skipped = agent.lastRun?.recorder?.skipped || 0;
+    const note = !undone
+      ? 'There was nothing left to undo for that run.'
+      : skipped > 0
+        ? `Undid Pragna's changes, but ${skipped} could not be undone because that text was edited since.`
+        : null;
+    setMessages((prev) => {
+      const next = prev.map((m) => (m.id === msg.id ? { ...m, undone: true } : m));
+      return note
+        ? [...next, { id: `assistant-${Date.now()}`, role: 'assistant', content: note, isError: true, timestamp: new Date() }]
+        : next;
+    });
+  };
+
   const handleSendMessage = async (customText) => {
     const rawPrompt = customText || inputPrompt || textareaRef.current?.value || '';
     const currentAttachments = [...attachments];
@@ -441,7 +457,12 @@ Ask me anything or attach files below.`,
           : `${result?.summary || 'Done.'}${result?.suggestions ? `\n\n_${result.suggestions} change(s) to review._` : ''}`;
         setMessages((prev) => [...prev, {
           id: `assistant-${Date.now()}`, role: 'assistant', content: text, html: markdownToHtml(text),
-          isAgentRun: true, canUndo: Boolean(result?.recorder?.changed), timestamp: new Date(),
+          isAgentRun: true, runId: result?.runId, canUndo: Boolean(result?.recorder?.changed), timestamp: new Date(),
+        }]);
+      } catch (err) {
+        setMessages((prev) => [...prev, {
+          id: `assistant-${Date.now()}`, role: 'assistant', content: err?.message || 'Pragna hit an unexpected error.',
+          isError: true, timestamp: new Date(),
         }]);
       } finally {
         setLoading(false);
@@ -1504,8 +1525,8 @@ Ask me anything or attach files below.`,
                   </button>
                 </div>
               )}
-              {msg.isAgentRun && msg.canUndo && (
-                <button type="button" onClick={() => agent.undoRun()} style={{ marginTop: 4, fontSize: 11, background: 'none', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-secondary)', padding: '2px 8px', cursor: 'pointer' }}>
+              {msg.isAgentRun && msg.canUndo && !msg.undone && msg.runId === agent.lastRunId && (
+                <button type="button" onClick={() => handleUndoAgentRun(msg)} style={{ marginTop: 4, fontSize: 11, background: 'none', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-secondary)', padding: '2px 8px', cursor: 'pointer' }}>
                   Undo Pragna's changes
                 </button>
               )}

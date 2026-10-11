@@ -65,4 +65,31 @@ describe('runAgent', () => {
     const result = await runAgent({ editor, prompt: 'p', signal: controller.signal, agentStep: async () => ({ success: true, content: 'x', tool_calls: [] }) });
     expect(result.stopped).toBe(true);
   });
+
+  it('returns an error and detaches listeners when a step throws', async () => {
+    const editor = createTestEditor('<p>teh fox</p>');
+    const before = editor.emitter?.events?.transaction?.length ?? null;
+    let n = 0;
+    const result = await runAgent({
+      editor,
+      prompt: 'fix',
+      agentStep: async () => ({ success: true, content: '', tool_calls: [call('get_outline', {})] }),
+      onStep: () => { if (n++ === 2) throw new Error('boom'); },
+    });
+    expect(result.error).toBe('boom');
+    expect(result.recorder).toBeTruthy();
+    if (before !== null) expect(editor.emitter.events.transaction?.length ?? 0).toBe(before);
+    // Listeners are gone: a later edit is not recorded.
+    editor.commands.insertContentAt(1, 'x');
+    expect(result.recorder.maps).toHaveLength(0);
+  });
+
+  it('detaches listeners when setup throws', async () => {
+    const editor = createTestEditor('<p>x</p>');
+    const result = await runAgent({ editor, prompt: 'p', history: null, agentStep: async () => ({ success: true, content: 'x', tool_calls: [] }) });
+    expect(result.error).toBeTruthy();
+    expect(result.recorder).toBeTruthy();
+    editor.commands.insertContentAt(1, 'y');
+    expect(result.recorder.maps).toHaveLength(0);
+  });
 });

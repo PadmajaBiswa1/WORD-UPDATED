@@ -36,47 +36,57 @@ Selection: ${selection.selected ? JSON.stringify(selection) : 'none'}`;
 }
 
 export async function runAgent({ editor, prompt, history = [], agentStep, onStep = () => {}, signal, maxSteps = 15 }) {
-  const refs = new BlockRefs(editor);
-  const recorder = new RunRecorder(editor);
-  const before = new Set(listSuggestionIds(editor.state.doc));
-  const messages = [
-    { role: 'system', content: SYSTEM_PROMPT },
-    ...history,
-    { role: 'user', content: contextMessage(editor, refs, prompt) },
-  ];
-  const ctx = { editor, refs };
+  let refs = null;
+  let recorder = null;
+  let before = new Set();
+  let steps = 0;
   const finish = (extra) => {
-    refs.detach();
-    recorder.stop();
+    refs?.detach();
+    recorder?.stop();
     const suggestions = listSuggestionIds(editor.state.doc).filter((id) => !before.has(id)).length;
     return { summary: '', steps, suggestions, stopped: false, recorder, ...extra };
   };
 
-  let steps = 0;
-  while (steps < maxSteps) {
-    if (signal?.aborted) return finish({ stopped: true, summary: 'Stopped.' });
-    steps += 1;
-    onStep({ kind: 'thinking', label: steps === 1 ? 'Thinking…' : 'Continuing…' });
-    let res;
-    try {
-      res = await agentStep({ messages, tools: TOOL_SCHEMAS });
-    } catch (err) {
-      return finish({ error: err.message || 'Pragna could not reach the model' });
-    }
-    if (signal?.aborted) return finish({ stopped: true, summary: 'Stopped.' });
-    if (!res?.success) return finish({ error: res?.message || 'Pragna did not return a response' });
+  try {
+    refs = new BlockRefs(editor);
+    recorder = new RunRecorder(editor);
+    before = new Set(listSuggestionIds(editor.state.doc));
+    const messages = [
+      { role: 'system', content: SYSTEM_PROMPT },
+      ...history,
+      { role: 'user', content: contextMessage(editor, refs, prompt) },
+    ];
+    const ctx = { editor, refs };
 
-    const calls = res.tool_calls || [];
-    messages.push({ role: 'assistant', content: res.content || '', ...(calls.length ? { tool_calls: calls } : {}) });
-    if (!calls.length) return finish({ summary: res.content || 'Done.' });
+    while (steps < maxSteps) {
+      if (signal?.aborted) return finish({ stopped: true, summary: 'Stopped.' });
+      steps += 1;
+      onStep({ kind: 'thinking', label: steps === 1 ? 'Thinking…' : 'Continuing…' });
+      let res;
+      try {
+        res = await agentStep({ messages, tools: TOOL_SCHEMAS });
+      } catch (err) {
+        return finish({ error: err.message || 'Pragna could not reach the model' });
+      }
+      if (signal?.aborted) return finish({ stopped: true, summary: 'Stopped.' });
+      if (!res?.success) return finish({ error: res?.message || 'Pragna did not return a response' });
 
-    for (const call of calls) {
-      let args = {};
-      try { args = JSON.parse(call.function?.arguments || '{}'); } catch { args = {}; }
-      onStep({ kind: 'tool', label: labelFor(call.function?.name, args), edits: EDITING_TOOLS.has(call.function?.name) });
-      const result = executeTool(call.function?.name, call.function?.arguments, ctx);
-      messages.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify(result) });
+      const calls = res.tool_calls || [];
+      messages.push({ role: 'assistant', content: res.content || '', ...(calls.length ? { tool_calls: calls } : {}) });
+      if (!calls.length) return finish({ summary: res.content || 'Done.' });
+
+      for (const call of calls) {
+        let args = {};
+        try { args = JSON.parse(call.function?.arguments || '{}'); } catch { args = {}; }
+        onStep({ kind: 'tool', label: labelFor(call.function?.name, args), edits: EDITING_TOOLS.has(call.function?.name) });
+        const result = executeTool(call.function?.name, call.function?.arguments, ctx);
+        messages.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify(result) });
+      }
     }
+    return finish({ error: `Stopped at the step limit (${maxSteps}). Changes so far are kept for review.` });
+  } catch (err) {
+    // Setup, tool execution or an onStep callback threw: still detach listeners and keep any
+    // changes already made undoable through the returned recorder.
+    return finish({ error: err?.message || 'Pragna hit an unexpected error' });
   }
-  return finish({ error: `Stopped at the step limit (${maxSteps}). Changes so far are kept for review.` });
 }
