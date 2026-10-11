@@ -682,19 +682,24 @@ router.get('/:provider(google|github)/callback', async (req, res) => {
   const { provider } = req.params;
   const expectedState = readCookie(req, OAUTH_STATE_COOKIE);
   res.clearCookie(OAUTH_STATE_COOKIE, { path: '/api/auth' });
-  const failed = () => res.redirect(`${frontendUrl()}/signin?error=${provider}_auth_failed`);
+  const failed = (reason) => {
+    console.warn(`[auth] ${provider} OAuth failed: ${reason}`);
+    res.redirect(`${frontendUrl()}/signin?error=${provider}_auth_failed`);
+  };
 
-  const { code, state } = req.query;
-  if (!code || !state || !expectedState || state !== expectedState) return failed();
+  const { code, state, error } = req.query;
+  if (error) return failed(`provider returned error=${error}`);
+  if (!code || !state) return failed('callback missing code or state');
+  if (!expectedState) return failed('state cookie missing (blocked, expired, or different host than the start request)');
+  if (state !== expectedState) return failed('state mismatch');
 
   try {
     const profile = await OAUTH_PROVIDERS[provider].exchange(String(code), oauthRedirectUri(req, provider));
     const user = await findOrCreateOAuthUser(profile);
-    if (user.status === 'deactivated') return failed();
+    if (user.status === 'deactivated') return failed('account deactivated');
     res.redirect(`${frontendUrl()}/auth/callback#token=${encodeURIComponent(signToken(user))}`);
   } catch (err) {
-    console.warn(`[auth] ${provider} OAuth failed:`, err.message);
-    failed();
+    failed(err.message);
   }
 });
 
