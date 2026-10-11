@@ -597,10 +597,13 @@ function frontendUrl() {
   return (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
 }
 
-// The frontend origin proxies /api in dev and serves it directly in production, so the
-// provider calls back through the same origin the user started on.
-function oauthRedirectUri(provider) {
-  return `${frontendUrl()}/api/auth/${provider}/callback`;
+// The provider must call back to the backend host that started the flow (that host holds the
+// state cookie). BACKEND_URL pins it; otherwise use this request's host, honouring the proxy's
+// forwarded protocol (Render terminates TLS in front of Node).
+function oauthRedirectUri(req, provider) {
+  const proto = String(req.get('x-forwarded-proto') || req.protocol).split(',')[0].trim();
+  const base = (process.env.BACKEND_URL || `${proto}://${req.get('host')}`).replace(/\/$/, '');
+  return `${base}/api/auth/${provider}/callback`;
 }
 
 function readCookie(req, name) {
@@ -666,7 +669,7 @@ router.get('/:provider(google|github)', (req, res) => {
   });
   const params = new URLSearchParams({
     client_id: config.clientId(),
-    redirect_uri: oauthRedirectUri(provider),
+    redirect_uri: oauthRedirectUri(req, provider),
     response_type: 'code',
     scope: config.scope,
     state,
@@ -685,7 +688,7 @@ router.get('/:provider(google|github)/callback', async (req, res) => {
   if (!code || !state || !expectedState || state !== expectedState) return failed();
 
   try {
-    const profile = await OAUTH_PROVIDERS[provider].exchange(String(code), oauthRedirectUri(provider));
+    const profile = await OAUTH_PROVIDERS[provider].exchange(String(code), oauthRedirectUri(req, provider));
     const user = await findOrCreateOAuthUser(profile);
     if (user.status === 'deactivated') return failed();
     res.redirect(`${frontendUrl()}/auth/callback#token=${encodeURIComponent(signToken(user))}`);
