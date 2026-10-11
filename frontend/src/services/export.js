@@ -6,6 +6,7 @@ import { PAGE_SIZES, MARGIN_MAP } from '@/utils/pageLayout';
 import { useDocumentStore, useUIStore } from '@/store';
 import { stripAutoPageBreaks } from '@/components/editor/PageBreak';
 import { WORD_SINGLE_LINE } from '@/services/docxImport';
+import { acceptSuggestionsInHtml } from '@/services/suggestionHtml';
 
 export function sanitizeFilename(name) {
   return (name || 'document').replace(/[^a-z0-9_\-\s]/gi, '_').trim() || 'document';
@@ -123,7 +124,7 @@ export function prepareExportHtml(rawHtml = '', options = {}) {
 
   // Auto page breaks are the editor's on-screen layout spacers; the target format paginates
   // itself, so only manual breaks are exported.
-  let html = stripAutoPageBreaks(rawHtml)
+  let html = stripAutoPageBreaks(options.keepSuggestions ? rawHtml : acceptSuggestionsInHtml(rawHtml))
     // Standardize all page break div variations into clean page break elements
     .replace(
       /<div\b[^>]*?(?:data-page-break=["']true["']|class=["'][^"']*?etherx-page-break[^"']*?["']|data-etherx-auto-break=["']true["'])[^>]*>(?:&nbsp;|\s)*<\/div>/gi,
@@ -863,6 +864,8 @@ export async function buildDocxBlob(rawHtml, options = {}) {
     Footer,
     PageNumber,
     ImageRun,
+    InsertedTextRun,
+    DeletedTextRun,
     PageOrientation,
     HorizontalPositionAlign,
     HorizontalPositionRelativeFrom,
@@ -908,7 +911,7 @@ export async function buildDocxBlob(rawHtml, options = {}) {
   // CSS line-height n shows lines n x font size apart; Word's single (240) is ~1.15 x font size.
   const wordLineSpacing = Math.round((lineSpacingMultiplier / WORD_SINGLE_LINE) * 240);
 
-  const cleanHtml = prepareExportHtml(rawHtml, options);
+  const cleanHtml = prepareExportHtml(rawHtml, { ...options, keepSuggestions: true });
   const div = document.createElement('div');
   div.innerHTML = cleanHtml;
 
@@ -1059,6 +1062,12 @@ export async function buildDocxBlob(rawHtml, options = {}) {
     return runs;
   };
 
+  const revisionIds = new Map();
+  const revisionId = (key) => {
+    if (!revisionIds.has(key)) revisionIds.set(key, revisionIds.size + 1);
+    return revisionIds.get(key);
+  };
+
   // Helper to extract styled TextRuns recursively from inline nodes
   const parseInlineNodes = (node, inheritedProps = {}) => {
     const runs = [];
@@ -1067,7 +1076,13 @@ export async function buildDocxBlob(rawHtml, options = {}) {
       if (currNode.nodeType === 3) {
         const txt = currNode.textContent;
         if (txt) {
-          runs.push(new TextRun({ text: txt, font: bodyFont, ...currProps }));
+          const { __revision: revision, ...props } = currProps;
+          if (revision) {
+            const Run = revision.kind === 'ins' ? InsertedTextRun : DeletedTextRun;
+            runs.push(new Run({ text: txt, font: bodyFont, ...props, id: revision.id, author: revision.author, date: revision.date }));
+          } else {
+            runs.push(new TextRun({ text: txt, font: bodyFont, ...props }));
+          }
         }
         return;
       }
@@ -1087,14 +1102,15 @@ export async function buildDocxBlob(rawHtml, options = {}) {
       if (tag === 'u' || style.textDecoration?.includes('underline')) {
         nextProps.underline = {};
       }
-      if (tag === 's' || tag === 'strike' || tag === 'del' || style.textDecoration?.includes('line-through')) {
+      if (tag === 's' || tag === 'strike' || (tag === 'del' && !currNode.hasAttribute('data-suggestion')) || style.textDecoration?.includes('line-through')) {
         nextProps.strike = true;
       }
       if (tag === 'code') {
         nextProps.font = 'Courier New';
       }
       if (tag === 'br') {
-        runs.push(new TextRun({ break: 1, ...currProps }));
+        const { __revision: _brRevision, ...brProps } = currProps;
+        runs.push(new TextRun({ break: 1, ...brProps }));
         return;
       }
       if (tag === 'img') {
@@ -1123,8 +1139,20 @@ export async function buildDocxBlob(rawHtml, options = {}) {
         if (mappedFont) nextProps.font = mappedFont;
       }
 
+      if ((tag === 'ins' || tag === 'del') && currNode.hasAttribute('data-suggestion')) {
+        const revision = {
+          kind: tag,
+          id: revisionId(currNode.getAttribute('data-suggestion')),
+          author: currNode.getAttribute('data-author') || 'Pragna',
+          date: currNode.getAttribute('data-created') || new Date().toISOString(),
+        };
+        currNode.childNodes.forEach((child) => walkInline(child, { ...nextProps, __revision: revision }));
+        return;
+      }
+
       if (tag === 'a' && currNode.getAttribute('href')) {
         const href = currNode.getAttribute('href');
+        const { __revision: _linkRevision, ...linkProps } = nextProps;
         const linkRuns = [];
         currNode.childNodes.forEach((child) => {
           if (child.nodeType === 3) {
@@ -1133,7 +1161,7 @@ export async function buildDocxBlob(rawHtml, options = {}) {
               color: '0563C1',
               underline: {},
               font: bodyFont,
-              ...nextProps,
+              ...linkProps,
             }));
           } else {
             walkInline(child, { color: '0563C1', underline: {}, font: bodyFont, ...nextProps });

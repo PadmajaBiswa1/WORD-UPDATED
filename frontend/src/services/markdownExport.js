@@ -2,6 +2,7 @@
 //  EtherX Word — Markdown Export Service
 // ═══════════════════════════════════════════════════════════════
 import fileSaver from 'file-saver';
+import { acceptSuggestionsInHtml } from '@/services/suggestionHtml';
 
 const saveAs = fileSaver?.saveAs || fileSaver;
 
@@ -238,6 +239,7 @@ function renderJsonNodes(nodes = [], indentLevel = 0) {
  * @returns {string}
  */
 export function htmlToMarkdown(html) {
+  html = acceptSuggestionsInHtml(html);
   if (!html || typeof html !== 'string') return '';
 
   let text = html

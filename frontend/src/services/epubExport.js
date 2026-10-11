@@ -3,6 +3,7 @@
 // ═══════════════════════════════════════════════════════════════
 import JSZip from 'jszip';
 import fileSaver from 'file-saver';
+import { acceptSuggestionsInHtml } from '@/services/suggestionHtml';
 
 const saveAs = fileSaver?.saveAs || fileSaver;
 
@@ -219,6 +220,7 @@ img {
  * @returns {Promise<{ blob: Blob, filename: string, chapters: number }>}
  */
 export async function exportToEpub(title = 'Untitled Document', contentHtml = '', metadata = {}) {
+  contentHtml = acceptSuggestionsInHtml(contentHtml);
   const zip = new JSZip();
   const docTitle = title || 'Untitled Document';
   const author = metadata.author || 'EtherX Word Author';
@@ -396,6 +398,7 @@ ${spineItems}
  * Builds an EPUB blob without initiating browser download.
  */
 export async function buildEpubBlob(title, contentHtml, options = {}) {
+  contentHtml = acceptSuggestionsInHtml(contentHtml);
   const zip = new JSZip();
   // Call exportToEpub logic without saveAs by temporarily shadowing saveAs or using internal helper
   const filename = `${sanitizeFilename(title)}.epub`;
