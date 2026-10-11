@@ -1351,3 +1351,10 @@ body.etherx-is-resizing img,
     line-height: 1.5 !important;
   }
 }
+
+/* Pragna suggestions and comment anchors */
+.ProseMirror ins.etherx-suggest-insert { color: #6fcf8f; text-decoration: underline; text-decoration-color: rgba(111, 207, 143, 0.7); background: rgba(111, 207, 143, 0.10); cursor: pointer; }
+.ProseMirror del.etherx-suggest-delete { color: #ff8a83; text-decoration: line-through; background: rgba(216, 68, 61, 0.10); cursor: pointer; }
+.ProseMirror .etherx-comment-anchor { background: rgba(217, 181, 74, 0.22); border-bottom: 1px dashed #d9b54a; }
+.etherx-suggestion-popover { position: fixed; z-index: 1000; display: flex; gap: 4px; padding: 4px; border-radius: 8px; background: var(--bg-elevated); border: 1px solid var(--border); box-shadow: var(--shadow-md); }
+.etherx-suggestion-popover button { border: 0; border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; }

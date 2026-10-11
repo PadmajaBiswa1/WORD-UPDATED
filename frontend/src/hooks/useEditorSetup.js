@@ -34,6 +34,7 @@ import { ProductivityExtension } from '@/services/productivityExtension';
 import { useEditorStore, useDocumentStore, useUIStore } from '@/store';
 import { normalizeFontFamily } from '@/components/toolbar/fontFormatting.jsx';
 import { focusBelowBlockOrDocEnd } from '@/utils/editorCursorPlacement';
+import { SuggestInsert, SuggestDelete, CommentAnchor, Suggestions } from '@/ai/suggestions';
 
 const LANGUAGE_KEY = 'etherx-language';
 
@@ -410,6 +411,7 @@ export function useEditorSetup() {
     Highlight.configure({ multicolor: true }),
     Link.configure({ openOnClick: false, HTMLAttributes: { rel: 'noopener noreferrer', target: '_blank' } }),
     ResizableImage.configure({ allowBase64: true }),
+    SuggestInsert, SuggestDelete, CommentAnchor, Suggestions,
     Table.configure({ resizable: true }),
     TableRow, TableCell, TableHeader,
     TaskList,
