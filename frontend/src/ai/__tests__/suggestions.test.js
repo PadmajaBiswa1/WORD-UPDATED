@@ -75,3 +75,39 @@ describe('suggestions', () => {
     expect(listSuggestionIds(reloaded.state.doc)).toEqual(['s1']);
   });
 });
+
+describe('resolveSuggestions container cleanup', () => {
+  const ins = (inner) => `<ins data-suggestion="s9" data-author="Pragna" data-created="x">${inner}</ins>`;
+
+  it('rejecting an inserted bullet removes the whole list item', () => {
+    const editor = createTestEditor(`<ul><li><p>a</p></li><li><p>${ins('new')}</p></li></ul>`);
+    editor.commands.rejectAllSuggestions();
+    expect(editor.getHTML()).toBe('<ul><li><p>a</p></li></ul>');
+  });
+
+  it('rejecting a fully inserted list removes the list', () => {
+    const editor = createTestEditor(`<p>x</p><ul><li><p>${ins('one')}</p></li><li><p>${ins('two')}</p></li></ul><p>y</p>`);
+    editor.commands.rejectAllSuggestions();
+    expect(editor.getHTML()).toBe('<p>x</p><p>y</p>');
+  });
+
+  it('rejecting a fully inserted table removes the table', () => {
+    const editor = createTestEditor(`<p>x</p><table><tbody><tr><td><p>${ins('a')}</p></td><td><p>${ins('b')}</p></td></tr></tbody></table>`);
+    editor.commands.rejectAllSuggestions();
+    expect(editor.getHTML()).toBe('<p>x</p>');
+  });
+
+  it('keeps a table cell paragraph when only that cell is emptied', () => {
+    const editor = createTestEditor(`<table><tbody><tr><td><p>${ins('a')}</p></td><td><p>b</p></td></tr></tbody></table>`);
+    editor.commands.rejectAllSuggestions();
+    expect(editor.getHTML()).toContain('<p></p>');
+    expect(editor.getText()).toContain('b');
+  });
+
+  it('keeps the only block of the document', () => {
+    const editor = createTestEditor(`<ul><li><p>${ins('only')}</p></li></ul>`);
+    editor.commands.rejectAllSuggestions();
+    expect(editor.state.doc.childCount).toBeGreaterThan(0);
+  });
+});
+

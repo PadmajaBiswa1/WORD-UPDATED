@@ -119,14 +119,51 @@ export function resolveSuggestions(tr, mode, { from = 0, to = tr.doc.content.siz
     else merged.push({ ...r });
   });
   // Delete from the end so earlier positions stay valid. A range covering a whole textblock
-  // removes the block too, as long as its parent keeps another child.
+  // removes the block too, as long as its parent keeps another child. When the parent has no other
+  // child, the emptied block is cleaned up together with any container left with nothing in it.
   merged.reverse().forEach(({ from: a, to: b }) => {
     const $a = tr.doc.resolve(a);
     const wholeBlock = a === $a.start() && b === $a.end();
-    if (wholeBlock && $a.depth > 0 && $a.node(-1).childCount > 1) tr.delete($a.before(), $a.after());
-    else tr.delete(a, b);
+    if (wholeBlock && $a.depth > 0 && $a.node(-1).childCount > 1) {
+      tr.delete($a.before(), $a.after());
+    } else {
+      tr.delete(a, b);
+      if (wholeBlock && $a.depth > 0) removeEmptyContainers(tr, $a.before());
+    }
   });
   return tr;
+}
+
+const EMPTY_CONTAINERS = new Set([
+  'listItem', 'taskItem', 'bulletList', 'orderedList', 'taskList', 'blockquote',
+  'tableCell', 'tableHeader', 'tableRow', 'table',
+]);
+const TABLE_CELLS = new Set(['tableCell', 'tableHeader']);
+
+function isEmptyNode(node) {
+  if (node.textContent !== '') return false;
+  let hasLeaf = false;
+  node.descendants((child) => {
+    if (child.isLeaf && !child.isText) hasLeaf = true;
+    return !hasLeaf;
+  });
+  return !hasLeaf;
+}
+
+// The textblock at `blockPos` was just emptied. Climb to the highest container that is now empty
+// and delete it (unless that would leave its own parent without children).
+function removeEmptyContainers(tr, blockPos) {
+  const $p = tr.doc.resolve(blockPos);
+  let top = null;
+  for (let d = $p.depth; d > 0; d -= 1) {
+    const n = $p.node(d);
+    if (!EMPTY_CONTAINERS.has(n.type.name) || !isEmptyNode(n)) break;
+    top = d;
+  }
+  // A table cell must keep a paragraph; only remove cells' contents above the cell, never the cell.
+  if (top !== null && TABLE_CELLS.has($p.node(top).type.name)) top = top < $p.depth ? top + 1 : null;
+  if (top === null || top < 1) return;
+  if ($p.node(top - 1).childCount > 1) tr.delete($p.before(top), $p.after(top));
 }
 
 export function listSuggestionIds(doc) {

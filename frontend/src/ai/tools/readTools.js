@@ -8,6 +8,7 @@ export const safe = (fn, name) => (args, ctx) => {
   try {
     return fn(args, ctx);
   } catch (e) {
+    console.error(`[pragna] ${name} threw`, e);
     return { error: `${name} failed: ${e && e.message ? e.message : e}` };
   }
 };
@@ -34,12 +35,33 @@ export function listBlocks(ctx) {
 
 const textOf = (node, pos) => blockText(node, pos + 1, 'accepted').text;
 
+// Accepted-view text of a table cell (or row): one line per textblock inside it.
+function cellText(cell, cellPos) {
+  const lines = [];
+  cell.descendants((node, pos) => {
+    if (!node.isTextblock) return true;
+    const text = textOf(node, cellPos + 1 + pos);
+    // A paragraph whose content is entirely pending deletion no longer exists in the accepted view.
+    if (text === '' && node.content.size > 0) return false;
+    lines.push(text);
+    return false;
+  });
+  return lines.join('\n');
+}
+
 function describe(entry, ctx, full) {
   if (entry.kind === 'table') {
     const id = ctx.refs.tableIdFor(entry.pos);
     const rows = entry.node.childCount;
     const cols = entry.node.firstChild ? entry.node.firstChild.childCount : 0;
-    const first = entry.node.firstChild ? entry.node.firstChild.textContent.slice(0, 80) : '';
+    const row = entry.node.firstChild;
+    const first = row
+      ? (() => {
+        const cells = [];
+        row.forEach((cell, offset) => cells.push(cellText(cell, entry.pos + 1 + 1 + offset)));
+        return cells.join(' | ').slice(0, 80);
+      })()
+      : '';
     return { id, type: 'table', rows, cols, text: first };
   }
   const id = ctx.refs.idFor(entry.pos);
@@ -111,22 +133,29 @@ function findTextImpl({ query, match_case = false } = {}, ctx) {
 function getSelectionImpl(_args, ctx) {
   const { from, to, empty } = ctx.editor.state.selection;
   if (empty) return { selected: false, blocks: [] };
-  const blocks = [];
+  const entries = [];
   ctx.editor.state.doc.nodesBetween(from, to, (node, pos) => {
     if (!node.isTextblock) return true;
-    blocks.push({ id: ctx.refs.idFor(pos), text: textOf(node, pos) });
+    entries.push({ node, pos });
     return false;
   });
-  return { selected: true, text: ctx.editor.state.doc.textBetween(from, to, '\n'), blocks };
+  const truncated = entries.length > MAX_READ;
+  const blocks = entries.slice(0, MAX_READ).map(({ node, pos }) => ({ id: ctx.refs.idFor(pos), text: textOf(node, pos) }));
+  return {
+    selected: true,
+    text: blocks.map((b) => b.text).join('\n'),
+    blocks,
+    ...(truncated ? { truncated: true } : {}),
+  };
 }
 
 function readTableImpl({ table_id } = {}, ctx) {
   const table = ctx.refs.resolve(table_id);
-  if (!table) return { error: 'unknown table id; call get_outline first' };
+  if (!table || table.node.type.name !== 'table') return { error: 'unknown table id; call get_outline first' };
   const rows = [];
-  table.node.forEach((row, _o, r) => {
+  table.node.forEach((row, rowOffset, r) => {
     const cells = [];
-    row.forEach((cell, _c, c) => cells.push({ cell_id: `${table_id}.r${r}c${c}`, text: cell.textContent }));
+    row.forEach((cell, offset, c) => cells.push({ cell_id: `${table_id}.r${r}c${c}`, text: cellText(cell, table.pos + 1 + rowOffset + 1 + offset) }));
     rows.push(cells);
   });
   return { table_id, rows };
