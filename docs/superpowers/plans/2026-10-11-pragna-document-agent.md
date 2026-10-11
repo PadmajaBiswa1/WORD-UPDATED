@@ -30,7 +30,7 @@
 
 ## Review Focus
 
-- Editing a block that already contains pending suggestions twice in one run — expected: one clean original→final diff, no doubled text. (Task 5 test `rewrite twice`.)
+- Editing a block that already contains pending suggestions twice in one run, including a block Pragna itself inserted — expected: one clean original→final diff, no doubled text, neighbours untouched. (Task 5 tests `rewrite twice`, `rewrites a block Pragna inserted`.)
 - The user types in the document while a run is in progress — expected: ids still point at the same blocks; a deleted block returns `{ error }` instead of editing the wrong text. (Task 3 tests.)
 - Model returns malformed tool arguments (non-JSON) or an unknown tool name — expected: tool result `{ error }`, run continues. (Task 8 test.)
 - Rejecting an inserted whole paragraph / accepting a deleted whole paragraph — expected: the empty paragraph is removed too, not left behind. (Task 2 tests.)
@@ -1015,6 +1015,17 @@ describe('edit tools', () => {
     expect(editor.getHTML()).toBe('<p>teh quick fox</p>');
   });
 
+  it('rewrites a block Pragna inserted without touching its neighbours', () => {
+    const { editor, ctx } = setup('<p>first</p><p>last</p>');
+    insertBlocks({ after_id: idOf(getOutline({}, ctx), 'first'), markdown: 'draft line' }, ctx);
+    const inserted = idOf(getOutline({}, ctx), 'draft');
+    rewriteBlock({ block_id: inserted, text: 'final line' }, ctx);
+    expect(editor.getText()).toContain('final line');
+    expect(editor.getText()).toContain('last');
+    editor.commands.rejectAllSuggestions();
+    expect(editor.getHTML()).toBe('<p>first</p><p>last</p>');
+  });
+
   it('replace_text reports a missing phrase', () => {
     const { ctx } = setup('<p>abc</p>');
     const id = idOf(getOutline({}, ctx), 'abc');
@@ -1200,6 +1211,14 @@ function dispatch(ctx, tr) {
 function rewriteResolved(ctx, hit, newText) {
   const { tr } = ctx.editor.state;
   const start = hit.pos + 1;
+  // A block Pragna inserted in this or an earlier run has no original text: rejecting would delete
+  // the block itself. Replace its text instead, keeping it one pending insertion.
+  if (hit.node.content.size > 0 && blockText(hit.node, start, 'original').text === '') {
+    const existing = hit.node.firstChild?.marks.find((m) => m.type.name === 'suggestInsert');
+    tr.replaceWith(start, start + hit.node.content.size, ctx.editor.schema.text(newText || ' ', [existing]));
+    dispatch(ctx, tr);
+    return { ok: true, suggestion_id: existing.attrs.id };
+  }
   resolveSuggestions(tr, 'reject', { from: start, to: start + hit.node.content.size });
   const node = tr.doc.nodeAt(hit.pos);
   const original = blockText(node, start, 'original').text;
@@ -1284,7 +1303,7 @@ export function setTableCell({ cell_id, text } = {}, ctx) {
 - [ ] **Step 5: Run to verify it passes**
 
 Run: `npm test --workspace=frontend -- tools`
-Expected: PASS (10 tests).
+Expected: PASS (11 tests).
 
 - [ ] **Step 6: Commit**
 
