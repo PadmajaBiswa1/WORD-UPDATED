@@ -1,6 +1,7 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { Fragment } from '@tiptap/pm/model';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
+import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { getLayoutMetrics, PAGE_SIZES, PAGE_GAP } from '@/utils/pageLayout';
 import { useUIStore, useDocumentStore } from '@/store';
 
@@ -137,6 +138,108 @@ function getNodeHash(node) {
 
 let isPaginating = false;
 
+// ── Splitting tall blocks across pages ─────────────────────────
+// Page breaks can only sit between top-level blocks, so a table, list or quote taller than the
+// remaining page would run over the page gap. Instead it starts where it is, and an on-screen
+// spacer (a widget decoration, never part of the document) is placed before each inner
+// paragraph that would cross a page boundary, pushing it to the top of the next page.
+const INNER_BREAK_CLASS = 'etherx-inner-break';
+const INNER_BREAKS_META = 'etherxInnerBreaks';
+const SPLITTABLE_BLOCKS = new Set(['table', 'bulletList', 'orderedList', 'taskList', 'blockquote']);
+const LEAF_SELECTOR = 'p, h1, h2, h3, h4, h5, h6, pre, img, hr, table';
+const MIN_SPLIT_SPACE = 72; // less room than this left on the page: start the block on the next one
+
+let measureSheet = null;
+// Hides the spacers while measuring so every pass sees the natural layout.
+function setSpacersHidden(hidden) {
+  if (typeof document === 'undefined') return;
+  if (!measureSheet) {
+    measureSheet = document.createElement('style');
+    measureSheet.textContent = `.ProseMirror .${INNER_BREAK_CLASS} { display: none !important; }`;
+    document.head.appendChild(measureSheet);
+  }
+  measureSheet.disabled = !hidden;
+}
+
+// Leaf blocks in document order: paragraphs in table cells, list items and quotes. A nested
+// table or an image inside a paragraph moves as one piece.
+function collectLeaves(blockEl) {
+  const ownTable = blockEl.tagName === 'TABLE' ? blockEl : blockEl.querySelector(':scope > table');
+  return Array.from(blockEl.querySelectorAll(LEAF_SELECTOR))
+    .filter((el) => {
+      if (el === ownTable || el.classList.contains(INNER_BREAK_CLASS)) return false;
+      const outer = el.parentElement?.closest(LEAF_SELECTOR);
+      return !outer || !blockEl.contains(outer) || outer === ownTable;
+    })
+    // A nested table's node DOM is its wrapper; the spacer must go before that, not inside.
+    .map((el) => (el.tagName === 'TABLE' && el.parentElement?.classList.contains('tableWrapper') ? el.parentElement : el));
+}
+
+// Temporary spacers inserted during one pagination pass. They stay until the pass ends so later
+// blocks are measured below the earlier blocks' spacers; ProseMirror's DOM observer is paused
+// meanwhile so they never reach the document.
+const passTemps = [];
+let passView = null;
+function endSplitPass() {
+  passTemps.splice(0).forEach((t) => t.remove());
+  if (passView) passView.domObserver?.start?.();
+  passView = null;
+}
+
+// Measures, in the real DOM, where each leaf of a splittable block lands and inserts temporary
+// spacers so no leaf crosses a page boundary. Coordinates are relative to the editor content top,
+// where page n's text area starts at n * pageStep.
+function planSplittable(view, blockEl, pageStep, contentHeight) {
+  const pmRect = view.dom.getBoundingClientRect();
+  const scale = pmRect.height / view.dom.offsetHeight || 1;
+  const yOf = (el) => (el.getBoundingClientRect().top - pmRect.top) / scale;
+  const spacers = [];
+  const leaves = collectLeaves(blockEl).map((leaf) => {
+    const parent = leaf.parentNode;
+    let pos = null;
+    try { pos = view.posAtDOM(parent, Array.prototype.indexOf.call(parent.childNodes, leaf)); } catch {}
+    return { leaf, pos };
+  });
+  if (!passView) {
+    view.domObserver?.stop?.();
+    passView = view;
+  }
+  for (const { leaf, pos } of leaves) {
+    if (pos === null) continue;
+    const top = yOf(leaf);
+    const height = leaf.getBoundingClientRect().height / scale;
+    const page = Math.floor(top / pageStep);
+    const pageTop = page * pageStep;
+    const limit = pageTop + contentHeight;
+    if (!((top >= limit || top + height > limit) && height <= contentHeight && top > pageTop + 0.5)) continue;
+
+    const parent = leaf.parentNode;
+    const target = (page + 1) * pageStep;
+    const temp = document.createElement('div');
+    temp.style.cssText = `display:block;height:${target - top}px;margin:0;padding:0;`;
+    parent.insertBefore(temp, leaf);
+    passTemps.push(temp);
+    // Margin collapsing changes once something sits between the blocks; correct for it.
+    const landed = yOf(leaf);
+    const height2 = Math.max(0, target - top - (landed - target));
+    temp.style.height = `${height2}px`;
+    spacers.push({ pos, height: Math.round(height2) });
+  }
+  const bottom = (blockEl.getBoundingClientRect().bottom - pmRect.top) / scale;
+  return { spacers, bottom };
+}
+
+function spacerWidget(pos, height) {
+  return Decoration.widget(pos, () => {
+    const el = document.createElement('div');
+    el.className = INNER_BREAK_CLASS;
+    el.setAttribute('contenteditable', 'false');
+    el.setAttribute('aria-hidden', 'true');
+    el.style.cssText = `display:block;height:${height}px;margin:0;padding:0;pointer-events:none;user-select:none;`;
+    return el;
+  }, { side: -1, key: `${INNER_BREAK_CLASS}-${height}`, ignoreSelection: true });
+}
+
 function paginateDocument(view, heightCache) {
   if (!view?.state?.doc || view.isDestroyed || isPaginating) return false;
 
@@ -176,6 +279,17 @@ function paginateDocument(view, heightCache) {
     }
   }
 
+  endSplitPass(); // in case an earlier pass threw before cleaning up
+  setSpacersHidden(true);
+  const innerSpacers = []; // { pos (old doc), blockIndex, height }
+  const newBlockStart = []; // per source block index: its start offset in the new doc
+  let nextOffset = 0;
+  const pushNode = (node, sourceIndex) => {
+    if (sourceIndex !== undefined) newBlockStart[sourceIndex] = nextOffset;
+    nextNodes.push(node);
+    nextOffset += node.nodeSize;
+  };
+
   const nextNodes = [];
   let currentPage = 0;
   let currentY = 0; // Relative to start of ProseMirror content (Page 0 starts at 0)
@@ -189,7 +303,7 @@ function paginateDocument(view, heightCache) {
     // Handle Manual Page Breaks
     if (isManualPageBreak(node)) {
       const fillHeight = Math.max(1, (currentPage + 1) * pageStep - currentY);
-      nextNodes.push(pageBreakType.create({ auto: false, manual: true, fillHeight }));
+      pushNode(pageBreakType.create({ auto: false, manual: true, fillHeight }), index);
       currentPage += 1;
       currentY = currentPage * pageStep;
       prevBottomMargin = 0;
@@ -235,11 +349,32 @@ function paginateDocument(view, heightCache) {
       }
     }
 
-    if (pageHasContent && (!fitsCurrentPage || keepWithNextOverflow)) {
+    // Tall tables/lists/quotes split across pages instead of jumping whole to the next one.
+    // Measured in the live DOM, which matches this pass once the breaks before it are settled;
+    // otherwise the next pass (triggered by the resize) corrects it.
+    const splittableEl = SPLITTABLE_BLOCKS.has(node.type.name) ? getBlockDOM(view, pos) : null;
+    const splitHere = splittableEl && !fitsCurrentPage && pageContentLimit - proposedTop >= MIN_SPLIT_SPACE;
+    const placeSplittable = (fallbackBottom) => {
+      let plan = null;
+      try { plan = planSplittable(view, splittableEl, pageStep, contentHeight); } catch { plan = null; }
+      if (!plan) return fallbackBottom;
+      plan.spacers.forEach(({ pos: at, height }) => innerSpacers.push({ pos: at, blockIndex: index, blockPos: pos, height }));
+      return Math.max(fallbackBottom, plan.bottom);
+    };
+
+    if (splitHere) {
+      pushNode(node, index);
+      currentY = placeSplittable(proposedBottom);
+      currentPage = Math.floor(currentY / pageStep);
+      prevBottomMargin = marginBottom;
+      pageHasContent = true;
+    } else if (pageHasContent && (!fitsCurrentPage || keepWithNextOverflow)) {
       // Must break to next page!
-      // Fill remaining space on currentPage + dead zone to reach start of currentPage + 1
-      const fillHeight = Math.max(1, (currentPage + 1) * pageStep - currentY);
-      nextNodes.push(pageBreakType.create({ auto: true, manual: false, fillHeight }));
+      // Fill remaining space on currentPage + dead zone to reach start of currentPage + 1.
+      // The previous block's bottom margin and this block's top margin sit outside the filler
+      // (margins don't collapse through it), so leave room for them.
+      const fillHeight = Math.max(1, (currentPage + 1) * pageStep - currentY - prevBottomMargin - marginTop);
+      pushNode(pageBreakType.create({ auto: true, manual: false, fillHeight }));
 
       // Advance to next page
       currentPage += 1;
@@ -251,18 +386,31 @@ function paginateDocument(view, heightCache) {
       const newPageTop = currentY;
       const newPageBottom = newPageTop + nodeHeight;
 
-      nextNodes.push(node);
-      currentY = newPageBottom;
+      pushNode(node, index);
+      currentY = newPageBottom; // moved this pass: split it on the next pass, once it is there
       prevBottomMargin = marginBottom;
       pageHasContent = true;
     } else {
       // Fits on current page (or forced because page is empty)
-      nextNodes.push(node);
-      currentY = proposedBottom;
+      pushNode(node, index);
+      const pageLimit = Math.floor(proposedTop / pageStep) * pageStep + contentHeight;
+      currentY = splittableEl && proposedBottom > pageLimit ? placeSplittable(proposedBottom) : proposedBottom;
+      if (splittableEl) currentPage = Math.floor(currentY / pageStep);
       prevBottomMargin = marginBottom;
       pageHasContent = true;
     }
   }
+  endSplitPass();
+  setSpacersHidden(false);
+
+  // Spacer positions in the paginated document (blocks shift by the page breaks before them).
+  const spacerPlan = innerSpacers.map(({ pos: at, blockIndex, blockPos, height }) => ({
+    pos: newBlockStart[blockIndex] + (at - blockPos),
+    height,
+  }));
+  const spacerSig = spacerPlan.map((s) => `${s.pos}:${s.height}`).join(',');
+  const spacerMeta = { sig: spacerSig, plan: spacerPlan };
+  const currentSig = AUTO_PAGINATION_KEY.getState(view.state)?.sig || '';
 
   const currentNodes = [];
   doc.forEach((node) => {
@@ -284,6 +432,12 @@ function paginateDocument(view, heightCache) {
       return node.eq(next);
     })
   ) {
+    if (spacerSig !== currentSig) {
+      const tr = view.state.tr.setMeta(INNER_BREAKS_META, spacerMeta);
+      tr.setMeta('addToHistory', false);
+      tr.setMeta(AUTO_PAGINATION_KEY, true);
+      view.dispatch(tr);
+    }
     return false;
   }
 
@@ -315,6 +469,7 @@ function paginateDocument(view, heightCache) {
 
     tr.setMeta('addToHistory', false);
     tr.setMeta(AUTO_PAGINATION_KEY, true);
+    tr.setMeta(INNER_BREAKS_META, spacerMeta);
     view.dispatch(tr);
     return true;
   } finally {
@@ -661,6 +816,23 @@ export const PageBreak = Node.create({
       }),
       new Plugin({
         key: AUTO_PAGINATION_KEY,
+        state: {
+          init: () => ({ set: DecorationSet.empty, sig: '' }),
+          apply: (tr, value) => {
+            const meta = tr.getMeta(INNER_BREAKS_META);
+            if (meta) {
+              const size = tr.doc.content.size;
+              const widgets = meta.plan
+                .filter(({ pos }) => pos >= 0 && pos <= size)
+                .map(({ pos, height }) => spacerWidget(pos, height));
+              return { set: DecorationSet.create(tr.doc, widgets), sig: meta.sig };
+            }
+            return tr.docChanged ? { set: value.set.map(tr.mapping, tr.doc), sig: value.sig } : value;
+          },
+        },
+        props: {
+          decorations: (state) => AUTO_PAGINATION_KEY.getState(state)?.set,
+        },
         view: (editorView) => {
           let debounceTimer = null;
           // Cache: pos (string) -> { hash, measured }

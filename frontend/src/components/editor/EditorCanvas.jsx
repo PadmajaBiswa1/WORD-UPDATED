@@ -232,7 +232,14 @@ export function EditorCanvas() {
   useEffect(() => {
     if (!editor) return;
     editor.on('update', recalcPages);
-    return () => editor.off('update', recalcPages);
+    // Content height also changes without document edits (pagination spacers, images loading).
+    const proseEl = wrapRef.current?.querySelector('.ProseMirror');
+    const resizeObserver = proseEl && typeof ResizeObserver !== 'undefined' ? new ResizeObserver(recalcPages) : null;
+    resizeObserver?.observe(proseEl);
+    return () => {
+      editor.off('update', recalcPages);
+      resizeObserver?.disconnect();
+    };
   }, [editor, recalcPages]);
 
   useEffect(() => {

@@ -21,6 +21,8 @@ const THUMBNAIL_STYLES = `
   box-sizing: border-box;
 `;
 
+const THUMB_LEAF_SELECTOR = 'p, h1, h2, h3, h4, h5, h6, pre, img';
+
 // Single source of truth: get page content from live editor DOM split by page height
 function splitEditorContentByPage(pageCount, metrics, zoom) {
   const count = Math.max(1, pageCount);
@@ -38,13 +40,51 @@ function splitEditorContentByPage(pageCount, metrics, zoom) {
   const pageStep = (metrics.pageHeight + PAGE_GAP) * scale;
   const children = Array.from(proseMirror.children);
 
+  // Each page shows every block overlapping its text area, at its real offset and clipped, so a
+  // table or list split across pages appears on each page it covers.
+  const items = Array.from({ length: count }, () => []);
   children.forEach((child) => {
     if (child.dataset?.pageBreak === 'true' || child.classList.contains('etherx-page-break')) {
       return;
     }
-    const page = Math.min(Math.floor(child.offsetTop / (pageStep || 1)), count - 1);
-    const targetIdx = Math.max(0, page);
-    pages[targetIdx].html += child.outerHTML;
+    const top = child.offsetTop;
+    const bottom = top + child.offsetHeight;
+    // The wrapper starts a new formatting context, so the block's own top margin would add again.
+    const marginTop = parseFloat(window.getComputedStyle(child).marginTop) || 0;
+    const first = Math.max(0, Math.min(Math.floor(top / (pageStep || 1)), count - 1));
+    const last = Math.max(first, Math.min(Math.floor(Math.max(top, bottom - 1) / (pageStep || 1)), count - 1));
+    if (first === last) {
+      items[first].push({ html: child.outerHTML, top: (top - first * pageStep) / scale - marginTop });
+      return;
+    }
+
+    // A block spanning pages (a long table or list): drawing the whole block for every page is
+    // slow, so each page gets only the paragraphs that fall on it, placed at their exact position.
+    const pmRect = proseMirror.getBoundingClientRect();
+    const ratio = pmRect.height / (proseMirror.offsetHeight || 1) || 1;
+    Array.from(child.querySelectorAll(THUMB_LEAF_SELECTOR)).forEach((leaf) => {
+      if (leaf.parentElement?.closest(THUMB_LEAF_SELECTOR)) return; // drawn with its paragraph
+      const rect = leaf.getBoundingClientRect();
+      const leafTop = (rect.top - pmRect.top) / ratio;
+      const page = Math.floor(leafTop / (metrics.pageHeight + PAGE_GAP));
+      if (page < first || page > last || !rect.height) return;
+      const leafMargin = parseFloat(window.getComputedStyle(leaf).marginTop) || 0;
+      items[page].push({
+        html: leaf.outerHTML,
+        top: leafTop - page * (metrics.pageHeight + PAGE_GAP) - leafMargin,
+        left: (rect.left - pmRect.left) / ratio,
+        width: rect.width / ratio,
+      });
+    });
+  });
+
+  items.forEach((list, index) => {
+    if (!list.length) return;
+    pages[index].html = `<div style="position:relative;height:${metrics.contentHeight}px;overflow:hidden">${
+      list.map(({ html, top, left, width }) => (width
+        ? `<div style="position:absolute;left:${left}px;width:${width}px;top:${top}px">${html}</div>`
+        : `<div style="position:absolute;left:0;right:0;top:${top}px">${html}</div>`)).join('')
+    }</div>`;
   });
 
   return pages;
@@ -98,6 +138,9 @@ async function renderContentToThumbnail(htmlContent, pageWidth, pageHeight, padd
             logging: false,
             useCORS: true,
             allowTaint: true,
+            // Only the thumbnail page needs cloning, not the live editor and the rest of the app.
+            ignoreElements: (el) => document.body.contains(el) && el !== document.body
+              && !el.contains(tempDiv) && !tempDiv.contains(el),
           });
           const dataUrl = canvas.toDataURL('image/png', 0.8);
           if (document.body.contains(tempDiv)) document.body.removeChild(tempDiv);
