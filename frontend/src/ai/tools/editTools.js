@@ -112,7 +112,7 @@ function insertBlocksImpl({ after_id, markdown } = {}, ctx) {
   const inserted = tr.doc.content.size - before;
   if (inserted <= 0) return { error: 'nothing was inserted; check the markdown' };
   const id = newSuggestionId();
-  const mark = schema.marks.suggestInsert.create({ id, author: AUTHOR, createdAt: new Date().toISOString() });
+  const mark = schema.marks.suggestInsert.create({ id, author: AUTHOR, createdAt: new Date().toISOString(), block: true });
   tr.addMark(insertAt, insertAt + inserted, mark);
   dispatch(ctx, tr);
   return { ok: true, suggestion_id: id };

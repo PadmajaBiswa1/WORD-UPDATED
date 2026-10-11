@@ -225,3 +225,43 @@ describe('structural edits', () => {
     expect(deleteBlocks({ ids: ['b99'] }, ctx).error).toMatch(/unknown/);
   });
 });
+
+describe('rejecting fills of blank user blocks', () => {
+  it('keeps the blank paragraph when a rewrite of it is rejected', () => {
+    const { editor, ctx } = setup('<p>Q1</p><p></p><p>Q2</p>');
+    const original = editor.getHTML();
+    const blank = getOutline({}, ctx).blocks[1].id;
+    expect(rewriteBlock({ block_id: blank, text: 'Answer' }, ctx).ok).toBe(true);
+    expect(editor.getHTML()).not.toContain('data-suggestion-block');
+    editor.commands.rejectAllSuggestions();
+    expect(editor.getHTML()).toBe(original);
+  });
+
+  it('keeps the blank paragraph when its rewrite is rejected after an HTML round trip', () => {
+    const { editor, ctx } = setup('<p>Q1</p><p></p><p>Q2</p>');
+    const blank = getOutline({}, ctx).blocks[1].id;
+    rewriteBlock({ block_id: blank, text: 'Answer' }, ctx);
+    const reloaded = createTestEditor(editor.getHTML());
+    reloaded.commands.rejectAllSuggestions();
+    expect(reloaded.getHTML()).toBe('<p>Q1</p><p></p><p>Q2</p>');
+  });
+
+  it('marks insert_blocks content as Pragna-created blocks that survive an HTML round trip', () => {
+    const { editor, ctx } = setup('<p>first</p><p>last</p>');
+    insertBlocks({ after_id: idOf(getOutline({}, ctx), 'first'), markdown: 'new line' }, ctx);
+    const html = editor.getHTML();
+    expect(html).toContain('data-suggestion-block="true"');
+    const reloaded = createTestEditor(html);
+    expect(reloaded.getHTML()).toContain('data-suggestion-block="true"');
+    reloaded.commands.rejectAllSuggestions();
+    expect(reloaded.getHTML()).toBe('<p>first</p><p>last</p>');
+  });
+
+  it('keeps a Pragna-inserted block flagged when it is rewritten later', () => {
+    const { editor, ctx } = setup('<p>first</p><p>last</p>');
+    insertBlocks({ after_id: idOf(getOutline({}, ctx), 'first'), markdown: 'new line' }, ctx);
+    rewriteBlock({ block_id: idOf(getOutline({}, ctx), 'new'), text: 'other line' }, ctx);
+    editor.commands.rejectAllSuggestions();
+    expect(editor.getHTML()).toBe('<p>first</p><p>last</p>');
+  });
+});

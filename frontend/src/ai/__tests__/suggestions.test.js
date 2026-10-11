@@ -62,7 +62,8 @@ describe('suggestions', () => {
   it('removes an inserted paragraph when rejected', () => {
     const editor = createTestEditor('<p>keep</p><p>new one</p>');
     const { tr } = editor.state;
-    tr.addMark(7, 14, editor.schema.marks.suggestInsert.create({ id: 'i1', author: 'Pragna', createdAt: '' }));
+    // A whole block Pragna inserted (insert_blocks sets block: true).
+    tr.addMark(7, 14, editor.schema.marks.suggestInsert.create({ id: 'i1', author: 'Pragna', createdAt: '', block: true }));
     editor.view.dispatch(tr);
     editor.commands.rejectAllSuggestions();
     expect(editor.getHTML()).toBe('<p>keep</p>');
@@ -77,7 +78,8 @@ describe('suggestions', () => {
 });
 
 describe('resolveSuggestions container cleanup', () => {
-  const ins = (inner) => `<ins data-suggestion="s9" data-author="Pragna" data-created="x">${inner}</ins>`;
+  // Whole blocks Pragna inserted, as insert_blocks renders them.
+  const ins = (inner) => `<ins data-suggestion="s9" data-author="Pragna" data-created="x" data-suggestion-block="true">${inner}</ins>`;
 
   it('rejecting an inserted bullet removes the whole list item', () => {
     const editor = createTestEditor(`<ul><li><p>a</p></li><li><p>${ins('new')}</p></li></ul>`);

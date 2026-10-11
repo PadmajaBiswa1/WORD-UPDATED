@@ -5,6 +5,9 @@ const suggestionAttrs = () => ({
   id: { default: '', parseHTML: (el) => el.getAttribute('data-suggestion') || '' },
   author: { default: 'Pragna', parseHTML: (el) => el.getAttribute('data-author') || 'Pragna' },
   createdAt: { default: '', parseHTML: (el) => el.getAttribute('data-created') || '' },
+  // True only on text of whole blocks Pragna inserted (insert_blocks): rejecting it removes the
+  // block. Text Pragna wrote into an existing (even blank) block leaves the block on reject.
+  block: { default: false, parseHTML: (el) => el.getAttribute('data-suggestion-block') === 'true' },
 });
 
 function suggestionMark(name, tag, className) {
@@ -21,6 +24,7 @@ function suggestionMark(name, tag, className) {
       'data-suggestion': mark.attrs.id,
       'data-author': mark.attrs.author,
       'data-created': mark.attrs.createdAt,
+      ...(mark.attrs.block ? { 'data-suggestion-block': 'true' } : {}),
       class: className,
     }, HTMLAttributes.class ? { class: HTMLAttributes.class } : {}), 0],
   });
@@ -109,22 +113,26 @@ export function resolveSuggestions(tr, mode, { from = 0, to = tr.doc.content.siz
     node.marks.forEach((mark) => {
       if (id && mark.attrs.id !== id) return;
       if (mark.type.name === keepType) tr.removeMark(pos, pos + node.nodeSize, mark);
-      if (mark.type.name === removeType) removals.push({ from: pos, to: pos + node.nodeSize });
+      // Rejecting removes a whole block only if Pragna created it; accepting a deletion always may.
+      if (mark.type.name === removeType) removals.push({ from: pos, to: pos + node.nodeSize, block: mode === 'accept' || mark.attrs.block === true });
     });
   });
   const merged = [];
   removals.sort((a, b) => a.from - b.from).forEach((r) => {
     const last = merged[merged.length - 1];
-    if (last && last.to === r.from) last.to = r.to;
-    else merged.push({ ...r });
+    if (last && last.to === r.from) {
+      last.to = r.to;
+      last.block = last.block && r.block;
+    } else merged.push({ ...r });
   });
+  const coversBlock = ({ from: a, to: b, block }, $a) => block && a === $a.start() && b === $a.end() && $a.depth > 0;
   // Textblocks whose whole content this call removes (they had text before). Containers may only
   // be cleaned up when every textblock inside was emptied by this call, so blank blocks the user
   // left in a table or list are never swept away with them.
   let emptied = [];
-  merged.forEach(({ from: a, to: b }) => {
-    const $a = tr.doc.resolve(a);
-    if (a === $a.start() && b === $a.end() && $a.depth > 0) emptied.push($a.before());
+  merged.forEach((r) => {
+    const $a = tr.doc.resolve(r.from);
+    if (coversBlock(r, $a)) emptied.push($a.before());
   });
   // Keeps `emptied` pointing at the same blocks after the steps added since `fromStep`.
   const sync = (fromStep) => {
@@ -144,9 +152,10 @@ export function resolveSuggestions(tr, mode, { from = 0, to = tr.doc.content.siz
   // Delete from the end so earlier positions stay valid. A range covering a whole textblock
   // removes the block too, as long as its parent keeps a valid child list. Otherwise only the text
   // goes, and any container left holding nothing but emptied blocks is cleaned up with it.
-  merged.reverse().forEach(({ from: a, to: b }) => {
+  merged.reverse().forEach((r) => {
+    const { from: a, to: b } = r;
     const $a = tr.doc.resolve(a);
-    const wholeBlock = a === $a.start() && b === $a.end() && $a.depth > 0;
+    const wholeBlock = coversBlock(r, $a);
     if (wholeBlock && $a.node(-1).canReplace($a.index(-1), $a.index(-1) + 1)) {
       del($a.before(), $a.after());
     } else {
