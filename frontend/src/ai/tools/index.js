@@ -52,7 +52,8 @@ const HANDLERS = {
 export const EDITING_TOOLS = new Set(['replace_text', 'rewrite_block', 'insert_blocks', 'delete_blocks', 'set_table_cell']);
 
 export function executeTool(name, rawArgs, ctx) {
-  const handler = HANDLERS[name];
+  // Own keys only: `constructor`, `toString` etc. are not tools.
+  const handler = Object.hasOwn(HANDLERS, name) ? HANDLERS[name] : null;
   if (!handler) return { error: `unknown tool "${name}"` };
   let args = rawArgs;
   if (typeof rawArgs === 'string') {

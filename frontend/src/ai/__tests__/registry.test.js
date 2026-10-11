@@ -19,6 +19,9 @@ describe('tool registry', () => {
     const editor = createTestEditor('<p>x</p>');
     const ctx = { editor, refs: new BlockRefs(editor) };
     expect(executeTool('nope', '{}', ctx).error).toMatch(/unknown tool/);
+    for (const name of ['constructor', 'toString', 'hasOwnProperty', '__proto__', 'valueOf']) {
+      expect(executeTool(name, '{}', ctx).error).toMatch(/unknown tool/);
+    }
     expect(executeTool('read_blocks', '{not json', ctx).error).toMatch(/JSON/);
     expect(executeTool('get_outline', '{}', ctx).blocks).toHaveLength(1);
   });
