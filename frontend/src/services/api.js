@@ -157,6 +157,7 @@ export const templateApi = {
 export const aiApi = {
   action:          (payload) => req('/ai/action',           { method: 'POST', body: payload }),
   chat:            (payload) => req('/ai/chat',             { method: 'POST', body: payload }),
+  agentStep:       (payload) => req('/ai/agent-step',       { method: 'POST', body: payload }),
   status:          ()        => req('/ai/status'),
   webSearch:       (payload) => req('/ai/web/search',       { method: 'POST', body: payload }),
   webFetch:        (payload) => req('/ai/web/fetch',        { method: 'POST', body: payload }),

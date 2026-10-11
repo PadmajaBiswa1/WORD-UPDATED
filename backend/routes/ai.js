@@ -3,6 +3,7 @@ const router = express.Router();
 const ollamaService = require('../utils/ollamaService');
 const webToolsService = require('../utils/webToolsService');
 const { requireFeature } = require('../middleware/subscriptionGate');
+const { validateAgentStep, runAgentStep } = require('../lib/agentStep');
 
 // Execute Pragna AI action (generate, summarize, grammar, rewrite, title, translate, prompt)
 router.post('/action', requireFeature('aiWritingTools'), async (req, res) => {
@@ -175,6 +176,19 @@ ${webSearch ? `Live web search is ENABLED.\nWeb findings:\n${webContext}\nCite s
       message: err.message || 'Pragna Chat failed',
       latencyMs: Date.now() - startTime,
     });
+  }
+});
+
+// One model turn for Pragna's document agent (the loop runs in the browser).
+router.post('/agent-step', requireFeature('aiWritingTools'), async (req, res) => {
+  const checked = validateAgentStep(req.body);
+  if (!checked.ok) return res.status(400).json({ success: false, message: checked.error });
+  try {
+    const result = await runAgentStep(checked, (args) => ollamaService.chatCompletion(args));
+    return res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('❌ Pragna agent step error:', err.message);
+    return res.status(502).json({ success: false, message: err.message || 'Pragna agent step failed' });
   }
 });
 

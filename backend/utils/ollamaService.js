@@ -196,8 +196,10 @@ class OllamaService {
   /**
    * Execute chat completion with Ollama Cloud, supporting multi-key rotation and model fallbacks
    */
-  async chatCompletion({ messages, temperature = 0.7, max_tokens = 4000, model }) {
-    if (process.env.GEMINI_API_KEY) {
+  async chatCompletion({ messages, temperature = 0.7, max_tokens = 4000, model, tools }) {
+    const withTools = Array.isArray(tools) && tools.length > 0;
+    // Gemini uses a different tool format, so tool requests go straight to Ollama.
+    if (process.env.GEMINI_API_KEY && !withTools) {
       try {
         const contents = messages
           .filter((m) => m.role !== 'system')
@@ -263,6 +265,7 @@ class OllamaService {
             messages,
             temperature,
             max_tokens,
+            ...(withTools ? { tools } : {}),
           },
           {
             headers,
@@ -271,14 +274,25 @@ class OllamaService {
         );
 
         const choice = response.data?.choices?.[0];
-        if (!choice?.message?.content) {
+        const toolCalls = (choice?.message?.tool_calls || []).map((call, index) => ({
+          id: call.id || `call_${Date.now()}_${index}`,
+          type: 'function',
+          function: {
+            name: call.function?.name,
+            arguments: typeof call.function?.arguments === 'string'
+              ? call.function.arguments
+              : JSON.stringify(call.function?.arguments || {}),
+          },
+        }));
+        if (!choice?.message?.content && !(withTools && toolCalls.length)) {
           throw new Error('Empty response from Ollama API');
         }
 
         return {
-          content: choice.message.content.trim(),
+          content: (choice.message.content || '').trim(),
           model: currentModel,
           role: choice.message.role || 'assistant',
+          ...(withTools ? { tool_calls: toolCalls } : {}),
         };
       } catch (err) {
         lastError = err;
