@@ -46,4 +46,17 @@ describe('structure tools', () => {
     expect(editor.getHTML()).toContain(`data-comment-id="${r.comment_id}"`);
     expect(addCommentSpy).toHaveBeenCalledWith(expect.objectContaining({ id: r.comment_id, text: 'Source?', author: 'Pragna', anchor: r.comment_id }));
   });
+
+  it('gives two comments made in the same millisecond distinct ids', () => {
+    const { ctx, outline } = setup('<p>first claim and second claim</p>');
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+    try {
+      const a = addComment({ block_id: outline.blocks[0].id, find: 'first claim', text: 'One' }, ctx);
+      const b = addComment({ block_id: outline.blocks[0].id, find: 'second claim', text: 'Two' }, ctx);
+      expect(a.ok && b.ok).toBe(true);
+      expect(a.comment_id).not.toBe(b.comment_id);
+    } finally {
+      now.mockRestore();
+    }
+  });
 });

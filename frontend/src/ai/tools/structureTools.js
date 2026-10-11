@@ -1,4 +1,4 @@
-import { blockText } from '@/ai/suggestions';
+import { blockText, newCommentId } from '@/ai/suggestions';
 import { useDocumentStore } from '@/store';
 import { safe } from '@/ai/tools/readTools';
 
@@ -123,7 +123,7 @@ function addCommentImpl({ block_id, find, text } = {}, ctx) {
   if (!text) return { error: 'text is required' };
   const range = rangeIn(hit, find);
   if (!range) return { error: `"${find}" not found in ${block_id}` };
-  const commentId = `c${Date.now().toString(36)}`;
+  const commentId = newCommentId();
   const { schema, tr } = ctx.editor.state;
   tr.addMark(range.from, range.to, schema.marks.commentAnchor.create({ commentId }));
   ctx.editor.view.dispatch(tag(tr));

@@ -49,6 +49,12 @@ export function newSuggestionId() {
   return `s${Date.now().toString(36)}${counter}`;
 }
 
+// Same scheme as suggestion ids, so several comments in one step never collide.
+export function newCommentId() {
+  counter += 1;
+  return `c${Date.now().toString(36)}${counter}`;
+}
+
 const hasMark = (node, name) => node.marks.some((m) => m.type.name === name);
 
 /**
