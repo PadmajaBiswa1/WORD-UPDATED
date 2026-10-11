@@ -45,4 +45,59 @@ describe('BlockRefs', () => {
     expect(refs.resolveCell(`${tid}.r0c1`).node.textContent).toBe('b');
     expect(refs.resolveCell(`${tid}.r5c0`)).toBeNull();
   });
+
+  it('keeps the original text when Enter is pressed at the start of the block', () => {
+    const editor = createTestEditor('<p>one</p>');
+    const refs = new BlockRefs(editor);
+    const pos = posOfText(editor, 'one');
+    const id = refs.idFor(pos, editor.state.doc.nodeAt(pos));
+    editor.chain().setTextSelection(pos + 1).splitBlock().run();
+    expect(refs.resolve(id).node.textContent).toBe('one');
+    refs.detach();
+  });
+
+  it('keeps the original text when Enter is pressed at the end of the block', () => {
+    const editor = createTestEditor('<p>one</p>');
+    const refs = new BlockRefs(editor);
+    const pos = posOfText(editor, 'one');
+    const id = refs.idFor(pos, editor.state.doc.nodeAt(pos));
+    editor.chain().setTextSelection(pos + 1 + 'one'.length).splitBlock().run();
+    expect(refs.resolve(id).node.textContent).toBe('one');
+    refs.detach();
+  });
+
+  it('resolves to the same block after typing at its start', () => {
+    const editor = createTestEditor('<p>one</p>');
+    const refs = new BlockRefs(editor);
+    const pos = posOfText(editor, 'one');
+    const id = refs.idFor(pos, editor.state.doc.nodeAt(pos));
+    editor.commands.insertContentAt(pos + 1, 'X');
+    const resolved = refs.resolve(id);
+    expect(resolved.node.textContent).toBe('Xone');
+    expect(resolved.node.isTextblock).toBe(true);
+    refs.detach();
+  });
+
+  it('keeps the id alive when the block is toggled to a heading', () => {
+    const editor = createTestEditor('<p>one</p>');
+    const refs = new BlockRefs(editor);
+    const pos = posOfText(editor, 'one');
+    const id = refs.idFor(pos, editor.state.doc.nodeAt(pos));
+    editor.chain().setTextSelection(pos + 1).setNode('heading', { level: 2 }).run();
+    const resolved = refs.resolve(id);
+    expect(resolved).not.toBeNull();
+    expect(resolved.node.type.name).toBe('heading');
+    expect(resolved.node.textContent).toBe('one');
+    refs.detach();
+  });
+
+  it('returns null when the block is merged into the previous one by backspace', () => {
+    const editor = createTestEditor('<p>two</p><p>one</p>');
+    const refs = new BlockRefs(editor);
+    const pos = posOfText(editor, 'one');
+    const id = refs.idFor(pos, editor.state.doc.nodeAt(pos));
+    editor.commands.deleteRange({ from: pos - 1, to: pos + 1 });
+    expect(refs.resolve(id)).toBeNull();
+    refs.detach();
+  });
 });

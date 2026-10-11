@@ -1,55 +1,71 @@
-// Run-scoped ids for blocks the agent has seen. Positions are mapped through every
-// transaction (including the user's typing), and nothing is stored in the document.
+// Run-scoped ids for blocks the agent has seen. Each id tracks a document range
+// [start, end) that is mapped through every transaction (including the user's typing).
+// Nothing is stored in the document.
+//
+// The range is mapped with start (assoc 1) and end (assoc -1) and does NOT use the
+// `deleted` flag: ReplaceAroundStep (heading toggle, alignment) and splits would otherwise
+// kill ids that still point at the same content. resolve() returns the largest matching
+// node fully inside the range, so a split never resolves to an empty paragraph and a merge
+// (which drops the range) resolves to nothing.
 
 export class BlockRefs {
   constructor(editor) {
     this.editor = editor;
-    this.entries = new Map(); // id -> { pos, kind: 'block'|'table', deleted }
-    this.byPos = new Map(); // pos -> id (refreshed lazily)
+    this.entries = new Map(); // id -> { start, end, kind: 'block'|'table' }
+    this.byPos = new Map(); // `${kind}:${pos}` -> id (cleared on every docChanged transaction)
     this.counts = { block: 0, table: 0 };
     this.onTransaction = ({ transaction }) => {
       if (!transaction.docChanged) return;
       this.byPos.clear();
       this.entries.forEach((entry) => {
-        if (entry.deleted) return;
-        const result = transaction.mapping.mapResult(entry.pos, 1);
-        entry.pos = result.pos;
-        entry.deleted = result.deleted;
+        entry.start = transaction.mapping.mapResult(entry.start, 1).pos;
+        entry.end = transaction.mapping.mapResult(entry.end, -1).pos;
       });
     };
     editor.on('transaction', this.onTransaction);
   }
 
-  register(pos, kind) {
-    const existing = this.byPos.get(pos) || Array.from(this.entries.entries())
-      .find(([, e]) => !e.deleted && e.pos === pos && e.kind === kind)?.[0];
+  register(pos, kind, node) {
+    const key = `${kind}:${pos}`;
+    const cached = this.byPos.get(key);
+    if (cached) return cached;
+    const existing = Array.from(this.entries.entries())
+      .find(([, e]) => e.end > e.start && e.start === pos && e.kind === kind)?.[0];
     if (existing) {
-      this.byPos.set(pos, existing);
+      this.byPos.set(key, existing);
       return existing;
     }
+    const target = node || this.editor.state.doc.nodeAt(pos);
     this.counts[kind] += 1;
     const id = `${kind === 'table' ? 't' : 'b'}${this.counts[kind]}`;
-    this.entries.set(id, { pos, kind, deleted: false });
-    this.byPos.set(pos, id);
+    this.entries.set(id, { start: pos, end: pos + (target ? target.nodeSize : 0), kind });
+    this.byPos.set(key, id);
     return id;
   }
 
-  idFor(pos) {
-    return this.register(pos, 'block');
+  idFor(pos, node) {
+    return this.register(pos, 'block', node);
   }
 
-  tableIdFor(pos) {
-    return this.register(pos, 'table');
+  tableIdFor(pos, node) {
+    return this.register(pos, 'table', node);
   }
 
   resolve(id) {
     const entry = this.entries.get(String(id || '').trim());
-    if (!entry || entry.deleted) return null;
-    const node = this.editor.state.doc.nodeAt(entry.pos);
-    if (!node) return null;
-    if (entry.kind === 'block' && !node.isTextblock) return null;
-    if (entry.kind === 'table' && node.type.name !== 'table') return null;
-    return { node, pos: entry.pos };
+    if (!entry || entry.end <= entry.start) return null;
+    const { start, end, kind } = entry;
+    let best = null;
+    this.editor.state.doc.nodesBetween(start, end, (node, pos) => {
+      const matches = kind === 'block' ? node.isTextblock : node.type.name === 'table';
+      if (!matches) return true;
+      if (pos >= start && pos + node.nodeSize <= end) {
+        if (!best || node.textContent.length > best.node.textContent.length) best = { node, pos };
+        return false; // do not descend into a matched node
+      }
+      return true;
+    });
+    return best;
   }
 
   // `t1.r2c3` -> the cell node at row 2, column 3 of table t1.
