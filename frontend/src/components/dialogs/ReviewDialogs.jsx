@@ -147,7 +147,31 @@ export function CommentsDialog() {
   };
 
   const openComment = (comment) => {
+    const editor = useEditorStore.getState().editor;
+    const el = comment.anchor && editor?.view.dom.querySelector(`[data-comment-id="${CSS.escape(String(comment.anchor))}"]`);
+    if (el) {
+      const from = editor.view.posAtDOM(el, 0);
+      const to = from + el.textContent.length;
+      editor.chain().focus().setTextSelection({ from, to }).run();
+      el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      closeDialog('comments');
+      return;
+    }
     toast(comment.text || 'Comment selected', 'info');
+  };
+
+  const handleDeleteComment = (comment) => {
+    const editor = useEditorStore.getState().editor;
+    if (comment.anchor && editor) {
+      const { tr } = editor.state;
+      editor.state.doc.descendants((node, pos) => {
+        node.marks?.forEach((m) => {
+          if (m.type.name === 'commentAnchor' && m.attrs.commentId === comment.anchor) tr.removeMark(pos, pos + node.nodeSize, m);
+        });
+      });
+      editor.view.dispatch(tr);
+    }
+    deleteComment(comment.id);
   };
 
   return (
@@ -203,7 +227,7 @@ export function CommentsDialog() {
                   <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                     <Button variant="subtle" onClick={() => openComment(comment)}>Go To</Button>
                     <Button variant="outline" onClick={() => resolveComment(comment.id)} disabled={comment.resolved}>Resolve</Button>
-                    <Button variant="danger" onClick={() => deleteComment(comment.id)}>Delete</Button>
+                    <Button variant="danger" onClick={() => handleDeleteComment(comment)}>Delete</Button>
                   </div>
                 </div>
               ))}

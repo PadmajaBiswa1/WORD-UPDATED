@@ -6,12 +6,14 @@ import {
 import { useUIStore, useEditorStore, useDocumentStore } from '@/store';
 import { markdownToHtml } from '@/services/ai';
 import { aiApi, uploadApi } from '@/services/api';
+import { useDocumentAgent } from '@/ai/useDocumentAgent';
+import { SuggestionReview } from './SuggestionReview';
 
 const QUICK_PROMPTS = [
-  { label: 'Executive Summary', prompt: 'Provide a concise, punchy executive summary of the attached text with key takeaways.' },
-  { label: 'Professional Tone', prompt: 'Rewrite the attached text in an authoritative, executive, and highly polished corporate tone.' },
+  { label: 'Executive Summary', prompt: 'Provide a concise, punchy executive summary of the selected text, or the whole document if nothing is selected, with key takeaways.' },
+  { label: 'Professional Tone', prompt: 'Rewrite the selected text, or the whole document if nothing is selected, in an authoritative, executive, and highly polished corporate tone.' },
   { label: 'Fix Grammar & Flow', prompt: 'Proofread and correct all grammar, punctuation, and phrasing issues while improving sentence flow.' },
-  { label: 'Convert to Table', prompt: 'Structure the key points and data from the attached text into a clean markdown data table.' },
+  { label: 'Convert to Table', prompt: 'Structure the key points and data from the selected text, or the whole document if nothing is selected, into a clean markdown data table.' },
   { label: 'Action Items', prompt: 'Extract all actionable tasks and next steps into a structured checklist.' },
   { label: 'Simplify & Clarify', prompt: 'Simplify the language, eliminate unnecessary jargon, and make the content effortless to read.' },
   { label: 'Brainstorm Ideas', prompt: 'Brainstorm creative angles and missing sections to improve this document.' },
@@ -157,6 +159,8 @@ Ask me anything or attach files below.`,
   const [inputPrompt, setInputPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
+  const [agentMode, setAgentMode] = useState(true);
+  const agent = useDocumentAgent(editor);
   const [selectedText, setSelectedText] = useState('');
   const [hasSelection, setHasSelection] = useState(false);
   const [scope, setScope] = useState('document');
@@ -224,7 +228,7 @@ Ask me anything or attach files below.`,
           grammar: 'Proofread and correct all grammar and style issues in the attached text.',
           summarize: 'Summarize the attached text with concise bullet points.',
           generate: 'Draft a comprehensive, well-structured section for this document.',
-          rewrite: 'Rewrite the attached text in a polished, professional tone.',
+          rewrite: 'Rewrite the selected text, or the whole document if nothing is selected, in a polished, professional tone.',
           title: 'Generate 5 compelling titles for this document.',
           edit: 'Improve the clarity, impact, and structure of the attached text.',
         };
@@ -420,6 +424,30 @@ Ask me anything or attach files below.`,
     const promptToSend = rawPrompt.trim();
 
     if ((!promptToSend && currentAttachments.length === 0) || loading) return;
+
+    if (agentMode && !currentAttachments.length && !webSearchEnabled && editor) {
+      const userMsg = { id: `user-${Date.now()}`, role: 'user', content: promptToSend, timestamp: new Date() };
+      const history = messages
+        .filter((m) => (m.role === 'user' || m.role === 'assistant') && !m.isError && typeof m.content === 'string')
+        .slice(-6)
+        .map((m) => ({ role: m.role, content: m.content }));
+      setMessages((prev) => [...prev, userMsg]);
+      setInputPrompt('');
+      setLoading(true);
+      try {
+        const result = await agent.run(promptToSend, history);
+        const text = result?.error
+          ? `${result.error}`
+          : `${result?.summary || 'Done.'}${result?.suggestions ? `\n\n_${result.suggestions} change(s) to review._` : ''}`;
+        setMessages((prev) => [...prev, {
+          id: `assistant-${Date.now()}`, role: 'assistant', content: text, html: markdownToHtml(text),
+          isAgentRun: true, canUndo: Boolean(result?.recorder?.changed), timestamp: new Date(),
+        }]);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
 
     const hasAttachments = currentAttachments.length > 0;
     const hasImages = currentAttachments.some((a) => a.type === 'image');
@@ -843,6 +871,10 @@ Ask me anything or attach files below.`,
 
         {/* Header Right Controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <button type="button" onClick={() => setAgentMode((on) => !on)} title={agentMode ? 'Pragna edits the document (suggestions)' : 'Pragna only answers in chat'}
+            style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, border: '1px solid var(--border)', background: agentMode ? 'var(--gold-dim, rgba(212,175,55,0.15))' : 'transparent', color: agentMode ? 'var(--text-gold)' : 'var(--text-secondary)', cursor: 'pointer' }}>
+            {agentMode ? 'Edit' : 'Ask'}
+          </button>
           {/* Web Search Toggle */}
           <button
             onClick={() => setWebSearchEnabled(!webSearchEnabled)}
@@ -1404,7 +1436,7 @@ Ask me anything or attach files below.`,
               </div>
 
               {/* Action Buttons */}
-              {!isUser && msg.id !== 'welcome' && !msg.isError && (
+              {!isUser && msg.id !== 'welcome' && !msg.isError && !msg.isAgentRun && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 5, paddingLeft: 2 }}>
                   <button
                     onClick={() => handleReplaceInDoc(msg)}
@@ -1472,9 +1504,21 @@ Ask me anything or attach files below.`,
                   </button>
                 </div>
               )}
+              {msg.isAgentRun && msg.canUndo && (
+                <button type="button" onClick={() => agent.undoRun()} style={{ marginTop: 4, fontSize: 11, background: 'none', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-secondary)', padding: '2px 8px', cursor: 'pointer' }}>
+                  Undo Pragna's changes
+                </button>
+              )}
             </div>
           );
         })}
+
+        {agent.running && (
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', padding: '4px 2px' }}>
+            {agent.steps.slice(-4).map((s, i) => <div key={i}>{s.label}</div>)}
+            <button type="button" onClick={agent.stop} style={{ marginTop: 4, fontSize: 11 }}>Stop</button>
+          </div>
+        )}
 
         {loading && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 6px', color: 'var(--gold)', fontSize: 11 }}>
@@ -1485,6 +1529,8 @@ Ask me anything or attach files below.`,
 
         <div ref={messagesEndRef} />
       </div>
+
+      <SuggestionReview editor={editor} />
 
       {/* Quick Suggestion Chips (Clean Pill Scroll) */}
       <div
