@@ -210,8 +210,9 @@ export function listSuggestionIds(doc) {
 export const Suggestions = Extension.create({
   name: 'suggestions',
   addCommands() {
+    // Tagged as agent steps so a whole-run undo also reverts accepts/rejects made after the run.
     const run = (mode, id) => () => ({ tr, dispatch }) => {
-      if (dispatch) resolveSuggestions(tr, mode, id ? { id } : {});
+      if (dispatch) resolveSuggestions(tr, mode, id ? { id } : {}).setMeta('pragnaAgent', true);
       return true;
     };
     return {

@@ -1,7 +1,9 @@
 import { Mapping } from '@tiptap/pm/transform';
 
 // Records every step map after the run starts, and the inverse of each agent step, so the whole
-// run can be reverted in one transaction even if the user edited in between.
+// run can be reverted in one transaction even if the user edited in between. It keeps listening
+// after the run finishes (accepting/rejecting suggestions is tagged as an agent step) until the
+// owner calls stop() — when the next run starts or the editor goes away — or undo() runs.
 export class RunRecorder {
   constructor(editor) {
     this.editor = editor;
@@ -9,7 +11,7 @@ export class RunRecorder {
     this.items = []; // { inverted, index } index = position of that step's map in `maps`
     this.skipped = 0; // inverted steps dropped by the last undo() (mapped away or failed to apply)
     this.onTransaction = ({ transaction }) => {
-      if (!transaction.docChanged) return;
+      if (!transaction.docChanged || transaction.getMeta('pragnaUndo')) return;
       const agent = transaction.getMeta('pragnaAgent');
       transaction.steps.forEach((step, i) => {
         if (agent) this.items.push({ inverted: step.invert(transaction.docs[i]), index: this.maps.length });
@@ -47,7 +49,9 @@ export class RunRecorder {
     }
     this.items = [];
     this.maps = [];
-    this.editor.view.dispatch(tr);
+    this.stop();
+    if (!undone.length) return false;
+    this.editor.view.dispatch(tr.setMeta('pragnaUndo', true));
     return true;
   }
 }

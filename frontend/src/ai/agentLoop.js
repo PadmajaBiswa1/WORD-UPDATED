@@ -42,7 +42,9 @@ export async function runAgent({ editor, prompt, history = [], agentStep, onStep
   let steps = 0;
   const finish = (extra) => {
     refs?.detach();
-    recorder?.stop();
+    // The recorder keeps listening so a later whole-run undo maps through edits made after the run
+    // (the hook stops it when the next run starts). A run that changed nothing has nothing to undo.
+    if (recorder && !recorder.changed) recorder.stop();
     const suggestions = listSuggestionIds(editor.state.doc).filter((id) => !before.has(id)).length;
     return { summary: '', steps, suggestions, stopped: false, recorder, ...extra };
   };
