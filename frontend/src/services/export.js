@@ -4,6 +4,7 @@
 import { saveAs } from 'file-saver';
 import { PAGE_SIZES, MARGIN_MAP } from '@/utils/pageLayout';
 import { useDocumentStore, useUIStore } from '@/store';
+import { stripAutoPageBreaks } from '@/components/editor/PageBreak';
 
 export function sanitizeFilename(name) {
   return (name || 'document').replace(/[^a-z0-9_\-\s]/gi, '_').trim() || 'document';
@@ -119,7 +120,9 @@ export function isPageBreakElement(el) {
 export function prepareExportHtml(rawHtml = '', options = {}) {
   if (!rawHtml || typeof rawHtml !== 'string') return '<p></p>';
 
-  let html = rawHtml
+  // Auto page breaks are the editor's on-screen layout spacers; the target format paginates
+  // itself, so only manual breaks are exported.
+  let html = stripAutoPageBreaks(rawHtml)
     // Standardize all page break div variations into clean page break elements
     .replace(
       /<div\b[^>]*?(?:data-page-break=["']true["']|class=["'][^"']*?etherx-page-break[^"']*?["']|data-etherx-auto-break=["']true["'])[^>]*>(?:&nbsp;|\s)*<\/div>/gi,
@@ -865,6 +868,9 @@ export async function buildDocxBlob(rawHtml, options = {}) {
     VerticalPositionRelativeFrom,
     TextWrappingType,
     TextWrappingSide,
+    TableLayoutType,
+    LineRuleType,
+    LevelFormat,
     convertMillimetersToTwip,
   } = await import('docx');
 
@@ -912,6 +918,34 @@ export async function buildDocxBlob(rawHtml, options = {}) {
     if (value === 'justify') return AlignmentType.JUSTIFIED;
     if (value === 'left' || value === 'start') return AlignmentType.LEFT;
     return undefined;
+  };
+
+  // CSS length -> twips (1pt = 20 twips, 1px = 15 twips at 96 DPI).
+  const cssToTwips = (value) => {
+    const match = /^(-?\d*\.?\d+)(pt|px)?$/.exec(String(value || '').trim());
+    if (!match) return undefined;
+    return Math.round(Number(match[1]) * (match[2] === 'px' ? 15 : 20));
+  };
+
+  // Paragraph spacing from the element's inline style (line-height, margin-top/bottom),
+  // falling back to the document defaults. A unitless line-height is a line multiple.
+  const paragraphSpacing = (el, fallback) => {
+    const style = el?.style;
+    if (!style) return fallback;
+    const spacing = { ...fallback };
+    const lineHeight = String(style.lineHeight || '').trim();
+    if (/^\d*\.?\d+$/.test(lineHeight)) {
+      spacing.line = Math.round(Number(lineHeight) * 240);
+      delete spacing.lineRule;
+    } else if (cssToTwips(lineHeight) !== undefined) {
+      spacing.line = cssToTwips(lineHeight);
+      spacing.lineRule = LineRuleType.EXACT;
+    }
+    const before = cssToTwips(style.marginTop);
+    const after = cssToTwips(style.marginBottom);
+    if (before !== undefined) spacing.before = Math.max(0, before);
+    if (after !== undefined) spacing.after = Math.max(0, after);
+    return spacing;
   };
 
   // Images: the editor renders them `display:block` with no margin (left-aligned) and expresses
@@ -1067,10 +1101,11 @@ export async function buildDocxBlob(rawHtml, options = {}) {
         return;
       }
 
-      // Font size in half-points
+      // Font size in half-points; the editor stores pt, pasted content may use px.
       if (style.fontSize) {
-        const px = parseInt(style.fontSize, 10);
-        if (px && px > 0) nextProps.size = Math.min(144, Math.max(12, px * 2));
+        const n = parseFloat(style.fontSize);
+        const pt = String(style.fontSize).trim().endsWith('px') ? n * 0.75 : n;
+        if (pt > 0) nextProps.size = Math.min(144, Math.max(12, Math.round(pt * 2)));
       }
 
       // Color normalization: must be 6-char hex without #
@@ -1134,7 +1169,7 @@ export async function buildDocxBlob(rawHtml, options = {}) {
         return new Paragraph({
           alignment: containerAlign,
           children: [...takePendingFloats(), new TextRun({ text, font: bodyFont })],
-          spacing: { line: wordLineSpacing, after: 200 },
+          spacing: paragraphSpacing(node.parentElement, { line: wordLineSpacing, after: 200 }),
         });
       }
       return null;
@@ -1176,7 +1211,7 @@ export async function buildDocxBlob(rawHtml, options = {}) {
         heading: levelMap[tag],
         alignment: alignmentFor(node) ?? containerAlign,
         children: [...takePendingFloats(), ...headingRuns],
-        spacing: { before: 240, after: 120 },
+        spacing: paragraphSpacing(node, { before: 240, after: 120 }),
       });
     }
 
@@ -1191,22 +1226,13 @@ export async function buildDocxBlob(rawHtml, options = {}) {
         indent: { left: 720 },
         alignment: alignmentFor(node) ?? alignmentFor(node.querySelector(':scope > p')) ?? containerAlign,
         children: [...takePendingFloats(), ...parseInlineNodes(node, { italics: true, color: '555555', font: bodyFont })],
-        spacing: { line: wordLineSpacing, after: 200 },
+        spacing: paragraphSpacing(node.querySelector(':scope > p') || node, { line: wordLineSpacing, after: 200 }),
       });
     }
 
     // Lists
     if (tag === 'ul' || tag === 'ol') {
-      const listParas = [];
-      node.querySelectorAll(':scope > li').forEach((li) => {
-        listParas.push(new Paragraph({
-          bullet: tag === 'ul' ? { level: 0 } : undefined,
-          alignment: alignmentFor(li) ?? alignmentFor(li.querySelector(':scope > p')) ?? containerAlign,
-          children: [...takePendingFloats(), ...parseInlineNodes(li, { font: bodyFont })],
-          spacing: { line: wordLineSpacing, after: 100 },
-        }));
-      });
-      return listParas;
+      return parseList(node, 0, containerAlign);
     }
 
     // Tables
@@ -1231,11 +1257,43 @@ export async function buildDocxBlob(rawHtml, options = {}) {
         }
       }
 
+      // Column widths: the editor stores each cell's spanned column widths in `colwidth`
+      // (px); fall back to the <colgroup>. Only this table's own rows/cells, not nested tables'.
+      const ownRows = Array.from(node.rows);
+      const colCount = Math.max(0, ...ownRows.map((tr) => Array.from(tr.cells).reduce((n, c) => n + (c.colSpan || 1), 0)));
+      let gridPx = null;
+      for (const tr of ownRows) {
+        const widths = Array.from(tr.cells).flatMap((c) => String(c.getAttribute('colwidth') || '').split(',').map(Number));
+        if (widths.length === colCount && widths.every((w) => w > 0)) { gridPx = widths; break; }
+      }
+      if (!gridPx) {
+        const cols = Array.from(node.querySelectorAll(':scope > colgroup > col')).map((col) => parseFloat(col.style.width));
+        if (cols.length === colCount && cols.every((w) => w > 0)) gridPx = cols;
+      }
+      let gridTwips = null;
+      if (gridPx) {
+        const scale = Math.min(1, printableWidthPx / gridPx.reduce((a, b) => a + b, 0));
+        gridTwips = gridPx.map((w) => Math.round(w * scale * PX_TO_TWIP));
+        tableWidth = { size: gridTwips.reduce((a, b) => a + b, 0), type: WidthType.DXA };
+      }
+      const occupied = [];
+
       const rows = [];
-      const trs = node.querySelectorAll('tr');
-      for (const tr of Array.from(trs)) {
+      for (const [rowIndex, tr] of ownRows.entries()) {
         const cells = [];
-        for (const cell of Array.from(tr.querySelectorAll('td, th'))) {
+        let gridCol = 0;
+        for (const cell of Array.from(tr.cells)) {
+          while (occupied[rowIndex]?.[gridCol]) gridCol += 1;
+          const colSpan = cell.colSpan || 1;
+          const rowSpan = cell.rowSpan || 1;
+          for (let r = 0; r < rowSpan; r += 1) {
+            occupied[rowIndex + r] = occupied[rowIndex + r] || [];
+            for (let c = 0; c < colSpan; c += 1) occupied[rowIndex + r][gridCol + c] = true;
+          }
+          const cellWidth = gridTwips
+            ? { size: gridTwips.slice(gridCol, gridCol + colSpan).reduce((a, b) => a + b, 0), type: WidthType.DXA }
+            : undefined;
+          gridCol += colSpan;
           const isHeader = cell.tagName.toLowerCase() === 'th';
           const cellParas = [];
 
@@ -1271,7 +1329,10 @@ export async function buildDocxBlob(rawHtml, options = {}) {
           cells.push(new TableCell({
             children: cellParas,
             shading,
-            margins: { top: 120, bottom: 120, left: 160, right: 160 },
+            width: cellWidth,
+            columnSpan: colSpan > 1 ? colSpan : undefined,
+            rowSpan: rowSpan > 1 ? rowSpan : undefined,
+            margins: { top: 40, bottom: 40, left: 100, right: 100 },
           }));
         }
         if (cells.length) {
@@ -1283,6 +1344,7 @@ export async function buildDocxBlob(rawHtml, options = {}) {
           rows,
           alignment: tableAlignment,
           width: tableWidth,
+          ...(gridTwips ? { columnWidths: gridTwips, layout: TableLayoutType.FIXED } : {}),
           borders: {
             top: { style: BorderStyle.SINGLE, size: 4, color: 'D0D0D0' },
             bottom: { style: BorderStyle.SINGLE, size: 4, color: 'D0D0D0' },
@@ -1329,8 +1391,61 @@ export async function buildDocxBlob(rawHtml, options = {}) {
     return new Paragraph({
       alignment: alignmentFor(node) ?? containerAlign,
       children: runs.length ? runs : [new TextRun({ text: '', font: bodyFont })],
-      spacing: { line: wordLineSpacing, after: 200 },
+      spacing: paragraphSpacing(node, { line: wordLineSpacing, after: 200 }),
     });
+  };
+
+  // Lists: each <li> paragraph gets the bullet / number of its nesting level; further paragraphs
+  // in the same item are indented to match, and nested lists recurse one level deeper.
+  // Every <ol> is its own numbering instance so numbering restarts per list.
+  let listInstance = 0;
+  const parseList = async (listEl, level, containerAlign) => {
+    const ordered = listEl.tagName.toLowerCase() === 'ol';
+    const instance = ++listInstance;
+    const out = [];
+    for (const li of Array.from(listEl.children)) {
+      if (li.tagName.toLowerCase() !== 'li') continue;
+      let first = true;
+      let inline = [];
+      const emit = (el, runs) => {
+        const marker = ordered
+          ? { numbering: { reference: 'etherx-ordered', level, instance } }
+          : { bullet: { level } };
+        out.push(new Paragraph({
+          ...(first ? marker : { indent: { left: 720 * (level + 1) } }),
+          alignment: alignmentFor(el) ?? alignmentFor(li) ?? containerAlign,
+          children: [...takePendingFloats(), ...(runs.length ? runs : [new TextRun({ text: '', font: bodyFont })])],
+          spacing: paragraphSpacing(el, { line: wordLineSpacing, after: 100 }),
+        }));
+        first = false;
+      };
+      const flushInline = () => {
+        if (!inline.length) return;
+        const holder = document.createElement('span');
+        inline.forEach((n) => holder.appendChild(n.cloneNode(true)));
+        inline = [];
+        if (holder.textContent.trim() || holder.querySelector('img')) emit(li, parseInlineNodes(holder, { font: bodyFont }));
+      };
+      for (const child of Array.from(li.childNodes)) {
+        const childTag = child.nodeType === 1 ? child.tagName.toLowerCase() : '';
+        if (childTag === 'ul' || childTag === 'ol') {
+          flushInline();
+          out.push(...await parseList(child, Math.min(level + 1, 8), containerAlign));
+        } else if (childTag === 'p') {
+          flushInline();
+          emit(child, parseInlineNodes(child, { font: bodyFont }));
+        } else if (/^(table|blockquote|h[1-6]|div|img|hr)$/.test(childTag)) {
+          flushInline();
+          const res = await parseBlockElement(child, containerAlign);
+          if (Array.isArray(res)) out.push(...res);
+          else if (res) out.push(res);
+        } else {
+          inline.push(child);
+        }
+      }
+      flushInline();
+    }
+    return out;
   };
 
   for (const node of Array.from(div.childNodes)) {
@@ -1402,6 +1517,18 @@ export async function buildDocxBlob(rawHtml, options = {}) {
   ];
 
   const doc = new Document({
+    numbering: {
+      config: [{
+        reference: 'etherx-ordered',
+        levels: Array.from({ length: 9 }, (_, level) => ({
+          level,
+          format: [LevelFormat.DECIMAL, LevelFormat.LOWER_LETTER, LevelFormat.LOWER_ROMAN][level % 3],
+          text: `%${level + 1}.`,
+          alignment: AlignmentType.START,
+          style: { paragraph: { indent: { left: 720 * (level + 1), hanging: 360 } } },
+        })),
+      }],
+    },
     styles: {
       default: {
         document: {

@@ -1393,9 +1393,9 @@ export function HomePage() {
         headerFooter: selectedDoc.headerFooter,
         design: selectedDoc.design,
         pageSettings: {
-          format: selectedDoc.layout?.size || 'a4',
-          orientation: selectedDoc.layout?.orientation || 'portrait',
-          margin: selectedDoc.layout?.margin || 'normal',
+          format: selectedDoc.layout?.pageSize || 'a4',
+          orientation: selectedDoc.layout?.pageOrientation || 'portrait',
+          margin: selectedDoc.layout?.pageMargin || 'normal',
         },
         watermark: selectedDoc.design?.watermark || '',
       };
@@ -1635,13 +1635,17 @@ export function HomePage() {
 
     const fileName = file.name.replace(/\.[^/.]+$/, '');
     let content = '';
+    let importedDesign = {};
+    let importedLayout = null;
     
     try {
       // Handle .docx files
       if (file.name.toLowerCase().endsWith('.docx')) {
         try {
           const arrayBuffer = await file.arrayBuffer();
-          const { html } = await docxToHtml(arrayBuffer);
+          const { html, design: docxDesign, layout: docxLayout } = await docxToHtml(arrayBuffer);
+          importedDesign = docxDesign || {};
+          importedLayout = docxLayout;
           
           // Ensure we have valid HTML structure
           if (!html.trim()) {
@@ -1664,7 +1668,8 @@ export function HomePage() {
         const created = await documentApi.create({
           title: fileName,
           content,
-          design: { pageColor: '#1a1a1a', pageColorMode: 'theme' },
+          design: { pageColor: '#1a1a1a', pageColorMode: 'theme', ...importedDesign },
+          ...(importedLayout ? { layout: { ...getDefaultLayout(), ...importedLayout } } : {}),
         });
         const newId = String(created?.id || created?._id || created?.document?.id || created?.document?._id || 'new');
         toast('File opened as a new document (save to add to recent list)', 'success');
