@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createTestEditor } from './testEditor';
 import { BlockRefs } from '@/ai/blockRefs';
+import { executeTool } from '@/ai/tools';
 
 const posOfText = (editor, text) => {
   let found = null;
@@ -98,6 +99,40 @@ describe('BlockRefs', () => {
     const id = refs.idFor(pos, editor.state.doc.nodeAt(pos));
     editor.commands.deleteRange({ from: pos - 1, to: pos + 1 });
     expect(refs.resolve(id)).toBeNull();
+    refs.detach();
+  });
+
+  it('keeps the id on the first half after a mid-block split and gives the second half its own id', () => {
+    const editor = createTestEditor('<p>ab cdefghijklmnop</p>');
+    const refs = new BlockRefs(editor);
+    const ctx = { editor, refs };
+    const b1 = executeTool('get_outline', {}, ctx).blocks[0].id;
+    // Enter after "ab": the second half is the longer one.
+    editor.chain().setTextSelection(1 + 'ab'.length).splitBlock().run();
+    const blocks = executeTool('get_outline', {}, ctx).blocks;
+    expect(blocks).toHaveLength(2);
+    const [first, second] = blocks;
+    expect(first.id).toBe(b1);
+    expect(second.id).not.toBe(b1);
+    expect(refs.resolve(first.id).node.textContent).toBe('ab');
+    expect(refs.resolve(second.id).node.textContent).toBe(' cdefghijklmnop');
+    expect(executeTool('rewrite_block', { block_id: b1, text: 'AB' }, ctx).ok).toBe(true);
+    editor.commands.acceptAllSuggestions();
+    expect(editor.getHTML()).toBe('<p>AB</p><p> cdefghijklmnop</p>');
+    refs.detach();
+  });
+
+  it('does not reuse the id for an empty first half after Enter at the block start', () => {
+    const editor = createTestEditor('<p>one</p>');
+    const refs = new BlockRefs(editor);
+    const ctx = { editor, refs };
+    const b1 = executeTool('get_outline', {}, ctx).blocks[0].id;
+    editor.chain().setTextSelection(1).splitBlock().run();
+    const [first, second] = executeTool('get_outline', {}, ctx).blocks;
+    expect(first.id).not.toBe(b1);
+    expect(refs.resolve(first.id).node.textContent).toBe('');
+    expect(refs.resolve(second.id).node.textContent).toBe('one');
+    expect(refs.resolve(b1).node.textContent).toBe('one');
     refs.detach();
   });
 });

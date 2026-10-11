@@ -4,9 +4,10 @@
 //
 // The range is mapped with start (assoc 1) and end (assoc -1) and does NOT use the
 // `deleted` flag: ReplaceAroundStep (heading toggle, alignment) and splits would otherwise
-// kill ids that still point at the same content. resolve() returns the largest matching
-// node fully inside the range, so a split never resolves to an empty paragraph and a merge
-// (which drops the range) resolves to nothing.
+// kill ids that still point at the same content. resolve() returns the first non-empty matching
+// node fully inside the range (or the first one if all are empty), so a split keeps the id on its
+// first half, never resolves to an empty paragraph, and a merge (which drops the range) resolves
+// to nothing.
 
 export class BlockRefs {
   constructor(editor) {
@@ -29,8 +30,10 @@ export class BlockRefs {
     const key = `${kind}:${pos}`;
     const cached = this.byPos.get(key);
     if (cached) return cached;
+    // Reuse an id only if it still resolves to the node at `pos` (after a split its range also
+    // covers the new block, which may be the one it resolves to).
     const existing = Array.from(this.entries.entries())
-      .find(([, e]) => e.end > e.start && e.start === pos && e.kind === kind)?.[0];
+      .find(([id, e]) => e.end > e.start && e.start === pos && e.kind === kind && this.resolve(id)?.pos === pos)?.[0];
     if (existing) {
       this.byPos.set(key, existing);
       return existing;
@@ -60,7 +63,8 @@ export class BlockRefs {
       const matches = kind === 'block' ? node.isTextblock : node.type.name === 'table';
       if (!matches) return true;
       if (pos >= start && pos + node.nodeSize <= end) {
-        if (!best || node.textContent.length > best.node.textContent.length) best = { node, pos };
+        // The first non-empty match wins, so a split keeps the id on its first half.
+        if (!best || (!best.node.content.size && node.content.size)) best = { node, pos };
         return false; // do not descend into a matched node
       }
       return true;
