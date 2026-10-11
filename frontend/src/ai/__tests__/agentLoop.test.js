@@ -66,6 +66,24 @@ describe('runAgent', () => {
     expect(result.stopped).toBe(true);
   });
 
+  it('aborts the in-flight model call and resolves as stopped', async () => {
+    const editor = createTestEditor('<p>x</p>');
+    const controller = new AbortController();
+    let received = null;
+    const agentStep = (payload, opts = {}) => new Promise((resolve, reject) => {
+      received = opts.signal;
+      // Like fetch: rejects with an AbortError when the signal fires, otherwise never settles.
+      opts.signal?.addEventListener('abort', () => reject(new DOMException('The operation was aborted.', 'AbortError')));
+    });
+    const pending = runAgent({ editor, prompt: 'p', signal: controller.signal, agentStep });
+    await Promise.resolve();
+    controller.abort();
+    const result = await pending;
+    expect(received).toBe(controller.signal);
+    expect(result.stopped).toBe(true);
+    expect(result.error).toBeUndefined();
+  });
+
   it('returns an error and detaches listeners when a step throws', async () => {
     const editor = createTestEditor('<p>teh fox</p>');
     const before = editor.emitter?.events?.transaction?.length ?? null;

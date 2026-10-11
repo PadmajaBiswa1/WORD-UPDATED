@@ -66,8 +66,10 @@ export async function runAgent({ editor, prompt, history = [], agentStep, onStep
       onStep({ kind: 'thinking', label: steps === 1 ? 'Thinking…' : 'Continuing…' });
       let res;
       try {
-        res = await agentStep({ messages, tools: TOOL_SCHEMAS });
+        res = await agentStep({ messages, tools: TOOL_SCHEMAS }, { signal });
       } catch (err) {
+        // Stop aborts the in-flight request: that is a stop, not a failure.
+        if (signal?.aborted || err?.name === 'AbortError') return finish({ stopped: true, summary: 'Stopped.' });
         return finish({ error: err.message || 'Pragna could not reach the model' });
       }
       if (signal?.aborted) return finish({ stopped: true, summary: 'Stopped.' });

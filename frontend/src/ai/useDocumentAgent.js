@@ -30,7 +30,7 @@ export function useDocumentAgent(editor) {
         editor,
         prompt,
         history,
-        agentStep: (payload) => aiApi.agentStep(payload),
+        agentStep: (payload, opts) => aiApi.agentStep(payload, opts),
         onStep: (step) => setSteps((prev) => [...prev, step]),
         signal: controller.signal,
       });

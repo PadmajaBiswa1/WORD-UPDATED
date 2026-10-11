@@ -248,7 +248,9 @@ class OllamaService {
     ];
 
     let lastError = null;
-    const maxAttempts = Math.max(1, Math.min(Math.max(this.keys.length, 1) * 2, 8));
+    // A tool request is one step of the browser's agent loop, which the user is waiting on (and may
+    // stop): keep it to two attempts.
+    const maxAttempts = withTools ? 2 : Math.max(1, Math.min(Math.max(this.keys.length, 1) * 2, 8));
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       const apiKey = this.getNextKey();
@@ -306,6 +308,9 @@ class OllamaService {
         if (status === 429 || status === 401 || status === 403 || String(errMsg).includes('rate limit') || String(errMsg).includes('usage')) {
           this.rotateKey();
         }
+
+        // A malformed tool request fails the same way every time: do not retry it.
+        if (withTools && status >= 400 && status < 500 && ![401, 403, 408, 429].includes(status)) break;
 
         // Brief delay before retry
         await new Promise((r) => setTimeout(r, 600));

@@ -157,7 +157,8 @@ export const templateApi = {
 export const aiApi = {
   action:          (payload) => req('/ai/action',           { method: 'POST', body: payload }),
   chat:            (payload) => req('/ai/chat',             { method: 'POST', body: payload }),
-  agentStep:       (payload) => req('/ai/agent-step',       { method: 'POST', body: payload }),
+  // opts.signal lets Stop abort the in-flight model call.
+  agentStep:       (payload, opts = {}) => req('/ai/agent-step', { ...opts, method: 'POST', body: payload }),
   status:          ()        => req('/ai/status'),
   webSearch:       (payload) => req('/ai/web/search',       { method: 'POST', body: payload }),
   webFetch:        (payload) => req('/ai/web/fetch',        { method: 'POST', body: payload }),

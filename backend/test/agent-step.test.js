@@ -44,3 +44,29 @@ test('chatCompletion with tools skips Gemini and returns tool_calls', async (t) 
   assert.ok(calls.every((u) => !u.includes('generativelanguage')));
   assert.equal(res.tool_calls[0].function.arguments, '{"ids":["b1"]}');
 });
+
+// Fails every Ollama call with `status`, counting attempts; uses several keys so the generic retry
+// budget (2 per key) would allow more than two attempts.
+async function countToolAttempts(t, status) {
+  let attempts = 0;
+  const original = axios.post;
+  axios.post = async () => {
+    attempts += 1;
+    const err = new Error(`HTTP ${status}`);
+    err.response = { status, data: { error: { message: `HTTP ${status}` } } };
+    throw err;
+  };
+  const ollamaService = require('../utils/ollamaService');
+  const keys = ollamaService.keys.splice(0, ollamaService.keys.length, 'k1', 'k2', 'k3');
+  t.after(() => { axios.post = original; ollamaService.keys.splice(0, ollamaService.keys.length, ...keys); });
+  await assert.rejects(ollamaService.chatCompletion({ messages: [{ role: 'user', content: 'x' }], tools: [tool] }));
+  return attempts;
+}
+
+test('chatCompletion with tools makes at most two attempts', async (t) => {
+  assert.equal(await countToolAttempts(t, 500), 2);
+});
+
+test('chatCompletion with tools does not retry a deterministic 4xx', async (t) => {
+  assert.equal(await countToolAttempts(t, 400), 1);
+});
