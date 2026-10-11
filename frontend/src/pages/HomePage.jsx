@@ -6,7 +6,7 @@ import {
   X, FileText, CheckCheck, RotateCcw, Tag, Globe, Zap, Lock, ShieldCheck,
   Copy, Check
 } from 'lucide-react';
-import mammoth from 'mammoth';
+import { docxToHtml } from '@/services/docxImport';
 import { documentApi } from '@/services/api';
 import {
   buildDocxBlob,
@@ -1641,41 +1641,7 @@ export function HomePage() {
       if (file.name.toLowerCase().endsWith('.docx')) {
         try {
           const arrayBuffer = await file.arrayBuffer();
-          const result = await mammoth.convertToHtml({ arrayBuffer });
-          let html = result.value || '';
-          
-          // Clean up the HTML to remove any corrupted elements
-          html = html.replace(/<[^>]*>/g, (tag) => {
-            // Keep only safe formatting tags
-            if (/^<\/?(?:p|div|span|strong|em|u|h[1-6]|ul|ol|li|br|blockquote)(?:\s|>|$)/i.test(tag)) {
-              return tag;
-            }
-            return '';
-          });
-          
-          // Convert Word page breaks to visible Tiptap page break format
-          // Replace double line breaks with page breaks
-          html = html.replace(/<br\s*\/?>\s*<br\s*\/?>/gi, '<div data-page-break="true" style="height:36px;display:block;margin:24px 0;background:linear-gradient(to bottom,rgba(100,100,100,0.15) 0%,rgba(150,150,150,0.25) 50%,rgba(100,100,100,0.15) 100%);border-top:1px solid rgba(200,200,200,0.4);border-bottom:1px solid rgba(200,200,200,0.4);box-shadow:inset 0 1px 2px rgba(0,0,0,0.1),inset 0 -1px 2px rgba(0,0,0,0.1);"></div>');
-          
-          // Split paragraphs and insert page breaks for long documents
-          const paragraphs = html.split(/<\/p>/i);
-          if (paragraphs.length > 12) {
-            let newHtml = '';
-            let paraCount = 0;
-            
-            for (let i = 0; i < paragraphs.length; i++) {
-              newHtml += paragraphs[i];
-              if (i < paragraphs.length - 1) newHtml += '</p>';
-              paraCount++;
-              
-              // Insert visible page break every 12 paragraphs
-              if (paraCount >= 12 && i < paragraphs.length - 1) {
-                newHtml += '<div data-page-break="true" style="height:36px;display:block;margin:24px 0;background:linear-gradient(to bottom,rgba(100,100,100,0.15) 0%,rgba(150,150,150,0.25) 50%,rgba(100,100,100,0.15) 100%);border-top:1px solid rgba(200,200,200,0.4);border-bottom:1px solid rgba(200,200,200,0.4);box-shadow:inset 0 1px 2px rgba(0,0,0,0.1),inset 0 -1px 2px rgba(0,0,0,0.1);"></div>';
-                paraCount = 0;
-              }
-            }
-            html = newHtml;
-          }
+          const { html } = await docxToHtml(arrayBuffer);
           
           // Ensure we have valid HTML structure
           if (!html.trim()) {

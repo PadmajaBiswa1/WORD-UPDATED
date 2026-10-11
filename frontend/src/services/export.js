@@ -860,6 +860,11 @@ export async function buildDocxBlob(rawHtml, options = {}) {
     PageNumber,
     ImageRun,
     PageOrientation,
+    HorizontalPositionAlign,
+    HorizontalPositionRelativeFrom,
+    VerticalPositionRelativeFrom,
+    TextWrappingType,
+    TextWrappingSide,
     convertMillimetersToTwip,
   } = await import('docx');
 
@@ -899,6 +904,125 @@ export async function buildDocxBlob(rawHtml, options = {}) {
   const div = document.createElement('div');
   div.innerHTML = cleanHtml;
 
+  // Paragraph alignment from the editor's `text-align` style (or legacy `align` attribute).
+  const alignmentFor = (el) => {
+    const value = String(el?.style?.textAlign || el?.getAttribute?.('align') || '').toLowerCase();
+    if (value === 'center') return AlignmentType.CENTER;
+    if (value === 'right' || value === 'end') return AlignmentType.RIGHT;
+    if (value === 'justify') return AlignmentType.JUSTIFIED;
+    if (value === 'left' || value === 'start') return AlignmentType.LEFT;
+    return undefined;
+  };
+
+  // Images: the editor renders them `display:block` with no margin (left-aligned) and expresses
+  // alignment through margins (`auto` sides) or `float`. Sizes are CSS px; Word wants px at 96 DPI.
+  const PX_TO_TWIP = 15;
+  const PX_TO_EMU = 9525;
+  const printableWidthPx = Math.floor((pageWidthMm / 25.4) * 96 - (2 * marginTwips) / PX_TO_TWIP);
+  const printableHeightPx = Math.floor((pageHeightMm / 25.4) * 96 - (2 * marginTwips) / PX_TO_TWIP);
+
+  const loadNaturalSize = (src) => new Promise((resolve) => {
+    const probe = new window.Image();
+    probe.onload = () => resolve({ w: probe.naturalWidth, h: probe.naturalHeight });
+    probe.onerror = () => resolve(null);
+    probe.src = src;
+  });
+
+  const imageData = new Map();
+  await Promise.all(Array.from(div.querySelectorAll('img')).map(async (img) => {
+    const src = img.getAttribute('src');
+    const [bytes, natural] = await Promise.all([extractImageBytes(src), loadNaturalSize(src)]);
+    if (bytes) imageData.set(img, { bytes, natural });
+  }));
+
+  const cssPx = (value, percentOf) => {
+    const raw = String(value || '').trim();
+    if (!raw || raw === 'auto') return 0;
+    const n = parseFloat(raw);
+    if (!Number.isFinite(n) || n <= 0) return 0;
+    return raw.endsWith('%') ? (n / 100) * percentOf : n;
+  };
+
+  const imageSize = (img, natural) => {
+    let width = cssPx(img.style?.width, printableWidthPx) || cssPx(img.getAttribute('width'), printableWidthPx);
+    let height = cssPx(img.style?.height, printableHeightPx) || cssPx(img.getAttribute('height'), printableHeightPx);
+    const ratio = natural?.w && natural?.h ? natural.h / natural.w : (width && height ? height / width : 0.6);
+    if (!width && !height) width = natural?.w || 500;
+    if (!width) width = height / ratio;
+    if (!height) height = width * ratio;
+    // Same limits the editor applies (max-width: 100%, max-height: page content height).
+    const scale = Math.min(1, printableWidthPx / width, printableHeightPx / height);
+    return { width: Math.round(width * scale), height: Math.round(height * scale) };
+  };
+
+  const floatSide = (img) => {
+    const value = String(img.style?.float || img.getAttribute('data-wrap') || '').toLowerCase();
+    return value === 'left' || value === 'right' ? value : '';
+  };
+
+  const buildImageRun = (img) => {
+    const data = imageData.get(img);
+    if (!data) return null;
+    const transformation = imageSize(img, data.natural);
+    const side = floatSide(img);
+    if (!side) return new ImageRun({ data: data.bytes, transformation });
+
+    // Floated image: anchor it in the paragraph and wrap text around it, like the editor.
+    const gap = (value) => Math.round(cssPx(value, 0) * PX_TO_EMU);
+    return new ImageRun({
+      data: data.bytes,
+      transformation,
+      floating: {
+        horizontalPosition: {
+          relative: HorizontalPositionRelativeFrom.MARGIN,
+          align: side === 'left' ? HorizontalPositionAlign.LEFT : HorizontalPositionAlign.RIGHT,
+        },
+        verticalPosition: { relative: VerticalPositionRelativeFrom.PARAGRAPH, offset: 0 },
+        wrap: { type: TextWrappingType.SQUARE, side: TextWrappingSide.BOTH_SIDES },
+        margins: {
+          top: gap(img.style?.marginTop),
+          bottom: gap(img.style?.marginBottom),
+          left: gap(img.style?.marginLeft),
+          right: gap(img.style?.marginRight),
+        },
+      },
+    });
+  };
+
+  // A block image's paragraph: alignment from its auto margins, a fixed left margin
+  // (e.g. after dragging) becomes a left indent.
+  const blockImageParagraph = (img, containerAlign) => {
+    const run = buildImageRun(img);
+    if (!run) return null;
+    if (floatSide(img)) return { floatRun: run };
+
+    const ml = img.style?.marginLeft;
+    const mr = img.style?.marginRight;
+    let alignment = containerAlign || AlignmentType.LEFT;
+    let indentPx = 0;
+    if (ml === 'auto' && mr === 'auto') alignment = AlignmentType.CENTER;
+    else if (ml === 'auto') alignment = AlignmentType.RIGHT;
+    else if (!containerAlign) indentPx = cssPx(ml, printableWidthPx);
+
+    return new Paragraph({
+      alignment,
+      indent: indentPx ? { left: Math.round(indentPx * PX_TO_TWIP) } : undefined,
+      children: [run],
+      spacing: {
+        before: Math.round(cssPx(img.style?.marginTop, 0) * PX_TO_TWIP),
+        after: Math.round(cssPx(img.style?.marginBottom, 0) * PX_TO_TWIP) || 200,
+      },
+    });
+  };
+
+  // Floated images are anchored to the next paragraph so the following text wraps around them.
+  let pendingFloats = [];
+  const takePendingFloats = () => {
+    const runs = pendingFloats;
+    pendingFloats = [];
+    return runs;
+  };
+
   // Helper to extract styled TextRuns recursively from inline nodes
   const parseInlineNodes = (node, inheritedProps = {}) => {
     const runs = [];
@@ -935,6 +1059,11 @@ export async function buildDocxBlob(rawHtml, options = {}) {
       }
       if (tag === 'br') {
         runs.push(new TextRun({ break: 1, ...currProps }));
+        return;
+      }
+      if (tag === 'img') {
+        const imageRun = buildImageRun(currNode);
+        if (imageRun) runs.push(imageRun);
         return;
       }
 
@@ -997,12 +1126,14 @@ export async function buildDocxBlob(rawHtml, options = {}) {
 
   const children = [];
 
-  const parseBlockElement = async (node) => {
+  // `containerAlign`: alignment inherited from an enclosing table cell / blockquote / list item.
+  const parseBlockElement = async (node, containerAlign) => {
     if (node.nodeType === 3) {
       const text = (node.textContent || '').trim();
       if (text) {
         return new Paragraph({
-          children: [new TextRun({ text, font: bodyFont })],
+          alignment: containerAlign,
+          children: [...takePendingFloats(), new TextRun({ text, font: bodyFont })],
           spacing: { line: wordLineSpacing, after: 200 },
         });
       }
@@ -1019,38 +1150,15 @@ export async function buildDocxBlob(rawHtml, options = {}) {
     }
 
     const tag = node.tagName.toLowerCase();
-    const style = node.style || {};
 
     // Images
     if (tag === 'img') {
-      const src = node.getAttribute('src');
-      const imageBytes = await extractImageBytes(src);
-      if (imageBytes) {
-        let width = parseInt(node.getAttribute('width') || style.width, 10);
-        let height = parseInt(node.getAttribute('height') || style.height, 10);
-
-        if (!width || width <= 0) width = 500;
-        if (!height || height <= 0) height = 300;
-
-        // Cap to printable width in Word (~560px for A4 Normal margins)
-        if (width > 560) {
-          const ratio = height / width;
-          width = 560;
-          height = Math.round(width * ratio);
-        }
-
-        return new Paragraph({
-          alignment: AlignmentType.CENTER,
-          children: [
-            new ImageRun({
-              data: imageBytes,
-              transformation: { width, height },
-            }),
-          ],
-          spacing: { after: 200 },
-        });
+      const result = blockImageParagraph(node, containerAlign);
+      if (result?.floatRun) {
+        pendingFloats.push(result.floatRun);
+        return null;
       }
-      return null;
+      return result;
     }
 
     // Headings
@@ -1066,7 +1174,8 @@ export async function buildDocxBlob(rawHtml, options = {}) {
       const headingRuns = parseInlineNodes(node, { font: headingFont, color: headingColor, bold: true });
       return new Paragraph({
         heading: levelMap[tag],
-        children: headingRuns,
+        alignment: alignmentFor(node) ?? containerAlign,
+        children: [...takePendingFloats(), ...headingRuns],
         spacing: { before: 240, after: 120 },
       });
     }
@@ -1080,7 +1189,8 @@ export async function buildDocxBlob(rawHtml, options = {}) {
     if (tag === 'blockquote') {
       return new Paragraph({
         indent: { left: 720 },
-        children: parseInlineNodes(node, { italics: true, color: '555555', font: bodyFont }),
+        alignment: alignmentFor(node) ?? alignmentFor(node.querySelector(':scope > p')) ?? containerAlign,
+        children: [...takePendingFloats(), ...parseInlineNodes(node, { italics: true, color: '555555', font: bodyFont })],
         spacing: { line: wordLineSpacing, after: 200 },
       });
     }
@@ -1091,7 +1201,8 @@ export async function buildDocxBlob(rawHtml, options = {}) {
       node.querySelectorAll(':scope > li').forEach((li) => {
         listParas.push(new Paragraph({
           bullet: tag === 'ul' ? { level: 0 } : undefined,
-          children: parseInlineNodes(li, { font: bodyFont }),
+          alignment: alignmentFor(li) ?? alignmentFor(li.querySelector(':scope > p')) ?? containerAlign,
+          children: [...takePendingFloats(), ...parseInlineNodes(li, { font: bodyFont })],
           spacing: { line: wordLineSpacing, after: 100 },
         }));
       });
@@ -1128,17 +1239,12 @@ export async function buildDocxBlob(rawHtml, options = {}) {
           const isHeader = cell.tagName.toLowerCase() === 'th';
           const cellParas = [];
 
-          // Determine cell text alignment
-          const cellAlignRaw = (cell.style?.textAlign || cell.getAttribute('align') || '').toLowerCase();
-          let cellAlign = undefined;
-          if (cellAlignRaw === 'center') cellAlign = AlignmentType.CENTER;
-          else if (cellAlignRaw === 'right') cellAlign = AlignmentType.RIGHT;
-          else if (cellAlignRaw === 'justify') cellAlign = AlignmentType.JUSTIFIED;
-          else if (cellAlignRaw === 'left') cellAlign = AlignmentType.LEFT;
+          // Cell alignment applies to every paragraph in the cell that has none of its own.
+          const cellAlign = alignmentFor(cell);
 
           if (cell.children.length > 0) {
             for (const child of Array.from(cell.childNodes)) {
-              const res = await parseBlockElement(child);
+              const res = await parseBlockElement(child, cellAlign);
               if (Array.isArray(res)) cellParas.push(...res);
               else if (res) cellParas.push(res);
             }
@@ -1149,13 +1255,6 @@ export async function buildDocxBlob(rawHtml, options = {}) {
               spacing: { after: 60 },
               alignment: cellAlign,
             }));
-          } else if (cellAlign) {
-            // Apply cell alignment to paragraphs that don't have explicit alignment
-            cellParas.forEach((p) => {
-              if (p && !p.alignment && cellAlign) {
-                p.alignment = cellAlign;
-              }
-            });
           }
 
           // Shading for header or custom background
@@ -1202,7 +1301,7 @@ export async function buildDocxBlob(rawHtml, options = {}) {
       // Check for nested image
       const nestedImg = node.querySelector(':scope > img');
       if (nestedImg && node.children.length === 1) {
-        return await parseBlockElement(nestedImg);
+        return await parseBlockElement(nestedImg, alignmentFor(node) ?? containerAlign);
       }
 
       const hasBlockChildren = Array.from(node.children).some((c) =>
@@ -1211,7 +1310,7 @@ export async function buildDocxBlob(rawHtml, options = {}) {
       if (hasBlockChildren) {
         const innerBlocks = [];
         for (const child of Array.from(node.childNodes)) {
-          const res = await parseBlockElement(child);
+          const res = await parseBlockElement(child, alignmentFor(node) ?? containerAlign);
           if (Array.isArray(res)) innerBlocks.push(...res);
           else if (res) innerBlocks.push(res);
         }
@@ -1222,18 +1321,13 @@ export async function buildDocxBlob(rawHtml, options = {}) {
     // Standard Paragraph: check if contains an image
     const singleImg = node.querySelector(':scope > img');
     if (singleImg && node.childNodes.length === 1) {
-      return await parseBlockElement(singleImg);
+      return await parseBlockElement(singleImg, alignmentFor(node) ?? containerAlign);
     }
 
-    const runs = parseInlineNodes(node, { font: bodyFont });
-    let alignment = undefined;
-    const textAlign = style.textAlign || node.getAttribute('align');
-    if (textAlign === 'center') alignment = AlignmentType.CENTER;
-    else if (textAlign === 'right') alignment = AlignmentType.RIGHT;
-    else if (textAlign === 'justify') alignment = AlignmentType.JUSTIFIED;
+    const runs = [...takePendingFloats(), ...parseInlineNodes(node, { font: bodyFont })];
 
     return new Paragraph({
-      alignment,
+      alignment: alignmentFor(node) ?? containerAlign,
       children: runs.length ? runs : [new TextRun({ text: '', font: bodyFont })],
       spacing: { line: wordLineSpacing, after: 200 },
     });
@@ -1246,6 +1340,11 @@ export async function buildDocxBlob(rawHtml, options = {}) {
     } else if (result) {
       children.push(result);
     }
+  }
+
+  // A floated image with no paragraph after it still needs an anchor.
+  if (pendingFloats.length) {
+    children.push(new Paragraph({ children: takePendingFloats() }));
   }
 
   // Guarantee at least one valid paragraph

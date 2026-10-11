@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useUIStore, useEditorStore } from '@/store';
 import { Modal, Button, Stack } from '@/components/ui';
+import { docxToHtml } from '@/services/docxImport';
 
 export function ImportDocxDialog() {
   const { closeDialog, toast } = useUIStore();
@@ -22,9 +23,6 @@ export function ImportDocxDialog() {
     setLoading(true);
 
     try {
-      // Dynamically import mammoth
-      const mammoth = (await import('mammoth')).default;
-      
       // Read file as array buffer
       const reader = new FileReader();
       reader.onload = async (e) => {
@@ -36,16 +34,16 @@ export function ImportDocxDialog() {
           }
 
           // Convert DOCX to HTML
-          const result = await mammoth.convertToHtml({ arrayBuffer });
+          const { html: importedHtml } = await docxToHtml(arrayBuffer);
           
-          if (!result.value) {
+          if (!importedHtml) {
             toast('No content found in document', 'warning');
             setLoading(false);
             return;
           }
 
           // Clean up any problematic HTML
-          let html = result.value;
+          let html = importedHtml;
           
           // Remove any artificial page break patterns
           html = html.replace(/style="page-break-after[^"]*"/g, '');
