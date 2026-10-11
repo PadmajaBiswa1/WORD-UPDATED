@@ -189,7 +189,7 @@ function endSplitPass() {
 // Measures, in the real DOM, where each leaf of a splittable block lands and inserts temporary
 // spacers so no leaf crosses a page boundary. Coordinates are relative to the editor content top,
 // where page n's text area starts at n * pageStep.
-function planSplittable(view, blockEl, pageStep, contentHeight) {
+function planSplittable(view, blockEl, { pageStep, contentHeight, pageHeight, padding }) {
   const pmRect = view.dom.getBoundingClientRect();
   const scale = pmRect.height / view.dom.offsetHeight || 1;
   const yOf = (el) => (el.getBoundingClientRect().top - pmRect.top) / scale;
@@ -223,21 +223,48 @@ function planSplittable(view, blockEl, pageStep, contentHeight) {
     const landed = yOf(leaf);
     const height2 = Math.max(0, target - top - (landed - target));
     temp.style.height = `${height2}px`;
-    spacers.push({ pos, height: Math.round(height2) });
+
+    // Mask the dead zone between the two pages' text areas (bottom margin, gap, top margin)
+    // across the block's width, so cell borders don't run through it.
+    const tempRect = temp.getBoundingClientRect();
+    const boxRect = (blockEl.querySelector(':scope > table') || blockEl).getBoundingClientRect();
+    const tempTop = (tempRect.top - pmRect.top) / scale;
+    const contentBottom = pageTop + contentHeight;
+    const sheetBottom = pageTop - padding + pageHeight;
+    const mask = {
+      top: Math.round(contentBottom - tempTop),
+      left: Math.round((boxRect.left - tempRect.left) / scale),
+      width: Math.round(boxRect.width / scale),
+      margin: Math.round(sheetBottom - contentBottom),
+      gap: PAGE_GAP,
+      next: Math.round(target - (sheetBottom + PAGE_GAP)),
+    };
+    spacers.push({ pos, height: Math.round(height2), mask });
   }
   const bottom = (blockEl.getBoundingClientRect().bottom - pmRect.top) / scale;
   return { spacers, bottom };
 }
 
-function spacerWidget(pos, height) {
+function spacerWidget(pos, height, mask) {
   return Decoration.widget(pos, () => {
     const el = document.createElement('div');
     el.className = INNER_BREAK_CLASS;
     el.setAttribute('contenteditable', 'false');
     el.setAttribute('aria-hidden', 'true');
-    el.style.cssText = `display:block;height:${height}px;margin:0;padding:0;pointer-events:none;user-select:none;`;
+    el.style.cssText = `display:block;position:relative;height:${height}px;margin:0;padding:0;pointer-events:none;user-select:none;`;
+    if (mask) {
+      const band = (top, h, background) => {
+        const part = document.createElement('div');
+        part.style.cssText = `position:absolute;left:${mask.left}px;width:${mask.width}px;top:${top}px;height:${h}px;background:${background};`;
+        el.appendChild(part);
+      };
+      const pageFill = 'var(--etherx-page-fill, var(--bg-page))';
+      band(mask.top, mask.margin + 1, pageFill);
+      band(mask.top + mask.margin, mask.gap, 'var(--bg-app)');
+      band(mask.top + mask.margin + mask.gap, mask.next, pageFill);
+    }
     return el;
-  }, { side: -1, key: `${INNER_BREAK_CLASS}-${height}`, ignoreSelection: true });
+  }, { side: -1, key: `${INNER_BREAK_CLASS}-${height}-${mask ? Object.values(mask).join('/') : ''}`, ignoreSelection: true });
 }
 
 function paginateDocument(view, heightCache) {
@@ -251,6 +278,7 @@ function paginateDocument(view, heightCache) {
   const { pageSize, pageOrientation } = useUIStore.getState();
   const dims = PAGE_SIZES[pageSize] || PAGE_SIZES.a4;
   const pageHeight = pageOrientation === 'landscape' ? dims.w : dims.h;
+  const pagePadding = getLayoutMetrics({ size: pageSize, orientation: pageOrientation, margin: useUIStore.getState().pageMargin }).padding;
   const pageStep = pageHeight + PAGE_GAP;
 
   const sourceBlocks = [];
@@ -356,9 +384,11 @@ function paginateDocument(view, heightCache) {
     const splitHere = splittableEl && !fitsCurrentPage && pageContentLimit - proposedTop >= MIN_SPLIT_SPACE;
     const placeSplittable = (fallbackBottom) => {
       let plan = null;
-      try { plan = planSplittable(view, splittableEl, pageStep, contentHeight); } catch { plan = null; }
+      try {
+        plan = planSplittable(view, splittableEl, { pageStep, contentHeight, pageHeight, padding: pagePadding });
+      } catch { plan = null; }
       if (!plan) return fallbackBottom;
-      plan.spacers.forEach(({ pos: at, height }) => innerSpacers.push({ pos: at, blockIndex: index, blockPos: pos, height }));
+      plan.spacers.forEach(({ pos: at, height, mask }) => innerSpacers.push({ pos: at, blockIndex: index, blockPos: pos, height, mask }));
       return Math.max(fallbackBottom, plan.bottom);
     };
 
@@ -404,11 +434,12 @@ function paginateDocument(view, heightCache) {
   setSpacersHidden(false);
 
   // Spacer positions in the paginated document (blocks shift by the page breaks before them).
-  const spacerPlan = innerSpacers.map(({ pos: at, blockIndex, blockPos, height }) => ({
+  const spacerPlan = innerSpacers.map(({ pos: at, blockIndex, blockPos, height, mask }) => ({
     pos: newBlockStart[blockIndex] + (at - blockPos),
     height,
+    mask,
   }));
-  const spacerSig = spacerPlan.map((s) => `${s.pos}:${s.height}`).join(',');
+  const spacerSig = spacerPlan.map((s) => `${s.pos}:${s.height}:${Object.values(s.mask || {}).join('/')}`).join(',');
   const spacerMeta = { sig: spacerSig, plan: spacerPlan };
   const currentSig = AUTO_PAGINATION_KEY.getState(view.state)?.sig || '';
 
@@ -824,7 +855,7 @@ export const PageBreak = Node.create({
               const size = tr.doc.content.size;
               const widgets = meta.plan
                 .filter(({ pos }) => pos >= 0 && pos <= size)
-                .map(({ pos, height }) => spacerWidget(pos, height));
+                .map(({ pos, height, mask }) => spacerWidget(pos, height, mask));
               return { set: DecorationSet.create(tr.doc, widgets), sig: meta.sig };
             }
             return tr.docChanged ? { set: value.set.map(tr.mapping, tr.doc), sig: value.sig } : value;

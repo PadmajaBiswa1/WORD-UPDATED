@@ -5,6 +5,7 @@ import { saveAs } from 'file-saver';
 import { PAGE_SIZES, MARGIN_MAP } from '@/utils/pageLayout';
 import { useDocumentStore, useUIStore } from '@/store';
 import { stripAutoPageBreaks } from '@/components/editor/PageBreak';
+import { WORD_SINGLE_LINE } from '@/services/docxImport';
 
 export function sanitizeFilename(name) {
   return (name || 'document').replace(/[^a-z0-9_\-\s]/gi, '_').trim() || 'document';
@@ -904,7 +905,8 @@ export async function buildDocxBlob(rawHtml, options = {}) {
   const headingFont = mapFontForDocx(design.headingFont || design.font || 'Crimson Pro');
   const headingColor = normalizeExportColor(design.heading || design.accent || '#c9a84c', true) || 'C9A84C';
   const lineSpacingMultiplier = Number(design.spacing || '1.7') || 1.7;
-  const wordLineSpacing = Math.round(lineSpacingMultiplier * 240); // 240 = 1.0 single spacing in docx
+  // CSS line-height n shows lines n x font size apart; Word's single (240) is ~1.15 x font size.
+  const wordLineSpacing = Math.round((lineSpacingMultiplier / WORD_SINGLE_LINE) * 240);
 
   const cleanHtml = prepareExportHtml(rawHtml, options);
   const div = document.createElement('div');
@@ -935,7 +937,7 @@ export async function buildDocxBlob(rawHtml, options = {}) {
     const spacing = { ...fallback };
     const lineHeight = String(style.lineHeight || '').trim();
     if (/^\d*\.?\d+$/.test(lineHeight)) {
-      spacing.line = Math.round(Number(lineHeight) * 240);
+      spacing.line = Math.round((Number(lineHeight) / WORD_SINGLE_LINE) * 240);
       delete spacing.lineRule;
     } else if (cssToTwips(lineHeight) !== undefined) {
       spacing.line = cssToTwips(lineHeight);

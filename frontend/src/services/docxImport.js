@@ -77,11 +77,18 @@ function buildStyleResolver(stylesDoc) {
   };
 }
 
+// Word's "single" line is about 1.15x the font size, while CSS line-height 1 is exactly the font
+// size (lines touch). The exporter divides by the same factor.
+export const WORD_SINGLE_LINE = 1.15;
+
 // Word line spacing -> CSS line-height. "auto" lines are 240ths of a line; exact/atLeast are twips.
 function cssLineHeight({ line, lineRule }) {
   if (!line) return null;
-  if (!lineRule || lineRule === 'auto') return String(Math.round((Number(line) / 240) * 100) / 100);
-  return `${Number(line) / TWIPS_PER_PT}pt`;
+  if (!lineRule || lineRule === 'auto') return String(Math.round((Number(line) / 240) * WORD_SINGLE_LINE * 100) / 100);
+  const pt = Number(line) / TWIPS_PER_PT;
+  // "At least" only raises the line height; below a normal line it changes nothing.
+  if (lineRule === 'atLeast' && pt < 14) return null;
+  return `${pt}pt`;
 }
 
 function paragraphCss(spacing) {
@@ -310,7 +317,7 @@ export async function docxToHtml(arrayBuffer) {
   const design = {};
   if (baseFont) design.font = baseFont;
   const defaultLineHeight = cssLineHeight(resolver.defaultLine);
-  design.spacing = defaultLineHeight && !defaultLineHeight.endsWith('pt') ? defaultLineHeight : '1';
+  design.spacing = defaultLineHeight && !defaultLineHeight.endsWith('pt') ? defaultLineHeight : String(WORD_SINGLE_LINE);
 
   return { html: doc.body.innerHTML, design, layout: readLayout(pkg.document), messages: result.messages };
 }
