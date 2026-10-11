@@ -118,17 +118,40 @@ export function resolveSuggestions(tr, mode, { from = 0, to = tr.doc.content.siz
     if (last && last.to === r.from) last.to = r.to;
     else merged.push({ ...r });
   });
+  // Textblocks whose whole content this call removes (they had text before). Containers may only
+  // be cleaned up when every textblock inside was emptied by this call, so blank blocks the user
+  // left in a table or list are never swept away with them.
+  let emptied = [];
+  merged.forEach(({ from: a, to: b }) => {
+    const $a = tr.doc.resolve(a);
+    if (a === $a.start() && b === $a.end() && $a.depth > 0) emptied.push($a.before());
+  });
+  // Keeps `emptied` pointing at the same blocks after the steps added since `fromStep`.
+  const sync = (fromStep) => {
+    for (let i = fromStep; i < tr.steps.length; i += 1) {
+      const { from: sFrom, to: sTo } = tr.steps[i];
+      const map = tr.mapping.maps[i];
+      emptied = emptied.filter((p) => !(p >= sFrom && p < sTo)).map((p) => map.map(p, 1));
+    }
+  };
+  const del = (from, to) => {
+    const n = tr.steps.length;
+    tr.delete(from, to);
+    sync(n);
+  };
+  const isEmptied = (pos) => emptied.includes(pos);
+
   // Delete from the end so earlier positions stay valid. A range covering a whole textblock
-  // removes the block too, as long as its parent keeps another child. When the parent has no other
-  // child, the emptied block is cleaned up together with any container left with nothing in it.
+  // removes the block too, as long as its parent keeps a valid child list. Otherwise only the text
+  // goes, and any container left holding nothing but emptied blocks is cleaned up with it.
   merged.reverse().forEach(({ from: a, to: b }) => {
     const $a = tr.doc.resolve(a);
-    const wholeBlock = a === $a.start() && b === $a.end();
-    if (wholeBlock && $a.depth > 0 && $a.node(-1).childCount > 1) {
-      tr.delete($a.before(), $a.after());
+    const wholeBlock = a === $a.start() && b === $a.end() && $a.depth > 0;
+    if (wholeBlock && $a.node(-1).canReplace($a.index(-1), $a.index(-1) + 1)) {
+      del($a.before(), $a.after());
     } else {
-      tr.delete(a, b);
-      if (wholeBlock && $a.depth > 0) removeEmptyContainers(tr, $a.before());
+      del(a, b);
+      if (wholeBlock) removeEmptyContainers(tr, $a.before(), isEmptied, del);
     }
   });
   return tr;
@@ -140,30 +163,37 @@ const EMPTY_CONTAINERS = new Set([
 ]);
 const TABLE_CELLS = new Set(['tableCell', 'tableHeader']);
 
-function isEmptyNode(node) {
-  if (node.textContent !== '') return false;
-  let hasLeaf = false;
-  node.descendants((child) => {
-    if (child.isLeaf && !child.isText) hasLeaf = true;
-    return !hasLeaf;
+// True when every textblock inside `node` (whose content starts at `contentStart`) is empty and was
+// emptied by the current resolve call, and nothing else (images, rules) lives there.
+function onlyEmptiedBlocks(node, contentStart, isEmptied) {
+  let ok = true;
+  node.descendants((child, pos) => {
+    if (!ok) return false;
+    if (child.isTextblock) {
+      if (child.content.size > 0 || !isEmptied(contentStart + pos)) ok = false;
+      return false;
+    }
+    if (child.isLeaf) ok = false;
+    return ok;
   });
-  return !hasLeaf;
+  return ok;
 }
 
-// The textblock at `blockPos` was just emptied. Climb to the highest container that is now empty
-// and delete it (unless that would leave its own parent without children).
-function removeEmptyContainers(tr, blockPos) {
+// The textblock at `blockPos` was just emptied. Climb to the highest container holding only blocks
+// emptied by this call and delete it, if its parent stays schema-valid without it.
+function removeEmptyContainers(tr, blockPos, isEmptied, del) {
   const $p = tr.doc.resolve(blockPos);
   let top = null;
   for (let d = $p.depth; d > 0; d -= 1) {
     const n = $p.node(d);
-    if (!EMPTY_CONTAINERS.has(n.type.name) || !isEmptyNode(n)) break;
+    if (!EMPTY_CONTAINERS.has(n.type.name) || !onlyEmptiedBlocks(n, $p.start(d), isEmptied)) break;
     top = d;
   }
-  // A table cell must keep a paragraph; only remove cells' contents above the cell, never the cell.
+  // A table cell must keep a paragraph; never remove a cell on its own.
   if (top !== null && TABLE_CELLS.has($p.node(top).type.name)) top = top < $p.depth ? top + 1 : null;
   if (top === null || top < 1) return;
-  if ($p.node(top - 1).childCount > 1) tr.delete($p.before(top), $p.after(top));
+  const index = $p.index(top - 1);
+  if ($p.node(top - 1).canReplace(index, index + 1)) del($p.before(top), $p.after(top));
 }
 
 export function listSuggestionIds(doc) {

@@ -109,5 +109,44 @@ describe('resolveSuggestions container cleanup', () => {
     editor.commands.rejectAllSuggestions();
     expect(editor.state.doc.childCount).toBeGreaterThan(0);
   });
-});
 
+  it('never sweeps away blank user cells: rejecting one cell keeps the whole template table', () => {
+    const html = '<table><tbody><tr><td><p></p></td><td><p></p></td></tr></tbody></table><p>after</p>';
+    const editor = createTestEditor(html);
+    const original = editor.getHTML();
+    const { tr } = editor.state;
+    // Pretend Pragna filled the first cell with a pending insertion.
+    const mark = editor.schema.marks.suggestInsert.create({ id: 's9', author: 'Pragna', createdAt: 'x' });
+    let cellPara = null;
+    editor.state.doc.descendants((n, pos) => { if (!cellPara && n.type.name === 'paragraph' && pos > 0) cellPara = pos; });
+    tr.insert(cellPara + 1, editor.schema.text('x', [mark]));
+    editor.view.dispatch(tr);
+    expect(editor.getText()).toContain('x');
+    editor.commands.rejectAllSuggestions();
+    expect(editor.getHTML()).toBe(original);
+  });
+
+  it('keeps a blank user bullet when rejecting a sibling inserted bullet', () => {
+    const editor = createTestEditor(`<ul><li><p>a</p></li><li><p></p></li><li><p>${ins('new')}</p></li></ul>`);
+    editor.commands.rejectAllSuggestions();
+    expect(editor.getHTML()).toBe('<ul><li><p>a</p></li><li><p></p></li></ul>');
+  });
+
+  it('keeps a list that holds only a blank user bullet plus an inserted one', () => {
+    const editor = createTestEditor(`<ul><li><p></p></li><li><p>${ins('new')}</p></li></ul>`);
+    editor.commands.rejectAllSuggestions();
+    expect(editor.getHTML()).toBe('<ul><li><p></p></li></ul>');
+  });
+
+  it('never leaves invalid content: accepting a deleted parent paragraph above a nested list', () => {
+    const del = (inner) => `<del data-suggestion="s8" data-author="Pragna" data-created="x">${inner}</del>`;
+    const editor = createTestEditor(
+      `<ul><li><p>${del('parent')}</p><ul><li><p>child</p></li></ul></li><li><p>other</p></li></ul>`,
+    );
+    expect(() => editor.commands.acceptAllSuggestions()).not.toThrow();
+    expect(() => editor.state.doc.check()).not.toThrow();
+    expect(editor.getText()).toContain('child');
+    expect(editor.getText()).toContain('other');
+    expect(editor.getText()).not.toContain('parent');
+  });
+});
