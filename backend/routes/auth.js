@@ -1,6 +1,7 @@
 const router  = require('express').Router();
 const jwt     = require('jsonwebtoken');
 const bcrypt  = require('bcryptjs');
+const crypto  = require('crypto');
 const fs      = require('fs');
 const path    = require('path');
 const mongoose = require('mongoose');
@@ -531,6 +532,169 @@ router.post('/reset-password', async (req, res) => {
 });
 
 // ── GET /api/auth/me ──────────────────────────────────────────
+// ── OAuth (Google, GitHub) ────────────────────────────────────
+// Flow: GET /api/auth/:provider redirects to the provider with a random `state` that is
+// also stored in an httpOnly cookie; the callback checks both match (CSRF), exchanges the
+// code, signs in or creates the user by verified email, then redirects to the frontend
+// with the JWT in the URL fragment so it never reaches server logs.
+const OAUTH_STATE_COOKIE = 'wx_oauth_state';
+const OAUTH_PROVIDERS = {
+  google: {
+    clientId: () => process.env.GOOGLE_CLIENT_ID,
+    clientSecret: () => process.env.GOOGLE_CLIENT_SECRET,
+    authorizeUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
+    scope: 'openid email profile',
+    async exchange(code, redirectUri) {
+      const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          code,
+          client_id: this.clientId(),
+          client_secret: this.clientSecret(),
+          redirect_uri: redirectUri,
+          grant_type: 'authorization_code',
+        }),
+      });
+      const tokens = await tokenRes.json();
+      if (!tokenRes.ok || !tokens.access_token) throw new Error(tokens.error_description || 'Google token exchange failed');
+      const profileRes = await fetch('https://openidconnect.googleapis.com/v1/userinfo', {
+        headers: { Authorization: `Bearer ${tokens.access_token}` },
+      });
+      const profile = await profileRes.json();
+      if (!profileRes.ok || !profile.email || profile.email_verified !== true) throw new Error('Google account has no verified email');
+      return { email: profile.email, name: profile.name || profile.email.split('@')[0] };
+    },
+  },
+  github: {
+    clientId: () => process.env.GITHUB_CLIENT_ID,
+    clientSecret: () => process.env.GITHUB_CLIENT_SECRET,
+    authorizeUrl: 'https://github.com/login/oauth/authorize',
+    scope: 'read:user user:email',
+    async exchange(code, redirectUri) {
+      const tokenRes = await fetch('https://github.com/login/oauth/access_token', {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client_id: this.clientId(), client_secret: this.clientSecret(), code, redirect_uri: redirectUri }),
+      });
+      const tokens = await tokenRes.json();
+      if (!tokenRes.ok || !tokens.access_token) throw new Error(tokens.error_description || 'GitHub token exchange failed');
+      const headers = { Authorization: `Bearer ${tokens.access_token}`, Accept: 'application/vnd.github+json', 'User-Agent': 'EtherxWord' };
+      const [profileRes, emailsRes] = await Promise.all([
+        fetch('https://api.github.com/user', { headers }),
+        fetch('https://api.github.com/user/emails', { headers }),
+      ]);
+      const profile = await profileRes.json();
+      const emails = await emailsRes.json();
+      const primary = Array.isArray(emails) && emails.find((e) => e.primary && e.verified);
+      if (!profileRes.ok || !primary) throw new Error('GitHub account has no verified primary email');
+      return { email: primary.email, name: profile.name || profile.login || primary.email.split('@')[0] };
+    },
+  },
+};
+
+function frontendUrl() {
+  return (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
+}
+
+// The frontend origin proxies /api in dev and serves it directly in production, so the
+// provider calls back through the same origin the user started on.
+function oauthRedirectUri(provider) {
+  return `${frontendUrl()}/api/auth/${provider}/callback`;
+}
+
+function readCookie(req, name) {
+  const match = String(req.headers.cookie || '').split(';').map((c) => c.trim()).find((c) => c.startsWith(`${name}=`));
+  return match ? decodeURIComponent(match.slice(name.length + 1)) : '';
+}
+
+async function findOrCreateOAuthUser({ email, name }) {
+  const normalizedEmail = String(email).trim().toLowerCase();
+  // OAuth users never sign in with a password; store an unguessable one to satisfy the schema.
+  const randomPassword = crypto.randomBytes(32).toString('hex');
+
+  if (isMongoConnected()) {
+    let user = await User.findOne({ email: normalizedEmail });
+    if (!user) {
+      user = await User.create({ name, email: normalizedEmail, password: randomPassword, isVerified: true });
+    } else if (!user.isVerified) {
+      // The provider verified this email, which completes any pending OTP signup.
+      user.isVerified = true;
+      await user.save();
+    }
+    return user;
+  }
+
+  const users = readUsersStore();
+  let user = users.find((u) => String(u.email || '').toLowerCase() === normalizedEmail);
+  if (!user) {
+    user = {
+      _id: `user_${crypto.randomUUID()}`,
+      name,
+      email: normalizedEmail,
+      passwordHash: await bcrypt.hash(randomPassword, 10),
+      isVerified: true,
+      plan: 'free',
+      billingCycle: 'monthly',
+      subscriptionExpiresAt: null,
+      role: 'Viewer',
+      status: 'active',
+      department: 'General',
+      createdAt: new Date().toISOString(),
+    };
+    users.push(user);
+  } else {
+    user.isVerified = true;
+  }
+  writeUsersStore(users);
+  return user;
+}
+
+router.get('/:provider(google|github)', (req, res) => {
+  const { provider } = req.params;
+  const config = OAUTH_PROVIDERS[provider];
+  if (!config.clientId() || !config.clientSecret()) {
+    return res.redirect(`${frontendUrl()}/signin?error=${provider}_not_configured`);
+  }
+  const state = crypto.randomBytes(24).toString('hex');
+  res.cookie(OAUTH_STATE_COOKIE, state, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 10 * 60 * 1000,
+    path: '/api/auth',
+  });
+  const params = new URLSearchParams({
+    client_id: config.clientId(),
+    redirect_uri: oauthRedirectUri(provider),
+    response_type: 'code',
+    scope: config.scope,
+    state,
+  });
+  if (provider === 'google') params.set('prompt', 'select_account');
+  res.redirect(`${config.authorizeUrl}?${params}`);
+});
+
+router.get('/:provider(google|github)/callback', async (req, res) => {
+  const { provider } = req.params;
+  const expectedState = readCookie(req, OAUTH_STATE_COOKIE);
+  res.clearCookie(OAUTH_STATE_COOKIE, { path: '/api/auth' });
+  const failed = () => res.redirect(`${frontendUrl()}/signin?error=${provider}_auth_failed`);
+
+  const { code, state } = req.query;
+  if (!code || !state || !expectedState || state !== expectedState) return failed();
+
+  try {
+    const profile = await OAUTH_PROVIDERS[provider].exchange(String(code), oauthRedirectUri(provider));
+    const user = await findOrCreateOAuthUser(profile);
+    if (user.status === 'deactivated') return failed();
+    res.redirect(`${frontendUrl()}/auth/callback#token=${encodeURIComponent(signToken(user))}`);
+  } catch (err) {
+    console.warn(`[auth] ${provider} OAuth failed:`, err.message);
+    failed();
+  }
+});
+
 router.get('/me', authMiddleware, async (req, res) => {
   try {
     if (isMongoConnected()) {

@@ -2,222 +2,159 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authApi } from '@/services/api';
 import { sendOtpEmail } from '@/services/emailjs';
+import { AuthLayout, OAuthButtons, PasswordInput, SubmitButton, VALID_EMAIL } from '@/components/auth/AuthLayout';
 
-function EyeIcon({ open }) {
-  return open ? (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  ) : (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M3 3l18 18" />
-      <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
-      <path d="M9.9 5.1A10.9 10.9 0 0 1 12 5c6.5 0 10 7 10 7a18.7 18.7 0 0 1-4.2 4.9" />
-      <path d="M6.2 6.2C3.3 8.5 2 12 2 12s3.5 7 10 7c1 0 2-.1 3-.4" />
-    </svg>
-  );
-}
+const STRENGTH_COLORS = ['var(--auth-rule)', '#d8443d', '#d9b54a', '#b5c75a', '#6fcf8f'];
+const passwordScore = (pw) =>
+  !pw ? 0 : [pw.length >= 8, /[A-Z]/.test(pw) && /[a-z]/.test(pw), /\d/.test(pw), /[^A-Za-z0-9]/.test(pw)].filter(Boolean).length;
 
 export function SignUpPage() {
   const navigate = useNavigate();
 
   const [step, setStep]         = useState('form'); // 'form' | 'otp'
-  const [form, setForm]         = useState({ name: '', email: '', password: '', confirm: '' });
+  const [name, setName]         = useState('');
+  const [email, setEmail]       = useState('');
+  const [password, setPassword] = useState('');
   const [otp, setOtp]           = useState('');
-  const [focused, setFocused]   = useState('');
   const [error, setError]       = useState('');
-  const [loading, setLoading]   = useState(false);
-  const [resending, setResending] = useState(false);
+  const [notice, setNotice]     = useState('');
+  const [bad, setBad]           = useState(''); // name | email | pw | otp
+  const [busy, setBusy]         = useState(false);
   const [cooldown, setCooldown] = useState(0);
-  const [resent, setResent]     = useState(false);
-  const [showPassword, setShowPassword] = useState({ password: false, confirm: false });
 
   useEffect(() => {
     if (cooldown <= 0) return;
-    const timer = setInterval(() => setCooldown((c) => c - 1), 1000);
+    const timer = setInterval(() => setCooldown((c) => (c > 0 ? c - 1 : 0)), 1000);
     return () => clearInterval(timer);
   }, [cooldown]);
 
+  const score = passwordScore(password);
+  const fail = (message, field = '') => { setError(message); setBad(field); };
+  const clear = () => { setError(''); setBad(''); };
+
+  // Deliver the OTP in the background so the UI never waits on the email provider.
+  const dispatchOtp = (response) => {
+    if (!response?.otp) return;
+    sendOtpEmail({ toEmail: email.trim(), toName: name.trim(), code: response.otp, purpose: 'verify' })
+      .catch((err) => console.warn('[EmailJS] Background OTP send warning:', err));
+  };
+
   const handleSignup = async (e) => {
     e.preventDefault();
-    setError('');
-    if (form.password !== form.confirm) return setError('Passwords do not match');
-    setLoading(true);
-    try {
-      const response = await authApi.signup({ name: form.name, email: form.email, password: form.password });
-      
-      // Advance to OTP step immediately without blocking UI on external email delivery
-      setStep('otp');
-      setLoading(false);
-      setCooldown(30);
+    if (busy) return;
+    const cleanEmail = email.trim();
+    if (!name.trim()) return fail('Enter your name.', 'name');
+    if (!VALID_EMAIL.test(cleanEmail)) return fail('Enter a valid email.', 'email');
+    if (password.length < 8 || score < 2) return fail('Use at least 8 characters with a mix of letters and numbers.', 'pw');
 
-      // Dispatch OTP email in background
-      if (response?.otp) {
-        sendOtpEmail({
-          toEmail: form.email,
-          toName: form.name,
-          code: response.otp,
-          purpose: 'verify',
-        }).catch((err) => {
-          console.warn('[EmailJS] Background signup send warning:', err);
-        });
-      }
+    setBusy(true);
+    clear();
+    try {
+      const response = await authApi.signup({ name: name.trim(), email: cleanEmail, password });
+      setStep('otp');
+      setCooldown(30);
+      dispatchOtp(response);
     } catch (err) {
-      setError(err.message);
-      setLoading(false);
+      fail(err.message || 'Could not create your account. Try again.');
+    } finally {
+      setBusy(false);
     }
   };
 
   const handleVerify = async (e) => {
     e.preventDefault();
-    setError('');
-    setLoading(true);
+    if (busy) return;
+    if (otp.length < 6) return fail('Enter the 6-digit code.', 'otp');
+    setBusy(true);
+    clear();
     try {
-      const { token, user } = await authApi.verifyOtp({ email: form.email, otp });
+      const { token, user } = await authApi.verifyOtp({ email: email.trim(), otp });
       localStorage.setItem('etherx_token', token);
       localStorage.setItem('etherx_user', JSON.stringify(user));
       navigate('/home');
     } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
+      fail(err.message || 'Verification failed.', 'otp');
+      setBusy(false);
     }
   };
 
   const handleResend = async () => {
-    if (resending || cooldown > 0) return;
-    setError('');
-    setResending(true);
+    if (busy || cooldown > 0) return;
+    setBusy(true);
+    clear();
+    setNotice('');
     try {
-      const response = await authApi.resendOtp({ email: form.email, type: 'verify' });
-      setResent(true);
-      setResending(false);
+      const response = await authApi.resendOtp({ email: email.trim(), type: 'verify' });
       setCooldown(30);
-      setTimeout(() => setResent(false), 4000);
-
-      // Dispatch OTP email in background
-      if (response?.otp) {
-        sendOtpEmail({
-          toEmail: form.email,
-          toName: form.name,
-          code: response.otp,
-          purpose: 'verify',
-        }).catch((err) => {
-          console.warn('[EmailJS] Resend background warning:', err);
-        });
-      }
+      setNotice('A new code has been sent.');
+      dispatchOtp(response);
     } catch (err) {
-      setError(err.message);
-      setResending(false);
+      fail(err.message || 'Failed to resend code.');
+    } finally {
+      setBusy(false);
     }
   };
 
-  const fields = [
-    { key: 'name',     label: 'Full Name',       type: 'text',     placeholder: 'Your name' },
-    { key: 'email',    label: 'Email',            type: 'email',    placeholder: 'you@example.com' },
-    { key: 'password', label: 'Password',         type: 'password', placeholder: '••••••••' },
-    { key: 'confirm',  label: 'Confirm Password', type: 'password', placeholder: '••••••••' },
-  ];
+  if (step === 'otp') {
+    return (
+      <AuthLayout
+        title="Verify your email"
+        subtitle={<>Enter the 6-digit code sent to <strong>{email.trim()}</strong></>}
+        footer={<>Already have an account? <Link to="/signin">Sign in</Link></>}
+      >
+        <form className="wx-auth-form" onSubmit={handleVerify} noValidate>
+          <input
+            className="wx-auth-input wx-auth-otp" type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6}
+            value={otp} placeholder="000000" aria-label="6-digit verification code"
+            data-bad={bad === 'otp'} aria-invalid={bad === 'otp'}
+            onChange={(e) => { setOtp(e.target.value.replace(/\D/g, '')); clear(); }}
+          />
+          {notice && <p className="wx-auth-notice" role="status">{notice}</p>}
+          {error && <p className="wx-auth-error" role="alert">{error}</p>}
+          <SubmitButton busy={busy} label="Verify & create account" busyLabel="Verifying…" />
+          <div className="wx-auth-row">
+            <button type="button" className="wx-auth-link-muted" onClick={handleResend} disabled={cooldown > 0 || busy}>
+              {cooldown > 0 ? `Resend code (${cooldown}s)` : 'Resend code'}
+            </button>
+            <button type="button" className="wx-auth-link-muted" onClick={() => { setStep('form'); setOtp(''); setNotice(''); clear(); }}>
+              Change email
+            </button>
+          </div>
+        </form>
+      </AuthLayout>
+    );
+  }
 
   return (
-    <div className="auth-bg">
-      <div className="auth-card anim-scale-in">
-        <div className="auth-logo-wrap">
-          <img src="/assets/etherxword-logo.png" alt="EtherxWord" className="auth-logo" />
+    <AuthLayout
+      title="Create your account"
+      subtitle="Start writing with EtherxWord in seconds."
+      footer={<>Already have an account? <Link to="/signin">Sign in</Link></>}
+    >
+      <OAuthButtons signUp />
+      <form className="wx-auth-form" onSubmit={handleSignup} noValidate>
+        <input
+          className="wx-auth-input" value={name} placeholder="Full name" autoComplete="name" aria-label="Full name"
+          data-bad={bad === 'name'} aria-invalid={bad === 'name'}
+          onChange={(e) => { setName(e.target.value); clear(); }}
+        />
+        <input
+          className="wx-auth-input" type="email" value={email} placeholder="Email" autoComplete="email" aria-label="Email"
+          data-bad={bad === 'email'} aria-invalid={bad === 'email'}
+          onChange={(e) => { setEmail(e.target.value); clear(); }}
+        />
+        <PasswordInput
+          value={password} bad={bad === 'pw'} autoComplete="new-password"
+          onChange={(e) => { setPassword(e.target.value); clear(); }}
+        />
+        <div className="wx-auth-strength" aria-hidden="true">
+          {[1, 2, 3, 4].map((i) => <span key={i} style={{ background: i <= score ? STRENGTH_COLORS[score] : STRENGTH_COLORS[0] }} />)}
         </div>
 
-        {step === 'form' ? (
-          <>
-            <h1 className="auth-title">Create account</h1>
-            <p className="auth-sub">Join EtherxWord today</p>
-            <form onSubmit={handleSignup} className="auth-form">
-              {error && <div className="auth-error">{error}</div>}
-              {fields.map(({ key, label, type, placeholder }) => (
-                <div className="auth-field" key={key}>
-                  <label className="auth-label">{label}</label>
-                  {type === 'password' ? (
-                    <div className="auth-password-wrap">
-                      <input
-                        type={showPassword[key] ? 'text' : 'password'}
-                        required placeholder={placeholder}
-                        value={form[key]} onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                        className={`auth-input auth-password-input${focused === key ? ' focused' : ''}`}
-                        onFocus={() => setFocused(key)} onBlur={() => setFocused('')}
-                      />
-                      <button
-                        type="button"
-                        className="auth-password-toggle"
-                        onClick={() => setShowPassword((value) => ({ ...value, [key]: !value[key] }))}
-                        aria-label={showPassword[key] ? `Hide ${label}` : `Show ${label}`}
-                        title={showPassword[key] ? `Hide ${label}` : `Show ${label}`}
-                      >
-                        <EyeIcon open={showPassword[key]} />
-                      </button>
-                    </div>
-                  ) : (
-                    <input
-                      type={type} required placeholder={placeholder}
-                      value={form[key]} onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                      className={`auth-input${focused === key ? ' focused' : ''}`}
-                      onFocus={() => setFocused(key)} onBlur={() => setFocused('')}
-                    />
-                  )}
-                </div>
-              ))}
-              <button type="submit" className="auth-btn" disabled={loading}>
-                {loading ? 'Creating…' : 'Create Account'}
-              </button>
-            </form>
-          </>
-        ) : (
-          <>
-            <h1 className="auth-title">Verify your email</h1>
-            <p className="auth-sub">We sent a 6-digit code to <strong>{form.email}</strong></p>
-            <form onSubmit={handleVerify} className="auth-form">
-              {error && <div className="auth-error">{error}</div>}
-              {resent && <div className="auth-success">OTP resent!</div>}
-              <div className="auth-field">
-                <label className="auth-label">OTP Code</label>
-                <input
-                  type="text" required placeholder="123456" maxLength={6}
-                  value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                  className={`auth-input${focused === 'otp' ? ' focused' : ''}`}
-                  onFocus={() => setFocused('otp')} onBlur={() => setFocused('')}
-                  style={{ letterSpacing: 8, fontSize: 20, textAlign: 'center' }}
-                />
-              </div>
-              <button type="submit" className="auth-btn" disabled={loading}>
-                {loading ? 'Verifying…' : 'Verify & Sign In'}
-              </button>
-            </form>
-            <p className="auth-footer">
-              Didn't receive it?{' '}
-              <button
-                type="button"
-                onClick={handleResend}
-                disabled={resending || cooldown > 0}
-                className="auth-link"
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: resending || cooldown > 0 ? 'not-allowed' : 'pointer',
-                  padding: 0,
-                  opacity: resending || cooldown > 0 ? 0.6 : 1,
-                  fontWeight: 500,
-                }}
-              >
-                {resending ? 'Resending OTP…' : cooldown > 0 ? `Resend OTP (${cooldown}s)` : 'Resend OTP'}
-              </button>
-            </p>
-          </>
-        )}
+        {error && <p className="wx-auth-error" role="alert">{error}</p>}
 
-        <p className="auth-footer">
-          Already have an account?{' '}
-          <Link to="/signin" className="auth-link">Sign in</Link>
-        </p>
-      </div>
-    </div>
+        <SubmitButton busy={busy} label="Create account" busyLabel="Creating account…" />
+      </form>
+    </AuthLayout>
   );
 }

@@ -1,0 +1,108 @@
+/* Sign in / create account, styled after EtherX Meet and PRAGNA auth pages. */
+.wx-auth {
+  --auth-bg: #0b0a08;
+  --auth-text: #f3eee2;
+  --auth-muted: #a49c8a;
+  --auth-faint: #6f685a;
+  --auth-placeholder: #7d7666;
+  --auth-border: #2e2a21;
+  --auth-rule: #26231c;
+  --auth-field: #13110e;
+  --auth-box: #4a4230;
+  --auth-link: #d9b54a;
+  --auth-link-hover: #f0d27a;
+  --auth-error: #ff8a83;
+  --auth-success: #6fcf8f;
+  --auth-gold: #d9b54a;
+  --auth-gold-hover: #e4c260;
+  --auth-red: #d8443d;
+  --auth-on-gold: #1a1608;
+
+  min-height: 100dvh; display: flex; flex-direction: column;
+  background: radial-gradient(900px 520px at 50% 110%, rgba(217, 181, 74, .10), transparent 65%), var(--auth-bg);
+  color: var(--auth-text); -webkit-font-smoothing: antialiased;
+}
+.wx-auth * { box-sizing: border-box; }
+.wx-auth-header { display: flex; align-items: center; padding: 24px clamp(16px, 4vw, 32px); }
+.wx-auth-logo { display: block; height: 40px; width: auto; }
+
+.wx-auth-main { flex: 1; display: flex; align-items: center; justify-content: center; padding: 16px clamp(16px, 5vw, 24px) clamp(32px, 8vh, 80px); }
+.wx-auth-panel { width: 100%; max-width: 380px; display: flex; flex-direction: column; align-items: center; gap: 28px; text-align: center; }
+.wx-auth-heading { display: flex; flex-direction: column; gap: 10px; }
+.wx-auth-heading h1 { margin: 0; font-size: clamp(30px, 8vw, 40px); line-height: 1.1; font-weight: 600; letter-spacing: -.02em; color: var(--auth-text); }
+.wx-auth-heading p { margin: 0; font-size: 15px; color: var(--auth-muted); }
+.wx-auth-heading strong { color: var(--auth-text); font-weight: 600; }
+
+.wx-auth-form { width: 100%; display: flex; flex-direction: column; gap: 12px; text-align: left; }
+.wx-auth-input {
+  width: 100%; height: 52px; padding: 0 16px; border-radius: 14px;
+  background: var(--auth-field); border: 1px solid var(--auth-border); color: var(--auth-text);
+  font: inherit; font-size: 15px; outline: none; transition: border-color 150ms ease;
+}
+.wx-auth-input::placeholder { color: var(--auth-placeholder); }
+.wx-auth-input:focus { border-color: var(--auth-gold); }
+.wx-auth-input[data-bad='true'] { border-color: var(--auth-red); }
+.wx-auth-otp { text-align: center; letter-spacing: .4em; font-size: 20px; font-family: ui-monospace, monospace; }
+.wx-auth-password { position: relative; }
+.wx-auth-password .wx-auth-input { padding-right: 52px; }
+.wx-auth-password button {
+  position: absolute; right: 8px; top: 8px; width: 36px; height: 36px; border-radius: 10px; border: 0;
+  background: transparent; color: var(--auth-placeholder); display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.wx-auth-password button:hover { color: var(--auth-text); }
+
+.wx-auth-strength { display: flex; gap: 4px; padding: 0 2px; }
+.wx-auth-strength span { flex: 1; height: 3px; border-radius: 2px; transition: background 200ms; }
+.wx-auth-error { margin: 0; padding: 0 2px; font-size: 13px; color: var(--auth-error); }
+.wx-auth-notice { margin: 0; padding: 0 2px; font-size: 13px; color: var(--auth-success); }
+
+.wx-auth-row { display: flex; justify-content: space-between; align-items: center; margin-top: -2px; }
+.wx-auth-check { display: flex; align-items: center; gap: 8px; border: 0; background: transparent; padding: 0; color: var(--auth-muted); font: inherit; font-size: 13px; cursor: pointer; text-align: left; }
+.wx-auth-box {
+  flex-shrink: 0; width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid var(--auth-box);
+  display: flex; align-items: center; justify-content: center; color: transparent; background: transparent;
+}
+.wx-auth-box[data-on='true'] { border-color: var(--auth-gold); background: var(--auth-gold); color: var(--auth-on-gold); }
+.wx-auth-link-muted { border: 0; background: transparent; padding: 0; color: var(--auth-muted); font: inherit; font-size: 13px; cursor: pointer; text-decoration: none; }
+.wx-auth-link-muted:hover:not(:disabled) { color: var(--auth-text); }
+.wx-auth-link-muted:disabled { cursor: default; opacity: .6; }
+
+.wx-auth-submit {
+  height: 52px; margin-top: 4px; border-radius: 14px; border: 0; background: var(--auth-gold); color: var(--auth-on-gold);
+  font: inherit; font-size: 16px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer; transition: transform 120ms ease;
+}
+.wx-auth-submit:hover:not(:disabled) { background: var(--auth-gold-hover); }
+.wx-auth-submit:active { transform: scale(.98); }
+.wx-auth-submit:disabled { cursor: wait; }
+
+.wx-auth-spinner { width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(26, 22, 8, .2); border-top-color: var(--auth-on-gold); animation: wx-auth-spin 700ms linear infinite; }
+@keyframes wx-auth-spin { to { transform: rotate(360deg); } }
+
+.wx-auth-switch { margin: 0; font-size: 14px; color: var(--auth-muted); }
+.wx-auth-switch a { color: var(--auth-link); font-weight: 600; text-decoration: none; }
+.wx-auth-switch a:hover { color: var(--auth-link-hover); }
+
+.wx-auth :focus-visible { outline: 2px solid var(--auth-gold); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .wx-auth * { transition: none !important; animation-duration: 1ms !important; } }
+
+.wx-auth-oauth { width: 100%; display: flex; flex-direction: column; gap: 10px; }
+/* Google button: light in both themes, as Google's sign-in button guidelines expect */
+.wx-auth-google {
+  width: 100%; height: 56px; border-radius: 14px; border: 1px solid var(--auth-border);
+  background: rgb(243 238 226); color: rgb(26 22 8); text-decoration: none;
+  font: inherit; font-size: 16px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center; gap: 12px; cursor: pointer;
+  transition: transform 120ms ease, background 150ms ease;
+}
+.wx-auth-google:hover { background: white; }
+.wx-auth-google:active { transform: scale(.98); }
+.wx-auth-secondary {
+  width: 100%; height: 52px; border: 1px solid #3a3424; border-radius: 14px; background: transparent;
+  color: #e8e2d3; font: inherit; font-size: 15px; font-weight: 500; text-decoration: none;
+  display: flex; align-items: center; justify-content: center; gap: 12px; cursor: pointer;
+}
+.wx-auth-secondary:hover { border-color: var(--auth-gold); color: var(--auth-text); }
+.wx-auth-or { width: 100%; display: flex; align-items: center; gap: 14px; margin: -12px 0; font-size: 12px; letter-spacing: .2em; color: var(--auth-faint); }
+.wx-auth-or span { flex: 1; height: 1px; background: var(--auth-rule); }
+.wx-auth-or + .wx-auth-form { margin-top: -12px; }

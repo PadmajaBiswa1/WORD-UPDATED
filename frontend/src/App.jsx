@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { SignInPage }        from '@/pages/SignInPage';
 import { SignUpPage }        from '@/pages/SignUpPage';
 import { ForgotPasswordPage} from '@/pages/ForgotPasswordPage';
+import { AuthCallbackPage } from '@/pages/AuthCallbackPage';
 import { HomePage }          from '@/pages/HomePage';
 import { EditorPage }        from '@/pages/EditorPage';
 import { PricingPage }       from '@/pages/PricingPage';
@@ -72,6 +73,7 @@ export default function App() {
         <Route path="/signin"        element={<SignInPage />} />
         <Route path="/signup"        element={<SignUpPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/auth/callback" element={<AuthCallbackPage />} />
         <Route path="/home"          element={<RequireAuth><HomePage /></RequireAuth>} />
         <Route path="/pricing"       element={<PricingPage />} />
         <Route path="/admin/*"       element={<AdminRoute><AdminLayout /></AdminRoute>} />
