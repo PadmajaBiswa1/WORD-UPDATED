@@ -231,8 +231,9 @@ export const Suggestions = Extension.create({
       return true;
     };
     return {
-      acceptSuggestion: (id) => run('accept', id)(),
-      rejectSuggestion: (id) => run('reject', id)(),
+      // A falsy id must never fall through to "resolve all".
+      acceptSuggestion: (id) => (id ? run('accept', id)() : () => false),
+      rejectSuggestion: (id) => (id ? run('reject', id)() : () => false),
       acceptAllSuggestions: run('accept'),
       rejectAllSuggestions: run('reject'),
     };

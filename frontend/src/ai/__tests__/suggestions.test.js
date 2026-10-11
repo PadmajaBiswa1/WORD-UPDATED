@@ -69,6 +69,19 @@ describe('suggestions', () => {
     expect(editor.getHTML()).toBe('<p>keep</p>');
   });
 
+  it('accepting or rejecting a missing id resolves nothing', () => {
+    const editor = createTestEditor('<p>teh quick fox</p>');
+    suggest(editor, 'the quick fox');
+    const html = editor.getHTML();
+    for (const id of [undefined, null, '']) {
+      expect(editor.commands.acceptSuggestion(id)).toBe(false);
+      expect(editor.commands.rejectSuggestion(id)).toBe(false);
+    }
+    expect(editor.getHTML()).toBe(html);
+    expect(editor.commands.acceptAllSuggestions()).toBe(true);
+    expect(editor.getHTML()).toBe('<p>the quick fox</p>');
+  });
+
   it('round-trips through HTML', () => {
     const editor = createTestEditor('<p>teh quick fox</p>');
     suggest(editor, 'the quick fox');
