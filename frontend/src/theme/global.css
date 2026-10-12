@@ -407,8 +407,11 @@ body {
   pointer-events: none !important;
 }
 
-/* Ensure the first element on a new page starts cleanly flush at the page top margin */
-.etherx-page-break + * {
+/* Ensure the first element after a manual page break starts flush at the page top margin.
+   Auto breaks are excluded: their fillHeight already leaves room for the next block's top
+   margin, and zeroing it there makes the measured margin depend on where the block currently
+   sits, so pagination flips the block between pages forever. */
+.etherx-manual-page-break + * {
   margin-top: 0 !important;
 }
 
