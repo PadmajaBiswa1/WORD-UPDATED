@@ -89,7 +89,7 @@ export function TitleBar({ onSave }) {
       fontFamily: 'var(--font-ui)',
     }}>
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
-        <div aria-hidden="true" style={logoMark}>X</div>
+        <img src="/assets/etherxlogo.png" alt="EtherX Word" style={logoImg} />
         <span className="titlebar-autosave-label" style={{ fontSize: 12, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>AutoSave</span>
         <button
           type="button"
@@ -205,16 +205,10 @@ function hoverOff(e) {
   e.currentTarget.style.color = '';
 }
 
-const logoMark = {
-  width: 22,
-  height: 22,
-  borderRadius: 6,
-  background: 'linear-gradient(135deg,#e5c76b 0%,#d4af37 50%,#b8860b 100%)',
-  color: '#141414',
-  display: 'grid',
-  placeItems: 'center',
-  fontWeight: 600,
-  fontSize: 11,
+const logoImg = {
+  width: 24,
+  height: 24,
+  objectFit: 'contain',
   flex: 'none',
   marginRight: 8,
 };
