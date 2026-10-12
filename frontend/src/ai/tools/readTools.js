@@ -49,6 +49,20 @@ function cellText(cell, cellPos) {
   return lines.join('\n');
 }
 
+// Paragraph ids inside a cell, so replace_text / rewrite_block can edit one paragraph of a cell.
+function cellBlocks(cell, cellPos, ctx) {
+  const blocks = [];
+  cell.descendants((node, pos) => {
+    if (!node.isTextblock) return true;
+    const at = cellPos + 1 + pos;
+    const text = textOf(node, at);
+    if (text === '' && node.content.size > 0) return false;
+    blocks.push({ id: ctx.refs.idFor(at, node), text });
+    return false;
+  });
+  return blocks;
+}
+
 function describe(entry, ctx, full) {
   if (entry.kind === 'table') {
     const id = ctx.refs.tableIdFor(entry.pos);
@@ -155,7 +169,10 @@ function readTableImpl({ table_id } = {}, ctx) {
   const rows = [];
   table.node.forEach((row, rowOffset, r) => {
     const cells = [];
-    row.forEach((cell, offset, c) => cells.push({ cell_id: `${table_id}.r${r}c${c}`, text: cellText(cell, table.pos + 1 + rowOffset + 1 + offset) }));
+    row.forEach((cell, offset, c) => {
+      const cellPos = table.pos + 1 + rowOffset + 1 + offset;
+      cells.push({ cell_id: `${table_id}.r${r}c${c}`, text: cellText(cell, cellPos), blocks: cellBlocks(cell, cellPos, ctx) });
+    });
     rows.push(cells);
   });
   return { table_id, rows };

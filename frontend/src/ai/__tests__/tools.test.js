@@ -30,7 +30,7 @@ describe('read tools', () => {
     const outline = getOutline({}, ctx);
     const t = outline.blocks.find((b) => b.type === 'table');
     const table = readTable({ table_id: t.id }, ctx);
-    expect(table.rows[0]).toEqual([{ cell_id: `${t.id}.r0c0`, text: 'a' }, { cell_id: `${t.id}.r0c1`, text: 'b' }]);
+    expect(table.rows[0]).toMatchObject([{ cell_id: `${t.id}.r0c0`, text: 'a' }, { cell_id: `${t.id}.r0c1`, text: 'b' }]);
   });
 
   it('reports unknown ids as errors', () => {
@@ -263,5 +263,31 @@ describe('rejecting fills of blank user blocks', () => {
     rewriteBlock({ block_id: idOf(getOutline({}, ctx), 'new'), text: 'other line' }, ctx);
     editor.commands.rejectAllSuggestions();
     expect(editor.getHTML()).toBe('<p>first</p><p>last</p>');
+  });
+});
+
+describe('table cells', () => {
+  const cellHtml = '<table><tbody><tr><td><p>Q</p></td><td><p>Teh first line.</p><p>Second line is fine.</p></td></tr></tbody></table>';
+
+  it('read_table gives paragraph ids inside cells that replace_text can edit', () => {
+    const editor = createTestEditor(cellHtml);
+    const ctx = { editor, refs: new BlockRefs(editor) };
+    const table = readTable({ table_id: getOutline({}, ctx).blocks[0].id }, ctx);
+    const cell = table.rows[0][1];
+    expect(cell.blocks.map((b) => b.text)).toEqual(['Teh first line.', 'Second line is fine.']);
+    expect(replaceText({ block_id: cell.blocks[0].id, find: 'Teh', replace: 'The' }, ctx).ok).toBe(true);
+    editor.commands.acceptAllSuggestions();
+    expect(editor.getHTML()).toContain('<p>The first line.</p><p>Second line is fine.</p></td>');
+  });
+
+  it('set_table_cell keeps paragraphs when the line count matches', () => {
+    const editor = createTestEditor(cellHtml);
+    const ctx = { editor, refs: new BlockRefs(editor) };
+    const tableId = getOutline({}, ctx).blocks[0].id;
+    readTable({ table_id: tableId }, ctx);
+    expect(setTableCell({ cell_id: `${tableId}.r0c1`, text: 'The first line.\nSecond line is fine.' }, ctx).ok).toBe(true);
+    expect(editor.getHTML()).not.toContain('Second line is fine.</del>');
+    editor.commands.acceptAllSuggestions();
+    expect(editor.getHTML()).toContain('<p>The first line.</p><p>Second line is fine.</p></td>');
   });
 });

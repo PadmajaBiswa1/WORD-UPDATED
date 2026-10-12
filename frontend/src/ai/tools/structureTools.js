@@ -14,28 +14,53 @@ function rangeIn(hit, find) {
   return { from: view.posAt(at), to: view.posAt(at + find.length - 1) + 1 };
 }
 
-function formatTextImpl({ block_id, find, bold, italic, underline, color, font_size } = {}, ctx) {
-  const hit = ctx.refs.resolve(block_id);
-  if (!hit) return { error: 'unknown or deleted block id' };
-  const range = rangeIn(hit, find);
-  if (!range) return { error: `"${find}" not found in ${block_id}` };
-  const { schema, tr } = ctx.editor.state;
-  const toggle = (value, markName, attrs) => {
+const STYLE_ATTRS = { color: 'color', font_size: 'fontSize', font_family: 'fontFamily' };
+
+function formatTextImpl({ block_id, find, bold, italic, underline, color, font_size, font_family } = {}, ctx) {
+  const { schema, tr, doc } = ctx.editor.state;
+  let range;
+  if (block_id === 'all') {
+    range = { from: 0, to: doc.content.size };
+  } else {
+    const hit = ctx.refs.resolve(block_id);
+    if (!hit) return { error: 'unknown or deleted block id' };
+    range = rangeIn(hit, find);
+    if (!range) return { error: `"${find}" not found in ${block_id}` };
+  }
+  const requested = { color, font_size: font_size != null && font_size !== '' ? `${parseFloat(font_size)}pt` : undefined, font_family };
+  if (requested.font_size === 'NaNpt') return { error: 'font_size must be a number of points' };
+  const supported = schema.marks.textStyle?.spec.attrs || {};
+  const styleAttrs = {};
+  const unsupported = [];
+  Object.entries(STYLE_ATTRS).forEach(([arg, attr]) => {
+    if (!requested[arg]) return;
+    if (attr in supported) styleAttrs[attr] = requested[arg];
+    else unsupported.push(arg);
+  });
+  if (unsupported.length) return { error: `${unsupported.join(', ')} is not supported in this editor` };
+  if (bold === undefined && italic === undefined && underline === undefined && !Object.keys(styleAttrs).length) {
+    return { error: 'nothing to change: pass bold, italic, underline, color, font_size or font_family' };
+  }
+
+  const toggle = (value, markName) => {
     if (!schema.marks[markName]) return;
-    if (value === true) tr.addMark(range.from, range.to, schema.marks[markName].create(attrs));
+    if (value === true) tr.addMark(range.from, range.to, schema.marks[markName].create());
     if (value === false) tr.removeMark(range.from, range.to, schema.marks[markName]);
   };
   toggle(bold, 'bold');
   toggle(italic, 'italic');
   toggle(underline, 'underline');
-  if ((color || font_size) && schema.marks.textStyle) {
-    // Only set attributes the schema supports (the test editor's TextStyle has none).
-    const supported = schema.marks.textStyle.spec.attrs || {};
-    const attrs = {
-      ...(color && 'color' in supported ? { color } : {}),
-      ...(font_size && 'fontSize' in supported ? { fontSize: `${parseFloat(font_size)}pt` } : {}),
-    };
-    if (Object.keys(attrs).length) tr.addMark(range.from, range.to, schema.marks.textStyle.create(attrs));
+  if (Object.keys(styleAttrs).length) {
+    // Merge with each text run's existing text style, so setting a font keeps its colour and size.
+    const type = schema.marks.textStyle;
+    tr.doc.nodesBetween(range.from, range.to, (node, pos) => {
+      if (!node.isText) return true;
+      const from = Math.max(range.from, pos);
+      const to = Math.min(range.to, pos + node.nodeSize);
+      const existing = node.marks.find((m) => m.type === type);
+      tr.addMark(from, to, type.create({ ...(existing ? existing.attrs : {}), ...styleAttrs }));
+      return false;
+    });
   }
   ctx.editor.view.dispatch(tag(tr));
   return { ok: true };

@@ -60,3 +60,28 @@ describe('structure tools', () => {
     }
   });
 });
+
+describe('format_text font and colour', () => {
+  it('sets a font family on a phrase', () => {
+    const { editor, ctx, outline } = setup('<p>make this serif</p>');
+    expect(formatText({ block_id: outline.blocks[0].id, find: 'this', font_family: 'Georgia' }, ctx).ok).toBe(true);
+    expect(editor.getHTML()).toBe('<p>make <span style="font-family: Georgia;">this</span> serif</p>');
+  });
+
+  it('applies to the whole document with block_id "all"', () => {
+    const { editor, ctx } = setup('<p>one</p><p>two</p>');
+    expect(formatText({ block_id: 'all', font_family: 'Georgia' }, ctx).ok).toBe(true);
+    expect(editor.getHTML()).toBe('<p><span style="font-family: Georgia;">one</span></p><p><span style="font-family: Georgia;">two</span></p>');
+  });
+
+  it('keeps an existing colour when adding a font', () => {
+    const { editor, ctx, outline } = setup('<p><span style="color: #c00000;">red</span></p>');
+    formatText({ block_id: outline.blocks[0].id, font_family: 'Georgia' }, ctx);
+    expect(editor.getHTML()).toBe('<p><span style="font-family: Georgia; color: rgb(192, 0, 0);">red</span></p>');
+  });
+
+  it('reports a request that changes nothing', () => {
+    const { ctx, outline } = setup('<p>text</p>');
+    expect(formatText({ block_id: outline.blocks[0].id }, ctx).error).toMatch(/nothing to change/);
+  });
+});

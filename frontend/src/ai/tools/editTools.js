@@ -147,6 +147,20 @@ function setTableCellImpl({ cell_id, text } = {}, ctx) {
   if (!blocks.length) return { error: 'cell has no paragraph' };
   const { schema, tr } = ctx.editor.state;
   const id = newSuggestionId();
+  // Same number of lines as visible paragraphs: rewrite each paragraph with its line so the
+  // cell keeps its paragraph structure (one suggestion id for the whole cell).
+  const visible = blocks.filter((b) => !(b.node.content.size > 0 && blockText(b.node, b.pos + 1, 'accepted').text === ''));
+  const lines = text.split('\n');
+  if (visible.length > 1 && lines.length === visible.length) {
+    let changed = false;
+    // Later paragraphs first so earlier positions stay valid.
+    visible.map((b, i) => [b, lines[i]]).reverse().forEach(([b, line]) => {
+      const r = rewriteInTr(ctx, tr, { node: tr.doc.nodeAt(b.pos), pos: b.pos }, line, id);
+      if (!r.unchanged) changed = true;
+    });
+    dispatch(ctx, tr);
+    return changed ? { ok: true, suggestion_id: id } : { ok: true, unchanged: true };
+  }
   // The first paragraph takes the whole new text; the cell's other paragraphs are marked deleted
   // under the same suggestion so accepting leaves exactly the new text. Later blocks go first so
   // earlier positions stay valid.
