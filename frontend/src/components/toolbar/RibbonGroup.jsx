@@ -78,10 +78,10 @@ export function RibbonGroup({
       >
         <span
           style={{
-            fontSize: 10,
-            fontWeight: 500,
-            color: 'var(--text-muted)',
-            letterSpacing: '0.025em',
+            fontSize: 11,
+            fontWeight: 400,
+            color: '#85837d',
+            letterSpacing: 0,
             fontFamily: 'var(--font-ui)',
             lineHeight: 1.2,
             textAlign: 'center',
@@ -90,7 +90,6 @@ export function RibbonGroup({
             textOverflow: 'ellipsis',
             maxWidth: '100%',
             display: 'block',
-            opacity: 0.9,
           }}
           title={label}
         >

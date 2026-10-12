@@ -1,10 +1,10 @@
-import { useRef, useState } from 'react';
-import { X } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { X, Search } from 'lucide-react';
 import { useUIStore, useDocumentStore, useEditorStore, useCollaborationStore } from '@/store';
 import { PAGE_SIZES, getLayoutMetrics, PAGE_GAP } from '@/utils/pageLayout';
 
-const THUMB_W  = 108;
-const THUMB_H  = 153;
+const THUMB_W  = 96;
+const THUMB_H  = 135;
 
 /**
  * Scroll the editor scroll area to the exact top of a given page index.
@@ -53,6 +53,51 @@ export function PageSidebar() {
   const metrics = getLayoutMetrics({ size: pageSize, orientation: pageOrientation, margin: pageMargin });
   const sizeLabel = (PAGE_SIZES[pageSize] || PAGE_SIZES.a4).label;
   const orientationLabel = pageOrientation === 'landscape' ? 'Landscape' : 'Portrait';
+
+  const [view, setView] = useState('pages');
+  const [query, setQuery] = useState('');
+  const [headings, setHeadings] = useState([]);
+  const [docVersion, setDocVersion] = useState(0);
+
+  useEffect(() => {
+    if (!editor) return undefined;
+    const collect = () => {
+      const list = [];
+      editor.state.doc.descendants((node, pos) => {
+        if (node.type.name === 'heading' && node.textContent.trim()) {
+          list.push({ pos, level: node.attrs.level || 1, text: node.textContent.trim() });
+        }
+      });
+      setHeadings(list);
+      setDocVersion((v) => v + 1);
+    };
+    collect();
+    editor.on('update', collect);
+    return () => { editor.off('update', collect); };
+  }, [editor]);
+
+  // docVersion changes on every edit, so results stay fresh while the user types.
+  const results = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!editor || q.length < 2) return [];
+    const found = [];
+    editor.state.doc.descendants((node, pos) => {
+      if (found.length >= 50 || !node.isTextblock) return found.length < 50;
+      const text = node.textContent;
+      const at = text.toLowerCase().indexOf(q);
+      if (at >= 0) {
+        const start = Math.max(0, at - 24);
+        found.push({ pos: pos + 1 + at, before: (start ? '…' : '') + text.slice(start, at), match: text.slice(at, at + q.length), after: text.slice(at + q.length, at + q.length + 40) });
+      }
+      return false;
+    });
+    return found;
+  }, [editor, query, docVersion]);
+
+  const jumpTo = (pos, length = 0) => {
+    if (!editor) return;
+    editor.chain().focus().setTextSelection({ from: pos, to: pos + length }).scrollIntoView().run();
+  };
 
   const [dragIndex, setDragIndex] = useState(null);
   const [dropIndex, setDropIndex] = useState(null);
@@ -123,78 +168,105 @@ export function PageSidebar() {
   const typingNames = (typingUsers || []).filter((u) => u?.sessionId).map((u) => u.name);
   const hasTyping = typingNames.length > 0;
 
+  const navTabs = [['headings', 'Headings'], ['pages', 'Pages'], ['results', 'Results']];
+
   return (
     <div
       className="page-sidebar-container"
       style={{
-        width: 160,
+        width: 220,
         flexShrink: 0,
-        background: 'var(--bg-sidebar)',
-        borderRight: '1px solid var(--border)',
+        background: '#0f0f11',
+        borderRight: '1px solid rgba(255,255,255,0.06)',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
+        fontFamily: 'var(--font-ui)',
       }}
     >
-      <div style={{
-        padding: '10px 12px 8px', borderBottom: '1px solid var(--border)',
-        fontFamily: 'var(--font-ui)', fontSize: 10,
-        color: 'var(--text-muted)', letterSpacing: '.08em',
-        textTransform: 'uppercase', fontWeight: 600,
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      }}>
-        <span>Pages</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ color: '#d4af37' }}>{pageCount}</span>
+      <div style={{ height: 40, flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 6px 0 14px', fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>
+        Navigation
+        <button
+          type="button"
+          onClick={() => useUIStore.getState().toggleSidebar()}
+          aria-label="Close navigation"
+          title="Close"
+          style={{ width: 26, height: 26, border: 0, background: 'transparent', borderRadius: 6, color: 'var(--text-muted)', cursor: 'pointer', display: 'grid', placeItems: 'center' }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+        >
+          <X size={14} />
+        </button>
+      </div>
+
+      <label style={{ margin: '0 12px', height: 28, display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px', borderRadius: 6, background: '#17171a', border: '1px solid rgba(255,255,255,0.07)', color: '#6f6d68', fontSize: 12 }}>
+        <Search size={13} />
+        <input
+          value={query}
+          onChange={(e) => { setQuery(e.target.value); if (e.target.value.trim()) setView('results'); }}
+          placeholder="Search document"
+          aria-label="Search document"
+          style={{ flex: 1, minWidth: 0, border: 0, outline: 'none', background: 'transparent', color: 'var(--text-primary)', fontSize: 12, fontFamily: 'var(--font-ui)' }}
+        />
+      </label>
+
+      <div role="tablist" style={{ display: 'flex', gap: 16, padding: '12px 14px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        {navTabs.map(([id, name]) => (
           <button
+            key={id}
             type="button"
-            onClick={() => useUIStore.getState().toggleSidebar()}
-            aria-label="Close Pages Sidebar"
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-muted)',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              padding: '0 2px',
-              lineHeight: 1,
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--gold)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; }}
+            role="tab"
+            aria-selected={view === id}
+            onClick={() => setView(id)}
+            style={{ border: 0, background: 'transparent', padding: '0 0 8px', fontSize: 12.5, cursor: 'pointer', fontFamily: 'var(--font-ui)', color: view === id ? 'var(--text-primary)' : '#7d7b76', fontWeight: view === id ? 500 : 400, boxShadow: `inset 0 -2px 0 ${view === id ? 'var(--gold)' : 'transparent'}` }}
           >
-            <X size={14} />
+            {name}
           </button>
-        </div>
+        ))}
       </div>
 
       {hasTyping ? (
-        <div style={{
-          padding: '6px 12px 10px',
-          borderBottom: '1px solid var(--border)',
-          display: 'flex', flexDirection: 'column',
-          gap: 2,
-        }}>
-          <div style={{
-            fontFamily: 'var(--font-ui)', fontSize: 9,
-            color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.06em',
-            fontWeight: 700,
-          }}>
-            Typing
-          </div>
-          <div style={{
-            fontFamily: 'var(--font-ui)', fontSize: 10,
-            color: 'var(--text-primary)',
-            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-            fontWeight: 600,
-          }}>
-            {typingNames.slice(0, 3).join(', ')}{typingNames.length > 3 ? '…' : ''}
-          </div>
+        <div style={{ padding: '6px 14px', borderBottom: '1px solid rgba(255,255,255,0.06)', fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          Typing: <span style={{ color: 'var(--text-primary)' }}>{typingNames.slice(0, 3).join(', ')}{typingNames.length > 3 ? '…' : ''}</span>
         </div>
       ) : null}
 
+      {view === 'headings' && (
+        <div style={{ flex: 1, overflowY: 'auto', padding: '10px 8px' }}>
+          {headings.length ? headings.map((h) => (
+            <button
+              key={h.pos}
+              type="button"
+              onClick={() => jumpTo(h.pos + 1)}
+              title={h.text}
+              style={{ ...navRow, paddingLeft: 8 + (Math.min(h.level, 4) - 1) * 12, color: h.level === 1 ? 'var(--text-primary)' : 'var(--text-secondary)', fontWeight: h.level === 1 ? 500 : 400 }}
+              onMouseEnter={rowHoverOn}
+              onMouseLeave={rowHoverOff}
+            >
+              {h.text}
+            </button>
+          )) : (
+            <div style={emptyNote}>Apply Heading styles from the Home tab to see your document outline here.</div>
+          )}
+        </div>
+      )}
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: '10px 8px', display: 'flex', flexDirection: 'column' }}>
+      {view === 'results' && (
+        <div style={{ flex: 1, overflowY: 'auto', padding: '10px 8px' }}>
+          {results.length ? results.map((r) => (
+            <button key={r.pos} type="button" onClick={() => jumpTo(r.pos, r.match.length)} style={{ ...navRow, whiteSpace: 'normal', lineHeight: 1.45 }} onMouseEnter={rowHoverOn} onMouseLeave={rowHoverOff}>
+              <span style={{ color: 'var(--text-muted)' }}>{r.before}</span>
+              <mark style={{ background: 'rgba(214,178,94,0.25)', color: 'var(--text-primary)', borderRadius: 2 }}>{r.match}</mark>
+              <span style={{ color: 'var(--text-muted)' }}>{r.after}</span>
+            </button>
+          )) : (
+            <div style={emptyNote}>{query.trim().length >= 2 ? 'No matches.' : 'Search for text in this document.'}</div>
+          )}
+        </div>
+      )}
+
+      {view === 'pages' && (
+      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 8px', display: 'flex', flexDirection: 'column' }}>
         {order.map((pageNum, i) => {
           const isDragging  = dragIndex === i;
           const isDropAbove = dropIndex === i && dragIndex !== null && dragIndex > i;
@@ -211,7 +283,7 @@ export function PageSidebar() {
               onDragEnd={handleDragEnd}
               onClick={() => handleClick(i)}
               style={{
-                padding: '8px 0',
+                padding: '4px 0',
                 cursor: isDragging ? 'grabbing' : 'grab',
                 transition: 'transform 0.15s ease, opacity 0.15s ease',
                 transform: isDragging ? 'scale(1.03)' : 'scale(1)',
@@ -219,93 +291,75 @@ export function PageSidebar() {
                 position: 'relative',
               }}
             >
-              {/* Drop line ABOVE */}
-              <div style={{
-                position: 'absolute', top: 0, left: 8, right: 8, height: 2,
-                background: isDropAbove ? '#d4af37' : 'transparent',
-                boxShadow: isDropAbove ? '0 0 6px #d4af37' : 'none',
-                borderRadius: 2, transition: 'background 0.1s, box-shadow 0.1s', zIndex: 10,
-              }} />
-
-              <PageThumb
-                index={i}
-                active={activePage === i}
-                thumbnail={pageThumbnails[pageNum]}
-                isDragging={isDragging}
-              />
-
-              {/* Drop line BELOW */}
-              <div style={{
-                position: 'absolute', bottom: 0, left: 8, right: 8, height: 2,
-                background: isDropBelow ? '#d4af37' : 'transparent',
-                boxShadow: isDropBelow ? '0 0 6px #d4af37' : 'none',
-                borderRadius: 2, transition: 'background 0.1s, box-shadow 0.1s', zIndex: 10,
-              }} />
+              <div style={{ ...dropLine, top: 0, background: isDropAbove ? 'var(--gold)' : 'transparent' }} />
+              <PageThumb index={i} active={activePage === i} thumbnail={pageThumbnails[pageNum]} isDragging={isDragging} />
+              <div style={{ ...dropLine, bottom: 0, background: isDropBelow ? 'var(--gold)' : 'transparent' }} />
             </div>
           );
         })}
+        <div style={{ marginTop: 'auto', paddingTop: 12, textAlign: 'center', fontSize: 11, color: '#6f6d68' }}>
+          {pageCount} page{pageCount !== 1 ? 's' : ''} · {sizeLabel} · {orientationLabel}
+        </div>
       </div>
-
-      <div style={{
-        padding: '8px 12px', borderTop: '1px solid var(--border)',
-        fontFamily: 'var(--font-ui)', fontSize: 10, color: 'var(--text-muted)',
-        display: 'flex', flexDirection: 'column', gap: 2,
-      }}>
-        <span>{pageCount} page{pageCount !== 1 ? 's' : ''}</span>
-        <span style={{ fontSize: 9 }}>{sizeLabel} · {orientationLabel}</span>
-      </div>
+      )}
     </div>
   );
 }
 
-function PageThumb({ index, active, thumbnail, isDragging }) {
-  const themeColors = {
-    bg: '#1a1a1a',
-    border: active ? '#d4af37' : '#333333',
-    placeholder: '#171717',
-    placeholderLine: '#333333',
-    pageNum: '#666666',
-    pageNumBg: 'rgba(0,0,0,0.5)',
-  };
+const navRow = {
+  display: 'block',
+  width: '100%',
+  textAlign: 'left',
+  border: 0,
+  background: 'transparent',
+  borderRadius: 6,
+  padding: '5px 8px',
+  fontSize: 12,
+  fontFamily: 'var(--font-ui)',
+  color: 'var(--text-secondary)',
+  cursor: 'pointer',
+  whiteSpace: 'nowrap',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+};
 
+const emptyNote = {
+  padding: '8px 10px',
+  fontSize: 12,
+  lineHeight: 1.5,
+  color: '#7d7b76',
+  textAlign: 'center',
+};
+
+const dropLine = { position: 'absolute', left: 8, right: 8, height: 2, borderRadius: 2, zIndex: 10 };
+
+function rowHoverOn(e) { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }
+function rowHoverOff(e) { e.currentTarget.style.background = 'transparent'; }
+
+function PageThumb({ index, active, thumbnail, isDragging }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-      <div style={{
-        width: THUMB_W, height: THUMB_H,
-        border: active ? '2px solid #d4af37' : `1px solid ${themeColors.border}`,
-        borderRadius: 3,
-        overflow: 'hidden',
-        background: themeColors.bg,
-        flexShrink: 0,
-        position: 'relative',
-        transition: 'border-color 0.15s, box-shadow 0.15s, background-color 0.15s',
-        boxShadow: isDragging
-          ? '0 8px 24px rgba(0,0,0,0.5), 0 0 0 2px #d4af37'
-          : active ? '0 0 12px rgba(212, 175, 55, 0.35)' : '0 2px 4px rgba(0,0,0,0.1)',
-      }}
-        onMouseEnter={(e) => { if (!active && !isDragging) e.currentTarget.style.borderColor = '#d4af37'; }}
-        onMouseLeave={(e) => { if (!active && !isDragging) e.currentTarget.style.borderColor = themeColors.border; }}
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+      <div
+        style={{
+          width: THUMB_W,
+          height: THUMB_H,
+          borderRadius: 2,
+          overflow: 'hidden',
+          background: 'var(--bg-page)',
+          flexShrink: 0,
+          boxShadow: isDragging
+            ? '0 8px 24px rgba(0,0,0,0.5), 0 0 0 2px var(--gold)'
+            : active ? '0 0 0 2px var(--gold)' : '0 0 0 1px rgba(255,255,255,0.08)',
+          transition: 'box-shadow 0.15s',
+        }}
+        onMouseEnter={(e) => { if (!active && !isDragging) e.currentTarget.style.boxShadow = '0 0 0 1px rgba(214,178,94,0.6)'; }}
+        onMouseLeave={(e) => { if (!active && !isDragging) e.currentTarget.style.boxShadow = '0 0 0 1px rgba(255,255,255,0.08)'; }}
       >
         {thumbnail
-          ? <img src={thumbnail} alt={`Page ${index + 1}`}
-              style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top', display: 'block' }} />
-          : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: themeColors.placeholder }}>
-              <div style={{ width: '80%', height: '85%', border: '1px dashed #2d2d2d', borderRadius: 2 }} />
-            </div>
-        }
-        <div style={{
-          position: 'absolute', bottom: 4, right: 5,
-          fontSize: 8, color: themeColors.pageNum, fontFamily: 'var(--font-ui)',
-          background: themeColors.pageNumBg, borderRadius: 2, padding: '1px 4px',
-        }}>{index + 1}</div>
+          ? <img src={thumbnail} alt={`Page ${index + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top', display: 'block' }} />
+          : null}
       </div>
-
-      <span style={{
-        fontSize: 10, fontFamily: 'var(--font-ui)',
-        color: active ? '#d4af37' : 'var(--text-muted)',
-        fontWeight: active ? 600 : 400,
-        userSelect: 'none',
-      }}>Page {index + 1}</span>
+      <span style={{ fontSize: 11.5, fontFamily: 'var(--font-ui)', color: active ? 'var(--gold)' : '#7d7b76', userSelect: 'none' }}>{index + 1}</span>
     </div>
   );
 }

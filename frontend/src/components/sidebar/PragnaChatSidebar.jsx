@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import {
-  Sparkles, Sliders, Globe, Trash2, X, FileText, Settings,
-  AlertTriangle, Paperclip, Image as ImageIcon, Link as LinkIcon, ArrowUp
+  Sparkles, Sliders, Globe, X, FileText,
+  AlertTriangle, Paperclip, Image as ImageIcon, Link as LinkIcon, ArrowUp,
+  SquarePen, MessageCircle, ListChecks, PenLine, WandSparkles, CheckCheck,
 } from 'lucide-react';
 import { useUIStore, useEditorStore, useDocumentStore } from '@/store';
 import { markdownToHtml } from '@/services/ai';
@@ -10,9 +11,11 @@ import { useDocumentAgent } from '@/ai/useDocumentAgent';
 import { SuggestionReview } from './SuggestionReview';
 
 const QUICK_PROMPTS = [
+  { label: 'Summarize', icon: FileText, prompt: 'Summarize the selected text, or the whole document if nothing is selected, as a short paragraph followed by key points.' },
+  { label: 'Fix grammar', icon: CheckCheck, prompt: 'Fix the grammar, spelling and punctuation in the selected text, or the whole document if nothing is selected. Do not change the meaning.' },
+  { label: 'Continue', icon: PenLine, prompt: 'Continue writing from the end of the document in the same style and tone, adding one or two paragraphs.' },
   { label: 'Executive Summary', prompt: 'Provide a concise, punchy executive summary of the selected text, or the whole document if nothing is selected, with key takeaways.' },
   { label: 'Professional Tone', prompt: 'Rewrite the selected text, or the whole document if nothing is selected, in an authoritative, executive, and highly polished corporate tone.' },
-  { label: 'Fix Grammar & Flow', prompt: 'Proofread and correct all grammar, punctuation, and phrasing issues while improving sentence flow.' },
   { label: 'Convert to Table', prompt: 'Structure the key points and data from the selected text, or the whole document if nothing is selected, into a clean markdown data table.' },
   { label: 'Action Items', prompt: 'Extract all actionable tasks and next steps into a structured checklist.' },
   { label: 'Simplify & Clarify', prompt: 'Simplify the language, eliminate unnecessary jargon, and make the content effortless to read.' },
@@ -756,14 +759,14 @@ Ask me anything or attach files below.`,
       }}
       className="pragna-sidebar-container"
       style={{
-        width: 380,
+        width: 372,
         minWidth: 340,
         maxWidth: 440,
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        background: 'var(--bg-surface)',
-        borderLeft: '1px solid var(--border)',
+        background: '#101012',
+        borderLeft: '1px solid rgba(255,255,255,0.07)',
         zIndex: 100,
         flexShrink: 0,
         fontFamily: 'var(--font-ui)',
@@ -797,249 +800,41 @@ Ask me anything or attach files below.`,
         </div>
       )}
 
-      {/* Modern Compact Header Bar */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '0 12px',
-          borderBottom: '1px solid var(--border)',
-          background: 'var(--bg-surface)',
-          height: 44,
-          boxSizing: 'border-box',
-          flexShrink: 0,
-        }}
-      >
-        {/* Brand & Tab Toggle */}
+      {/* Header: brand, mode, new chat, close; then Chat / Directives switch */}
+      <div style={{ flex: 'none', display: 'flex', flexDirection: 'column', gap: 12, padding: '14px 12px 12px 16px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-            <div
-              style={{
-                width: 22,
-                height: 22,
-                borderRadius: 5,
-                background: 'linear-gradient(135deg, rgba(212,175,55,0.25) 0%, rgba(212,175,55,0.06) 100%)',
-                border: '1px solid rgba(212,175,55,0.4)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--gold)',
-                fontSize: 12,
-                fontWeight: 700,
-                boxShadow: '0 1px 4px rgba(212,175,55,0.12)',
-              }}
-            >
-              <Sparkles size={12} strokeWidth={2} />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '0.01em', lineHeight: 1.1 }}>
-                Pragna
-              </span>
-              <span style={{ fontSize: 9, color: 'var(--text-muted)', lineHeight: 1 }}>
-                AI Copilot
-              </span>
-            </div>
+          <span aria-hidden="true" style={{ ...pragnaOrb, width: 28, height: 28 }}><Sparkles size={14} /></span>
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 7, fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
+            Pragna
+            <span title={aiConfigured ? 'Online' : 'Not configured'} style={{ width: 6, height: 6, borderRadius: '50%', background: aiConfigured ? '#6bbf7a' : '#6f6d68' }} />
           </div>
-
-          {/* Segmented Control: Chat vs Directives */}
-          <div
-            style={{
-              display: 'flex',
-              background: 'var(--bg-elevated)',
-              borderRadius: 5,
-              padding: 2,
-              border: '1px solid var(--border)',
-            }}
-          >
+          <button type="button" onClick={handleClearChat} title="New chat" aria-label="New chat" style={headerIconBtn} onMouseEnter={iconHoverOn} onMouseLeave={iconHoverOff}>
+            <SquarePen size={15} strokeWidth={1.75} />
+          </button>
+          <button type="button" onClick={toggleCopilot} title="Close" aria-label="Close Pragna" style={headerIconBtn} onMouseEnter={iconHoverOn} onMouseLeave={iconHoverOff}>
+            <X size={15} strokeWidth={1.75} />
+          </button>
+        </div>
+        <div role="tablist" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', padding: 3, borderRadius: 9, background: '#1a1a1d' }}>
+          {[['chat', 'Chat', MessageCircle], ['persona', 'Directives', ListChecks]].map(([id, name, Icon]) => (
             <button
-              onClick={() => setActiveSidebarTab('chat')}
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={activeSidebarTab === id}
+              onClick={() => setActiveSidebarTab(id)}
               style={{
-                background: activeSidebarTab === 'chat' ? 'var(--gold)' : 'transparent',
-                color: activeSidebarTab === 'chat' ? 'var(--text-on-gold)' : 'var(--text-secondary)',
-                border: 'none',
-                borderRadius: 3,
-                padding: '2px 8px',
-                fontSize: 10,
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.12s ease',
+                height: 28, border: 0, borderRadius: 7, cursor: 'pointer', fontSize: 12.5, fontWeight: 500, fontFamily: 'var(--font-ui)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                background: activeSidebarTab === id ? 'var(--bg-elevated)' : 'transparent',
+                boxShadow: activeSidebarTab === id ? '0 1px 2px rgba(0,0,0,0.25)' : 'none',
+                color: activeSidebarTab === id ? 'var(--text-primary)' : 'var(--text-muted)',
               }}
             >
-              Chat
+              <Icon size={13} />{name}
             </button>
-            <button
-              onClick={() => setActiveSidebarTab('persona')}
-              style={{
-                background: activeSidebarTab === 'persona' ? 'var(--gold)' : 'transparent',
-                color: activeSidebarTab === 'persona' ? 'var(--text-on-gold)' : 'var(--text-secondary)',
-                border: 'none',
-                borderRadius: 3,
-                padding: '2px 8px',
-                fontSize: 10,
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 3,
-                transition: 'all 0.12s ease',
-              }}
-            >
-              <Sliders size={11} strokeWidth={1.75} /> Directives
-            </button>
-          </div>
+          ))}
         </div>
-
-        {/* Header Right Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <button type="button" onClick={() => setAgentMode((on) => !on)} title={agentMode ? 'Pragna edits the document (suggestions)' : 'Pragna only answers in chat'}
-            style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, border: '1px solid var(--border)', background: agentMode ? 'var(--gold-dim, rgba(212,175,55,0.15))' : 'transparent', color: agentMode ? 'var(--text-gold)' : 'var(--text-secondary)', cursor: 'pointer' }}>
-            {agentMode ? 'Edit' : 'Ask'}
-          </button>
-          {/* Web Search Toggle */}
-          <button
-            onClick={() => setWebSearchEnabled(!webSearchEnabled)}
-            title={`Web Grounding: ${webSearchEnabled ? 'Enabled (searches web)' : 'Disabled'}`}
-            style={{
-              background: webSearchEnabled ? 'rgba(212, 175, 55, 0.15)' : 'var(--bg-elevated)',
-              color: webSearchEnabled ? 'var(--gold)' : 'var(--text-secondary)',
-              border: `1px solid ${webSearchEnabled ? 'rgba(212, 175, 55, 0.45)' : 'var(--border)'}`,
-              borderRadius: 4,
-              padding: '3px 7px',
-              fontSize: 10,
-              fontWeight: 500,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-              transition: 'all 0.12s ease',
-            }}
-          >
-            <Globe size={11} strokeWidth={1.75} />
-            <span>Web</span>
-            <span
-              style={{
-                width: 5,
-                height: 5,
-                borderRadius: '50%',
-                background: webSearchEnabled ? 'var(--gold)' : 'var(--text-muted)',
-                display: 'inline-block',
-              }}
-            />
-          </button>
-
-          {/* Clear History */}
-          <button
-            onClick={handleClearChat}
-            title="Clear Chat Conversation"
-            style={{
-              background: 'transparent',
-              color: 'var(--text-muted)',
-              border: 'none',
-              width: 26,
-              height: 26,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 12,
-              cursor: 'pointer',
-              borderRadius: 4,
-              transition: 'all 0.12s ease',
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.background = 'var(--bg-hover)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'transparent'; }}
-          >
-            <Trash2 size={13} strokeWidth={1.75} />
-          </button>
-
-          {/* Close Panel */}
-          <button
-            onClick={toggleCopilot}
-            title="Close Pragna Copilot"
-            style={{
-              background: 'transparent',
-              color: 'var(--text-muted)',
-              border: 'none',
-              width: 26,
-              height: 26,
-              fontSize: 13,
-              cursor: 'pointer',
-              borderRadius: 4,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              lineHeight: 1,
-              transition: 'all 0.12s ease',
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.background = 'var(--bg-hover)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'transparent'; }}
-          >
-            <X size={14} strokeWidth={1.75} />
-          </button>
-        </div>
-      </div>
-
-      {/* Slim Context & Directives Status Strip (Single 27px row) */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '3px 12px',
-          background: 'var(--bg-app)',
-          borderBottom: '1px solid var(--border)',
-          fontSize: 10,
-          minHeight: 27,
-          boxSizing: 'border-box',
-          flexShrink: 0,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 4,
-              background: hasSelection ? 'rgba(212, 175, 55, 0.12)' : 'var(--bg-elevated)',
-              border: `1px solid ${hasSelection ? 'rgba(212, 175, 55, 0.35)' : 'var(--border)'}`,
-              color: hasSelection ? 'var(--gold)' : 'var(--text-secondary)',
-              borderRadius: 10,
-              padding: '1px 7px',
-              fontSize: 9.5,
-              fontWeight: 500,
-            }}
-          >
-            <span style={{ display: 'inline-flex', alignItems: 'center' }}>
-              {hasSelection ? <Sparkles size={9} /> : <FileText size={9} />}
-            </span>
-            <span>{hasSelection ? `Selection (${wordCount}w)` : `Document (${wordCount}w)`}</span>
-          </span>
-        </div>
-
-        <button
-          onClick={() => setActiveSidebarTab(activeSidebarTab === 'persona' ? 'chat' : 'persona')}
-          style={{
-            background: 'transparent',
-            border: 'none',
-            color: 'var(--text-muted)',
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 4,
-            fontSize: 10,
-            padding: '2px 4px',
-            borderRadius: 3,
-            transition: 'color 0.12s ease',
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--gold)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; }}
-          title="Configure Persona Directives"
-        >
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-            <Sliders size={10} /> {personaTone}
-          </span>
-          <Settings size={10} style={{ opacity: 0.7 }} />
-        </button>
       </div>
 
       {activeSidebarTab === 'persona' ? (
@@ -1244,13 +1039,43 @@ Ask me anything or attach files below.`,
         style={{
           flex: 1,
           overflowY: 'auto',
-          padding: '12px',
+          padding: '18px 16px',
           display: 'flex',
           flexDirection: 'column',
-          gap: 12,
+          gap: 18,
         }}
       >
-        {messages.map((msg) => {
+        {!messages.some((m) => m.id !== 'welcome') && (
+          <>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 14, paddingTop: 6 }}>
+              <span aria-hidden="true" style={{ ...pragnaOrb, width: 40, height: 40, boxShadow: '0 0 40px rgba(212,175,55,0.3)' }}><Sparkles size={20} /></span>
+              <div style={{ fontFamily: 'Lora, Georgia, serif', fontSize: 22, lineHeight: 1.25, color: 'var(--text-primary)' }}>
+                How can <span style={{ background: GOLD_GRADIENT, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent', fontWeight: 600 }}>Pragna</span> help?
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {[
+                ['Embed files', Paperclip, () => fileInputRef.current?.click()],
+                ['Draft', PenLine, () => setInputPrompt('Draft ')],
+                ['Edit & polish', WandSparkles, () => setInputPrompt('Edit & polish ')],
+                ['Summarize', ListChecks, () => setInputPrompt('Summarize ')],
+              ].map(([title, Icon, use]) => (
+                <button
+                  key={title}
+                  type="button"
+                  onClick={() => { use(); textareaRef.current?.focus(); }}
+                  style={capCard}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(214,178,94,0.35)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)'; }}
+                >
+                  <span style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(212,175,55,0.12)', color: 'var(--gold)', display: 'grid', placeItems: 'center', flex: 'none' }}><Icon size={14} /></span>
+                  <span style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--text-primary)', lineHeight: 1.3 }}>{title}</span>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+        {messages.filter((m) => m.id !== 'welcome').map((msg) => {
           const isUser = msg.role === 'user';
           return (
             <div
@@ -1262,32 +1087,22 @@ Ask me anything or attach files below.`,
                 maxWidth: '100%',
               }}
             >
-              <div
-                style={{
-                  fontSize: 10,
-                  color: 'var(--text-muted)',
-                  marginBottom: 3,
-                  padding: '0 2px',
-                  fontWeight: 600,
-                  letterSpacing: '0.02em',
-                }}
-              >
-                {isUser ? 'You' : 'Pragna'}
-              </div>
+              {!isUser && (
+                <span aria-hidden="true" style={{ ...pragnaOrb, width: 22, height: 22, marginBottom: 6 }}><Sparkles size={11} /></span>
+              )}
 
               {/* Message Bubble */}
               <div
                 style={{
-                  maxWidth: '92%',
-                  padding: '9px 12px',
-                  borderRadius: isUser ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
-                  background: isUser ? 'rgba(212, 175, 55, 0.12)' : 'var(--bg-elevated)',
-                  border: `1px solid ${isUser ? 'rgba(212, 175, 55, 0.35)' : 'var(--border)'}`,
-                  color: 'var(--text-primary)',
-                  fontSize: 12,
-                  lineHeight: 1.55,
+                  maxWidth: isUser ? '84%' : '100%',
+                  padding: isUser ? '10px 13px' : msg.isError ? '8px 11px' : 0,
+                  borderRadius: isUser ? '14px 14px 4px 14px' : 10,
+                  background: isUser ? '#1a1a1d' : msg.isError ? 'rgba(214,178,94,0.08)' : 'transparent',
+                  border: msg.isError ? '1px solid rgba(214,178,94,0.3)' : 'none',
+                  color: isUser ? 'var(--text-primary)' : '#e8e6e1',
+                  fontSize: 13.5,
+                  lineHeight: isUser ? 1.5 : 1.6,
                   wordBreak: 'break-word',
-                  boxShadow: isUser ? 'none' : '0 1px 3px rgba(0,0,0,0.06)',
                 }}
               >
                 {/* Text Content */}
@@ -1553,53 +1368,24 @@ Ask me anything or attach files below.`,
 
       <SuggestionReview editor={editor} />
 
-      {/* Quick Suggestion Chips (Clean Pill Scroll) */}
-      <div
-        style={{
-          display: 'flex',
-          gap: 5,
-          overflowX: 'auto',
-          padding: '6px 12px',
-          background: 'transparent',
-          borderTop: '1px solid var(--border)',
-          whiteSpace: 'nowrap',
-          flexShrink: 0,
-        }}
-      >
-        {QUICK_PROMPTS.map((qp, idx) => (
-          <button
-            key={idx}
-            onClick={() => handleSendMessage(qp.prompt)}
-            disabled={loading}
-            style={{
-              background: 'var(--bg-elevated)',
-              color: 'var(--text-secondary)',
-              border: '1px solid var(--border)',
-              borderRadius: 12,
-              padding: '3px 9px',
-              fontSize: 10.5,
-              fontWeight: 500,
-              cursor: loading ? 'not-allowed' : 'pointer',
-              opacity: loading ? 0.6 : 1,
-              transition: 'all 0.12s ease',
-              flexShrink: 0,
-            }}
-            onMouseEnter={(e) => {
-              if (!loading) {
-                e.currentTarget.style.borderColor = 'rgba(212,175,55,0.45)';
-                e.currentTarget.style.color = 'var(--text-primary)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!loading) {
-                e.currentTarget.style.borderColor = 'var(--border)';
-                e.currentTarget.style.color = 'var(--text-secondary)';
-              }
-            }}
-          >
-            {qp.label}
-          </button>
-        ))}
+      {/* Quick Suggestion Chips */}
+      <div style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: '8px 12px 6px', whiteSpace: 'nowrap', flexShrink: 0 }} className="ribbon-scroll">
+        {QUICK_PROMPTS.map((qp, idx) => {
+          const Icon = qp.icon || Sparkles;
+          return (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => handleSendMessage(qp.prompt)}
+              disabled={loading}
+              style={{ ...chipBtn, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1 }}
+              onMouseEnter={(e) => { if (!loading) e.currentTarget.style.borderColor = 'rgba(214,178,94,0.4)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; }}
+            >
+              <Icon size={13} color="var(--gold)" />{qp.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* AI Not Configured Alert */}
@@ -1627,16 +1413,16 @@ Ask me anything or attach files below.`,
       <div
         style={{
           padding: '6px 12px 12px',
-          background: 'var(--bg-surface)',
+          background: 'transparent',
           flexShrink: 0,
         }}
       >
         <div
           style={{
             background: 'var(--bg-elevated)',
-            border: '1px solid var(--border)',
-            borderRadius: 8,
-            padding: '8px 10px 6px',
+            border: '1px solid rgba(255,255,255,0.08)',
+            borderRadius: 12,
+            padding: '10px 10px 8px 12px',
             display: 'flex',
             flexDirection: 'column',
             gap: 6,
@@ -1644,8 +1430,13 @@ Ask me anything or attach files below.`,
             transition: 'border-color 0.15s ease',
           }}
           onFocusCapture={(e) => { e.currentTarget.style.borderColor = 'var(--gold)'; }}
-          onBlurCapture={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; }}
+          onBlurCapture={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; }}
         >
+          {hasSelection && (
+            <span style={{ alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--gold-hover)', background: 'rgba(212,175,55,0.1)', borderRadius: 999, padding: '2px 8px' }}>
+              <FileText size={11} />Selection · {wordCount} word{wordCount === 1 ? '' : 's'}
+            </span>
+          )}
           {/* Pending Attachments inside Input Card */}
           {attachments.length > 0 && (
             <div
@@ -1871,6 +1662,7 @@ Ask me anything or attach files below.`,
               <button
                 onClick={() => fileInputRef.current?.click()}
                 title="Attach document or data file (.docx, .pdf, .txt, .csv...)"
+                aria-label="Attach file"
                 style={{
                   background: 'transparent',
                   color: 'var(--text-secondary)',
@@ -1889,13 +1681,13 @@ Ask me anything or attach files below.`,
                 onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.background = 'transparent'; }}
               >
                 <Paperclip size={13} strokeWidth={1.75} />
-                <span style={{ fontSize: 10 }}>File</span>
               </button>
 
               {/* Add Image Button */}
               <button
                 onClick={() => imageInputRef.current?.click()}
                 title="Upload and insert image"
+                aria-label="Add image"
                 style={{
                   background: 'transparent',
                   color: 'var(--text-secondary)',
@@ -1914,7 +1706,6 @@ Ask me anything or attach files below.`,
                 onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.background = 'transparent'; }}
               >
                 <ImageIcon size={13} strokeWidth={1.75} />
-                <span style={{ fontSize: 10 }}>Image</span>
               </button>
 
               {/* Image by URL */}
@@ -1939,6 +1730,31 @@ Ask me anything or attach files below.`,
               </button>
             </div>
 
+            {/* Mode pills: Edit/Ask, web grounding, persona tone */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto', marginRight: 6 }}>
+              <button
+                type="button"
+                onClick={() => setAgentMode((on) => !on)}
+                aria-pressed={agentMode}
+                title={agentMode ? 'Edit: Pragna edits the document as suggestions you accept or reject' : 'Ask: Pragna answers in chat only'}
+                style={{ ...pillBtn, ...(agentMode ? pillOn : null) }}
+              >
+                <PenLine size={12} />{agentMode ? 'Edit' : 'Ask'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setWebSearchEnabled(!webSearchEnabled)}
+                aria-pressed={webSearchEnabled}
+                title={webSearchEnabled ? 'Web search on (answers in chat)' : 'Web search off'}
+                style={{ ...pillBtn, ...(webSearchEnabled ? pillOn : null) }}
+              >
+                <Globe size={12} />Web
+              </button>
+              <button type="button" onClick={() => setActiveSidebarTab('persona')} title="Tone and directives" style={pillBtn}>
+                <Sliders size={12} /><span style={{ textTransform: 'capitalize' }}>{personaTone}</span>
+              </button>
+            </div>
+
             {/* Right Send Control */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               {uploadingFiles && (
@@ -1949,12 +1765,12 @@ Ask me anything or attach files below.`,
                 disabled={loading || !aiConfigured || (!inputPrompt.trim() && attachments.length === 0)}
                 title={!aiConfigured ? "AI assistant not configured" : "Send message (Enter)"}
                 style={{
-                  width: 26,
-                  height: 26,
-                  background: (!loading && aiConfigured && (inputPrompt.trim() || attachments.length > 0)) ? 'var(--gold)' : 'var(--bg-surface)',
-                  color: (!loading && aiConfigured && (inputPrompt.trim() || attachments.length > 0)) ? 'var(--text-on-gold)' : 'var(--text-muted)',
-                  border: `1px solid ${(!loading && aiConfigured && (inputPrompt.trim() || attachments.length > 0)) ? 'var(--gold-border)' : 'var(--border)'}`,
-                  borderRadius: 5,
+                  width: 30,
+                  height: 30,
+                  background: (!loading && aiConfigured && (inputPrompt.trim() || attachments.length > 0)) ? GOLD_GRADIENT : '#1a1a1d',
+                  color: (!loading && aiConfigured && (inputPrompt.trim() || attachments.length > 0)) ? '#1a1405' : '#6f6d68',
+                  border: 0,
+                  borderRadius: '50%',
                   cursor: (!loading && aiConfigured && (inputPrompt.trim() || attachments.length > 0)) ? 'pointer' : 'not-allowed',
                   display: 'flex',
                   alignItems: 'center',
@@ -1974,3 +1790,79 @@ Ask me anything or attach files below.`,
     </div>
   );
 }
+
+const GOLD_GRADIENT = 'linear-gradient(135deg,#e5c76b 0%,#d4af37 50%,#b8860b 100%)';
+
+const pragnaOrb = {
+  flex: 'none',
+  borderRadius: '50%',
+  background: GOLD_GRADIENT,
+  boxShadow: '0 0 24px rgba(212,175,55,0.3)',
+  display: 'grid',
+  placeItems: 'center',
+  color: '#1a1405',
+};
+
+const headerIconBtn = {
+  width: 28,
+  height: 28,
+  border: 0,
+  background: 'transparent',
+  borderRadius: 7,
+  cursor: 'pointer',
+  color: 'var(--text-muted)',
+  display: 'grid',
+  placeItems: 'center',
+};
+
+const capCard = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+  padding: 10,
+  borderRadius: 11,
+  border: '1px solid rgba(255,255,255,0.07)',
+  background: 'var(--bg-elevated)',
+  cursor: 'pointer',
+  textAlign: 'left',
+  fontFamily: 'var(--font-ui)',
+};
+
+const chipBtn = {
+  height: 28,
+  padding: '0 10px',
+  borderRadius: 8,
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'transparent',
+  color: 'var(--text-secondary)',
+  fontSize: 12,
+  fontFamily: 'var(--font-ui)',
+  display: 'flex',
+  alignItems: 'center',
+  gap: 6,
+  flexShrink: 0,
+};
+
+const pillBtn = {
+  height: 24,
+  padding: '0 8px',
+  borderRadius: 999,
+  border: '1px solid rgba(255,255,255,0.1)',
+  background: 'transparent',
+  color: 'var(--text-muted)',
+  fontSize: 11.5,
+  fontFamily: 'var(--font-ui)',
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  gap: 4,
+};
+
+const pillOn = {
+  borderColor: 'rgba(214,178,94,0.45)',
+  background: 'rgba(212,175,55,0.12)',
+  color: 'var(--gold-hover)',
+};
+
+function iconHoverOn(e) { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; e.currentTarget.style.color = 'var(--text-primary)'; }
+function iconHoverOff(e) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)'; }

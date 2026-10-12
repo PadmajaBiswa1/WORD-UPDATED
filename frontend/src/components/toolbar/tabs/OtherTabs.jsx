@@ -1099,14 +1099,12 @@ export function ViewTab() {
     toast,
     openDialog,
   } = useUIStore();
-  const [viewMode, setViewMode] = useState('print');
-  const [focusMode, setFocusMode] = useState(false);
+  const viewMode = useUIStore((s) => s.viewMode);
+  const setViewMode = useUIStore((s) => s.setViewMode);
+  const focusMode = useUIStore((s) => s.focusMode);
+  const toggleFocusMode = useUIStore((s) => s.toggleFocusMode);
 
   const applyViewMode = (mode) => {
-    const scroll = document.getElementById('editor-scroll-area');
-    if (!scroll) return;
-    scroll.classList.remove('etherx-view-print', 'etherx-view-web', 'etherx-view-outline', 'etherx-view-draft', 'etherx-view-read');
-    scroll.classList.add(`etherx-view-${mode}`);
     setViewMode(mode);
     toast(`${mode[0].toUpperCase()}${mode.slice(1)} mode enabled`, 'info');
   };
@@ -1121,11 +1119,8 @@ export function ViewTab() {
   };
 
   const toggleFocus = () => {
-    const el = document.getElementById('editor-scroll-area');
-    const next = !focusMode;
-    setFocusMode(next);
-    if (el) el.classList.toggle('etherx-focus-mode', next);
-    toast(next ? 'Focus mode enabled' : 'Focus mode disabled', 'info');
+    toggleFocusMode();
+    toast(!focusMode ? 'Focus mode enabled' : 'Focus mode disabled', 'info');
   };
 
   const handleSplit = () => {

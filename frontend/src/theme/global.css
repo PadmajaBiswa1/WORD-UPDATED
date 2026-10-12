@@ -1251,6 +1251,7 @@ body.etherx-is-resizing img,
 
   /* Status bar clean up on mobile */
   .status-bar-lang,
+  .status-bar-a11y,
   .status-bar-views,
   .status-bar-sep-lang,
   .status-bar-sep-views,
@@ -1361,3 +1362,26 @@ body.etherx-is-resizing img,
 .ProseMirror .etherx-comment-anchor { background: rgba(217, 181, 74, 0.22); border-bottom: 1px dashed #d9b54a; }
 .etherx-suggestion-popover { position: fixed; z-index: 1000; display: flex; gap: 4px; padding: 4px; border-radius: 8px; background: var(--bg-elevated); border: 1px solid var(--border); box-shadow: var(--shadow-md); }
 .etherx-suggestion-popover button { border: 0; border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
+
+/* ══ Ribbon: borderless controls (design: flat buttons, hover tint) ══ */
+.ribbon-outer-container button[style*="var(--bg-elevated)"] {
+  background: transparent !important;
+  border-color: transparent !important;
+  border-radius: 6px !important;
+}
+.ribbon-outer-container button:not(:disabled):hover {
+  background: rgba(255, 255, 255, 0.07) !important;
+  border-color: transparent !important;
+}
+.ribbon-outer-container select,
+.ribbon-outer-container input[type="text"],
+.ribbon-outer-container input:not([type]) {
+  background: #1a1a1d;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+}
+
+/* Status bar zoom slider: thin track, hairline thumb (design) */
+.etherx-zoom-slider { -webkit-appearance: none; appearance: none; height: 3px; border-radius: 2px; background: #2a2a2e; }
+.etherx-zoom-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 2px; height: 11px; background: #e8e6e1; border: 0; }
+.etherx-zoom-slider::-moz-range-thumb { width: 2px; height: 11px; background: #e8e6e1; border: 0; border-radius: 0; }

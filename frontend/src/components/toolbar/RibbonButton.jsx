@@ -75,10 +75,8 @@ export function RibbonButton({
             : 'transparent',
           border: active
             ? '1px solid rgba(212, 175, 55, 0.5)'
-            : hovered
-            ? '1px solid var(--border)'
             : '1px solid transparent',
-          borderRadius: 4,
+          borderRadius: 6,
           color: active ? 'var(--gold)' : 'var(--ribbon-ink, var(--text-primary))',
           fontFamily: 'var(--font-ui)',
           fontSize: 11,
@@ -139,10 +137,8 @@ export function RibbonButton({
           : 'transparent',
         border: active
           ? '1px solid rgba(212, 175, 55, 0.5)'
-          : hovered
-          ? '1px solid var(--border)'
           : '1px solid transparent',
-        borderRadius: 4,
+        borderRadius: 8,
         color: active ? 'var(--gold)' : 'var(--ribbon-ink, var(--text-primary))',
         fontFamily: 'var(--font-ui)',
         cursor: disabled ? 'not-allowed' : 'pointer',

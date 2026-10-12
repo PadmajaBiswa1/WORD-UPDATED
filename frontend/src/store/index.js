@@ -635,6 +635,24 @@ export const useUIStore = create((set) => ({
   pageBordersModalOpen: false,
   setPageBordersModalOpen: (open) => set({ pageBordersModalOpen: !!open }),
 
+  // Page view (print, web, outline, draft, read) and focus mode, shown on the editor scroll area.
+  viewMode: 'print',
+  setViewMode: (mode) => {
+    const scroll = typeof document !== 'undefined' ? document.getElementById('editor-scroll-area') : null;
+    if (scroll) {
+      scroll.classList.remove('etherx-view-print', 'etherx-view-web', 'etherx-view-outline', 'etherx-view-draft', 'etherx-view-read');
+      scroll.classList.add(`etherx-view-${mode}`);
+    }
+    set({ viewMode: mode });
+  },
+  focusMode: false,
+  toggleFocusMode: () => set((s) => {
+    const next = !s.focusMode;
+    const scroll = typeof document !== 'undefined' ? document.getElementById('editor-scroll-area') : null;
+    if (scroll) scroll.classList.toggle('etherx-focus-mode', next);
+    return { focusMode: next };
+  }),
+
   copilotOpen: true,
   toggleCopilot: () => set((s) => ({ copilotOpen: !s.copilotOpen })),
   setCopilotOpen: (open) => set({ copilotOpen: !!open }),

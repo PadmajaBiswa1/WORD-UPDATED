@@ -1,96 +1,107 @@
+import { SpellCheck, Accessibility, Monitor, BookOpen, FileText, Globe } from 'lucide-react';
 import { useCollaborationStore, useDocumentStore, useUIStore } from '@/store';
+
+const VIEWS = [
+  ['read', 'Read Mode', BookOpen],
+  ['print', 'Print Layout', FileText],
+  ['web', 'Web Layout', Globe],
+];
 
 export function StatusBar() {
   const { wordCount = 0, pageCount = 1 } = useDocumentStore();
-  const { zoom, setZoom, activePage } = useUIStore();
+  const { zoom, setZoom, activePage, toggleSidebar, viewMode, setViewMode, focusMode, toggleFocusMode } = useUIStore();
   const { connected, collaborators, status } = useCollaborationStore();
   const currentPage = Math.min(pageCount, Math.max(1, activePage + 1));
+  const people = collaborators.length || 1;
+  const live = connected || status === 'Live';
   return (
     <div style={{
-      height: 22, flexShrink: 0,
-      background: 'var(--bg-surface)',
-      borderTop: '1px solid var(--border)',
-      display: 'flex', alignItems: 'center',
-      padding: '0 8px', gap: 0,
-      fontFamily: 'var(--font-ui)', fontSize: 11, color: 'var(--text-muted)',
-      userSelect: 'none',
+      height: 26, flexShrink: 0,
+      background: '#0f0f11',
+      borderTop: '1px solid rgba(255,255,255,0.06)',
+      display: 'flex', alignItems: 'center', gap: 14,
+      padding: '0 10px 0 14px',
+      fontFamily: 'var(--font-ui)', fontSize: 11.5, color: 'var(--text-muted)',
+      whiteSpace: 'nowrap', overflow: 'hidden', userSelect: 'none',
     }}>
-      <Stat label="Page" value={`${currentPage} of ${pageCount}`} />
-      <Sep />
-      <Stat label="" value={`${(wordCount || 0).toLocaleString()} words`} />
-      <span className="status-bar-sep-collab"><Sep /></span>
-      <span className="status-bar-collab">
-        <Stat label="" value={`${status}${collaborators.length ? ` • ${collaborators.length} collaborator${collaborators.length === 1 ? '' : 's'}` : ''}`} />
-      </span>
-      <span className="status-bar-sep-lang"><Sep /></span>
-      <span className="status-bar-lang">
-        <Stat label="" value="English (United States)" />
-      </span>
+      <button type="button" onClick={toggleSidebar} title="Navigation pane" style={plainBtn}>Page {currentPage} of {pageCount}</button>
+      <span>{(wordCount || 0).toLocaleString()} words</span>
+      <span className="status-bar-lang" style={inline}><SpellCheck size={13} aria-label="Proofing" />English (United States)</span>
+      <span className="status-bar-a11y" style={{ ...inline, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}><Accessibility size={13} />Accessibility: Good to go</span>
       <div style={{ flex: 1 }} />
-      <span style={{ ...statusDot, background: connected ? 'var(--gold)' : 'var(--text-muted)' }} />
-      <span className="status-bar-views">
-        <button style={viewBtn} onMouseEnter={onHover} onMouseLeave={onLeave}>▤</button>
-        <button style={viewBtn} onMouseEnter={onHover} onMouseLeave={onLeave}>▦</button>
-        <button style={viewBtn} onMouseEnter={onHover} onMouseLeave={onLeave}>▥</button>
+      <span className="status-bar-collab" style={inline}>
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: live ? '#6bbf7a' : '#6f6d68' }} />
+        {live ? 'Live' : status || 'Offline'} · {people} collaborator{people === 1 ? '' : 's'}
       </span>
-      <span className="status-bar-sep-views"><Sep /></span>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-        <button onClick={() => setZoom(zoom - 10)} style={zoomBtn} onMouseEnter={onHover} onMouseLeave={onLeave}>−</button>
+      <button type="button" onClick={toggleFocusMode} aria-pressed={focusMode} title="Focus mode" style={{ ...plainBtn, ...inline, color: focusMode ? 'var(--gold-hover)' : 'inherit' }}>
+        <Monitor size={13} />Focus
+      </button>
+      <span className="status-bar-views" style={{ display: 'flex', gap: 2 }}>
+        {VIEWS.map(([mode, label, Icon]) => (
+          <button
+            key={mode}
+            type="button"
+            title={label}
+            aria-label={label}
+            aria-pressed={viewMode === mode}
+            onClick={() => setViewMode(mode)}
+            style={{ ...viewBtn, background: viewMode === mode ? 'rgba(212,175,55,0.14)' : 'transparent', color: viewMode === mode ? 'var(--gold-hover)' : 'var(--text-muted)' }}
+          >
+            <Icon size={13} />
+          </button>
+        ))}
+      </span>
+      <div style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <button type="button" onClick={() => setZoom(zoom - 10)} title="Zoom out" aria-label="Zoom out" style={zoomBtn}>−</button>
         <span className="status-bar-slider">
-          <input type="range" min={25} max={200} value={zoom} onChange={(e) => setZoom(+e.target.value)}
-            style={{ width: 86, accentColor: 'var(--gold)', cursor: 'pointer' }} />
+          <input
+            type="range"
+            min={25}
+            max={200}
+            value={zoom}
+            onChange={(e) => setZoom(+e.target.value)}
+            aria-label="Zoom"
+            className="etherx-zoom-slider"
+            style={{ width: 100, cursor: 'pointer' }}
+          />
         </span>
-        <button onClick={() => setZoom(zoom + 10)} style={zoomBtn} onMouseEnter={onHover} onMouseLeave={onLeave}>+</button>
-        <button onClick={() => setZoom(100)} style={{ ...zoomBtn, minWidth: 38, color: 'var(--text-primary)' }} onMouseEnter={onHover} onMouseLeave={onLeave}>{zoom}%</button>
+        <button type="button" onClick={() => setZoom(zoom + 10)} title="Zoom in" aria-label="Zoom in" style={zoomBtn}>+</button>
+        <button type="button" onClick={() => setZoom(100)} title="Reset zoom" style={{ ...plainBtn, width: 38, textAlign: 'right' }}>{zoom}%</button>
       </div>
     </div>
   );
 }
 
-function Stat({ label, value }) {
-  return (
-    <span>
-      {label ? <span style={{ color: 'var(--text-secondary)' }}>{label} </span> : null}
-      <span style={{ color: 'var(--text-primary)' }}>{value}</span>
-    </span>
-  );
-}
-function Sep() {
-  return <span style={{ margin: '0 8px', color: 'var(--border-strong)' }}>|</span>;
-}
-const zoomBtn = {
-  height: 18,
-  minWidth: 18,
-  border: '1px solid transparent',
-  borderRadius: 2,
+const inline = { display: 'flex', alignItems: 'center', gap: 5 };
+
+const plainBtn = {
+  border: 0,
   background: 'transparent',
-  color: 'var(--gold)',
+  padding: 0,
+  color: 'inherit',
+  fontSize: 11.5,
+  fontFamily: 'var(--font-ui)',
   cursor: 'pointer',
-  fontSize: 12,
-  padding: '0 4px',
-  lineHeight: 1,
-  transition: 'background 0.1s, border-color 0.1s',
 };
 
 const viewBtn = {
-  ...zoomBtn,
-  marginRight: 2,
+  width: 24,
+  height: 22,
+  border: 0,
+  borderRadius: 4,
+  cursor: 'pointer',
+  display: 'grid',
+  placeItems: 'center',
 };
 
-const statusDot = {
-  width: 8,
-  height: 8,
-  borderRadius: '50%',
-  display: 'inline-block',
-  marginRight: 6,
+const zoomBtn = {
+  width: 20,
+  height: 20,
+  border: 0,
+  background: 'transparent',
+  borderRadius: 4,
+  color: 'var(--text-muted)',
+  cursor: 'pointer',
+  fontSize: 13,
+  lineHeight: 1,
 };
-
-function onHover(e) {
-  e.currentTarget.style.background = 'var(--bg-hover)';
-  e.currentTarget.style.borderColor = 'var(--gold)';
-}
-
-function onLeave(e) {
-  e.currentTarget.style.background = 'transparent';
-  e.currentTarget.style.borderColor = 'transparent';
-}

@@ -2,7 +2,7 @@
 //  EtherX Word — Design Tokens
 // ═══════════════════════════════════════════════════════════════
 
-export const GOLD = '#d4af37';
+export const GOLD = '#d6b25e';
 
 // EtherX Word intentionally ships with one fixed dark appearance.
 export function applyTheme() {
@@ -10,55 +10,55 @@ export function applyTheme() {
 
   const vars = {
     // ── Surfaces ────────────────────────────────────────────────
-    '--bg-app':      '#0a0a0a',
-    '--bg-surface':  '#0a0a0a',
-    '--bg-elevated': '#111111',
-    '--bg-hover':    '#1f1800',
-    '--bg-active':   '#1a1a1a',
-    '--bg-page':     '#1a1a1a',
+    '--bg-app':      '#0a0a0b',
+    '--bg-surface':  '#0a0a0b',
+    '--bg-elevated': '#121214',
+    '--bg-hover':    '#1b1b1e',
+    '--bg-active':   '#17171a',
+    '--bg-page':     '#18181b',
     '--bg-code':     '#282c34',
     '--border-code': 'rgba(255, 255, 255, 0.16)',
     '--text-code':   '#93c5fd',
-    '--bg-th':       '#1c1c1c',
-    '--bg-sidebar':  '#0e0e0e',
+    '--bg-th':       '#1d1d20',
+    '--bg-sidebar':  '#0e0e10',
 
     // ── Borders ──────────────────────────────────────────────────
-    '--border':        '#3d3000',
-    '--border-strong': '#2a2a2a',
-    '--border-gold':   '#3d3000',
+    '--border':        'rgba(255,255,255,0.08)',
+    '--border-strong': '#2a2a2e',
+    '--border-gold':   'rgba(214,178,94,0.35)',
 
     // ── Text ─────────────────────────────────────────────────────
-    '--text-primary':   '#F5F1E8',
-    '--text-secondary': '#d4b86a',
-    '--text-muted':     '#9a8a6a',
+    '--text-primary':   '#f1efea',
+    '--text-secondary': '#c4c2bd',
+    '--text-muted':     '#8b8984',
     '--text-gold':      GOLD,
-    '--text-heading':   '#e8d98a',
+    '--text-heading':   '#e3c378',
     '--text-doc':       '#F5F1E8',
-    '--text-on-gold':   '#0a0800',
+    '--text-on-gold':   '#1a1405',
 
     // ── Gold accent ───────────────────────────────────────────────
-    '--gold':        '#c9a84c',
-    '--gold-hover':  '#d9bb67',
-    '--gold-dim':    'rgba(212,175,55,0.12)',
+    '--gold':        '#d6b25e',
+    '--gold-hover':  '#e3c378',
+    '--gold-dim':    'rgba(214,178,94,0.12)',
     '--gold-glow':   'none',
-    '--gold-border': 'rgba(212,175,55,0.35)',
+    '--gold-border': 'rgba(214,178,94,0.35)',
 
     // ── Shadows ───────────────────────────────────────────────────
     '--shadow-sm':   '0 1px 3px rgba(0,0,0,0.4)',
     '--shadow-md':   '0 2px 8px rgba(0,0,0,0.5)',
     '--shadow-lg':   '0 6px 20px rgba(0,0,0,0.6)',
-    '--shadow-page': '0 0 0 1px rgba(255,255,255,0.07), 0 4px 20px rgba(0,0,0,0.65)',
-    '--page-border': 'rgba(255,255,255,0.07)',
+    '--shadow-page': '0 0 0 1px rgba(255,255,255,0.05), 0 1px 2px rgba(0,0,0,0.4), 0 24px 60px rgba(0,0,0,0.55)',
+    '--page-border': 'rgba(255,255,255,0.05)',
 
     // ── Fonts ─────────────────────────────────────────────────────
-    '--font-ui':      "'Segoe UI', Arial, sans-serif",
+    '--font-ui':      "Inter, system-ui, sans-serif",
     '--font-heading': "'Spectral', 'Georgia', serif",
-    '--font-body':    "'Segoe UI', Arial, sans-serif",
+    '--font-body':    "Inter, system-ui, sans-serif",
     '--font-mono':    "'JetBrains Mono', 'SF Mono', monospace",
 
     // ── Radius / transitions ──────────────────────────────────────
     '--radius-sm':     '2px',
-    '--radius-md':     '6px',
+    '--radius-md':     '8px',
     '--radius-lg':     '10px',
     '--radius-xl':     '16px',
     '--transition':    '140ms ease',

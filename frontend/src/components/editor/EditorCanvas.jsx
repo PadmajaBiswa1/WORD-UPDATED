@@ -505,7 +505,9 @@ export function EditorCanvas() {
           flex: 1,
           overflowY: 'auto',
           overflowX: 'auto',
-          background: 'var(--bg-app)',
+          backgroundColor: '#0e0e10',
+          backgroundImage: 'radial-gradient(rgba(255,255,255,0.04) 1px, transparent 1px)',
+          backgroundSize: '20px 20px',
           scrollBehavior: 'smooth',
         }}
       >
