@@ -46,7 +46,13 @@ export function useDocumentAgent(editor) {
   }, [editor, running]);
 
   const stop = useCallback(() => controllerRef.current?.abort(), []);
-  const undoRun = useCallback(() => (lastRun?.recorder ? lastRun.recorder.undo() : false), [lastRun]);
+  // Only the recorder that is still listening can undo safely: once a new run starts or the
+  // editor changes it stops, and its inverse steps would land at stale positions.
+  const undoRun = useCallback(() => {
+    const recorder = lastRun?.recorder;
+    if (running || !recorder || recorder !== recorderRef.current) return false;
+    return recorder.undo();
+  }, [lastRun, running]);
 
   return { run, stop, running, steps, lastRun, lastRunId: lastRun?.runId ?? null, undoRun };
 }

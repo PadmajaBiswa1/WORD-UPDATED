@@ -22,8 +22,7 @@ export function SuggestionReview({ editor }) {
     const onClick = (event) => {
       const el = event.target.closest?.('[data-suggestion]');
       const id = el?.getAttribute('data-suggestion');
-      // acceptSuggestion/rejectSuggestion resolve ALL suggestions when the id is falsy,
-      // so never open the popover for an element without a real id.
+      // No popover without a real suggestion id: there is nothing to accept or reject.
       if (!el || !id) { setPopover(null); return; }
       const rect = el.getBoundingClientRect();
       setPopover({ id, x: rect.left, y: rect.bottom + 6 });

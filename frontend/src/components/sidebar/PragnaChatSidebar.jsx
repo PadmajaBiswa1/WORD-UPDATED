@@ -1525,7 +1525,7 @@ Ask me anything or attach files below.`,
                   </button>
                 </div>
               )}
-              {msg.isAgentRun && msg.canUndo && !msg.undone && msg.runId === agent.lastRunId && (
+              {msg.isAgentRun && msg.canUndo && !msg.undone && !agent.running && msg.runId === agent.lastRunId && (
                 <button type="button" onClick={() => handleUndoAgentRun(msg)} style={{ marginTop: 4, fontSize: 11, background: 'none', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-secondary)', padding: '2px 8px', cursor: 'pointer' }}>
                   Undo Pragna's changes
                 </button>
