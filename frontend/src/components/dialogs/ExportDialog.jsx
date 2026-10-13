@@ -14,8 +14,9 @@ const OPTIONS = [
 ];
 
 export function ExportDialog() {
-  const { closeDialog, toast, pageSize, pageOrientation, pageMargin, watermarkText } = useUIStore();
-  const { title, headerFooter, design } = useDocumentStore();
+  const { closeDialog, toast, pageSize, pageOrientation, pageMargin, pageColumns, watermarkText } = useUIStore();
+  const document = useDocumentStore();
+  const { title, headerFooter, design } = document;
   const { editor }  = useEditorStore();
   const { plan, openUpgradeModal } = useSubscriptionStore();
   const [loading, setLoading] = useState(null);
@@ -35,12 +36,14 @@ export function ExportDialog() {
     try {
       const html = editor?.getHTML() || '';
       const exportOptions = {
+        ...document,
         headerFooter,
         design,
         pageSettings: {
           format: pageSize || 'a4',
           orientation: pageOrientation || 'portrait',
           margin: pageMargin || 'normal',
+          columns: pageColumns || 1,
         },
         watermark: watermarkText,
       };
@@ -52,7 +55,9 @@ export function ExportDialog() {
       } else if (type === 'epub') {
         await exportToEpub(title, html, exportOptions);
       } else if (type === 'odt') {
-        await exportToDocx(title, html, exportOptions);
+        const { buildOdtBlob } = await import('@/services/odtExport');
+        const { saveAs } = await import('file-saver');
+        saveAs(await buildOdtBlob(title, html, exportOptions), `${title || 'Document'}.odt`);
       } else if (type === 'pdf') {
         await exportToPdf(title, html, exportOptions);
       } else if (type === 'docx') {

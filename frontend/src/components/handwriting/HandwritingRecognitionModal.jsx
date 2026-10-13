@@ -138,7 +138,7 @@ export function HandwritingRecognitionModal({
 
   return (
     <div style={styles.overlay} onClick={(e) => e.target === e.currentTarget && handleClose()}>
-      <div style={styles.modal}>
+      <div role="dialog" aria-modal="true" aria-label={title} style={styles.modal}>
         {/* Header */}
         <div style={styles.header}>
           <div style={styles.titleRow}>

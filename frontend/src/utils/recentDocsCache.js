@@ -23,6 +23,9 @@ export function readCachedRecentDocs() {
       updatedAt: d.updatedAt || new Date().toISOString(),
       content: d.content || '',
       design: d.design,
+      layout: d.layout,
+      pageCount: d.pageCount,
+      owner: d.owner,
       headerFooter: d.headerFooter,
       comments: Array.isArray(d.comments) ? d.comments : [],
       trackChanges: Boolean(d.trackChanges),
@@ -57,6 +60,9 @@ export function writeCachedRecentDocs(list) {
         updatedAt: d.updatedAt || new Date().toISOString(),
         content: safeContent,
         design: d.design,
+        layout: d.layout,
+        pageCount: d.pageCount,
+        owner: d.owner,
         headerFooter: d.headerFooter,
         comments: Array.isArray(d.comments) ? d.comments : [],
         trackChanges: Boolean(d.trackChanges),
@@ -64,6 +70,7 @@ export function writeCachedRecentDocs(list) {
       };
     });
     localStorage.setItem(getCachedRecentDocsKey(), JSON.stringify(trimmed));
+    window.dispatchEvent(new Event('etherx:recent-docs-change'));
   } catch (e) {
     console.warn('Failed to write cached recent docs:', e);
   }
@@ -95,6 +102,9 @@ export function updateCachedRecentDoc(docId, patch = {}) {
         updatedAt: patch.updatedAt || new Date().toISOString(),
         content: patch.content || '',
         design: patch.design,
+        layout: patch.layout,
+        pageCount: patch.pageCount,
+        owner: patch.owner,
         headerFooter: patch.headerFooter,
         comments: Array.isArray(patch.comments) ? patch.comments : [],
         trackChanges: Boolean(patch.trackChanges),

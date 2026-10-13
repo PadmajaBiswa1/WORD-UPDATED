@@ -20,7 +20,7 @@ const {
   updateDocument,
   updateSecurityEnvelope,
 } = require('../lib/documentStore');
-const { getEffectiveRole, checkPermission } = require('../lib/authorization');
+const { getEffectiveRole, checkPermission, stripSharingFields } = require('../lib/authorization');
 const { createNotification } = require('./notifications');
 const ipfsService = require('../utils/ipfsService');
 const {
@@ -1072,7 +1072,8 @@ router.put('/:id', async (req, res) => {
       return res.status(403).json({ message: 'Edit permission denied', reason: perm.reason });
     }
 
-    const updated = await updateDocument(req.params.id, req.body || {}, { createVersion: true });
+    const body = stripSharingFields(req.body || {}, checkPermission(document, user, 'share'));
+    const updated = await updateDocument(req.params.id, body, { createVersion: true });
     if (!updated) return res.status(404).json({ message: 'Document not found' });
 
     if (Array.isArray(req.body?.comments)) {

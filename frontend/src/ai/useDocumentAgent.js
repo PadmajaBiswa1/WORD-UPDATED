@@ -5,6 +5,8 @@ import { runAgent } from '@/ai/agentLoop';
 export function useDocumentAgent(editor) {
   const [running, setRunning] = useState(false);
   const [steps, setSteps] = useState([]);
+  const [plan, setPlan] = useState(null);
+  const planRef = useRef(null);
   const [lastRun, setLastRun] = useState(null);
   const controllerRef = useRef(null);
   const runCounterRef = useRef(0);
@@ -22,6 +24,8 @@ export function useDocumentAgent(editor) {
     controllerRef.current = controller;
     setRunning(true);
     setSteps([]);
+    setPlan(null);
+    planRef.current = null;
     // Starting a new run ends the previous run's undo window.
     recorderRef.current?.stop();
     recorderRef.current = null;
@@ -31,12 +35,19 @@ export function useDocumentAgent(editor) {
         prompt,
         history,
         agentStep: (payload, opts) => aiApi.agentStep(payload, opts),
-        onStep: (step) => setSteps((prev) => [...prev, step]),
+        onStep: (step) => {
+          if (step.kind === 'plan') {
+            planRef.current = step.plan;
+            setPlan(step.plan);
+          }
+          else setSteps((prev) => [...prev, step]);
+        },
         signal: controller.signal,
       });
       recorderRef.current = result?.recorder || null;
       runCounterRef.current += 1;
-      const tagged = { ...result, runId: runCounterRef.current };
+      // Keep the final plan on the run so the chat can show it afterwards.
+      const tagged = { ...result, runId: runCounterRef.current, plan: planRef.current };
       setLastRun(tagged);
       return tagged;
     } finally {
@@ -54,5 +65,5 @@ export function useDocumentAgent(editor) {
     return recorder.undo();
   }, [lastRun, running]);
 
-  return { run, stop, running, steps, lastRun, lastRunId: lastRun?.runId ?? null, undoRun };
+  return { run, stop, running, steps, plan, lastRun, lastRunId: lastRun?.runId ?? null, undoRun };
 }

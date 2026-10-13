@@ -15,6 +15,7 @@ import { useUIStore, useEditorStore } from '@/store';
 import { Button, Tooltip, Select } from '@/components/ui';
 import { RibbonGroup } from '../RibbonGroup';
 import { recalculatePages } from '@/utils/paginationUtils';
+import { resolveTrackedChange, selectTrackedChange } from '@/services/trackedChanges';
 
 // Page dimension maps (px at 96dpi)
 const PAGE_SIZES = {
@@ -581,7 +582,7 @@ function MiniAction({ icon, text, onClick, onMouseDown, title, active, disabled 
   );
 }
 
-export function ReviewTab() {
+export function ReviewTab({ renderRibbon } = {}) {
   const { toggleTrackChanges, trackChanges, addComment, comments, deleteComment } = useDocumentStore();
   const { editor, spellCheck, toggleSpellCheck } = useEditorStore();
   const { openDialog, toast } = useUI();
@@ -847,117 +848,15 @@ export function ReviewTab() {
   };
 
   const handleAcceptChange = () => {
-    if (!editor) return;
-    
-    // Find and accept tracked change marks at cursor position
-    const { from, to } = editor.state.selection;
-    const $from = editor.state.doc.resolve(from);
-    
-    // Find all tracked change spans in the document
-    let changeFound = false;
-    editor.state.doc.nodesBetween(0, editor.state.doc.content.size, (node, pos) => {
-      if (node.marks.some(m => m.type.name === 'insertion' || m.type.name === 'deletion')) {
-        if (pos >= from - 10 && pos <= to + 10) {
-          changeFound = true;
-          // Remove the insertion/deletion marks, keeping the content for insertion
-          const marks = node.marks.filter(m => m.type.name !== 'insertion' && m.type.name !== 'deletion');
-          if (node.type.name === 'text') {
-            editor.chain().focus().setSelection(pos, pos + node.text.length).removeAllMarks().setMarks(marks).run();
-          }
-        }
-      }
-    });
-    
-    if (!changeFound) {
-      // Use a simpler approach: find tracked-change data attributes
-      const editorEl = editor.view.dom;
-      const changes = editorEl.querySelectorAll('[data-tracked-change]');
-      if (changes.length === 0) {
-        toast('No tracked changes found', 'info');
-        return;
-      }
-      const change = changes[0]; // Accept first change
-      if (change) {
-        change.removeAttribute('data-tracked-change');
-        change.style.background = '';
-        change.style.textDecoration = '';
-      }
-    }
-    
-    toast('Change accepted', 'success');
+    toast(resolveTrackedChange(editor, true) ? 'Change accepted' : 'No tracked changes found', 'info');
   };
 
   const handleRejectChange = () => {
-    if (!editor) return;
-    
-    const { from, to } = editor.state.selection;
-    
-    // Find tracked-change data attributes in the selection
-    const editorEl = editor.view.dom;
-    const changes = editorEl.querySelectorAll('[data-tracked-change]');
-    
-    if (changes.length === 0) {
-      toast('No tracked changes to reject', 'info');
-      return;
-    }
-    
-    // Find and reject the most relevant change
-    let rejectedAny = false;
-    changes.forEach(change => {
-      const changeType = change.getAttribute('data-tracked-change');
-      if (changeType === 'deletion') {
-        // Restore deleted content
-        change.removeAttribute('data-tracked-change');
-        change.style.background = '';
-        change.style.textDecoration = '';
-        rejectedAny = true;
-      } else if (changeType === 'insertion') {
-        // Remove inserted content
-        change.remove();
-        rejectedAny = true;
-      }
-    });
-    
-    if (rejectedAny) {
-      toast('Change rejected', 'success');
-    } else {
-      toast('No changes to reject', 'info');
-    }
+    toast(resolveTrackedChange(editor, false) ? 'Change rejected' : 'No tracked changes found', 'info');
   };
 
   const stepChange = (direction) => {
-    if (!editor) {
-      toast('Editor is not ready yet', 'info');
-      return;
-    }
-    
-    const editorEl = editor.view.dom;
-    const changes = editorEl.querySelectorAll('[data-tracked-change]');
-    
-    if (!changes.length) {
-      toast('No tracked changes found', 'info');
-      return;
-    }
-    
-    // Find the change closest to cursor
-    const { from } = editor.state.selection;
-    let nearestChange = changes[0];
-    let nearestDistance = Infinity;
-    
-    changes.forEach(change => {
-      // Estimate distance (this is approximate)
-      const distance = Math.abs(from - (change.offsetTop || 0));
-      if (distance < nearestDistance || distance === 0) {
-        nearestDistance = distance;
-        nearestChange = change;
-      }
-    });
-    
-    if (nearestChange) {
-      nearestChange.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      const changeType = nearestChange.getAttribute('data-tracked-change');
-      toast(`${changeType === 'insertion' ? 'Inserted' : 'Deleted'} text: ${nearestChange.textContent.slice(0, 50)}...`, 'info');
-    }
+    if (!selectTrackedChange(editor, direction)) toast('No tracked changes found', 'info');
   };
 
   const announceChange = stepChange;
@@ -975,6 +874,14 @@ export function ReviewTab() {
 
   const handleFilterMarkup = (value) => handleMarkupMode(value);
 
+  if (renderRibbon) return renderRibbon({
+    Accept: handleAcceptChange, Reject: handleRejectChange,
+    'Tracking/Previous': () => stepChange(-1), 'Tracking/Next': () => stepChange(1),
+    'Comments/Previous': () => stepComment(-1), 'Comments/Next': () => stepComment(1), Delete: removeCurrentComment,
+    'All Markup': () => handleMarkupMode('all'), 'Show Markup': () => handleMarkupMode('simple'),
+    'Filter All Markup': () => handleMarkupMode('all'),
+    'Hide Ink': () => setHideInk((on) => !on),
+  });
   return (
     <>
       <RibbonGroup label="Proofing">

@@ -1,6 +1,10 @@
 import { useEffect } from 'react';
 import { useUIStore, useEditorStore, useDocumentStore, useProductivityStore } from '@/store';
 import { normalizeKeyEvent, executeShortcutCommand } from '@/services/productivityExtension';
+import { insertNote } from '@/utils/notes';
+import { addCommentAtSelection } from '@/utils/comments';
+import { applyCase, nextCase, selectionText } from '@/utils/textCase';
+import { runCommand } from '@/components/toolbar/commandRegistry';
 
 export function useKeyboardShortcuts() {
   const openDialog = useUIStore((s) => s.openDialog);
@@ -47,30 +51,46 @@ export function useKeyboardShortcuts() {
         return;
       }
 
-      // Ignore non-shortcut keydowns in form controls, but still allow modified shortcuts.
+      // Ignore typing in form controls and the editor, but still allow modified
+      // shortcuts and function keys (F7, Shift+F3, F11).
       const tag = (e.target?.tagName || '').toLowerCase();
       const inField = tag === 'input' || tag === 'textarea' || e.target?.isContentEditable;
-      if (!mod && !e.altKey && inField) return;
+      if (!mod && !e.altKey && inField && !/^F\d+$/.test(e.key)) return;
 
-      if (mod && key === 'f')             { e.preventDefault(); openDialog('findReplace'); }
-      if (mod && key === 'h')             { e.preventDefault(); openDialog('findReplace'); }
+      if (mod && !e.altKey && key === 'f') { e.preventDefault(); openDialog('findReplace'); }
+      if (mod && !e.altKey && key === 'h') { e.preventDefault(); openDialog('findReplace'); }
       if (mod && key === '/')             { e.preventDefault(); openDialog('commandMap'); }
-      if (mod && (key === '=' || key === '+')) { e.preventDefault(); setZoom(zoom + 10); }
+      if (mod && key === 'k')             { e.preventDefault(); openDialog('insertLink'); }
       if (mod && key === '-')             { e.preventDefault(); setZoom(zoom - 10); }
       if (mod && key === '0')             { e.preventDefault(); setZoom(100); }
       if (mod && key === 'p')             { e.preventDefault(); window.print(); }
+
+      // Font shortcuts, as in Word: Ctrl+= subscript, Ctrl+Shift+= superscript,
+      // Ctrl+Shift+> / < step the font size, Ctrl+] / [ change it by 1 pt.
+      if (mod && !e.altKey && editor && (key === '=' || key === '+')) {
+        e.preventDefault();
+        if (e.shiftKey || key === '+') editor.chain().focus().toggleSuperscript().run();
+        else editor.chain().focus().toggleSubscript().run();
+      }
+      if (mod && (key === '>' || key === '<')) { e.preventDefault(); runCommand(key === '>' ? 'home-growfont' : 'home-shrinkfont'); }
+      if (mod && !e.shiftKey && editor && (key === ']' || key === '[')) {
+        e.preventDefault();
+        const size = parseInt(editor.getAttributes('textStyle')?.fontSize || '12', 10);
+        editor.chain().focus().setFontSize(`${Math.max(1, size + (key === ']' ? 1 : -1))}pt`).run();
+      }
+      if (e.shiftKey && !mod && !e.altKey && e.key === 'F3' && editor) {
+        e.preventDefault();
+        if (!applyCase(editor, nextCase(selectionText(editor)))) toast('Select text to change case', 'info');
+      }
 
       // Review shortcuts
       if (e.key === 'F7')                 { e.preventDefault(); toggleSpellCheck(); toast('Spelling toggle changed', 'info'); }
       if (mod && e.altKey && key === 'm' && editor) {
         e.preventDefault();
-        const { from, to } = editor.state.selection;
-        if (from === to) {
+        if (editor.state.selection.empty) {
           toast('Select text to add comment', 'info');
         } else {
-          const text = editor.state.doc.textBetween(from, to, ' ');
-          addComment({ text: `Comment on: ${text.slice(0, 80)}` });
-          editor.chain().focus().setTextSelection({ from, to }).toggleHighlight({ color: '#fff59d' }).run();
+          addCommentAtSelection(editor);
           openDialog('comments');
           toast('Comment added', 'success');
         }
@@ -86,7 +106,8 @@ export function useKeyboardShortcuts() {
 
       // Mailings shortcuts
       if (mod && e.shiftKey && key === 'm') { e.preventDefault(); openDialog('mailMerge'); }
-      if (mod && e.shiftKey && key === 'e') { e.preventDefault(); openDialog('selectRecipients'); }
+      // Ctrl+Shift+E is Word's Track Changes toggle.
+      if (mod && e.shiftKey && key === 'e') { e.preventDefault(); toggleTrackChanges(); toast('Track Changes toggled', 'info'); }
       if (mod && e.shiftKey && key === 'f') { e.preventDefault(); openDialog('insertMergeField'); }
 
       // References shortcuts
@@ -94,18 +115,30 @@ export function useKeyboardShortcuts() {
       if (mod && e.shiftKey && key === 'b') { e.preventDefault(); openDialog('bibliography'); }
       if (mod && e.altKey && key === 'f' && editor) {
         e.preventDefault();
-        editor.chain().focus().insertContent('<sup data-etherx-footnote="true">[1]</sup><div data-etherx-footnote-text="true" style="margin-top:8px;font-size:12px;color:#666;">1. Footnote text</div>').run();
+        insertNote(editor, 'footnote');
         toast('Footnote inserted', 'success');
       }
       if (mod && e.altKey && key === 'd' && editor) {
         e.preventDefault();
-        editor.chain().focus().insertContent('<sup data-etherx-endnote="true">[a]</sup><div data-etherx-endnote-text="true" style="margin-top:8px;font-size:12px;color:#666;">Endnote text</div>').run();
+        insertNote(editor, 'endnote');
         toast('Endnote inserted', 'success');
       }
 
-      if (mod && key === 'b' && editor)   { e.preventDefault(); editor.chain().focus().toggleBold().run(); }
-      if (mod && key === 'i' && editor)   { e.preventDefault(); editor.chain().focus().toggleItalic().run(); }
-      if (mod && key === 'u' && editor)   { e.preventDefault(); editor.chain().focus().toggleUnderline().run(); }
+      // Bold, italic and underline belong to the editor keymap; toggling here too undid them.
+      if ((e.key === 'Delete' || e.key === 'Backspace') && editor?.isActive('image')) {
+        e.preventDefault();
+        editor.chain().focus().deleteSelection().run();
+      }
+
+      if (e.key === 'F11')                { e.preventDefault(); toggleFullscreen(); }
+    };
+    // Undo/redo run in the capture phase and stop the event, so ProseMirror's own
+    // history keymap does not undo a second step (undoDocumentAction already picks
+    // between editor history and app-level actions).
+    const undoRedo = (e) => {
+      const mod = e.ctrlKey || e.metaKey;
+      const key = e.key?.toLowerCase();
+      const tag = e.target?.tagName?.toLowerCase();
       // If user is inside a native form input/textarea, preserve native browser undo/redo
       const isFormInput = tag === 'input' || tag === 'textarea';
       const isZ = key === 'z' || e.code === 'KeyZ';
@@ -124,24 +157,24 @@ export function useKeyboardShortcuts() {
       if (mod && !e.altKey && !e.shiftKey && isZ) {
         e.preventDefault();
         useDocumentStore.getState().undoDocumentAction();
+        e.stopPropagation();
         return;
       }
 
       // Universal Redo: Ctrl+Y or Ctrl+Shift+Z
       if (mod && !e.altKey && (isY || (e.shiftKey && isZ))) {
         e.preventDefault();
+        e.stopPropagation();
         useDocumentStore.getState().redoDocumentAction();
         return;
       }
 
-      if ((e.key === 'Delete' || e.key === 'Backspace') && editor?.isActive('image')) {
-        e.preventDefault();
-        editor.chain().focus().deleteSelection().run();
-      }
-
-      if (e.key === 'F11')                { e.preventDefault(); toggleFullscreen(); }
     };
+    window.addEventListener('keydown', undoRedo, true);
     window.addEventListener('keydown', h);
-    return () => window.removeEventListener('keydown', h);
+    return () => {
+      window.removeEventListener('keydown', undoRedo, true);
+      window.removeEventListener('keydown', h);
+    };
   }, [zoom, openDialog, setZoom, toggleFullscreen, editor, toggleSpellCheck, toast, toggleTrackChanges, addComment]);
 }

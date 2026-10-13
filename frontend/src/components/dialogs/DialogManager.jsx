@@ -22,7 +22,6 @@ import { CommandMapDialog }    from './CommandMapDialog';
 import { HelpDialog }          from './HelpDialog';
 import { WhatsNewDialog }      from './WhatsNewDialog';
 import { PragnaAiDialog }      from './PragnaAiDialog';
-import { UpgradeModal }        from './UpgradeModal';
 import {
   WordCountDialog,
   CommentsDialog,
@@ -50,6 +49,9 @@ import {
   EnvelopesDialog,
   LabelsDialog,
   PreviewMergeDialog,
+  MatchFieldsDialog,
+  MergeRulesDialog,
+  FindRecipientDialog,
 } from './MailingsDialogs';
 
 import { SecurityDialog }       from './SecurityDialog';
@@ -63,9 +65,21 @@ import { StyleInspectorDialog } from './StyleInspectorDialog';
 import { ClipboardHistoryDrawer } from './ClipboardHistoryDrawer';
 import { CitationFactCheckDialog } from './CitationFactCheckDialog';
 import { HandwritingDialog } from './HandwritingDialog';
+import { PageSetupDialog } from './PageSetupDialog';
+import { MacrosDialog } from './MacrosDialog';
+import { ZoomDialog } from './ZoomDialog';
+import { InsertIconsDialog } from './InsertIconsDialog';
+import { ImmersiveReader } from './ImmersiveReader';
+import { InsertSmartArtDialog } from './InsertSmartArtDialog';
+import { InsertObjectDialog } from './InsertObjectDialog';
+import { MobileAppDialog } from './MobileAppDialog';
+import { WindowDocumentsDialog } from './WindowDocumentsDialog';
+import { ArrangeWindowsDialog } from './ArrangeWindowsDialog';
+import { Modal } from '@/components/ui';
+import { BookmarkDialog, CrossReferenceDialog, CoverPageDialog } from './DocumentStructureDialogs';
 
 export function DialogManager() {
-  const { dialogs } = useUIStore();
+  const { dialogs, closeDialog } = useUIStore();
   return (
     <>
       {dialogs.insertImage    && <InsertImageDialog />}
@@ -73,6 +87,16 @@ export function DialogManager() {
       {dialogs.insertLink     && <InsertLinkDialog />}
       {dialogs.insertVideo    && <InsertVideoDialog />}
       {dialogs.insert3DModel  && <Insert3DModelDialog />}
+      {dialogs.macros         && <MacrosDialog />}
+      {dialogs.zoom           && <ZoomDialog />}
+      {dialogs.insertIcons    && <InsertIconsDialog />}
+      {dialogs.immersiveReader && <ImmersiveReader />}
+      {dialogs.insertSmartArt && <InsertSmartArtDialog />}
+      {dialogs.insertObject   && <InsertObjectDialog />}
+      {dialogs.mobileApp      && <MobileAppDialog />}
+      {dialogs.sideBySide     && <WindowDocumentsDialog mode="sideBySide" />}
+      {dialogs.switchWindows  && <WindowDocumentsDialog mode="switch" />}
+      {dialogs.arrangeWindows && <ArrangeWindowsDialog />}
       {dialogs.insertChart    && <InsertChartDialog />}
       {dialogs.screenshot     && <ScreenshotDialog />}
       {dialogs.importDocx     && <ImportDocxDialog />}
@@ -112,6 +136,11 @@ export function DialogManager() {
       {dialogs.envelopes       && <EnvelopesDialog />}
       {dialogs.labels          && <LabelsDialog />}
       {dialogs.finishMerge     && <PreviewMergeDialog />}
+      {dialogs.previewMerge    && <PreviewMergeDialog previewOnly />}
+      {dialogs.updateLabels    && <LabelsDialog updateExisting />}
+      {dialogs.matchFields     && <MatchFieldsDialog />}
+      {dialogs.mergeRules      && <MergeRulesDialog />}
+      {dialogs.findRecipient   && <FindRecipientDialog />}
       {dialogs.pragnaAi        && <PragnaAiDialog />}
       {dialogs.security       && <SecurityDialog />}
       {dialogs.digitalSignature && <DigitalSignatureDialog />}
@@ -124,7 +153,14 @@ export function DialogManager() {
       {dialogs.clipboardHistory && <ClipboardHistoryDrawer />}
       {dialogs.citationFactCheck && <CitationFactCheckDialog />}
       {dialogs.handwriting    && <HandwritingDialog />}
-      <UpgradeModal />
+      {dialogs.pageSetup && <PageSetupDialog />}
+      {dialogs.bookmark && <BookmarkDialog />}
+      {dialogs.crossReference && <CrossReferenceDialog />}
+      {dialogs.templates && <CoverPageDialog />}
+      {dialogs.about && <Modal title="About EtherX Word" onClose={() => closeDialog('about')}>
+        <p>A document studio with rich text editing, page design, export, collaboration, and Pragna writing tools.</p>
+        <p style={{ marginTop: 12, color: 'var(--text-muted)' }}>EtherX Word · Version 1.0</p>
+      </Modal>}
     </>
   );
 }

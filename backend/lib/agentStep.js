@@ -3,7 +3,7 @@
 
 const ROLES = new Set(['system', 'user', 'assistant', 'tool']);
 const MAX_MESSAGES = 120;
-const MAX_TOOLS = 30;
+const MAX_TOOLS = 64;
 const MAX_BYTES = 1_000_000;
 
 function validateAgentStep(body = {}) {

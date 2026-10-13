@@ -42,12 +42,7 @@ export function InsertVideoDialog() {
 
     setLoading(true);
     try {
-      const html = `<div style="margin:12px 0;border:1px solid #ddd;border-radius:4px;overflow:hidden;background:#000;">
-        <iframe width="100%" height="400" src="${video.embedUrl}" frameborder="0" allowfullscreen style="display:block;"></iframe>
-        <div style="padding:8px;background:#f5f5f5;font-size:12px;color:#666;">${video.provider} video</div>
-      </div>`;
-      
-      editor.chain().focus().insertContent(html).run();
+      if (!editor.chain().focus().insertMediaEmbed(video.embedUrl).run()) throw new Error('the editor rejected the video');
       toast(`${video.provider} video inserted successfully`, 'success');
       closeDialog('insertVideo');
       setUrl('');
@@ -68,7 +63,7 @@ export function InsertVideoDialog() {
           <Input
             placeholder="https://youtube.com/watch?v=dQw4w9WgXcQ"
             value={url}
-            onChange={(e) => setUrl(e.target.value)}
+            onChange={setUrl}
             disabled={loading}
             style={{ width: '100%' }}
           />

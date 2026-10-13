@@ -54,6 +54,9 @@ async function resolveUserPlan(reqUser) {
 /**
  * Middleware: Requires a specific feature flag on the user's active subscription tier.
  */
+// User-facing names for gated feature flags.
+const FEATURE_NAMES = { aiWritingTools: 'Pragna AI writing tools' };
+
 function requireFeature(featureKey) {
   return async (req, res, next) => {
     try {
@@ -70,7 +73,7 @@ function requireFeature(featureKey) {
           feature: featureKey,
           currentPlan: plan,
           requiredTier,
-          message: `Access to ${featureKey} requires an active ${requiredTier.toUpperCase()} subscription.`,
+          message: `${FEATURE_NAMES[featureKey] || 'This feature'} ${FEATURE_NAMES[featureKey] ? 'need' : 'needs'} an EtherX ${requiredTier === 'pro' ? 'Pro' : 'Basic'} plan. Upgrade from File › Plans & Pricing.`,
         });
       }
 

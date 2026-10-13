@@ -6,12 +6,17 @@ import { useImageResizeAndDrag } from '@/hooks/useImageResizeAndDrag';
 import { HorizontalRuler } from './HorizontalRuler';
 import { FloatingFormatToolbar } from './FloatingFormatToolbar';
 import { PictureFormatToolbar } from './PictureFormatToolbar';
+import { TableResizeControls } from './TableResizeControls';
 import { ImageCropModal } from './ImageCropModal';
 import { ImageContextMenu } from './ImageContextMenu';
 import { InlinePragnaTrigger } from './InlinePragnaTrigger';
+import { PageSpread } from './PageSpread';
+import { SidePane } from './SidePane';
 import { useUIStore, useDocumentStore, useCollaborationStore } from '@/store';
 import { getLayoutMetrics, PAGE_GAP, PAGE_BORDER_WIDTH } from '@/utils/pageLayout';
 import { focusBelowBlockOrDocEnd } from '@/utils/editorCursorPlacement';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { CanvasStartersView, CanvasStartersLightView } from '@/components/design/DesignViews';
 
 const HEADER_FOOTER_STORAGE_KEY = 'etherx-header-footer-meta';
 const THEME_DEFAULT_PAGE_COLORS = new Set(['#ffffff', '#fff', '#fdfbf7', '#1a1a1a']);
@@ -56,6 +61,7 @@ export function EditorCanvas() {
   const editor    = useEditorSetup();
   const { zoom, setActivePage, rulerVisible, gridlinesVisible, pageSize, pageOrientation, pageMargin, pageColumns, watermarkText }  = useUIStore();
   const design = useDocumentStore((s) => s.design);
+  const documentTitle = useDocumentStore((s) => s.title);
   const documentId = useDocumentStore((s) => s.id);
   const { setStats, headerFooter, setHeaderFooter } = useDocumentStore();
   const collaborators = useCollaborationStore((s) => s.collaborators);
@@ -72,6 +78,42 @@ export function EditorCanvas() {
   const [cropModal, setCropModal] = useState({ isOpen: false, imgElement: null });
   const [scrollbarWidth, setScrollbarWidth] = useState(0);
   const overflowTimer = useRef(null);
+  const [docEmpty, setDocEmpty] = useState(true);
+
+  useEffect(() => {
+    if (!editor) return undefined;
+    // 'transaction', not 'update': setContent (document load) does not emit update.
+    const sync = () => setDocEmpty(editor.isEmpty);
+    sync();
+    editor.on('transaction', sync);
+    return () => editor.off('transaction', sync);
+  }, [editor]);
+
+  // Line numbers and hyphenation are saved in the layout; draw them from it so
+  // they show again after a reload or when another document opens.
+  const lineNumbers = useDocumentStore((s) => Boolean(s.layout?.lineNumbers));
+  const hyphenation = useDocumentStore((s) => Boolean(s.layout?.hyphenation));
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    const dom = editor.view.dom;
+    dom.classList.toggle('etherx-line-numbers', lineNumbers);
+    dom.style.hyphens = hyphenation ? 'auto' : 'manual';
+    dom.lang = hyphenation ? 'en' : '';
+  }, [editor, lineNumbers, hyphenation]);
+
+  // Read Mode is read-only, as in Word. Leaving it restores whatever editability
+  // the document had, so a Restrict Editing lock survives a trip through Read Mode.
+  const viewMode = useUIStore((s) => s.viewMode);
+  const pageView = useUIStore((s) => s.pageView);
+  const setPageView = useUIStore((s) => s.setPageView);
+  const sidePane = useUIStore((s) => s.sidePane);
+  const paneRatio = useUIStore((s) => s.paneRatio);
+  useEffect(() => {
+    if (!editor || viewMode !== 'read') return undefined;
+    const wasEditable = editor.isEditable;
+    editor.setEditable(false, false);
+    return () => { if (!editor.isDestroyed) editor.setEditable(wasEditable, false); };
+  }, [editor, viewMode]);
 
   useEffect(() => {
     const handleOpenContextMenu = (e) => {
@@ -127,16 +169,16 @@ export function EditorCanvas() {
   const layoutMetrics = useMemo(() => getLayoutMetrics({ size: pageSize, orientation: pageOrientation, margin: pageMargin }), [pageSize, pageOrientation, pageMargin]);
 
   const scaledDimensions = useMemo(() => ({
-    pageHeight: layoutMetrics.pageHeight * scale,
-    pageWidth: layoutMetrics.pageWidth * scale,
-    padding: layoutMetrics.padding * scale,
+    pageHeight: layoutMetrics.pageHeight * (720 / 794) * scale,
+    pageWidth: layoutMetrics.pageWidth * (720 / 794) * scale,
+    padding: layoutMetrics.padding * (docEmpty ? (92 / 96) : (720 / 794)) * scale,
     naturalPadding: layoutMetrics.padding,
     pageGap: PAGE_GAP * scale,
-    pageStep: (layoutMetrics.pageHeight + PAGE_GAP) * scale,
+    pageStep: (layoutMetrics.pageHeight * (720 / 794) + PAGE_GAP) * scale,
     contentHeight: Math.max(1, layoutMetrics.contentHeight - (PAGE_BORDER_WIDTH * 2)),
-    scrollPaddingY: 40 * scale,
+    scrollPaddingY: 12 * scale,
     scrollPaddingX: 20 * scale,
-  }), [layoutMetrics, scale]);
+  }), [layoutMetrics, scale, docEmpty]);
 
   const borderMetrics = useMemo(() => {
     const isBorderConfigured = Boolean(
@@ -153,11 +195,11 @@ export function EditorCanvas() {
       : true);
     const hasBorder = isBorderConfigured && hasSides;
     const activeSides = borderSides || { top: true, right: true, bottom: true, left: true };
-    const borderWidthPx = hasBorder ? Math.max(1, Math.round(Number(design.borderWidth || 2) * scale)) : 0;
+    const borderWidthPx = hasBorder ? Math.max(1, Number(design.borderWidth || 2) * (96 / 72) * scale) : 0;
     const bStyle = design?.borderStyle || 'solid';
     const bColor = design?.borderColor || '#6f5320';
     const bInset = hasBorder
-      ? Math.round(Math.max(14 * scale, Math.min(scaledDimensions.padding - borderWidthPx - 4, Number(design?.borderDistance ?? 24) * scale)))
+      ? Math.round(Math.max(14 * scale, Math.min(scaledDimensions.padding - borderWidthPx - 4, Number(design?.borderDistance ?? 24) * (96 / 72) * scale)))
       : 0;
 
     const topBorderEdge = (hasBorder && activeSides.top !== false) ? (bInset + borderWidthPx) : 0;
@@ -211,8 +253,12 @@ export function EditorCanvas() {
       const lastChild = proseEl.lastElementChild;
       if (lastChild) {
         const proseRect = proseEl.getBoundingClientRect();
-        const lastRect = lastChild.getBoundingClientRect();
-        const lastBottom = (lastRect.bottom - proseRect.top) * scale;
+        // Bottom of the content in layout px: the editor is CSS-scaled, so screen
+        // px are converted with its rendered-to-layout ratio. The bottom of the
+        // whole editor counts too: with page columns the last block can sit in an
+        // earlier column than the tallest one.
+        const ratio = proseEl.offsetHeight ? proseRect.height / proseEl.offsetHeight : 1;
+        const lastBottom = Math.max(lastChild.getBoundingClientRect().bottom - proseRect.top, proseRect.height, proseEl.scrollHeight * (ratio || 1)) / (ratio || 1);
         const pageStep = layoutMetrics.pageHeight + PAGE_GAP;
         const contentHeight = layoutMetrics.contentHeight;
         const currentLimit = (pages - 1) * pageStep + contentHeight;
@@ -232,11 +278,13 @@ export function EditorCanvas() {
   useEffect(() => {
     if (!editor) return;
     editor.on('update', recalcPages);
+    const frame = requestAnimationFrame(recalcPages);
     // Content height also changes without document edits (pagination spacers, images loading).
     const proseEl = wrapRef.current?.querySelector('.ProseMirror');
     const resizeObserver = proseEl && typeof ResizeObserver !== 'undefined' ? new ResizeObserver(recalcPages) : null;
     resizeObserver?.observe(proseEl);
     return () => {
+      cancelAnimationFrame(frame);
       editor.off('update', recalcPages);
       resizeObserver?.disconnect();
     };
@@ -275,22 +323,23 @@ export function EditorCanvas() {
     const bodyFont = design.bodyFont || design.font || 'Crimson Pro';
     const accentColor = design.accent || '#c9a84c';
     const headingColor = design.heading || accentColor;
-    const subtleColor = (design.subtle && design.subtle !== '#444444') ? design.subtle : '#F5F1E8';
+    // The stored defaults mean "default ink": follow the paper (--text-doc is set per UI theme).
+    const DEFAULT_INK = ['#444444', '#f5f1e8'];
+    const subtleColor = design.subtle && !DEFAULT_INK.includes(String(design.subtle).toLowerCase()) ? design.subtle : 'var(--text-doc)';
     const lineSpacing = String(design.spacing || '1.7');
     const paragraphGap = Math.max(0.35, ((Number(lineSpacing) || 1.7) - 1) * 0.62);
 
-    document.documentElement.style.setProperty('--gold', accentColor);
-    document.documentElement.style.setProperty('--design-heading', headingColor);
-    document.documentElement.style.setProperty('--design-subtle', subtleColor);
-    document.documentElement.style.setProperty('--text-doc', '#F5F1E8');
-    document.documentElement.style.setProperty('--design-heading-font', `'${headingFont}', serif`);
-    document.documentElement.style.setProperty('--design-font', `'${bodyFont}', serif`);
-    document.documentElement.style.setProperty('--design-spacing', lineSpacing);
-    document.documentElement.style.setProperty('--design-paragraph-gap', `${paragraphGap.toFixed(2)}em`);
+    page.style.setProperty('--design-heading', headingColor);
+    page.style.setProperty('--design-subtle', subtleColor);
+    page.style.setProperty('--design-heading-font', `'${headingFont}', serif`);
+    page.style.setProperty('--design-font', `'${bodyFont}', serif`);
+    page.style.setProperty('--design-spacing', lineSpacing);
+    page.style.setProperty('--design-paragraph-gap', `${paragraphGap.toFixed(2)}em`);
 
     const proseEl = page.querySelector('.ProseMirror');
     if (proseEl) {
       proseEl.style.fontFamily = `'${bodyFont}', serif`;
+      proseEl.style.fontSize = `${Number(design.fontSize) || 12}pt`;
       proseEl.style.lineHeight = lineSpacing;
       proseEl.style.setProperty('--design-paragraph-gap', `${paragraphGap.toFixed(2)}em`);
       proseEl.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach((h) => {
@@ -422,7 +471,7 @@ export function EditorCanvas() {
   }, [rulerVisible, pageCount, zoom]);
 
   const handlePaperClick = useCallback((e) => {
-    if (!editor) return;
+    if (!editor?.isEditable) return;
 
     if (
       e.target.closest(
@@ -445,7 +494,7 @@ export function EditorCanvas() {
   }, [editor]);
 
   const handlePaperMouseDown = useCallback((e) => {
-    if (!editor) return;
+    if (!editor?.isEditable) return;
 
     if (
       e.target.closest(
@@ -460,18 +509,18 @@ export function EditorCanvas() {
   }, [editor]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+    <div className="studio-canvas" style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, overflow: 'hidden', position: 'relative', paddingRight: sidePane ? `${(1 - paneRatio) * 100}%` : 0 }}>
+      <TableResizeControls editor={editor} scrollContainerRef={scrollRef} />
       {rulerVisible && (
         <div
           ref={rulerContainerRef}
           id="etherx-ruler"
           style={{
-            borderBottom: '1px solid var(--border)',
-            background: 'var(--bg-app)',
+            background: 'var(--t1)',
             overflowX: 'hidden',
             overflowY: 'hidden',
             width: '100%',
-            height: 24,
+            height: 42,
             flexShrink: 0,
             boxSizing: 'border-box',
             paddingRight: scrollbarWidth,
@@ -485,7 +534,7 @@ export function EditorCanvas() {
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              padding: `0 ${scaledDimensions.scrollPaddingX}px`,
+              padding: `20px ${scaledDimensions.scrollPaddingX}px 0`,
               boxSizing: 'border-box',
             }}
           >
@@ -505,8 +554,8 @@ export function EditorCanvas() {
           flex: 1,
           overflowY: 'auto',
           overflowX: 'auto',
-          backgroundColor: '#0e0e10',
-          backgroundImage: 'radial-gradient(rgba(255,255,255,0.04) 1px, transparent 1px)',
+          backgroundColor: 'var(--t1,#0e0e10)',
+          backgroundImage: 'radial-gradient(rgba(var(--ink,255,255,255),0.04) 1px, transparent 1px)',
           backgroundSize: '20px 20px',
           scrollBehavior: 'smooth',
         }}
@@ -538,7 +587,7 @@ export function EditorCanvas() {
               width: scaledDimensions.pageWidth,
               minHeight: Math.min(100000, Math.max(scaledDimensions.pageHeight, (pageCount - 1) * scaledDimensions.pageStep + scaledDimensions.pageHeight)),
               background: 'transparent',
-              borderRadius: 2,
+              borderRadius: 3,
               '--etherx-page-fill': 'var(--bg-page)',
               '--etherx-page-border-width': '1px',
               '--etherx-page-border-style': 'solid',
@@ -665,11 +714,13 @@ export function EditorCanvas() {
               style={{ position: 'absolute', top: i * scaledDimensions.pageStep, left: 0, width: 1, height: 1, pointerEvents: 'none' }}
             />
           ))}
-          <div style={{ position: 'relative', zIndex: 1, transform: `scale(${contentScale})`, transformOrigin: 'top left', width: `${100 * scale}%`, minHeight: scaledDimensions.contentHeight }}>
+          <div style={{ position: 'relative', zIndex: 1, transform: `scale(${docEmpty ? contentScale : scale * (720 / 794)})`, transformOrigin: 'top left', width: `${docEmpty ? 100 * scale : 100 / (scale * (720 / 794))}%`, minHeight: scaledDimensions.contentHeight }}>
+            {docEmpty && <div className="reference-empty-title" aria-hidden="true">{documentTitle || 'Untitled Document'}</div>}
             <EditorContent editor={editor} />
+            {docEmpty && <EmptyPageStarters editor={editor} />}
           </div>
-          <FloatingFormatToolbar editor={editor} scrollContainerRef={scrollRef} />
-          <PictureFormatToolbar editor={editor} scrollContainerRef={scrollRef} />
+          {viewMode !== 'read' && <FloatingFormatToolbar editor={editor} scrollContainerRef={scrollRef} />}
+          {viewMode !== 'read' && <PictureFormatToolbar editor={editor} scrollContainerRef={scrollRef} />}
           <ImageContextMenu
             isOpen={contextMenu.isOpen}
             x={contextMenu.x}
@@ -702,6 +753,20 @@ export function EditorCanvas() {
               }
             }}
           />
+          {docEmpty && !headerFooter?.headerText && (
+            <button
+              className="reference-header-hint"
+              type="button"
+              onDoubleClick={() => { useUIStore.getState().setHeaderFooterTab('header'); useUIStore.getState().openDialog('headerFooter'); }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  useUIStore.getState().setHeaderFooterTab('header');
+                  useUIStore.getState().openDialog('headerFooter');
+                }
+              }}
+            >Double-click to add a header</button>
+          )}
           <div aria-hidden="true" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 2 }}>
             {(!headerFooter?.footerText && !headerFooter?.pageNumberEnabled) ? Array.from({ length: pageCount }).map((_, i) => (
               <div
@@ -805,6 +870,67 @@ export function EditorCanvas() {
         </div>
         </div>
       </div>
+      {sidePane && (
+        <SidePane pane={sidePane} source={wrapRef.current} editor={editor} mainScroll={scrollRef.current} pageWidth={scaledDimensions.pageWidth} />
+      )}
+      {/* After the editor in the DOM, so querySelector('.ProseMirror') still finds
+          the live editor rather than a page copy. */}
+      {pageView && (
+        <PageSpread
+          mode={pageView}
+          source={wrapRef.current}
+          editor={editor}
+          pageCount={pageCount}
+          pageWidth={scaledDimensions.pageWidth}
+          pageHeight={scaledDimensions.pageHeight}
+          pageStep={scaledDimensions.pageStep}
+          onExit={() => setPageView(null)}
+          onPick={(index) => {
+            setPageView(null);
+            requestAnimationFrame(() => {
+              const scroll = scrollRef.current;
+              if (!scroll || !wrapRef.current) return;
+              const pageTop = wrapRef.current.getBoundingClientRect().top - scroll.getBoundingClientRect().top + scroll.scrollTop;
+              scroll.scrollTo({ top: pageTop + index * scaledDimensions.pageStep - 12, behavior: 'auto' });
+              editor?.commands.focus();
+            });
+          }}
+        />
+      )}
+    </div>
+  );
+}
+const OUTLINE = [
+  { type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: 'Introduction' }] },
+  { type: 'paragraph' },
+  { type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: 'Main points' }] },
+  { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'First point' }] },
+  { type: 'paragraph' },
+  { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Second point' }] },
+  { type: 'paragraph' },
+  { type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: 'Conclusion' }] },
+  { type: 'paragraph' },
+];
+
+// "Or start with" cards the design shows under an empty page.
+function EmptyPageStarters({ editor }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const openPragna = useUIStore((s) => s.openPragna);
+  const openDialog = useUIStore((s) => s.openDialog);
+  const light = typeof document !== 'undefined' && document.documentElement.getAttribute('data-ui-theme') === 'light';
+  const v = {
+    starters: [
+      ['sparkles', 'Draft with Pragna', 'Describe it, get a first draft', () => openPragna('ask', 'Draft: ')],
+      ['layout-template', 'Use a template', 'Letter, resume, proposal…', () => navigate('/home', { state: { returnTo: location.pathname, menu: 'new' } })],
+      ['upload', 'Import a file', '.docx, .pdf, .md', () => openDialog('importDocx')],
+      ['list-tree', 'Add an outline', 'Headings to fill in', () => editor?.chain().focus().setContent(OUTLINE).setTextSelection(1).run()],
+    ].map(([icon, title, text, run]) => ({ key: title, icon, title, text, run })),
+  };
+  // Clicks here must not reach the page's click-to-focus handler.
+  return (
+    <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()} contentEditable={false} style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+      {light ? <CanvasStartersLightView v={v} /> : <CanvasStartersView v={v} />}
     </div>
   );
 }

@@ -1,36 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui';
-import { useUIStore, useEditorStore, useDocumentStore } from '@/store';
-import { ensureRegistered, searchCommands } from './commandRegistry';
+import { useUIStore } from '@/store';
+import { ensureRegistered, runCommand, searchCommands } from './commandRegistry';
 import { DEFAULT_COMMANDS } from './defaultCommands';
 
-export function RibbonFeatureSearch({ compactWidth = 190, onActivateTab: onActivateTabProp }) {
+export function RibbonFeatureSearch({ compactWidth = 190, onActivateTab: onActivateTabProp, variant }) {
   const navigate = useNavigate();
-  const {
-    openDialog,
-    closeDialog,
-    toast,
-    setActiveTab,
-    watermarkText,
-    setWatermarkText,
-    setFindQuery,
-    openPragna,
-    toggleRuler,
-    toggleGridlines,
-    toggleSidebar,
-    toggleFullscreen,
-    setZoom,
-    zoom,
-    setPageOrientation,
-    pageOrientation,
-    setHeaderFooterTab,
-    setDrawTool,
-    toggleFormattingMarks,
-  } = useUIStore();
+  const { openDialog, toast, setActiveTab, setFindQuery } = useUIStore();
 
   const onActivateTab = onActivateTabProp ?? null;
-  const { editor } = useEditorStore();
 
   const [query, setQuery] = useState('');
   const [activeIdx, setActiveIdx] = useState(0);
@@ -90,62 +69,8 @@ export function RibbonFeatureSearch({ compactWidth = 190, onActivateTab: onActiv
       }
     }
 
-    // Build the execution context with all live stores & methods
-    const context = {
-      editor,
-      openDialog,
-      closeDialog,
-      toast,
-      setActiveTab,
-      watermarkText,
-      setWatermarkText,
-      openPragna,
-      setFindQuery,
-      navigate,
-      toggleRuler,
-      toggleGridlines,
-      toggleSidebar,
-      toggleFullscreen,
-      toggleFitPage: useUIStore.getState().toggleFitPage,
-      togglePageWidth: useUIStore.getState().togglePageWidth,
-      setZoom,
-      zoom,
-      setPageOrientation,
-      pageOrientation,
-      setHeaderFooterTab,
-      setDrawTool,
-      toggleFormattingMarks,
-      toggleSpellCheck: useEditorStore.getState().toggleSpellCheck,
-      spellCheck: useEditorStore.getState().spellCheck,
-      addComment: useDocumentStore.getState().addComment,
-      toggleTrackChanges: useDocumentStore.getState().toggleTrackChanges,
-      trackChanges: useDocumentStore.getState().trackChanges,
-      setDesign: useDocumentStore.getState().setDesign,
-      getDesign: () => useDocumentStore.getState().design,
-      designPopover: useUIStore.getState().designPopover,
-      setDesignPopover: useUIStore.getState().setDesignPopover,
-      pageBordersModalOpen: useUIStore.getState().pageBordersModalOpen,
-      setPageBordersModalOpen: useUIStore.getState().setPageBordersModalOpen,
-    };
-
-    // DIRECTLY EXECUTE the feature
-    try {
-      if (typeof action.run === 'function') {
-        action.run(context);
-        return;
-      }
-
-      // Fallback matching by ID if run is missing
-      const id = action.id || action.key;
-      const matched = DEFAULT_COMMANDS.find((c) => c.id === id);
-      if (matched && typeof matched.run === 'function') {
-        matched.run(context);
-      } else {
-        toast('Selected feature: ' + action.title, 'info');
-      }
-    } catch (e) {
-      console.error('Feature execution error:', e);
-      toast('Could not execute this feature', 'error');
+    if (!runCommand(action, { navigate }) && !runCommand(action.id || action.key, { navigate })) {
+      toast('Selected feature: ' + action.title, 'info');
     }
   };
 
@@ -188,6 +113,40 @@ export function RibbonFeatureSearch({ compactWidth = 190, onActivateTab: onActiv
 
   const showDropdown = open && filtered.length > 0;
 
+  // Alt+Q focuses the search, as the top-bar pill advertises.
+  useEffect(() => {
+    if (variant !== 'pill') return undefined;
+    const onKey = (e) => {
+      if (e.altKey && !e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 'q') {
+        e.preventDefault();
+        inputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [variant]);
+
+  const pill = variant === 'pill' && (
+    <div
+      onClick={() => inputRef.current?.focus()}
+      style={{ display: 'flex', alignItems: 'center', gap: 8, height: 30, width: 300, maxWidth: '24vw', padding: '0 6px 0 12px', boxSizing: 'border-box', borderRadius: 999, background: 'rgba(var(--ink,255,255,255),0.05)', border: hasFocus ? '1px solid rgba(212,175,55,0.5)' : '1px solid rgba(var(--ink,255,255,255),0.08)', color: 'var(--t27,#7d7b76)', fontSize: 12.5, whiteSpace: 'nowrap', overflow: 'hidden', cursor: 'text' }}
+    >
+      <i className="icon-search" style={{ fontSize: 14 }} />
+      <input
+        ref={inputRef}
+        aria-label="Search commands"
+        value={query}
+        onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+        onFocus={() => { setHasFocus(true); setOpen(true); }}
+        onBlur={() => setHasFocus(false)}
+        onKeyDown={onKeyDown}
+        placeholder="Search"
+        style={{ flex: 1, minWidth: 0, height: '100%', border: 0, outline: 'none', background: 'transparent', color: 'var(--t19,#ecebe7)', font: 'inherit', padding: 0 }}
+      />
+      <span style={{ fontSize: 10.5, padding: '2px 6px', borderRadius: 999, background: 'rgba(var(--ink,255,255,255),0.06)', color: 'var(--t26,#85837d)' }}>Alt Q</span>
+    </div>
+  );
+
   return (
     <div
       ref={boxRef}
@@ -198,7 +157,7 @@ export function RibbonFeatureSearch({ compactWidth = 190, onActivateTab: onActiv
         alignItems: 'center',
       }}
     >
-      <div
+      {pill || <div
         style={{
           width: hasFocus ? 260 : compactWidth,
           transition: 'width 140ms ease',
@@ -255,7 +214,7 @@ export function RibbonFeatureSearch({ compactWidth = 190, onActivateTab: onActiv
             }}
           />
         </div>
-      </div>
+      </div>}
 
       {showDropdown && (
         <div

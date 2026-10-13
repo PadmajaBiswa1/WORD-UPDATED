@@ -5,6 +5,7 @@ import {
   AlignLeft, AlignCenter, AlignRight
 } from 'lucide-react';
 import { useUIStore, useEditorStore, useDocumentStore } from '@/store';
+import { patchBlockStyle } from '@/utils/paragraphStyle';
 import { Modal, Button, Label, Stack, Input } from '@/components/ui';
 import { runImageTextCapture, runSmartSuggestions } from '@/utils/smartFeatures';
 import { RibbonGroup } from '../RibbonGroup';
@@ -14,7 +15,7 @@ const DESIGN_DEFAULT_KEY = 'etherx-design-default';
 const THEME_INDEX_KEY = 'etherx-design-theme-index';
 
 // 10 Curated Document Style Presets (matching MS Word Design themes)
-const THEMES = [
+export const DOCUMENT_THEMES = [
   { name: 'Modern Blue', font: 'Inter', headingFont: 'Segoe UI', bodyFont: 'Inter', accent: '#2563eb', heading: '#1d4ed8', subtle: '#3b82f6', spacing: '1.5', pageColor: '#ffffff', effect: 'none' },
   { name: 'Editorial Crimson', font: 'Merriweather', headingFont: 'Playfair Display', bodyFont: 'Merriweather', accent: '#be123c', heading: '#9f1239', subtle: '#881337', spacing: '1.65', pageColor: '#fffafa', effect: 'soft' },
   { name: 'Royal Gold', font: 'Crimson Pro', headingFont: 'Cinzel', bodyFont: 'Crimson Pro', accent: '#d4af37', heading: '#c9a84c', subtle: '#6e561c', spacing: '1.7', pageColor: '#fdfbf7', effect: 'soft' },
@@ -26,6 +27,7 @@ const THEMES = [
   { name: 'Classic Serif', font: 'Times New Roman', headingFont: 'Times New Roman', bodyFont: 'Times New Roman', accent: '#374151', heading: '#111827', subtle: '#4b5563', spacing: '1.6', pageColor: '#ffffff', effect: 'none' },
   { name: 'Obsidian Prestige', font: 'Cinzel', headingFont: 'Cinzel', bodyFont: 'Crimson Pro', accent: '#e0c36f', heading: '#e0c36f', subtle: '#a89454', spacing: '1.8', pageColor: '#18181b', effect: 'strong' },
 ];
+const THEMES = DOCUMENT_THEMES;
 
 const COLOR_PALETTES = [
   { id: 'office-gold', name: 'Office Gold', accent: '#c9a84c', heading: '#c9a84c', subtle: '#5c4a1a', swatches: ['#c9a84c', '#d4af37', '#b8941e', '#e0c36f'] },
@@ -141,7 +143,7 @@ function HeroBtn({ icon, label, onClick, title, active, disabled, triggerName })
         cursor: disabled ? 'not-allowed' : 'pointer',
         color: active ? 'var(--text-gold, #c9a84c)' : 'var(--text-primary)',
         minWidth: 58,
-        height: 74,
+        height: 70,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -216,7 +218,46 @@ function MiniAction({ icon, text, onClick, title, active, disabled, triggerName 
   );
 }
 
-export function DesignTab() {
+// Home ribbon buttons (by title) that open a popover here; it is anchored under them.
+const HOME_RIBBON_TRIGGERS = { textColor: 'Font color', shading: 'Shading' };
+
+// Word's colour gallery: theme tints, standard colours and a reset entry.
+function ColorPalette({ onPick, onReset, resetLabel }) {
+  const swatch = (color, height) => (
+    <button
+      key={color}
+      onClick={() => onPick(color)}
+      title={color}
+      aria-label={color}
+      style={{ width: '100%', height, background: color, border: color === '#ffffff' ? '1px solid #777' : '1px solid rgba(0,0,0,0.2)', padding: 0, cursor: 'pointer' }}
+    />
+  );
+  const heading = { fontSize: 11, fontWeight: 700, color: 'var(--gold)', marginBottom: 6, textTransform: 'uppercase' };
+  return (
+    <div style={{ width: 260 }}>
+      <div style={heading}>Theme Colors</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: 2, marginBottom: 8 }}>
+        {THEME_COLOR_COLUMNS.map((col, cIdx) => (
+          <div key={cIdx} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {col.map((color) => swatch(color, 14))}
+          </div>
+        ))}
+      </div>
+      <div style={heading}>Standard Colors</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: 2, marginBottom: 8 }}>
+        {STANDARD_COLORS.map((c) => swatch(c, 14))}
+      </div>
+      <button
+        onClick={onReset}
+        style={{ width: '100%', background: 'transparent', border: '1px solid var(--border)', borderRadius: 3, padding: '4px', fontSize: 10, cursor: 'pointer', color: 'var(--text-primary)' }}
+      >
+        {resetLabel}
+      </button>
+    </div>
+  );
+}
+
+export function DesignTab({ overlaysOnly = false }) {
   const {
     toast,
     watermarkText,
@@ -231,7 +272,7 @@ export function DesignTab() {
   const { editor } = useEditorStore();
   const { design, setDesign } = useDocumentStore();
 
-  const [activePopover, setActivePopover] = useState(null); // 'colors' | 'fonts' | 'spacing' | 'effects' | 'watermark' | 'pageColor'
+  const [activePopover, setActivePopover] = useState(null); // 'colors' | 'fonts' | 'spacing' | 'effects' | 'watermark' | 'pageColor' | 'textColor' | 'shading'
   const [popoverPos, setPopoverPos] = useState({ top: 0, left: 0 });
 
   const [borderModalOpen, setBorderModalOpen] = useState(false);
@@ -259,6 +300,7 @@ export function DesignTab() {
   const recognitionRef = useRef(null);
 
   const openBorderModal = () => {
+    const design = useDocumentStore.getState().design;
     const hasActiveBorder = Boolean(
       design?.borderSetting &&
       design.borderSetting !== 'none' &&
@@ -311,7 +353,8 @@ export function DesignTab() {
     }
     const target = targetEl ||
                    document.querySelector(`[data-design-name="${name}"]`) ||
-                   document.querySelector(`[data-design-trigger="${name}"]`);
+                   document.querySelector(`[data-design-trigger="${name}"]`) ||
+                   (HOME_RIBBON_TRIGGERS[name] ? document.querySelector(`.etherx-ribbon button[title="${HOME_RIBBON_TRIGGERS[name]}"]`) : null);
     if (target) {
       const rect = target.getBoundingClientRect();
       setPopoverPos({ top: rect.bottom + 6, left: Math.max(8, Math.min(window.innerWidth - 300, rect.left)) });
@@ -334,8 +377,18 @@ export function DesignTab() {
         setDesignPopover?.(null);
       }
     };
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        setActivePopover(null);
+        setDesignPopover?.(null);
+      }
+    };
     window.addEventListener('mousedown', handleOutside);
-    return () => window.removeEventListener('mousedown', handleOutside);
+    window.addEventListener('keydown', handleEscape);
+    return () => {
+      window.removeEventListener('mousedown', handleOutside);
+      window.removeEventListener('keydown', handleEscape);
+    };
   }, []);
 
   // Listen for design events from search bar or store updates
@@ -380,6 +433,7 @@ export function DesignTab() {
 
   const handleApplyTheme = (theme) => {
     setDesign({
+      themeName: theme.name,
       headingFont: theme.headingFont || theme.font,
       bodyFont: theme.bodyFont || theme.font,
       font: theme.bodyFont || theme.font,
@@ -630,53 +684,11 @@ export function DesignTab() {
 
   return (
     <>
+      {!overlaysOnly && <>
       {/* ── Group 1: Document Formatting (Themes) ── */}
       <RibbonGroup label="Document Formatting">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <button
-            onClick={() => {
-              const next = ((THEMES.findIndex(t => t.accent === design.accent) + 1) % THEMES.length);
-              handleApplyTheme(THEMES[next]);
-            }}
-            title="Themes: Pick a coordinated set of fonts, colors, and effects"
-            style={{
-              width: 58,
-              height: 74,
-              border: '1px solid var(--border)',
-              background: 'var(--bg-elevated)',
-              cursor: 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 4,
-              color: 'var(--text-primary)',
-              fontFamily: 'var(--font-ui)',
-              padding: '4px 6px',
-              borderRadius: 3,
-              flexShrink: 0,
-            }}
-          >
-            <div
-              style={{
-                width: 26,
-                height: 26,
-                border: '1px solid var(--border)',
-                background: '#fff',
-                color: '#000',
-                display: 'grid',
-                placeItems: 'center',
-                fontSize: 11,
-                fontWeight: 700,
-                borderRadius: 2,
-              }}
-            >
-              Aa
-            </div>
-            <span style={{ fontSize: 11 }}>Themes</span>
-          </button>
-
-          {/* Theme Preview Cards Gallery — spreads generously across desktop */}
+        <div style={{ display: 'grid', gridTemplateRows: 'auto 1fr', gap: 3, height: 70 }}>
+          <span style={{ fontSize: 11, lineHeight: '13px', color: 'var(--text-secondary)' }}>Themes</span>
           <div
             style={{
               display: 'flex',
@@ -684,7 +696,7 @@ export function DesignTab() {
               gap: 6,
               overflowX: 'auto',
               minWidth: 540,
-              maxWidth: 720,
+              maxWidth: 940,
               flex: '1 1 auto',
               scrollbarWidth: 'none',
               msOverflowStyle: 'none',
@@ -696,12 +708,16 @@ export function DesignTab() {
               return (
                 <button
                   key={`${theme.name}-${idx}`}
+                  role="button"
+                  aria-label={theme.name}
+                  aria-pressed={active}
+                  onMouseDown={(event) => event.preventDefault()}
                   onClick={() => handleApplyTheme(theme)}
                   title={`Apply theme: ${theme.name}`}
                   style={{
-                    width: 82,
-                    minWidth: 82,
-                    height: 66,
+                    width: 96,
+                    minWidth: 96,
+                    height: 50,
                     border: active ? '1.5px solid var(--gold)' : '1px solid var(--border)',
                     background: '#ffffff',
                     cursor: 'pointer',
@@ -742,7 +758,7 @@ export function DesignTab() {
 
       {/* ── Group 2: Style Elements ── */}
       <RibbonGroup label="Styles">
-        <div style={{ display: 'flex', gap: 6, height: 74, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 6, height: 70, alignItems: 'center' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, justifyContent: 'center' }}>
             <MiniAction
               triggerName="colors"
@@ -793,83 +809,8 @@ export function DesignTab() {
 
       {/* ── Group 3: Table Styles Gallery ── */}
       <RibbonGroup label="Table Styles">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              overflowX: 'auto',
-              minWidth: 310,
-              maxWidth: 340,
-              flex: '0 1 auto',
-              scrollbarWidth: 'none',
-              msOverflowStyle: 'none',
-              padding: '1px 0',
-            }}
-          >
-            {TABLE_STYLES.map((ts) => (
-              <button
-                key={ts.id}
-                onClick={() => applyTableTheme(ts)}
-                title={`Apply ${ts.name} to active table`}
-                style={{
-                  width: 72,
-                  minWidth: 72,
-                  height: 64,
-                  flexShrink: 0,
-                  border: '1px solid var(--border)',
-                  borderRadius: 2,
-                  background: 'var(--bg-elevated, #18181b)',
-                  cursor: 'pointer',
-                  padding: '3px 3px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  fontFamily: 'var(--font-ui)',
-                }}
-              >
-                <div
-                  style={{
-                    width: '100%',
-                    height: 38,
-                    borderRadius: 2,
-                    overflow: 'hidden',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    border: ts.border,
-                  }}
-                >
-                  <div style={{ height: 12, background: ts.headerBg, display: 'flex', borderBottom: ts.border }}>
-                    <div style={{ flex: 1, borderRight: ts.border }} />
-                    <div style={{ flex: 1 }} />
-                  </div>
-                  <div style={{ height: 12, display: 'flex', borderBottom: ts.border }}>
-                    <div style={{ flex: 1, borderRight: ts.border }} />
-                    <div style={{ flex: 1 }} />
-                  </div>
-                  <div style={{ height: 12, display: 'flex', background: ts.stripeBg }}>
-                    <div style={{ flex: 1, borderRight: ts.border }} />
-                    <div style={{ flex: 1 }} />
-                  </div>
-                </div>
-                <div
-                  style={{
-                    fontSize: 8.5,
-                    fontWeight: 600,
-                    color: 'var(--text-primary)',
-                    textAlign: 'center',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    width: '100%',
-                  }}
-                >
-                  {ts.name.replace('Grid Table ', 'Grid ').replace('Light', '')}
-                </div>
-              </button>
-            ))}
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 70 }}>
+          <HeroBtn triggerName="tableStyles" icon={<Square size={20} />} label={`Table Styles ${CARET}`} title="Table Styles" onClick={(event) => activePopover === 'tableStyles' ? (setActivePopover(null), setDesignPopover?.(null)) : openPopover('tableStyles', event)} />
           <div style={{ width: 1, height: 50, background: 'var(--border)', margin: '0 4px' }} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, justifyContent: 'center' }}>
             <span style={{ fontSize: 9.5, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>Table Align</span>
@@ -938,7 +879,7 @@ export function DesignTab() {
 
       {/* ── Group 4: Page Background (MS Word Standard: 3 Hero Buttons) ── */}
       <RibbonGroup label="Page Background">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 70 }}>
           <HeroBtn
             triggerName="watermark"
             icon={<Droplet size={20} strokeWidth={1.75} />}
@@ -976,7 +917,7 @@ export function DesignTab() {
 
       {/* ── Group 5: Smart Tools ── */}
       <RibbonGroup label="Smart Tools">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 70 }}>
           <HeroBtn
             icon={<Mic size={20} strokeWidth={1.75} style={isDictating ? { color: '#ef4444' } : undefined} />}
             label={isDictating ? 'Listening...' : 'Voice Typing'}
@@ -984,7 +925,7 @@ export function DesignTab() {
             active={isDictating}
             onClick={toggleVoiceTyping}
           />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 70, justifyContent: 'center' }}>
             <MiniAction icon={<Volume2 size={13} strokeWidth={1.75} />} text={isSpeaking ? 'Reading...' : 'Read Aloud'} title="Text to Speech" onClick={toggleReadAloud} active={isSpeaking} />
             <MiniAction icon={<PenTool size={13} strokeWidth={1.75} />} text="Handwriting" title="Convert handwritten notes/images to text (OCR)" onClick={() => openDialog('handwriting')} />
             <MiniAction icon={<Sparkles size={13} strokeWidth={1.75} />} text="Suggestions" title="Smart Content Suggestions" onClick={() => runSmartSuggestions({ editor, toast })} />
@@ -994,20 +935,24 @@ export function DesignTab() {
 
       {/* ── Group 6: Document Protection ── */}
       <RibbonGroup label="Protection">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 70 }}>
           <HeroBtn icon={<BookOpen size={20} strokeWidth={1.75} />} label="Master Doc" title="Master Document & Subdocuments" onClick={() => openDialog('masterDoc')} />
         </div>
       </RibbonGroup>
 
+      </>}
       {/* ── PORTAL: REAL POPOVERS ── */}
-      {activePopover && createPortal(
+      {activePopover && activePopover !== 'themes' && createPortal(
         <div
           data-design-popover="true"
+          role={['themes', 'tableStyles'].includes(activePopover) ? 'menu' : undefined}
+          aria-label={activePopover === 'themes' ? 'Themes' : activePopover === 'tableStyles' ? 'Table Styles' : undefined}
           style={{
             position: 'fixed',
             top: popoverPos.top,
             left: popoverPos.left,
-            zIndex: 3000,
+            // Above the floating format toolbar (3500), below modals (9500).
+            zIndex: 4000,
             background: 'var(--bg-elevated)',
             border: '1px solid var(--border)',
             borderRadius: 6,
@@ -1018,6 +963,90 @@ export function DesignTab() {
             color: 'var(--text-primary)',
           }}
         >
+          {activePopover === 'tableStyles' && (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+              alignItems: 'center',
+              gap: 6,
+              overflowY: 'auto',
+              maxHeight: '60vh',
+              width: 280,
+              maxWidth: 'calc(100vw - 40px)',
+              flex: '0 1 auto',
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+              padding: '1px 0',
+            }}
+          >
+            {TABLE_STYLES.map((ts) => (
+              <button
+                key={ts.id}
+                role="menuitemradio"
+                aria-label={ts.name}
+                aria-checked={editor?.getAttributes('table')?.theme === ts.className}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => { applyTableTheme(ts); setActivePopover(null); setDesignPopover?.(null); }}
+                title={`Apply ${ts.name} to active table`}
+                style={{
+                  width: '100%',
+                  minWidth: 0,
+                  height: 64,
+                  flexShrink: 0,
+                  border: '1px solid var(--border)',
+                  borderRadius: 2,
+                  background: 'var(--bg-elevated, #18181b)',
+                  cursor: 'pointer',
+                  padding: '3px 3px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  fontFamily: 'var(--font-ui)',
+                }}
+              >
+                <div
+                  style={{
+                    width: '100%',
+                    height: 38,
+                    borderRadius: 2,
+                    overflow: 'hidden',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    border: ts.border,
+                  }}
+                >
+                  <div style={{ height: 12, background: ts.headerBg, display: 'flex', borderBottom: ts.border }}>
+                    <div style={{ flex: 1, borderRight: ts.border }} />
+                    <div style={{ flex: 1 }} />
+                  </div>
+                  <div style={{ height: 12, display: 'flex', borderBottom: ts.border }}>
+                    <div style={{ flex: 1, borderRight: ts.border }} />
+                    <div style={{ flex: 1 }} />
+                  </div>
+                  <div style={{ height: 12, display: 'flex', background: ts.stripeBg }}>
+                    <div style={{ flex: 1, borderRight: ts.border }} />
+                    <div style={{ flex: 1 }} />
+                  </div>
+                </div>
+                <div
+                  style={{
+                    fontSize: 8.5,
+                    fontWeight: 600,
+                    color: 'var(--text-primary)',
+                    textAlign: 'center',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    width: '100%',
+                  }}
+                >
+                  {ts.name.replace('Grid Table ', 'Grid ').replace('Light', '')}
+                </div>
+              </button>
+            ))}
+          </div>
+          )}
           {/* Colors Popover */}
           {activePopover === 'colors' && (
             <div>
@@ -1224,72 +1253,49 @@ export function DesignTab() {
 
           {/* Page Color Popover */}
           {activePopover === 'pageColor' && (
-            <div style={{ width: 260 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gold)', marginBottom: 6, textTransform: 'uppercase' }}>Theme Colors</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: 2, marginBottom: 8 }}>
-                {THEME_COLOR_COLUMNS.map((col, cIdx) => (
-                  <div key={cIdx} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    {col.map((color) => (
-                      <button
-                        key={color}
-                        onClick={() => {
-                          setDesign({ pageColor: color, pageColorMode: 'custom' });
-                          setActivePopover(null);
-                          toast(`Page color applied: ${color}`, 'success');
-                        }}
-                        title={color}
-                        style={{
-                          width: '100%',
-                          height: 14,
-                          background: color,
-                          border: color === '#ffffff' ? '1px solid #777' : '1px solid rgba(0,0,0,0.2)',
-                          padding: 0,
-                          cursor: 'pointer',
-                        }}
-                      />
-                    ))}
-                  </div>
-                ))}
-              </div>
+            <ColorPalette
+              resetLabel="No Color (Default)"
+              onPick={(color) => {
+                setDesign({ pageColor: color, pageColorMode: 'custom' });
+                setActivePopover(null);
+                toast(`Page color applied: ${color}`, 'success');
+              }}
+              onReset={() => {
+                setDesign({ pageColor: '#1a1a1a', pageColorMode: 'theme' });
+                setActivePopover(null);
+                toast('Page color reset to theme default', 'success');
+              }}
+            />
+          )}
 
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--gold)', marginBottom: 6, textTransform: 'uppercase' }}>Standard Colors</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: 2, marginBottom: 8 }}>
-                {STANDARD_COLORS.map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => {
-                      setDesign({ pageColor: c, pageColorMode: 'custom' });
-                      setActivePopover(null);
-                      toast(`Page color applied: ${c}`, 'success');
-                    }}
-                    title={c}
-                    style={{ width: '100%', height: 14, background: c, border: '1px solid rgba(0,0,0,0.2)', padding: 0, cursor: 'pointer' }}
-                  />
-                ))}
-              </div>
+          {/* Paragraph Shading Popover (Home ribbon) */}
+          {activePopover === 'shading' && (
+            <ColorPalette
+              resetLabel="No Color"
+              onPick={(color) => {
+                patchBlockStyle(editor, (css) => { css['background-color'] = color; });
+                setActivePopover(null);
+              }}
+              onReset={() => {
+                patchBlockStyle(editor, (css) => { delete css['background-color']; });
+                setActivePopover(null);
+              }}
+            />
+          )}
 
-              <div style={{ display: 'flex', gap: 4 }}>
-                <button
-                  onClick={() => {
-                    setDesign({ pageColor: '#1a1a1a', pageColorMode: 'theme' });
-                    setActivePopover(null);
-                    toast('Page color reset to theme default', 'success');
-                  }}
-                  style={{
-                    flex: 1,
-                    background: 'transparent',
-                    border: '1px solid var(--border)',
-                    borderRadius: 3,
-                    padding: '4px',
-                    fontSize: 10,
-                    cursor: 'pointer',
-                    color: 'var(--text-primary)',
-                  }}
-                >
-                  No Color (Default)
-                </button>
-              </div>
-            </div>
+          {/* Font Color Popover (Home ribbon) */}
+          {activePopover === 'textColor' && (
+            <ColorPalette
+              resetLabel="Automatic"
+              onPick={(color) => {
+                editor?.chain().focus().setColor(color).run();
+                setActivePopover(null);
+              }}
+              onReset={() => {
+                editor?.chain().focus().unsetColor().run();
+                setActivePopover(null);
+              }}
+            />
           )}
         </div>,
         document.body
@@ -1394,6 +1400,7 @@ export function DesignTab() {
                       <button
                         key={c}
                         type="button"
+                        aria-label={`Page border color ${c}`}
                         onClick={() => {
                           setTempBorderColor(c);
                           tempBorderColorRef.current = c;
@@ -1476,6 +1483,7 @@ export function DesignTab() {
                 >
                   {tempBorderSetting !== 'none' && tempBorderStyle !== 'none' && (
                     <div
+                      data-etherx-border-preview="true"
                       style={{
                         position: 'absolute',
                         top: Math.max(4, Math.round(tempBorderDistance * 0.35)),
@@ -1486,10 +1494,10 @@ export function DesignTab() {
                         borderRightStyle: tempBorderSides.right !== false ? tempBorderStyle : 'none',
                         borderBottomStyle: tempBorderSides.bottom !== false ? tempBorderStyle : 'none',
                         borderLeftStyle: tempBorderSides.left !== false ? tempBorderStyle : 'none',
-                        borderTopWidth: tempBorderSides.top !== false ? `${Math.max(1, Math.min(3, tempBorderWidth))}px` : '0px',
-                        borderRightWidth: tempBorderSides.right !== false ? `${Math.max(1, Math.min(3, tempBorderWidth))}px` : '0px',
-                        borderBottomWidth: tempBorderSides.bottom !== false ? `${Math.max(1, Math.min(3, tempBorderWidth))}px` : '0px',
-                        borderLeftWidth: tempBorderSides.left !== false ? `${Math.max(1, Math.min(3, tempBorderWidth))}px` : '0px',
+                        borderTopWidth: tempBorderSides.top !== false ? `${Math.max(1, tempBorderWidth * 0.7)}px` : '0px',
+                        borderRightWidth: tempBorderSides.right !== false ? `${Math.max(1, tempBorderWidth * 0.7)}px` : '0px',
+                        borderBottomWidth: tempBorderSides.bottom !== false ? `${Math.max(1, tempBorderWidth * 0.7)}px` : '0px',
+                        borderLeftWidth: tempBorderSides.left !== false ? `${Math.max(1, tempBorderWidth * 0.7)}px` : '0px',
                         borderTopColor: tempBorderColor,
                         borderRightColor: tempBorderColor,
                         borderBottomColor: tempBorderColor,

@@ -1,5 +1,14 @@
 import { runDictation, runImageTextCapture, runReadAloud, runSmartSuggestions } from '@/utils/smartFeatures';
-import { useUIStore } from '@/store';
+import { useUIStore, useDocumentStore } from '@/store';
+import { applyDesignTheme, getUiTheme } from '@/theme/tokens';
+import { FormatPainterService } from '@/services/formatPainter';
+import { patchBlockStyle, parseStyle, pxValue } from '@/utils/paragraphStyle';
+import { applyCase, nextCase, selectionText } from '@/utils/textCase';
+import { insertNote } from '@/utils/notes';
+import { addCommentAtSelection } from '@/utils/comments';
+import { ClipboardService, selectionClipboardData, writeClipboardData } from '@/services/clipboard';
+import { insertBlankPage } from '@/utils/blankPage';
+import { openDocumentWindow } from '@/utils/documentWindows';
 
 export const DEFAULT_COMMANDS = [
   // ── HOME TAB: Clipboard ──
@@ -9,14 +18,10 @@ export const DEFAULT_COMMANDS = [
     tab: 'home',
     group: 'Clipboard',
     keywords: ['paste', 'clipboard', 'ctrl+v', 'insert text'],
-    run: ({ editor, toast }) => {
-      if (navigator.clipboard?.readText) {
-        navigator.clipboard.readText().then((text) => {
-          if (text && editor) editor.chain().focus().insertContent(text).run();
-        }).catch(() => toast?.('Paste blocked by browser permissions. Press Ctrl+V.', 'warning'));
-      } else {
-        toast?.('Use Ctrl+V to paste', 'info');
-      }
+    run: async ({ editor, toast }) => {
+      if (!editor) return;
+      editor.commands.focus();
+      if (!await ClipboardService.pasteFromClipboard(editor)) toast?.('Paste blocked by browser permissions. Press Ctrl+V.', 'warning');
     },
   },
   {
@@ -25,14 +30,17 @@ export const DEFAULT_COMMANDS = [
     tab: 'home',
     group: 'Clipboard',
     keywords: ['cut', 'clipboard', 'ctrl+x', 'remove selection'],
-    run: ({ editor, toast }) => {
+    run: async ({ editor, toast }) => {
       if (!editor) return;
       const { from, to } = editor.state.selection;
       if (from !== to) {
-        const text = editor.state.doc.textBetween(from, to, ' ');
-        navigator.clipboard?.writeText(text);
-        editor.chain().focus().deleteSelection().run();
-        toast?.('Text cut to clipboard', 'success');
+        const data = selectionClipboardData(editor);
+        try {
+          await writeClipboardData(data);
+          if (editor.state.selection.from !== from || editor.state.selection.to !== to) return toast?.('Selection changed. Text copied; select again to cut.', 'info');
+          editor.chain().focus().deleteSelection().run();
+          toast?.('Text cut to clipboard', 'success');
+        } catch { toast?.('Clipboard access blocked. Press Ctrl+X to cut.', 'warning'); }
       } else {
         toast?.('Select text first to cut', 'info');
       }
@@ -44,13 +52,15 @@ export const DEFAULT_COMMANDS = [
     tab: 'home',
     group: 'Clipboard',
     keywords: ['copy', 'clipboard', 'ctrl+c', 'duplicate text'],
-    run: ({ editor, toast }) => {
+    run: async ({ editor, toast }) => {
       if (!editor) return;
       const { from, to } = editor.state.selection;
       if (from !== to) {
-        const text = editor.state.doc.textBetween(from, to, ' ');
-        navigator.clipboard?.writeText(text);
-        toast?.('Text copied to clipboard', 'success');
+        const data = selectionClipboardData(editor);
+        try {
+          await writeClipboardData(data);
+          toast?.('Text copied to clipboard', 'success');
+        } catch { toast?.('Clipboard access blocked. Press Ctrl+C to copy.', 'warning'); }
       } else {
         toast?.('Select text first to copy', 'info');
       }
@@ -62,10 +72,29 @@ export const DEFAULT_COMMANDS = [
     tab: 'home',
     group: 'Clipboard',
     keywords: ['format painter', 'formatting', 'paint format', 'copy style', 'brush'],
-    run: ({ setActiveTab, toast }) => {
-      setActiveTab?.('home');
-      toast?.('Format Painter: Select text in document to copy format, or use brush in Home tab', 'info');
+    run: ({ editor, toast }) => {
+      if (!FormatPainterService.pickFormat(editor)) return toast?.('Select source text first', 'info');
+      toast?.('Select text to apply copied formatting', 'info');
+      const apply = () => {
+        if (editor.state.selection.empty) return;
+        FormatPainterService.applyFormat(editor);
+        FormatPainterService.clearFormat();
+        editor.off('selectionUpdate', apply);
+        toast?.('Formatting applied', 'success');
+      };
+      editor.on('selectionUpdate', apply);
+      editor.once('destroy', () => editor.off('selectionUpdate', apply));
     },
+  },
+  {
+    id: 'view-theme', title: 'Switch Modes', tab: 'view', group: 'Appearance',
+    keywords: ['light', 'dark', 'theme', 'appearance'],
+    run: () => applyDesignTheme(getUiTheme() === 'dark' ? 'light' : 'dark'),
+  },
+  {
+    id: 'view-properties', title: 'Properties', tab: 'view', group: 'Document',
+    keywords: ['properties', 'info', 'metadata'],
+    run: ({ navigate }) => navigate?.('/home', { state: { menu: 'info', returnTo: window.location.pathname } }),
   },
   {
     id: 'home-clipboard-history',
@@ -206,19 +235,11 @@ export const DEFAULT_COMMANDS = [
     keywords: ['change case', 'uppercase', 'lowercase', 'capitalize', 'title case', 'shift+f3'],
     run: ({ editor, toast }) => {
       if (!editor) return;
-      const { from, to } = editor.state.selection;
-      if (from === to) {
+      if (editor.state.selection.empty) {
         toast?.('Select text to change case', 'info');
-      } else {
-        const text = editor.state.doc.textBetween(from, to);
-        const next = text === text.toUpperCase()
-          ? text.toLowerCase()
-          : text === text.toLowerCase()
-            ? text.replace(/\w\S*/g, (w) => w[0].toUpperCase() + w.slice(1).toLowerCase())
-            : text.toUpperCase();
-        editor.chain().focus().insertContentAt({ from, to }, next).run();
-        toast?.('Case changed', 'success');
+        return;
       }
+      applyCase(editor, nextCase(selectionText(editor)));
     },
   },
   {
@@ -227,13 +248,9 @@ export const DEFAULT_COMMANDS = [
     tab: 'home',
     group: 'Font',
     keywords: ['text color', 'font color', 'colour', 'font colour', 'color text'],
-    run: ({ editor, toast }) => {
+    run: ({ editor }) => {
       if (!editor) return;
-      const val = window.prompt('Enter text color (e.g. #d4af37, #ff4d4f, #1677ff, #52c41a, gold, red, blue):', '#c9a84c');
-      if (val) {
-        editor.chain().focus().setColor(val).run();
-        toast?.(`Text color: ${val}`, 'success');
-      }
+      window.dispatchEvent(new CustomEvent('etherx:open-design-feature', { detail: { feature: 'textColor' } }));
     },
   },
   {
@@ -304,6 +321,35 @@ export const DEFAULT_COMMANDS = [
     run: ({ editor }) => editor?.chain().focus().toggleOrderedList().run(),
   },
   {
+    id: 'home-multilevel',
+    title: 'Multilevel List',
+    tab: 'home',
+    group: 'Paragraph',
+    keywords: ['multilevel list', 'outline numbering', 'nested list', '1 a i', 'multi level'],
+    // Word's default outline scheme: 1. / a. / i. as items are indented.
+    run: ({ editor }) => {
+      if (!editor) return;
+      if (editor.isActive('orderedList') && editor.getAttributes('orderedList')?.class?.startsWith('multilevel')) {
+        editor.chain().focus().toggleOrderedList().run();
+        return;
+      }
+      const chain = editor.chain().focus();
+      if (!editor.isActive('orderedList')) chain.toggleOrderedList();
+      chain.updateAttributes('orderedList', { class: 'multilevel-alpha' }).run();
+    },
+  },
+  {
+    id: 'home-shading',
+    title: 'Paragraph Shading',
+    tab: 'home',
+    group: 'Paragraph',
+    keywords: ['shading', 'paragraph shading', 'background color', 'paragraph background'],
+    run: ({ editor }) => {
+      if (!editor) return;
+      window.dispatchEvent(new CustomEvent('etherx:open-design-feature', { detail: { feature: 'shading' } }));
+    },
+  },
+  {
     id: 'home-tasklist',
     title: 'Task List',
     tab: 'home',
@@ -330,9 +376,7 @@ export const DEFAULT_COMMANDS = [
       if (editor.isActive('listItem')) {
         editor.chain().focus().sinkListItem('listItem').run();
       } else {
-        const paraAttrs = editor.getAttributes('paragraph') || {};
-        const cur = parseInt((paraAttrs.style || '').match(/margin-left:\s*(\d+)px/)?.[1] || '0', 10);
-        editor.chain().focus().updateAttributes('paragraph', { style: `margin-left:${cur + 40}px;` }).run();
+        patchBlockStyle(editor, (css) => { css['margin-left'] = `${pxValue(css['margin-left']) + 40}px`; });
         toast?.('Indent increased', 'info');
       }
     },
@@ -348,10 +392,11 @@ export const DEFAULT_COMMANDS = [
       if (editor.isActive('listItem')) {
         editor.chain().focus().liftListItem('listItem').run();
       } else {
-        const paraAttrs = editor.getAttributes('paragraph') || {};
-        const cur = parseInt((paraAttrs.style || '').match(/margin-left:\s*(\d+)px/)?.[1] || '0', 10);
-        const next = Math.max(0, cur - 40);
-        editor.chain().focus().updateAttributes('paragraph', { style: next > 0 ? `margin-left:${next}px;` : null }).run();
+        patchBlockStyle(editor, (css) => {
+          const next = pxValue(css['margin-left']) - 40;
+          if (next > 0) css['margin-left'] = `${next}px`;
+          else delete css['margin-left'];
+        });
         toast?.('Indent decreased', 'info');
       }
     },
@@ -365,12 +410,10 @@ export const DEFAULT_COMMANDS = [
     run: ({ editor, toast }) => {
       if (!editor) return;
       const spacings = ['1', '1.15', '1.5', '2'];
-      const current = editor.getAttributes('paragraph')?.style || '';
-      const m = current.match(/line-height:\s*([0-9.]+)/i);
-      const cur = m ? m[1] : '1';
-      const idx = spacings.indexOf(cur);
-      const next = spacings[(idx + 1) % spacings.length];
-      editor.chain().focus().updateAttributes('paragraph', { style: `line-height:${next};` }).run();
+      const { $from } = editor.state.selection;
+      const cur = parseStyle($from.parent.attrs.style)['line-height'] || '1';
+      const next = spacings[(spacings.indexOf(cur) + 1) % spacings.length];
+      patchBlockStyle(editor, (css) => { css['line-height'] = next; });
       toast?.(`Line spacing: ${next}`, 'success');
     },
   },
@@ -585,30 +628,6 @@ export const DEFAULT_COMMANDS = [
     run: ({ openDialog }) => openDialog?.('insertShape'),
   },
   {
-    id: 'ins-icons',
-    title: 'Insert Icons',
-    tab: 'insert',
-    group: 'Illustrations',
-    keywords: ['icon', 'insert icon', 'vector icon', 'symbols icon'],
-    run: ({ openDialog }) => openDialog?.('insertSymbol'),
-  },
-  {
-    id: 'ins-3d',
-    title: 'Insert 3D Models',
-    tab: 'insert',
-    group: 'Illustrations',
-    keywords: ['3d model', '3d', 'model', 'mesh'],
-    run: ({ openDialog }) => openDialog?.('insertImage'),
-  },
-  {
-    id: 'ins-smartart',
-    title: 'Insert SmartArt',
-    tab: 'insert',
-    group: 'Illustrations',
-    keywords: ['smartart', 'diagram', 'flowchart', 'smart art'],
-    run: ({ openDialog }) => openDialog?.('insertShape'),
-  },
-  {
     id: 'ins-chart',
     title: 'Insert Chart',
     tab: 'insert',
@@ -633,12 +652,44 @@ export const DEFAULT_COMMANDS = [
     run: ({ openDialog }) => openDialog?.('insertLink'),
   },
   {
+    id: 'ins-icons',
+    title: 'Insert Icons',
+    tab: 'insert',
+    group: 'Illustrations',
+    keywords: ['icons', 'insert icon', 'pictogram', 'symbol image'],
+    run: ({ openDialog }) => openDialog?.('insertIcons'),
+  },
+  {
+    id: 'ins-smartart',
+    title: 'Insert SmartArt',
+    tab: 'insert',
+    group: 'Illustrations',
+    keywords: ['smartart', 'diagram', 'process', 'cycle', 'hierarchy', 'org chart', 'pyramid'],
+    run: ({ openDialog }) => openDialog?.('insertSmartArt'),
+  },
+  {
+    id: 'ins-object',
+    title: 'Insert Object (Text from File)',
+    tab: 'insert',
+    group: 'Text',
+    keywords: ['object', 'text from file', 'insert file', 'embed file', 'insert document'],
+    run: ({ openDialog }) => openDialog?.('insertObject'),
+  },
+  {
+    id: 'ins-3dmodel',
+    title: 'Insert 3D Model',
+    tab: 'insert',
+    group: 'Illustrations',
+    keywords: ['3d', '3d model', 'sketchfab', 'model'],
+    run: ({ openDialog }) => openDialog?.('insert3DModel'),
+  },
+  {
     id: 'ins-onlinevideo',
     title: 'Insert Online Video',
     tab: 'insert',
     group: 'Media',
-    keywords: ['video', 'online video', 'embed video', 'youtube'],
-    run: ({ openDialog }) => openDialog?.('insertLink'),
+    keywords: ['video', 'online video', 'embed video', 'youtube', 'vimeo'],
+    run: ({ openDialog }) => openDialog?.('insertVideo'),
   },
   {
     id: 'ins-bookmark',
@@ -712,8 +763,7 @@ export const DEFAULT_COMMANDS = [
     group: 'Pages',
     keywords: ['blank page', 'new page', 'insert page'],
     run: ({ editor, toast }) => {
-      editor?.chain().focus().insertContent('<p></p>').run();
-      toast?.('Blank page inserted', 'success');
+      if (insertBlankPage(editor)) toast?.('Blank page inserted', 'success');
     },
   },
   {
@@ -963,13 +1013,12 @@ export const DEFAULT_COMMANDS = [
     tab: 'layout',
     group: 'Page Setup',
     keywords: ['line numbers', 'lines', 'numbered lines', 'show line numbers'],
+    // Saved in the document layout (setLayout also updates the page), like the ribbon toggle.
     run: ({ toast }) => {
-      const pm = document.querySelector('.ProseMirror');
-      if (pm) {
-        const next = !pm.classList.contains('etherx-line-numbers');
-        pm.classList.toggle('etherx-line-numbers', next);
-        toast?.(next ? 'Line numbers turned on' : 'Line numbers turned off', 'info');
-      }
+      const { layout, setLayout } = useDocumentStore.getState();
+      const next = !layout?.lineNumbers;
+      setLayout({ lineNumbers: next });
+      toast?.(next ? 'Line numbers turned on' : 'Line numbers turned off', 'info');
     },
   },
   {
@@ -979,13 +1028,10 @@ export const DEFAULT_COMMANDS = [
     group: 'Page Setup',
     keywords: ['hyphenation', 'hyphenate', 'auto hyphenate', 'hyphen'],
     run: ({ toast }) => {
-      const pm = document.querySelector('.ProseMirror');
-      if (pm) {
-        const next = pm.style.hyphens !== 'auto';
-        pm.style.hyphens = next ? 'auto' : 'manual';
-        pm.lang = next ? 'en' : '';
-        toast?.(next ? 'Hyphenation turned on' : 'Hyphenation turned off', 'info');
-      }
+      const { layout, setLayout } = useDocumentStore.getState();
+      const next = !layout?.hyphenation;
+      setLayout({ hyphenation: next });
+      toast?.(next ? 'Hyphenation turned on' : 'Hyphenation turned off', 'info');
     },
   },
   {
@@ -1103,7 +1149,7 @@ export const DEFAULT_COMMANDS = [
     keywords: ['footnotes', 'footnote', 'bottom note', 'insert footnote', 'alt+ctrl+f'],
     run: ({ editor, toast }) => {
       if (!editor) return;
-      editor.chain().focus().insertContent('<sup data-etherx-footnote="true">[1]</sup><div data-etherx-footnote-text="true" style="margin-top:8px;font-size:12px;color:var(--text-muted);">1. Footnote: Enter note here</div>').run();
+      insertNote(editor, 'footnote');
       toast?.('Footnote inserted', 'success');
     },
   },
@@ -1115,7 +1161,7 @@ export const DEFAULT_COMMANDS = [
     keywords: ['endnotes', 'endnote', 'end note', 'insert endnote', 'alt+ctrl+d'],
     run: ({ editor, toast }) => {
       if (!editor) return;
-      editor.chain().focus().insertContent('<sup data-etherx-endnote="true">[a]</sup><div data-etherx-endnote-text="true" style="margin-top:8px;font-size:12px;color:var(--text-muted);">[a] Endnote: Enter endnote here</div>').run();
+      insertNote(editor, 'endnote');
       toast?.('Endnote inserted', 'success');
     },
   },
@@ -1253,7 +1299,7 @@ export const DEFAULT_COMMANDS = [
     tab: 'mailings',
     group: 'Preview Results',
     keywords: ['preview mail merge', 'preview results', 'check merge'],
-    run: ({ openDialog }) => openDialog?.('finishMerge'),
+    run: ({ openDialog }) => openDialog?.('previewMerge'),
   },
   {
     id: 'mail-finish',
@@ -1351,16 +1397,8 @@ export const DEFAULT_COMMANDS = [
     tab: 'review',
     group: 'Comments',
     keywords: ['new comment', 'add comment', 'comment', 'ctrl+alt+m'],
-    run: ({ editor, addComment, openDialog, toast }) => {
-      if (!editor) return;
-      const { from, to } = editor.state.selection;
-      if (from === to) {
-        addComment?.({ text: 'General comment' });
-      } else {
-        const text = editor.state.doc.textBetween(from, to, ' ');
-        addComment?.({ text: `Comment on: ${text.slice(0, 80)}` });
-        editor.chain().focus().setTextSelection({ from, to }).toggleHighlight({ color: '#fff59d' }).run();
-      }
+    run: ({ editor, openDialog, toast }) => {
+      if (!addCommentAtSelection(editor)) return;
       openDialog?.('comments');
       toast?.('Comment added', 'success');
     },
@@ -1372,6 +1410,11 @@ export const DEFAULT_COMMANDS = [
     group: 'Comments',
     keywords: ['show comments', 'view comments', 'all comments', 'comment panel'],
     run: ({ openDialog }) => openDialog?.('comments'),
+  },
+  {
+    id: 'rev-tracking-menu', title: 'Tracking', tab: 'review', group: 'Tracking',
+    keywords: ['tracking', 'accept', 'reject'],
+    run: () => window.dispatchEvent(new CustomEvent('etherx:ribbon-menu', { detail: 'Tracking' })),
   },
   {
     id: 'rev-trackchanges',
@@ -1480,14 +1523,7 @@ export const DEFAULT_COMMANDS = [
     tab: 'view',
     group: 'Views',
     keywords: ['print layout', 'reading view', 'print view', 'normal view'],
-    run: ({ toast }) => {
-      const scroll = document.getElementById('editor-scroll-area');
-      if (scroll) {
-        scroll.classList.remove('etherx-view-web', 'etherx-view-outline', 'etherx-view-draft', 'etherx-view-read');
-        scroll.classList.add('etherx-view-print');
-        toast?.('Print Layout view enabled', 'info');
-      }
-    },
+    run: ({ setViewMode }) => setViewMode?.('print'),
   },
   {
     id: 'view-web',
@@ -1495,14 +1531,7 @@ export const DEFAULT_COMMANDS = [
     tab: 'view',
     group: 'Views',
     keywords: ['web layout', 'web view', 'full width view'],
-    run: ({ toast }) => {
-      const scroll = document.getElementById('editor-scroll-area');
-      if (scroll) {
-        scroll.classList.remove('etherx-view-print', 'etherx-view-outline', 'etherx-view-draft', 'etherx-view-read');
-        scroll.classList.add('etherx-view-web');
-        toast?.('Web Layout view enabled', 'info');
-      }
-    },
+    run: ({ setViewMode }) => setViewMode?.('web'),
   },
   {
     id: 'view-outline',
@@ -1510,14 +1539,7 @@ export const DEFAULT_COMMANDS = [
     tab: 'view',
     group: 'Views',
     keywords: ['outline', 'outline view', 'headings outline'],
-    run: ({ toast }) => {
-      const scroll = document.getElementById('editor-scroll-area');
-      if (scroll) {
-        scroll.classList.remove('etherx-view-print', 'etherx-view-web', 'etherx-view-draft', 'etherx-view-read');
-        scroll.classList.add('etherx-view-outline');
-        toast?.('Outline view enabled', 'info');
-      }
-    },
+    run: ({ setViewMode }) => setViewMode?.('outline'),
   },
   {
     id: 'view-draft',
@@ -1525,14 +1547,7 @@ export const DEFAULT_COMMANDS = [
     tab: 'view',
     group: 'Views',
     keywords: ['draft view', 'draft', 'edit view', 'simple view'],
-    run: ({ toast }) => {
-      const scroll = document.getElementById('editor-scroll-area');
-      if (scroll) {
-        scroll.classList.remove('etherx-view-print', 'etherx-view-web', 'etherx-view-outline', 'etherx-view-read');
-        scroll.classList.add('etherx-view-draft');
-        toast?.('Draft view enabled', 'info');
-      }
-    },
+    run: ({ setViewMode }) => setViewMode?.('draft'),
   },
   {
     id: 'view-read',
@@ -1540,14 +1555,22 @@ export const DEFAULT_COMMANDS = [
     tab: 'view',
     group: 'Views',
     keywords: ['read mode', 'read only', 'view reading', 'book mode'],
-    run: ({ toast }) => {
-      const scroll = document.getElementById('editor-scroll-area');
-      if (scroll) {
-        scroll.classList.remove('etherx-view-print', 'etherx-view-web', 'etherx-view-outline', 'etherx-view-draft');
-        scroll.classList.add('etherx-view-read');
-        toast?.('Read Mode enabled', 'info');
-      }
-    },
+    run: ({ setViewMode }) => setViewMode?.('read'),
+  },
+  {
+    id: 'view-menu', title: 'View', tab: 'view', group: 'Views',
+    keywords: ['view', 'read mode', 'print layout', 'web layout'],
+    run: () => window.dispatchEvent(new CustomEvent('etherx:ribbon-menu', { detail: 'View' })),
+  },
+  {
+    id: 'view-reader', title: 'Reader', tab: 'view', group: 'Immersive',
+    keywords: ['reader', 'focus', 'immersive reader'],
+    run: () => window.dispatchEvent(new CustomEvent('etherx:ribbon-menu', { detail: 'Reader' })),
+  },
+  {
+    id: 'view-page-movement', title: 'Page Movement', tab: 'view', group: 'Page Movement',
+    keywords: ['page movement', 'vertical', 'side to side'],
+    run: () => window.dispatchEvent(new CustomEvent('etherx:ribbon-menu', { detail: 'Page Movement' })),
   },
   {
     id: 'view-focus',
@@ -1555,13 +1578,7 @@ export const DEFAULT_COMMANDS = [
     tab: 'view',
     group: 'Views',
     keywords: ['focus mode', 'distraction free', 'focus', 'zen mode'],
-    run: ({ toast }) => {
-      const scroll = document.getElementById('editor-scroll-area');
-      if (scroll) {
-        scroll.classList.toggle('etherx-focus-mode');
-        toast?.('Focus mode toggled', 'info');
-      }
-    },
+    run: ({ toggleFocusMode }) => toggleFocusMode?.(),
   },
   {
     id: 'view-sidebar',
@@ -1577,11 +1594,7 @@ export const DEFAULT_COMMANDS = [
     tab: 'view',
     group: 'Show',
     keywords: ['ruler', 'show ruler', 'ruler toggle', 'margins ruler'],
-    run: ({ toggleRuler }) => {
-      toggleRuler?.();
-      const ruler = document.getElementById('etherx-ruler');
-      if (ruler) ruler.style.display = ruler.style.display === 'none' ? 'flex' : 'none';
-    },
+    run: ({ toggleRuler }) => toggleRuler?.(),
   },
   {
     id: 'view-grid',
@@ -1589,14 +1602,7 @@ export const DEFAULT_COMMANDS = [
     tab: 'view',
     group: 'Show',
     keywords: ['gridlines', 'grid', 'show grid', 'toggle gridlines'],
-    run: ({ toggleGridlines }) => {
-      toggleGridlines?.();
-      const el = document.getElementById('document-page-0');
-      if (el) {
-        const cur = el.style.backgroundImage;
-        el.style.backgroundImage = cur ? '' : 'repeating-linear-gradient(0deg,transparent,transparent 27px,rgba(212,175,55,0.08) 27px,rgba(212,175,55,0.08) 28px), repeating-linear-gradient(90deg,transparent,transparent 27px,rgba(212,175,55,0.08) 27px,rgba(212,175,55,0.08) 28px)';
-      }
-    },
+    run: ({ toggleGridlines }) => toggleGridlines?.(),
   },
   {
     id: 'view-navpane',
@@ -1613,6 +1619,46 @@ export const DEFAULT_COMMANDS = [
     group: 'Zoom',
     keywords: ['zoom out', 'shrink', 'smaller zoom', 'ctrl+-'],
     run: ({ setZoom, zoom }) => setZoom?.(Math.max(25, (zoom || 100) - 10)),
+  },
+  {
+    id: 'view-vertical',
+    title: 'Vertical Page Movement',
+    tab: 'view',
+    group: 'Page Movement',
+    keywords: ['vertical', 'scroll pages vertically', 'page movement'],
+    run: ({ setPageView }) => setPageView?.(null),
+  },
+  {
+    id: 'view-sidetoside',
+    title: 'Side to Side',
+    tab: 'view',
+    group: 'Page Movement',
+    keywords: ['side to side', 'flip pages', 'horizontal pages', 'book view'],
+    run: ({ setViewMode, setPageView }) => { setViewMode?.('print'); setPageView?.('side'); },
+  },
+  {
+    id: 'view-multipage',
+    title: 'Multiple Pages',
+    tab: 'view',
+    group: 'Zoom',
+    keywords: ['multiple pages', 'two pages', 'pages side by side', 'page grid'],
+    run: ({ setViewMode, setPageView }) => { setViewMode?.('print'); setPageView?.('multiple'); },
+  },
+  {
+    id: 'view-immersive',
+    title: 'Immersive Reader',
+    tab: 'view',
+    group: 'Immersive',
+    keywords: ['immersive reader', 'read aloud', 'reading view', 'dyslexia', 'line focus'],
+    run: ({ openDialog }) => openDialog?.('immersiveReader'),
+  },
+  {
+    id: 'view-zoom',
+    title: 'Zoom…',
+    tab: 'view',
+    group: 'Zoom',
+    keywords: ['zoom', 'zoom dialog', 'zoom level', 'magnify', 'percent'],
+    run: ({ openDialog }) => openDialog?.('zoom'),
   },
   {
     id: 'view-zoomin',
@@ -1660,7 +1706,7 @@ export const DEFAULT_COMMANDS = [
     tab: 'view',
     group: 'Window',
     keywords: ['new window', 'open new', 'duplicate tab'],
-    run: () => window.open(window.location.href, '_blank'),
+    run: ({ toast }) => { if (!openDocumentWindow()) toast?.('Allow popups to open a document window', 'info'); },
   },
   {
     id: 'view-fullscreen',
@@ -1672,25 +1718,66 @@ export const DEFAULT_COMMANDS = [
   },
   {
     id: 'view-split',
-    title: 'Split View',
+    title: 'Split',
     tab: 'view',
     group: 'Window',
-    keywords: ['split view', 'side by side', 'split document', 'dual view'],
-    run: ({ editor, toast }) => {
-      const left = document.getElementById('editor-scroll-area');
-      const existing = document.getElementById('etherx-split-preview');
-      if (existing) {
-        existing.remove();
-        toast?.('Split view closed', 'info');
-      } else if (left) {
-        const container = document.createElement('div');
-        container.id = 'etherx-split-preview';
-        container.style.cssText = 'flex:1;border-left:1px solid var(--border);overflow:auto;background:var(--bg-primary);position:relative;padding:20px;white-space:pre-wrap;';
-        container.innerText = editor ? editor.state.doc.textBetween(0, editor.state.doc.content.size, '\n') : '';
-        left.parentElement?.appendChild(container);
-        toast?.('Split view opened', 'success');
-      }
+    keywords: ['split view', 'split', 'split document', 'dual view', 'two panes'],
+    run: ({ setSidePane, toast }) => {
+      const open = useUIStore.getState().sidePane?.kind === 'split';
+      setSidePane?.(open ? null : { kind: 'split' });
+      toast?.(open ? 'Split removed' : 'Split view: scroll each pane separately', 'info');
     },
+  },
+  {
+    id: 'view-sidebyside',
+    title: 'View Side by Side',
+    tab: 'view',
+    group: 'Window',
+    keywords: ['side by side', 'compare side by side', 'two documents', 'view side by side'],
+    run: ({ setSidePane, openDialog }) => {
+      if (useUIStore.getState().sidePane?.kind === 'doc') setSidePane?.(null);
+      else openDialog?.('sideBySide');
+    },
+  },
+  {
+    id: 'view-syncscroll',
+    title: 'Synchronous Scrolling',
+    tab: 'view',
+    group: 'Window',
+    keywords: ['synchronous scrolling', 'sync scroll', 'scroll together'],
+    run: ({ toast }) => {
+      const ui = useUIStore.getState();
+      ui.toggleSyncScroll();
+      toast?.(`Synchronous scrolling ${ui.syncScroll ? 'off' : 'on'}${ui.sidePane ? '' : ' (open Split or View Side by Side to use it)'}`, 'info');
+    },
+  },
+  {
+    id: 'view-resetwindow',
+    title: 'Reset Window Position',
+    tab: 'view',
+    group: 'Window',
+    keywords: ['reset window position', 'reset panes', 'equal panes'],
+    run: ({ toast }) => {
+      const ui = useUIStore.getState();
+      ui.setPaneRatio(0.5);
+      toast?.(ui.sidePane ? 'Panes reset to equal widths' : 'Open Split or View Side by Side first', 'info');
+    },
+  },
+  {
+    id: 'view-arrangeall',
+    title: 'Arrange All',
+    tab: 'view',
+    group: 'Window',
+    keywords: ['arrange all', 'tile windows', 'arrange windows'],
+    run: ({ openDialog }) => openDialog?.('arrangeWindows'),
+  },
+  {
+    id: 'view-switchwindows',
+    title: 'Switch Windows',
+    tab: 'view',
+    group: 'Window',
+    keywords: ['switch windows', 'switch document', 'open document', 'other documents'],
+    run: ({ openDialog }) => openDialog?.('switchWindows'),
   },
   {
     id: 'view-macros',
@@ -1698,23 +1785,7 @@ export const DEFAULT_COMMANDS = [
     tab: 'view',
     group: 'Macros',
     keywords: ['macro', 'macros', 'automate', 'script', 'macro runner'],
-    run: ({ editor, toast }) => {
-      const script = window.prompt('Macro command (upper|lower|title):', 'upper');
-      if (script && editor) {
-        const { from, to } = editor.state.selection;
-        if (from !== to) {
-          const selected = editor.state.doc.textBetween(from, to, ' ');
-          let transformed = selected;
-          if (script === 'upper') transformed = selected.toUpperCase();
-          if (script === 'lower') transformed = selected.toLowerCase();
-          if (script === 'title') transformed = selected.replace(/\w\S*/g, (w) => w[0].toUpperCase() + w.slice(1).toLowerCase());
-          editor.chain().focus().insertContentAt({ from, to }, transformed).run();
-          toast?.(`Macro applied: ${script}`, 'success');
-        } else {
-          toast?.('Select text to run macro', 'info');
-        }
-      }
-    },
+    run: ({ openDialog }) => openDialog?.('macros'),
   },
 
   // ── HELP TAB ──
@@ -1725,6 +1796,14 @@ export const DEFAULT_COMMANDS = [
     group: 'Help',
     keywords: ['help', 'tutorial', 'guide', 'help tutorial', 'f1'],
     run: ({ openDialog }) => openDialog?.('help'),
+  },
+  {
+    id: 'help-mobileapp',
+    title: 'Get Mobile App',
+    tab: 'help',
+    group: 'Help',
+    keywords: ['mobile app', 'install app', 'phone', 'android', 'iphone', 'pwa'],
+    run: ({ openDialog }) => openDialog?.('mobileApp'),
   },
   {
     id: 'help-shortcuts',
@@ -1764,7 +1843,7 @@ export const DEFAULT_COMMANDS = [
     tab: 'help',
     group: 'Training',
     keywords: ['training', 'learn', 'tutorials', 'quick start'],
-    run: ({ openDialog }) => openDialog?.('whatsNew'),
+    run: ({ openDialog }) => openDialog?.('help'),
   },
   {
     id: 'help-whatsnew',
@@ -1806,20 +1885,10 @@ export const DEFAULT_COMMANDS = [
     tab: 'design',
     group: 'Document Formatting',
     keywords: ['theme', 'document theme', 'apply theme', 'theme styling', 'themes', 'style sets'],
-    run: ({ getDesign, setDesign, toast, setActiveTab }) => {
+    run: ({ setActiveTab, setDesignPopover }) => {
       setActiveTab?.('design');
-      const themes = [
-        { name: 'Modern Blue', font: 'Inter', accent: '#2563eb', heading: '#1d4ed8' },
-        { name: 'Editorial Crimson', font: 'Merriweather', accent: '#be123c', heading: '#9f1239' },
-        { name: 'Royal Gold', font: 'Crimson Pro', accent: '#d4af37', heading: '#c9a84c' },
-        { name: 'Emerald Forest', font: 'Roboto', accent: '#059669', heading: '#047857' },
-        { name: 'Executive Slate', font: 'Arial', accent: '#475569', heading: '#1e293b' },
-      ];
-      const design = getDesign?.() || {};
-      const curIdx = themes.findIndex((t) => t.accent === design.accent);
-      const next = themes[(curIdx + 1) % themes.length];
-      setDesign?.({ ...design, ...next, font: next.font, accent: next.accent });
-      toast?.(`Applied Theme: ${next.name}`, 'success');
+      setDesignPopover?.(null);
+      requestAnimationFrame(() => document.querySelector('.etherx-ribbon [title="Modern Blue"], .etherx-ribbon [title="Apply theme: Modern Blue"]')?.focus());
     },
   },
   {
@@ -1904,10 +1973,11 @@ export const DEFAULT_COMMANDS = [
     tab: 'design',
     group: 'Table Styles',
     keywords: ['table styles', 'grid table', 'table theme', 'table formatting', 'striped table', 'accent table', 'table design'],
-    run: ({ editor, toast, setActiveTab }) => {
+    run: ({ editor, toast, setActiveTab, setDesignPopover }) => {
       setActiveTab?.('design');
       if (editor?.isActive('table')) {
-        toast?.('Table Styles available on Design ribbon tab', 'info');
+        setDesignPopover?.('tableStyles');
+        window.dispatchEvent(new CustomEvent('etherx:open-design-feature', { detail: { feature: 'tableStyles' } }));
       } else {
         toast?.('Place cursor inside a table to choose Table Styles', 'info');
       }
@@ -2057,7 +2127,7 @@ export const DEFAULT_COMMANDS = [
     keywords: ['save', 'save file', 'save document', 'ctrl+s'],
     run: ({ toast }) => {
       window.dispatchEvent(new CustomEvent('etherx-save-document'));
-      toast?.('Document saved', 'success');
+
     },
   },
   {

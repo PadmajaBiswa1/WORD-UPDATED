@@ -71,7 +71,8 @@ function getEffectiveRole(document, user = {}) {
           ? document.sharedWith.find((entry) => !entry?.email && !entry?.id)
           : null;
         const candidateRole = String(linkEntry?.role || document.shareLinkRole || 'editor').toLowerCase();
-        if (['owner', 'editor', 'commenter', 'viewer'].includes(candidateRole)) {
+        // A share link never grants ownership.
+        if (['editor', 'commenter', 'viewer'].includes(candidateRole)) {
           return candidateRole;
         }
         return 'editor';
@@ -339,9 +340,22 @@ function checkPermission(document, user = {}, action = 'read', context = {}) {
   }
 }
 
+// Who can open a document (shares, the share link and its role, the access
+// policy) is an owner decision. A plain save only needs edit permission, so these
+// fields are dropped from it unless the caller also holds share permission.
+const SHARING_FIELDS = ['sharedWith', 'shareLinkEnabled', 'shareLinkRole', 'accessPolicy'];
+
+function stripSharingFields(body = {}, sharePermission = {}) {
+  if (sharePermission.allowed) return body;
+  const kept = { ...body };
+  SHARING_FIELDS.forEach((field) => delete kept[field]);
+  return kept;
+}
+
 module.exports = {
   getEffectiveRole,
   checkPermission,
+  stripSharingFields,
   isGuestOrUnauthenticated,
   isPrivateDocument,
 };

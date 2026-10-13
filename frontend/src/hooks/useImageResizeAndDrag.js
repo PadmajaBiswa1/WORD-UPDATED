@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { getSelectedImageElement, isImageSelection } from '@/utils/imageSelection';
 import { useUIStore } from '@/store';
+import { getLayoutMetrics } from '@/utils/pageLayout';
+import { fitImageOnPage } from '@/utils/imagePagePlacement';
 
 const parseCssStyle = (style = '') => {
   const out = {};
@@ -391,7 +393,7 @@ export function useImageResizeAndDrag(editor, editorRef) {
 
     // Helper: Select image node in Tiptap
     const selectImageNode = (img) => {
-      if (!editor || !img) return;
+      if (!editor?.isEditable || !img) return;
       try {
         const pos = editor.view.posAtDOM(img, 0);
         if (typeof pos === 'number' && pos >= 0) {
@@ -405,7 +407,7 @@ export function useImageResizeAndDrag(editor, editorRef) {
     // Helper: Persist geometry changes to Tiptap
     const persistImageGeometry = (state) => {
       const img = state.img;
-      if (!img || editor.isDestroyed) return;
+      if (!img || editor.isDestroyed || !editor.isEditable) return;
 
       const computed = window.getComputedStyle(img);
       const width = Math.max(MIN_SIZE, Math.round(Number.parseFloat(img.style.width) || Number.parseFloat(computed.width) || img.offsetWidth));
@@ -418,11 +420,13 @@ export function useImageResizeAndDrag(editor, editorRef) {
       css.height = `${height}px`;
       if (img.style.marginLeft) css['margin-left'] = img.style.marginLeft;
       if (img.style.marginTop) css['margin-top'] = img.style.marginTop;
+      for (const key of ['position', 'left', 'top', 'z-index']) if (img.style.getPropertyValue(key)) css[key] = img.style.getPropertyValue(key);
 
       const updateData = {
         width: String(width),
         height: String(height),
       };
+      if (state.pagePlaced) updateData.wrap = attrs.wrap === 'behindText' ? 'behindText' : 'inFrontOfText';
 
       if (state.isRotating && typeof state.currentRotation === 'number') {
         const rot = state.currentRotation;
@@ -444,6 +448,7 @@ export function useImageResizeAndDrag(editor, editorRef) {
 
     // Sync handles and selection border to current selection
     const syncHandlesToSelection = () => {
+      if (!editor.isEditable) { syncOverlayBounds(null); return; }
       // If any dialog/modal is open, hide the overlay completely
       const uiState = useUIStore.getState();
       const anyDialogOpen = Object.values(uiState.dialogs || {}).some(Boolean);
@@ -568,6 +573,7 @@ export function useImageResizeAndDrag(editor, editorRef) {
 
     // Pointer down handler for handles & images
     const handlePointerDown = (event) => {
+      if (!editor.isEditable) return;
       // 1. Handle element clicked
       const handleEl = event.target.closest?.('[data-etherx-handle]');
       if (handleEl) {
@@ -665,6 +671,7 @@ export function useImageResizeAndDrag(editor, editorRef) {
         ...createIdleDragState(),
         isDragging: true,
         img,
+        initialBounds: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
         startX: event.clientX,
         startY: event.clientY,
         lastClientX: event.clientX,
@@ -704,13 +711,25 @@ export function useImageResizeAndDrag(editor, editorRef) {
     const handlePointerUp = () => {
       const state = dragStateRef.current;
       if (state.img) {
+        if (rafPendingRef.current) updateDragFrame();
+        const moved = Math.abs(state.lastClientX - state.startX) + Math.abs(state.lastClientY - state.startY) > 3;
+        if (state.isDragging && moved && state.initialBounds) {
+          const ui = useUIStore.getState();
+          const layout = getLayoutMetrics({ size: ui.pageSize, orientation: ui.pageOrientation, margin: ui.pageMargin });
+          const pages = Array.from(editorElement.querySelectorAll('[data-etherx-page-surface="background"]')).map((page) => { const rect = page.getBoundingClientRect(); return { left: rect.left, top: rect.top, width: rect.width, height: rect.height, padding: layout.padding * rect.width / layout.pageWidth }; });
+          const fitted = fitImageOnPage({ ...state.initialBounds, left: state.initialBounds.left + state.lastClientX - state.startX, top: state.initialBounds.top + state.lastClientY - state.startY }, pages);
+          const prose = proseMirrorEl.getBoundingClientRect();
+          const scale = prose.width / proseMirrorEl.offsetWidth || state.scale;
+          Object.assign(state.img.style, { position: 'absolute', left: `${(fitted.left - prose.left) / scale}px`, top: `${(fitted.top - prose.top) / scale}px`, width: `${fitted.width / scale}px`, height: `${fitted.height / scale}px`, marginLeft: '0px', marginTop: '0px', zIndex: editor.getAttributes('image').wrap === 'behindText' ? '0' : '2' });
+          state.pagePlaced = true;
+        }
         document.body.classList.remove('etherx-is-resizing');
         state.img.classList.remove('etherx-is-resizing');
         document.body.style.cursor = '';
         state.img.style.cursor = 'move';
 
         hideDimensionLabel();
-        persistImageGeometry(state);
+        if (!state.isDragging || moved) persistImageGeometry(state);
 
         requestAnimationFrame(() => {
           const img = getSelectedImageElement(editor);
@@ -724,6 +743,10 @@ export function useImageResizeAndDrag(editor, editorRef) {
 
     // Keyboard handlers (Escape to cancel, Delete/Backspace to remove)
     const handleKeyDown = (event) => {
+      if (!editor.isEditable) return;
+      if (event.target?.closest?.('input, textarea, select, [role="textbox"]')) return;
+      const textField = event.target?.closest?.('[contenteditable="true"]');
+      if (textField && !proseMirrorEl.contains(textField)) return;
       const state = dragStateRef.current;
       if (event.key === 'Escape' && (state.isResizing || state.isRotating || state.isDragging)) {
         event.preventDefault();
@@ -763,6 +786,7 @@ export function useImageResizeAndDrag(editor, editorRef) {
 
     // Double click to open edit panel
     const handleDblClick = (event) => {
+      if (!editor.isEditable) return;
       const img = event.target.closest?.('img');
       if (!img || !proseMirrorEl.contains(img)) return;
       event.preventDefault();
@@ -771,6 +795,7 @@ export function useImageResizeAndDrag(editor, editorRef) {
 
     // Context menu
     const handleContextMenu = (event) => {
+      if (!editor.isEditable) return;
       const img = event.target.closest?.('img');
       if (!img || !proseMirrorEl.contains(img)) return;
       event.preventDefault();
@@ -816,7 +841,7 @@ export function useImageResizeAndDrag(editor, editorRef) {
 
     const unsubUI = useUIStore.subscribe((state) => {
       const anyOpen = Object.values(state.dialogs || {}).some(Boolean);
-      if (anyOpen) {
+      if (anyOpen || state.viewMode === 'read') {
         syncOverlayBounds(null);
       }
     });

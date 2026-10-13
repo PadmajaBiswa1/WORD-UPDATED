@@ -98,18 +98,23 @@ function estimateNodeHeight(node) {
 
 function measureBlock(view, node, pos) {
   const dom = getBlockDOM(view, pos);
+  if (node?.type?.name === 'image' && dom && getComputedStyle(dom).position === 'absolute') return { height: 0, marginTop: 0, marginBottom: 0, isEstimate: false };
   let height = 0;
   let marginTop = 0;
   let marginBottom = 10;
   let isEstimate = false;
 
   if (dom) {
-    const rect = dom.getBoundingClientRect();
-    if (Number.isFinite(rect.height) && rect.height > 0) {
-      const scale = (useUIStore.getState().zoom || 100) / 100;
-      height = Math.max(1, rect.height * scale);
-    } else if (dom.offsetHeight > 0) {
+    // Layout height, in the same px as contentHeight and pageStep. The editor is
+    // CSS-scaled (zoom and the 720/794 page fit), so on-screen rect heights are
+    // smaller than layout px; using them let ~9% too much text onto each page,
+    // spilling into the bottom margin and the gap between pages.
+    if (dom.offsetHeight > 0) {
       height = dom.offsetHeight;
+    } else {
+      const rect = dom.getBoundingClientRect();
+      const ratio = view.dom.offsetHeight ? view.dom.getBoundingClientRect().height / view.dom.offsetHeight : 1;
+      if (Number.isFinite(rect.height) && rect.height > 0) height = Math.max(1, rect.height / (ratio || 1));
     }
     try {
       const cs = window.getComputedStyle(dom);
@@ -267,6 +272,100 @@ function spacerWidget(pos, height, mask) {
   }, { side: -1, key: `${INNER_BREAK_CLASS}-${height}-${mask ? Object.values(mask).join('/') : ''}`, ignoreSelection: true });
 }
 
+// Replace the document's blocks with the paginated ones and set the spacer
+// decorations, keeping the cursor in the block it was in.
+// Edit the document into the paginated layout by touching only page-break nodes:
+// auto breaks between two blocks are replaced where they changed, manual breaks
+// get their new height in place, and user content is never replaced. A single
+// whole-document replace (the old approach) made undo history map every earlier
+// step into nothing, so Undo stopped working after any page break moved.
+function paginationTransaction(state, nextNodes) {
+  const tr = state.tr;
+  const current = [];
+  state.doc.forEach((node, offset) => current.push({ node, offset }));
+  // Gaps of auto breaks before each fixed item (blocks and manual breaks), plus a trailing gap.
+  const split = (items, getNode) => {
+    const gaps = [[]];
+    const fixed = [];
+    items.forEach((item) => {
+      if (isAutoPageBreak(getNode(item))) gaps[gaps.length - 1].push(item);
+      else { fixed.push(item); gaps.push([]); }
+    });
+    return { gaps, fixed };
+  };
+  const cur = split(current, (item) => item.node);
+  const next = split(nextNodes, (node) => node);
+  if (cur.fixed.length !== next.fixed.length) return null;
+
+  const sameAuto = (a, b) => a.length === b.length && a.every((item, i) => Math.abs(Number(item.node.attrs?.fillHeight || 0) - Number(b[i].attrs?.fillHeight || 0)) < 1);
+  // Back to front so earlier positions stay valid.
+  for (let k = cur.gaps.length - 1; k >= 0; k -= 1) {
+    if (k < cur.fixed.length) {
+      const { node, offset } = cur.fixed[k];
+      const target = next.fixed[k];
+      if (isManualPageBreak(node) && Math.abs(Number(node.attrs.fillHeight || 0) - Number(target.attrs.fillHeight || 0)) >= 1) {
+        tr.setNodeMarkup(offset, null, { ...node.attrs, fillHeight: target.attrs.fillHeight });
+      } else if (!isManualPageBreak(node) && node !== target && !node.eq(target)) {
+        return null;
+      }
+    }
+    const gap = cur.gaps[k];
+    const wanted = next.gaps[k];
+    if (sameAuto(gap, wanted)) continue;
+    const at = k === 0 ? 0 : cur.fixed[k - 1].offset + cur.fixed[k - 1].node.nodeSize;
+    const end = gap.length ? gap[gap.length - 1].offset + gap[gap.length - 1].node.nodeSize : at;
+    tr.replaceWith(at, end, Fragment.fromArray(wanted));
+  }
+  return tr;
+}
+
+function applyPagination(view, nextNodes, spacerMeta, targetBlockIndex, offsetInBlock, oldSelection) {
+  const { doc } = view.state;
+  isPaginating = true;
+  try {
+    let tr = paginationTransaction(view.state, nextNodes);
+    if (!tr) {
+      // Fallback (blocks changed under us): rebuild, restoring the cursor by block.
+      tr = view.state.tr.replaceWith(0, doc.content.size, Fragment.fromArray(nextNodes));
+      if (targetBlockIndex !== -1) {
+        let currentPos = 0;
+        let blockCount = 0;
+        let newSelectionPos = 1;
+        for (let i = 0; i < nextNodes.length; i++) {
+          const node = nextNodes[i];
+          if (isPageBreakNode(node)) {
+            currentPos += node.nodeSize;
+          } else {
+            if (blockCount === targetBlockIndex) {
+              newSelectionPos = currentPos + Math.min(offsetInBlock, node.nodeSize - 1);
+              break;
+            }
+            currentPos += node.nodeSize;
+            blockCount++;
+          }
+        }
+        const resolvedPos = tr.doc.resolve(Math.min(tr.doc.content.size - 1, Math.max(1, newSelectionPos)));
+        tr.setSelection(oldSelection.constructor.near(resolvedPos));
+      }
+    }
+
+    tr.setMeta('addToHistory', false);
+    tr.setMeta(AUTO_PAGINATION_KEY, true);
+    tr.setMeta(INNER_BREAKS_META, spacerMeta);
+    view.dispatch(tr);
+    return true;
+  } finally {
+    setTimeout(() => {
+      isPaginating = false;
+    }, 60);
+  }
+}
+
+// Multi-column pages are laid out by CSS (column-height + column-wrap: each page
+// is a row of columns), so pagination only removes its own breaks and spacers.
+export const supportsColumnFlow = () => typeof CSS !== 'undefined' && CSS.supports('column-wrap', 'wrap');
+const columnFlowActive = () => (useUIStore.getState().pageColumns || 1) > 1 && supportsColumnFlow();
+
 function paginateDocument(view, heightCache) {
   if (!view?.state?.doc || view.isDestroyed || isPaginating) return false;
 
@@ -305,6 +404,18 @@ function paginateDocument(view, heightCache) {
       offsetInBlock = oldPos - blockStart;
       break;
     }
+  }
+
+  if (columnFlowActive()) {
+    const plain = sourceBlocks.map((block) => block.node);
+    const columnsMeta = { sig: 'columns', plan: [] };
+    if (plain.length === doc.childCount) {
+      if ((AUTO_PAGINATION_KEY.getState(view.state)?.sig || '') !== columnsMeta.sig) {
+        view.dispatch(view.state.tr.setMeta(INNER_BREAKS_META, columnsMeta).setMeta('addToHistory', false).setMeta(AUTO_PAGINATION_KEY, true));
+      }
+      return false;
+    }
+    return applyPagination(view, plain, columnsMeta, targetBlockIndex, offsetInBlock, oldSelection);
   }
 
   endSplitPass(); // in case an earlier pass threw before cleaning up
@@ -472,42 +583,7 @@ function paginateDocument(view, heightCache) {
     return false;
   }
 
-  isPaginating = true;
-  try {
-    const tr = view.state.tr.replaceWith(0, doc.content.size, Fragment.fromArray(nextNodes));
-
-    // Restore selection position dynamically mapping it to the new document layout
-    if (targetBlockIndex !== -1) {
-      let currentPos = 0;
-      let blockCount = 0;
-      let newSelectionPos = 1;
-      for (let i = 0; i < nextNodes.length; i++) {
-        const node = nextNodes[i];
-        if (isPageBreakNode(node)) {
-          currentPos += node.nodeSize;
-        } else {
-          if (blockCount === targetBlockIndex) {
-            newSelectionPos = currentPos + Math.min(offsetInBlock, node.nodeSize - 1);
-            break;
-          }
-          currentPos += node.nodeSize;
-          blockCount++;
-        }
-      }
-      const resolvedPos = tr.doc.resolve(Math.min(tr.doc.content.size - 1, Math.max(1, newSelectionPos)));
-      tr.setSelection(oldSelection.constructor.near(resolvedPos));
-    }
-
-    tr.setMeta('addToHistory', false);
-    tr.setMeta(AUTO_PAGINATION_KEY, true);
-    tr.setMeta(INNER_BREAKS_META, spacerMeta);
-    view.dispatch(tr);
-    return true;
-  } finally {
-    setTimeout(() => {
-      isPaginating = false;
-    }, 60);
-  }
+  return applyPagination(view, nextNodes, spacerMeta, targetBlockIndex, offsetInBlock, oldSelection);
 }
 
 export const PageBreak = Node.create({
@@ -874,6 +950,7 @@ export const PageBreak = Node.create({
             debounceTimer = setTimeout(() => {
               debounceTimer = null;
               if (!view || view.isDestroyed) return;
+              if (document.body.classList.contains('etherx-is-resizing')) return;
               paginateDocument(view, force ? null : heightCache);
             }, 100);
           };

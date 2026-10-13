@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
 //  EditorPage — Main editor layout
 // ═══════════════════════════════════════════════════════════════
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { TitleBar }       from '@/components/editor/TitleBar';
 import { Ribbon }         from '@/components/toolbar/Ribbon';
@@ -10,7 +10,6 @@ import { PragnaChatSidebar } from '@/components/sidebar/PragnaChatSidebar';
 import { EditorCanvas }   from '@/components/editor/EditorCanvas';
 import { StatusBar }      from '@/components/editor/StatusBar';
 import { DialogManager }  from '@/components/dialogs/DialogManager';
-import { ToastContainer } from '@/components/ui/Toast';
 import { useAutoSave }    from '@/hooks/useAutoSave';
 import { useCollaboration } from '@/hooks/useCollaboration';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -26,7 +25,20 @@ function getDefaultPageColor() {
 
 export function EditorPage({ isShared = false }) {
   const { id: routeId } = useParams();
+  const [readyDocId, setReadyDocId] = useState(null);
+  const [loadError, setLoadError] = useState('');
   const fullscreen = useUIStore((s) => s.fullscreen);
+  const focusMode = useUIStore((s) => s.focusMode);
+  useEffect(() => {
+    const exitFocus = (event) => {
+      if (event.key === 'Escape' && useUIStore.getState().focusMode) useUIStore.getState().toggleFocusMode();
+    };
+    window.addEventListener('keydown', exitFocus);
+    return () => window.removeEventListener('keydown', exitFocus);
+  }, []);
+  useEffect(() => {
+    if (window.innerWidth <= 900) useUIStore.setState({ sidebarOpen: false, copilotOpen: false });
+  }, []);
   // Store actions — read once into refs so they never appear in deps
   const reset = useDocumentStore((s) => s.reset);
   const hydrateDocument = useDocumentStore((s) => s.hydrateDocument);
@@ -94,10 +106,12 @@ export function EditorPage({ isShared = false }) {
       console.log(`📖 Loading document: ${docIdToLoad} (${isShared ? 'shared' : 'owned'})`);
       setId(docIdToLoad);
       loadedDocIdRef.current = docIdToLoad;
+      setLoadError('');
 
       documentApi
         .get(docIdToLoad)
         .then((doc) => {
+          if (loadedDocIdRef.current !== docIdToLoad) return;
           console.log(`✅ Document loaded: "${doc?.title}" (${doc?.content?.length || 0} chars)`);
           
           // Reconcile with any unsaved local draft from a recent refresh or edit session
@@ -119,6 +133,13 @@ export function EditorPage({ isShared = false }) {
                 design: localDraft.design ? { ...(doc?.design || {}), ...localDraft.design } : doc?.design,
                 headerFooter: localDraft.headerFooter ? { ...(doc?.headerFooter || {}), ...localDraft.headerFooter } : doc?.headerFooter,
                 layout: localDraft.layout ? { ...(doc?.layout || {}), ...localDraft.layout } : doc?.layout,
+                pageCount: localDraft.pageCount ?? doc?.pageCount,
+                comments: localDraft.comments ?? doc?.comments,
+                trackChanges: localDraft.trackChanges ?? doc?.trackChanges,
+                documentParts: localDraft.documentParts ?? doc?.documentParts,
+                signatures: localDraft.signatures ?? doc?.signatures,
+                accessPolicy: localDraft.accessPolicy ?? doc?.accessPolicy,
+                aiProfile: localDraft.aiProfile ?? doc?.aiProfile,
                 styles: Array.isArray(localDraft.styles) ? localDraft.styles : doc?.styles,
                 references: localDraft.references || doc?.references,
               };
@@ -138,6 +159,7 @@ export function EditorPage({ isShared = false }) {
           }
         })
         .catch((err) => {
+          if (loadedDocIdRef.current !== docIdToLoad) return;
           console.error(`❌ Failed to load document ${docIdToLoad}:`, err?.message);
           // Offline fallback: restore from local draft if server is unreachable
           const localDraft = readLocalDraft(docIdToLoad);
@@ -150,6 +172,10 @@ export function EditorPage({ isShared = false }) {
           if (isShared) {
             toast('Failed to load shared document', 'error');
           }
+          setLoadError(err?.message || 'Could not open this document.');
+        })
+        .finally(() => {
+          if (loadedDocIdRef.current === docIdToLoad) setReadyDocId(docIdToLoad);
         });
     } else if (!isShared && !documentId) {
       // If store already contains preloaded template content, preserve it
@@ -176,6 +202,7 @@ export function EditorPage({ isShared = false }) {
           if (newId) {
             console.log(`✅ Document created: ${newId}`);
             loadedDocIdRef.current = newId;
+            setReadyDocId(newId);
             setId(newId);
             window.history.replaceState(null, '', `/doc/${newId}`);
             const currentStore = useDocumentStore.getState();
@@ -191,8 +218,16 @@ export function EditorPage({ isShared = false }) {
     }
   }, [routeId, isShared, documentId]);
 
+  if (loadError || (routeId && routeId !== 'new' && readyDocId !== routeId)) {
+    return <div className="studio-loading" role={loadError ? 'alert' : 'status'}>
+      <div className="studio-loading-mark" aria-hidden="true">X</div>
+      <p>{loadError || 'Opening your document…'}</p>
+      {loadError && <a href="/home">Return to documents</a>}
+    </div>;
+  }
+
   return (
-    <div style={{
+    <div className="etherx-studio" data-focus={focusMode} style={{
       height: '100vh', width: '100vw',
       display: 'flex', flexDirection: 'column',
       overflow: 'hidden',
@@ -219,7 +254,6 @@ export function EditorPage({ isShared = false }) {
       <DialogManager />
 
       {/* Toasts */}
-      <ToastContainer />
     </div>
   );
 }

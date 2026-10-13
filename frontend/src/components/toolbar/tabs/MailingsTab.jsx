@@ -1,4 +1,6 @@
-import { useUIStore, useEditorStore } from '@/store';
+import { useEffect, useState } from 'react';
+import { useUIStore, useEditorStore, useDocumentStore } from '@/store';
+import { printHtml } from '@/utils/printUtils';
 import {
   Mail, Tag, MailCheck, Users, UserCheck, Highlighter, MapPin,
   MessageSquare, Braces, Settings, ArrowLeftRight, RefreshCw, Eye,
@@ -8,30 +10,7 @@ import {
 import { Button, Tooltip } from '@/components/ui';
 import { RibbonGroup } from '../RibbonGroup';
 
-const STORAGE_KEY = 'etherx-mailing-recipients';
-const mergeTokenRegex = /\{\{\s*([A-Za-z0-9_]+)\s*\}\}/g;
-
-function loadRecipients() {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function extractFields(recipients) {
-  const fields = new Set();
-  recipients.forEach((recipient) => Object.keys(recipient || {}).forEach((key) => fields.add(key)));
-  return [...fields];
-}
-
-function mergeDocumentHtml(html, recipient) {
-  return String(html || '').replace(mergeTokenRegex, (_, key) => String(recipient?.[key] ?? `{{${key}}}`));
-}
-
+import { loadRecipients, extractFields, mergeDocumentHtml, mergeTokenRegex, mergeErrors } from '@/utils/mailMerge';
 function HeroBtn({ icon, label, onClick, title }) {
   return (
     <Tooltip text={title || label}>
@@ -109,9 +88,11 @@ function MiniAction({ icon, text, onClick, title }) {
   );
 }
 
-export function MailingsTab() {
+export function MailingsTab({ renderRibbon } = {}) {
   const { toast, openDialog } = useUIStore();
   const { editor } = useEditorStore();
+  const [recipientState, setRecipientState] = useState(() => ({ recipients: loadRecipients(), index: Number(localStorage.getItem('etherx-preview-index')) || 0 }));
+  useEffect(() => { const sync = () => setRecipientState({ recipients: loadRecipients(), index: Number(localStorage.getItem('etherx-preview-index')) || 0 }); window.addEventListener('etherx:recipients-change', sync); return () => window.removeEventListener('etherx:recipients-change', sync); }, []);
 
   const run = (fn) => {
     if (!editor) {
@@ -125,12 +106,6 @@ export function MailingsTab() {
   const insertHtml = (html) => run(() => editor.chain().focus().insertContent(html).run());
 
   const startMailMerge = () => {
-    const recipients = loadRecipients();
-    if (!recipients.length) {
-      toast('Add recipients first', 'info');
-      openDialog('selectRecipients');
-      return;
-    }
     openDialog('mailMerge');
   };
 
@@ -147,6 +122,7 @@ export function MailingsTab() {
   const setPreviewIndex = (nextIndex) => {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem('etherx-preview-index', String(nextIndex));
+    window.dispatchEvent(new Event('etherx:recipients-change'));
   };
 
   const getPreviewIndex = () => {
@@ -169,48 +145,22 @@ export function MailingsTab() {
     toast(`Recipient ${next + 1}/${length}: ${r.FirstName || ''} ${r.LastName || ''}`.trim(), 'info');
   });
 
-  const findRecipient = () => withRecipients((recipients) => {
-    const term = (window.prompt('Find recipient by name or email') || '').trim().toLowerCase();
-    if (!term) return;
-    const index = recipients.findIndex((r) => Object.values(r || {}).some((v) => String(v).toLowerCase().includes(term)));
-    if (index === -1) {
-      toast('No matching recipient found', 'info');
-      return;
-    }
-    setPreviewIndex(index);
-    const r = recipients[index] || {};
-    toast(`Found: ${r.FirstName || ''} ${r.LastName || ''}`.trim(), 'success');
-  });
+  const findRecipient = () => withRecipients(() => openDialog('findRecipient'));
 
   const highlightFields = () => {
     if (!editor) return toast('Editor is not ready yet', 'info');
-    const html = editor.getHTML();
-    const next = html.replace(mergeTokenRegex, (full) => `<mark data-etherx-merge-field="true" style="background:rgba(212,175,55,0.24);padding:1px 2px;border-radius:2px;">${full}</mark>`);
-    if (next === html) {
-      toast('No merge fields found in this document', 'info');
-      return;
-    }
-    editor.commands.setContent(next, false);
-    toast('Merge fields highlighted', 'success');
+    const matches = [];
+    editor.state.doc.descendants((node, pos) => { if (node.isText) for (const match of node.text.matchAll(mergeTokenRegex)) matches.push({ from: pos + match.index, to: pos + match.index + match[0].length, highlighted: node.marks.some((mark) => mark.type.name === 'highlight') }); });
+    if (!matches.length) return toast('No merge fields found in this document', 'info');
+    const clear = matches.every((match) => match.highlighted);
+    const tr = editor.state.tr;
+    for (const match of matches) { if (clear) tr.removeMark(match.from, match.to, editor.schema.marks.highlight); else tr.addMark(match.from, match.to, editor.schema.marks.highlight.create({ color: '#d4af37' })); }
+    editor.view.dispatch(tr);
+    toast(clear ? 'Merge field highlighting removed' : 'Merge fields highlighted', 'success');
   };
 
-  const insertRule = () => withRecipients((recipients) => {
-    const fields = extractFields(recipients);
-    const field = fields[0] || 'FirstName';
-    insertHtml(`<p>{{#if ${field}}}Hello {{${field}}}{{else}}Hello there{{/if}}</p>`);
-    toast(`Conditional rule inserted using ${field}`, 'success');
-  });
-
-  const insertMatchTemplate = () => withRecipients((recipients) => {
-    const fields = extractFields(recipients);
-    if (!fields.length) {
-      toast('No fields available to match', 'info');
-      return;
-    }
-    const rows = fields.map((field) => `<tr><td style="padding:4px 8px;border:1px solid #d8d8d8;">${field}</td><td style="padding:4px 8px;border:1px solid #d8d8d8;">{{${field}}}</td></tr>`).join('');
-    insertHtml(`<table data-etherx-match-fields="true" style="border-collapse:collapse;margin:8px 0;"><thead><tr><th style="padding:4px 8px;border:1px solid #d8d8d8;">Source Field</th><th style="padding:4px 8px;border:1px solid #d8d8d8;">Merge Token</th></tr></thead><tbody>${rows}</tbody></table>`);
-    toast('Match fields table inserted', 'success');
-  });
+  const insertRule = () => withRecipients(() => openDialog('mergeRules'));
+  const insertMatchTemplate = () => withRecipients(() => openDialog('matchFields'));
 
   const checkMergeErrors = () => withRecipients((recipients) => {
     if (!editor) return;
@@ -220,23 +170,16 @@ export function MailingsTab() {
       toast('No merge fields found', 'info');
       return;
     }
-    const sample = recipients[0] || {};
-    const missing = [...new Set(tokens)].filter((field) => !(field in sample));
-    if (!missing.length) {
-      toast('No merge errors found', 'success');
-      return;
-    }
-    toast(`Missing fields: ${missing.join(', ')}`, 'warning');
+    const missing = mergeErrors(html, recipients);
+    toast(missing.length ? `Missing fields: ${missing.join(', ')}` : 'No merge errors found', missing.length ? 'warning' : 'success');
   });
 
   const mergeToEmail = () => withRecipients((recipients) => {
     if (!editor) return;
     const index = Math.max(0, Math.min(recipients.length - 1, getPreviewIndex()));
     const recipient = recipients[index] || {};
-    const merged = mergeDocumentHtml(editor.getHTML(), recipient)
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
+    const html = mergeDocumentHtml(editor.getHTML(), recipient).replace(/<\/(p|h[1-6]|li|div)>/g, '$& ');
+    const merged = (new DOMParser().parseFromString(html, 'text/html').body.textContent || '').replace(/\s+/g, ' ').trim();
     const email = recipient.Email || '';
     if (!email) {
       toast('Selected recipient has no email address', 'warning');
@@ -251,18 +194,20 @@ export function MailingsTab() {
     const index = Math.max(0, Math.min(recipients.length - 1, getPreviewIndex()));
     const recipient = recipients[index] || {};
     const merged = mergeDocumentHtml(editor.getHTML(), recipient);
-    const popup = window.open('', '_blank', 'noopener,noreferrer,width=900,height=700');
-    if (!popup) {
+    if (!printHtml(merged, { layout: useDocumentStore.getState().layout, title: 'Print Merge' })) {
       toast('Popup blocked. Please allow popups to print.', 'warning');
       return;
     }
-    popup.document.write(`<html><head><title>Print Merge</title></head><body>${merged}</body></html>`);
-    popup.document.close();
-    popup.focus();
-    popup.print();
     toast('Print preview opened for current recipient', 'success');
   });
 
+  if (renderRibbon) return renderRibbon({
+    'Start Mail Merge': startMailMerge, 'Highlight Merge Fields': highlightFields,
+    'Address Block': () => insertHtml('<p>{{FirstName}} {{LastName}}<br>{{Address}}<br>{{City}}, {{State}} {{Zip}}</p>'),
+    Rules: insertRule, 'Match Fields': insertMatchTemplate, 'Update Labels': () => openDialog('updateLabels'),
+    'Record 1 of 1': () => navigateRecipient('next'), 'Find Recipient': findRecipient,
+    'Check for Errors': checkMergeErrors,
+  }, { 'Record 1 of 1': { label: `Record ${recipientState.recipients.length ? Math.min(recipientState.index + 1, recipientState.recipients.length) : 0} of ${recipientState.recipients.length}` } });
   return (
     <>
       <RibbonGroup label="Create">

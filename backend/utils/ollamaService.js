@@ -12,7 +12,7 @@ const FALLBACK_KEYS = [
 
 class OllamaService {
   constructor() {
-    this.baseUrl = (process.env.OLLAMA_BASE_URL || 'https://ollama.com/v1').replace(/\/+$/, '');
+    this.baseUrl = (process.env.OLLAMA_BASE_URL || (process.env.OMNIROUTE_BASE_URL ? `${process.env.OMNIROUTE_BASE_URL.replace(/\/+$/, '')}/v1` : 'https://ollama.com/v1')).replace(/\/+$/, '');
     this.defaultModel = this.normalizeModel(process.env.OLLAMA_MODEL || 'gemma4:31b');
     this.fallbackModels = ['gemma4:31b', 'gpt-oss:20b', 'gpt-oss:120b', 'nemotron-3-nano:30b'];
     
@@ -35,6 +35,9 @@ class OllamaService {
   _loadKeys() {
     const keys = [];
     if (process.env.OLLAMA_API_KEY) keys.push(process.env.OLLAMA_API_KEY.trim());
+    if (process.env.OMNIROUTE_API_KEY && !keys.includes(process.env.OMNIROUTE_API_KEY.trim())) {
+      keys.push(process.env.OMNIROUTE_API_KEY.trim());
+    }
     
     // Check numbered keys like OLLAMA_API_KEY_2 .. OLLAMA_API_KEY_20
     for (let i = 2; i <= 20; i++) {

@@ -1,3 +1,38 @@
+import { useProductivityStore } from '@/store';
+
+export function selectionClipboardData(editor) {
+  if (!editor || editor.state.selection.empty) return null;
+  const { dom, text } = editor.view.serializeForClipboard(editor.state.selection.content());
+  return { text, html: dom.innerHTML };
+}
+
+export function recordClipboardData(data) {
+  if (!data || (!data.text && !data.html)) return;
+  useProductivityStore.getState().addClipboardItem({ ...data, copiedAt: new Date().toISOString() });
+}
+
+export async function writeClipboardData(data) {
+  if (navigator.clipboard?.write && typeof ClipboardItem !== 'undefined' && data.html) {
+    await navigator.clipboard.write([new ClipboardItem({
+      'text/html': new Blob([data.html], { type: 'text/html' }),
+      'text/plain': new Blob([data.text || ''], { type: 'text/plain' }),
+    })]);
+  } else if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(data.text || '');
+  } else {
+    throw new Error('Clipboard unavailable');
+  }
+  recordClipboardData(data);
+}
+
+export function pasteClipboardData(editor, data) {
+  if (!editor || (!data?.html && !data?.text)) return false;
+  // Use ProseMirror paste handlers so partial selections keep marks and open block edges.
+  const event = typeof ClipboardEvent === 'function' ? new ClipboardEvent('paste') : new Event('paste');
+  if (data.html) return editor.view.pasteHTML(data.html, event);
+  return editor.view.pasteText(data.text, event);
+}
+
 /**
  * Enhanced Clipboard Service
  * Handles copy/paste with formatting preservation
@@ -8,102 +43,50 @@ export class ClipboardService {
    * Copy editor content with formatting
    */
   static async copyToClipboard(editor, format = 'html') {
-    if (!editor) return false;
-
+    const data = selectionClipboardData(editor);
+    if (!data) return false;
     try {
-      const html = editor.getHTML();
-      const text = editor.state.doc.textContent;
-
-      // Get DOM content for richer formatting
-      const dom = editor.view.dom;
-      const range = document.createRange();
-      range.selectNodeContents(dom);
-
-      if (format === 'html' || format === 'both') {
-        const blob = new Blob([html], { type: 'text/html' });
-        const data = [
-          new ClipboardItem({
-            'text/html': blob,
-            'text/plain': new Blob([text], { type: 'text/plain' }),
-          }),
-        ];
-        await navigator.clipboard.write(data);
-        return true;
-      } else {
-        await navigator.clipboard.writeText(text);
-        return true;
-      }
-    } catch (err) {
-      console.error('Copy failed:', err);
+      await writeClipboardData(format === 'text' ? { text: data.text } : data);
+      return true;
+    } catch {
       return false;
     }
   }
 
-  /**
-   * Paste from clipboard with formatting preservation
-   */
-  static async pasteFromClipboard(editor, options = {}) {
+  static async pasteFromClipboard(editor, { preserveFormatting = true } = {}) {
     if (!editor) return false;
-
-    const { preserveFormatting = true, mergeStyles = false } = options;
-
     try {
-      const items = await navigator.clipboard.read();
-
-      for (const item of items) {
-        // Try HTML first if preserving formatting
-        if (preserveFormatting && item.types.includes('text/html')) {
-          const blob = await item.getType('text/html');
-          const html = await blob.text();
-          editor.chain().focus().insertContent(html).run();
-          return true;
+      if (navigator.clipboard?.read) {
+        const items = await navigator.clipboard.read();
+        if (preserveFormatting) {
+          for (const item of items) {
+            if (!item.types.includes('text/html')) continue;
+            const html = await (await item.getType('text/html')).text();
+            const text = item.types.includes('text/plain') ? await (await item.getType('text/plain')).text() : '';
+            recordClipboardData({ html, text });
+            return pasteClipboardData(editor, { html, text });
+          }
         }
-
-        // Fall back to plain text
-        if (item.types.includes('text/plain')) {
-          const blob = await item.getType('text/plain');
-          const text = await blob.text();
-          editor.chain().focus().insertContent(text).run();
-          return true;
+        for (const item of items) {
+          if (!item.types.includes('text/plain')) continue;
+          const text = await (await item.getType('text/plain')).text();
+          recordClipboardData({ text });
+          return pasteClipboardData(editor, { text });
         }
       }
-
-      return false;
-    } catch (err) {
-      console.error('Paste failed:', err);
-
-      // Fallback: try the older API
-      try {
+      if (navigator.clipboard?.readText) {
         const text = await navigator.clipboard.readText();
-        editor.chain().focus().insertContent(text).run();
-        return true;
-      } catch (fallbackErr) {
-        console.error('Fallback paste also failed:', fallbackErr);
-        return false;
+        recordClipboardData({ text });
+        return pasteClipboardData(editor, { text });
       }
+    } catch {
+      // The ribbon cannot bypass clipboard permissions; native Ctrl+V still works.
     }
+    return false;
   }
 
-  /**
-   * Copy specific selection with formatting
-   */
   static copySelection(editor) {
-    if (!editor || editor.state.selection.empty) {
-      return false;
-    }
-
-    const { from, to } = editor.state.selection;
-    const selectedContent = editor.getJSON();
-
-    // Store in session for cross-window paste
-    sessionStorage.setItem('etherx_clipboard', JSON.stringify({
-      content: editor.getHTML(),
-      json: selectedContent,
-      timestamp: Date.now(),
-    }));
-
-    // Also try browser clipboard
-    return this.copyToClipboard(editor, 'html');
+    return this.copyToClipboard(editor);
   }
 
   /**

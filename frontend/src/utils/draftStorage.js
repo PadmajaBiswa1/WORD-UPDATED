@@ -17,8 +17,10 @@ export function getDraftStorageKey(id) {
  */
 export function writeLocalDraft(id, data = {}) {
   if (!id || typeof window === 'undefined' || !window.localStorage) return;
+  // Declared outside try: the quota-exceeded retry below writes it again.
+  let draft;
   try {
-    const draft = {
+    draft = {
       id,
       title: data.title,
       content: typeof data.content === 'string' ? stripAutoPageBreaks(data.content) : data.content,
@@ -26,6 +28,13 @@ export function writeLocalDraft(id, data = {}) {
       design: data.design,
       headerFooter: data.headerFooter,
       layout: data.layout,
+      pageCount: data.pageCount,
+      comments: data.comments,
+      trackChanges: data.trackChanges,
+      documentParts: data.documentParts,
+      signatures: data.signatures,
+      accessPolicy: data.accessPolicy,
+      aiProfile: data.aiProfile,
       styles: data.styles,
       references: data.references,
       security: data.security,

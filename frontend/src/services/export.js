@@ -7,6 +7,7 @@ import { useDocumentStore, useUIStore } from '@/store';
 import { stripAutoPageBreaks } from '@/components/editor/PageBreak';
 import { WORD_SINGLE_LINE } from '@/services/docxImport';
 import { acceptSuggestionsInHtml } from '@/services/suggestionHtml';
+import { portableExportHtml, exportPageFill, flattenExportMedia, rasterizeExportImage } from './exportAppearance';
 
 export function sanitizeFilename(name) {
   return (name || 'document').replace(/[^a-z0-9_\-\s]/gi, '_').trim() || 'document';
@@ -28,10 +29,11 @@ function escapeHtml(text = '') {
  *   on standard white/light document backgrounds in external apps and normalizes them to readable dark text (#1a1a1a).
  * - Preserves user-chosen vivid colors (red, blue, gold, green, etc.).
  */
-export function normalizeExportColor(colorStr, forDocx = false) {
+export function normalizeExportColor(colorStr, forDocx = false, preserveLight = false) {
   if (!colorStr || typeof colorStr !== 'string') return undefined;
   const s = colorStr.trim().toLowerCase();
   if (['inherit', 'initial', 'unset', 'transparent', 'currentcolor'].includes(s)) return undefined;
+  if (/^rgba\([^)]*,\s*0(?:\.0*)?\s*\)$/.test(s)) return undefined;
 
   let r = 0, g = 0, b = 0, hasColor = false;
 
@@ -63,7 +65,7 @@ export function normalizeExportColor(colorStr, forDocx = false) {
 
   // Calculate relative luminance
   const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  if (lum > 0.82) {
+  if (lum > 0.82 && !preserveLight) {
     // Light text on white canvas is invisible; normalize to dark text
     return forDocx ? '1A1A1A' : '#1a1a1a';
   }
@@ -138,7 +140,7 @@ export function prepareExportHtml(rawHtml = '', options = {}) {
         if (!prop || !valParts.length) return part;
         const pName = prop.trim().toLowerCase();
         const pVal = valParts.join(':').trim();
-        if (pName === 'color') {
+        if (pName === 'color' && !options.preserveColors) {
           const norm = normalizeExportColor(pVal, false);
           return norm ? `color: ${norm}` : '';
         }
@@ -149,7 +151,7 @@ export function prepareExportHtml(rawHtml = '', options = {}) {
 
   // If entirely empty or only whitespace/empty tags, provide minimal placeholder
   const textContent = html.replace(/<[^>]+>/g, '').trim();
-  if (!textContent && !/<img\b/i.test(html) && !/<table\b/i.test(html)) {
+  if (!textContent && !/<(?:img|table|iframe|svg)\b/i.test(html) && !/data-page-break/.test(html)) {
     return '<p></p>';
   }
 
@@ -160,7 +162,7 @@ export function prepareExportHtml(rawHtml = '', options = {}) {
  * Safely resolves document metadata (headerFooter, design, pageSettings)
  * by merging passed options with active Zustand store states when running in the browser.
  */
-function resolveExportMetadata(options = {}) {
+export function resolveExportMetadata(options = {}) {
   let docState = {};
   let uiState = {};
 
@@ -170,10 +172,12 @@ function resolveExportMetadata(options = {}) {
   } catch {}
 
   const pageSettings = {
-    format: options.pageSettings?.format || options.format || uiState.pageSize || 'a4',
-    orientation: options.pageSettings?.orientation || options.orientation || uiState.pageOrientation || 'portrait',
-    margin: options.pageSettings?.margin || options.margin || uiState.pageMargin || 'normal',
-    columns: options.pageSettings?.columns || options.columns || uiState.pageColumns || 1,
+    format: options.pageSettings?.format || options.layout?.pageSize || options.format || uiState.pageSize || 'a4',
+    orientation: options.pageSettings?.orientation || options.layout?.pageOrientation || options.orientation || uiState.pageOrientation || 'portrait',
+    margin: options.pageSettings?.margin || options.layout?.pageMargin || options.margin || uiState.pageMargin || 'normal',
+    columns: options.pageSettings?.columns || options.layout?.pageColumns || options.columns || uiState.pageColumns || 1,
+    lineNumbers: options.layout?.lineNumbers ?? docState.layout?.lineNumbers ?? false,
+    hyphenation: options.layout?.hyphenation ?? docState.layout?.hyphenation ?? false,
   };
 
   const headerFooter = {
@@ -193,26 +197,32 @@ function resolveExportMetadata(options = {}) {
   };
 
   const design = {
-    ...(docState.design || {}),
-    ...(options.design || {}),
+    ...(options.design !== undefined ? options.design : docState.design || {}),
   };
 
   const watermark = options.watermark || design.watermark || uiState.watermarkText || '';
 
-  return { pageSettings, headerFooter, design, watermark };
+  return { pageSettings, headerFooter, design, watermark, comments: options.comments || docState.comments || [], references: options.references || docState.references || {} };
 }
 
 /* ── HTML ───────────────────────────────────────────────────── */
 
 export function buildHtmlDocument(title, rawHtml, options = {}) {
   const cleanTitle = (title || 'Untitled Document').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const content = prepareExportHtml(rawHtml, options);
-  const { headerFooter, design, pageSettings } = resolveExportMetadata(options);
+  const meta = resolveExportMetadata(options);
+  const content = prepareExportHtml(portableExportHtml(rawHtml, meta), { ...options, preserveColors: true });
+  const { headerFooter, design, pageSettings, watermark } = meta;
 
   const headingFont = design.headingFont || design.font || 'Crimson Pro';
   const bodyFont = design.bodyFont || design.font || 'Crimson Pro';
   const headingColor = design.heading || design.accent || '#111111';
   const lineSpacing = design.spacing || '1.7';
+  const padding = MARGIN_MAP[pageSettings.margin] || MARGIN_MAP.normal;
+  const dims = PAGE_SIZES[pageSettings.format] || PAGE_SIZES.a4;
+  const width = pageSettings.orientation === 'landscape' ? dims.h : dims.w;
+  const fill = exportPageFill(design);
+  const border = design.borderSetting && design.borderSetting !== 'none' && design.borderStyle !== 'none';
+  const borderCss = ['top', 'right', 'bottom', 'left'].map((side) => `border-${side}:${border && design.borderSides?.[side] !== false ? `${Number(design.borderWidth || 1)}pt ${design.borderStyle || 'solid'} ${design.borderColor || '#6f5320'}` : 'none'};`).join('');
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -223,7 +233,7 @@ export function buildHtmlDocument(title, rawHtml, options = {}) {
   <style>
     @page {
       size: ${pageSettings.format.toUpperCase()} ${pageSettings.orientation};
-      margin: 25.4mm;
+      margin: ${padding}px;
     }
     *, *::before, *::after { box-sizing: border-box; }
     body {
@@ -335,9 +345,21 @@ export function buildHtmlDocument(title, rawHtml, options = {}) {
       body { margin: 0; padding: 0; max-width: 100%; }
       .etherx-page-break { border-top: none; margin: 0; }
     }
+    body { background-image:${design.pageFillImage || 'none'}; max-width:${width}px; padding:${padding}px; background:${fill}; font-size:${Number(design.fontSize) || 12}pt; }
+    main { position:relative; isolation:isolate; column-count:${Math.max(1, Number(pageSettings.columns) || 1)}; column-gap:48px; hyphens:${pageSettings.hyphenation ? 'auto' : 'manual'}; }
+    main > :not(img):not([data-page-break]) { position:relative; z-index:1; }
+    h1 { border:0; padding:0; } h1,h2,h3,h4,h5,h6 { margin:0 0 10pt; }
+    img { border-radius:0; margin:0; } table { margin:0 0 10pt; }
+    .document-border { position:fixed; inset:${Number(design.borderDistance || 24)}pt; ${borderCss} pointer-events:none; }
+    .document-watermark { position:fixed; top:45%; left:50%; transform:translate(-50%,-50%) rotate(-28deg); font-size:78px; font-weight:bold; opacity:.11; pointer-events:none; }
+    .document-header,.document-footer { white-space:pre-wrap; border:0; }
+    @page { ${headerFooter.pageNumberEnabled ? `@${headerFooter.pageNumberStyle.replace('top-', 'top-').replace('bottom-', 'bottom-')} { content: counter(page); }` : ''} }
+    @media print { body { padding:0; background:${fill}; } .document-header { position:fixed; top:-${Math.max(20, padding * .6)}px; left:0; right:0; } .document-footer { position:fixed; bottom:-${Math.max(20, padding * .6)}px; left:0; right:0; } }
   </style>
 </head>
 <body>
+  ${border ? '<div class="document-border"></div>' : ''}
+  ${watermark ? `<div class="document-watermark">${escapeHtml(watermark)}</div>` : ''}
   ${headerFooter.headerText ? `<div class="document-header">${escapeHtml(headerFooter.headerText)}</div>` : ''}
   <main>${content}</main>
   ${headerFooter.footerText ? `<div class="document-footer">${escapeHtml(headerFooter.footerText)}</div>` : ''}
@@ -362,397 +384,117 @@ export function exportToHtml(title, html, options = {}) {
  * Splits document content into separate page block arrays.
  * Respects explicit page break elements AND block overflow metrics.
  */
-function partitionContentIntoPages(sourceRoot, contentWidth, contentHeight, styles) {
-  const pages = [[]];
-  let currentPageIndex = 0;
-  let currentY = 0;
-
-  // Measurement probe container offscreen
-  const probe = document.createElement('div');
-  probe.style.position = 'fixed';
-  probe.style.left = '-9999px';
-  probe.style.top = '0';
-  probe.style.width = `${contentWidth}px`;
-  probe.style.boxSizing = 'border-box';
-  probe.style.fontFamily = styles.fontFamily;
-  probe.style.lineHeight = styles.lineHeight;
-  probe.style.fontSize = '15px';
-  probe.style.visibility = 'hidden';
-  probe.style.pointerEvents = 'none';
-  document.body.appendChild(probe);
-
-  try {
-    const childNodes = Array.from(sourceRoot.childNodes);
-
-    for (let i = 0; i < childNodes.length; i += 1) {
-      const node = childNodes[i];
-
-      // Skip empty comment / blank text nodes
-      if (node.nodeType === 3 && !node.textContent.trim()) {
-        continue;
-      }
-
-      // Check if this element is an explicit page break
-      if (node.nodeType === 1 && isPageBreakElement(node)) {
-        if (pages[currentPageIndex].length > 0) {
-          pages.push([]);
-          currentPageIndex += 1;
-          currentY = 0;
-        }
-        continue;
-      }
-
-      // Wrap bare text nodes in paragraph elements for proper block flow
-      let blockNode = node;
-      if (node.nodeType === 3) {
-        const p = document.createElement('p');
-        p.textContent = node.textContent;
-        blockNode = p;
-      }
-
-      const clone = blockNode.cloneNode(true);
-      probe.innerHTML = '';
-      probe.appendChild(clone);
-
-      const rect = clone.getBoundingClientRect();
-      const measuredHeight = Math.max(20, Math.ceil(rect.height || clone.offsetHeight || 28));
-
-      // Check if adding this block overflows the current page content area
-      if (pages[currentPageIndex].length > 0 && currentY + measuredHeight > contentHeight) {
-        pages.push([]);
-        currentPageIndex += 1;
-        currentY = 0;
-      }
-
-      pages[currentPageIndex].push(blockNode.cloneNode(true));
-      currentY += measuredHeight;
-    }
-  } finally {
-    probe.remove();
-  }
-
-  // Ensure at least one page with empty paragraph if document has no blocks
-  if (pages.length === 0 || (pages.length === 1 && pages[0].length === 0)) {
-    const emptyP = document.createElement('p');
-    emptyP.innerHTML = '&nbsp;';
-    return [[emptyP]];
-  }
-
-  return pages;
-}
-
 export async function buildPdfBlob(title, htmlOrEl, options = {}) {
-  const [{ default: jsPDF }, { default: h2c }] = await Promise.all([
-    import('jspdf'),
-    import('html2canvas'),
-  ]);
-
+  const [{ default: jsPDF }, { default: h2c }] = await Promise.all([import('jspdf'), import('html2canvas')]);
   const meta = resolveExportMetadata(options);
   const { pageSettings, headerFooter, design, watermark } = meta;
-
-  const orientation = pageSettings.orientation === 'landscape' ? 'landscape' : 'portrait';
-  const formatKey = (pageSettings.format || 'a4').toLowerCase();
-  const formatDims = PAGE_SIZES[formatKey] || PAGE_SIZES.a4;
-
-  const isLandscape = orientation === 'landscape';
-  const pageWidth = isLandscape ? formatDims.h : formatDims.w;
-  const pageHeight = isLandscape ? formatDims.w : formatDims.h;
-
+  const landscape = pageSettings.orientation === 'landscape';
+  const format = (pageSettings.format || 'a4').toLowerCase();
+  const dims = PAGE_SIZES[format] || PAGE_SIZES.a4;
+  const width = landscape ? dims.h : dims.w;
+  const height = landscape ? dims.w : dims.h;
   const padding = MARGIN_MAP[pageSettings.margin] || MARGIN_MAP.normal;
-  const contentWidth = Math.max(100, pageWidth - padding * 2);
-  const contentHeight = Math.max(100, pageHeight - padding * 2);
-
-  const headingFont = design.headingFont || design.font || 'Crimson Pro';
-  const bodyFont = design.bodyFont || design.font || 'Crimson Pro';
-  const headingColor = design.heading || design.accent || '#c9a84c';
-  const lineSpacing = String(design.spacing || '1.7');
-
-  // Parse source HTML or Element
-  const parseContainer = document.createElement('div');
-  const rawHtml = typeof htmlOrEl === 'string' ? htmlOrEl : (htmlOrEl?.innerHTML || '<p></p>');
-  parseContainer.innerHTML = prepareExportHtml(rawHtml);
-
-  // Normalize light text colors for dark contrast on white pages
-  parseContainer.querySelectorAll('*').forEach((el) => {
-    if (el.style && el.style.color) {
-      const norm = normalizeExportColor(el.style.color, false);
-      if (norm) el.style.color = norm;
-    }
-  });
-
-  const pageGroups = partitionContentIntoPages(
-    parseContainer,
-    contentWidth,
-    contentHeight,
-    { fontFamily: `'${bodyFont}', serif`, lineHeight: lineSpacing }
-  );
-
-  const pdf = new jsPDF({
-    orientation: isLandscape ? 'l' : 'p',
-    unit: 'mm',
-    format: formatKey,
-  });
-
-  const pdfPageWidth = pdf.internal.pageSize.getWidth();
-  const pdfPageHeight = pdf.internal.pageSize.getHeight();
-
-  // Create isolated stage for page captures
-  const stage = document.createElement('div');
-  stage.style.position = 'fixed';
-  stage.style.left = '-10000px';
-  stage.style.top = '0';
-  stage.style.width = `${pageWidth}px`;
-  stage.style.opacity = '1';
-  stage.style.pointerEvents = 'none';
-  stage.style.zIndex = '-99999';
-  document.body.appendChild(stage);
-
-  try {
-    for (let pageIdx = 0; pageIdx < pageGroups.length; pageIdx += 1) {
-      const blocks = pageGroups[pageIdx];
-
-      // Page Canvas Container
-      const pageEl = document.createElement('div');
-      pageEl.style.width = `${pageWidth}px`;
-      pageEl.style.height = `${pageHeight}px`;
-      pageEl.style.position = 'relative';
-      pageEl.style.boxSizing = 'border-box';
-      pageEl.style.background = '#ffffff';
-      pageEl.style.overflow = 'hidden';
-      pageEl.style.fontFamily = `'${bodyFont}', serif`;
-      pageEl.style.lineHeight = lineSpacing;
-      pageEl.style.color = '#1a1a1a';
-
-      // Decorative Inward Page Border (if configured in design)
-      if (design.borderStyle && design.borderStyle !== 'none' && design.borderSetting && design.borderSetting !== 'none') {
-        const borderWidth = Number(design.borderWidth || 1);
-        const borderInset = Math.round(Math.max(12, Math.min(padding - borderWidth - 4, Number(design.borderDistance || 24))));
-        const sides = design.borderSides || { top: true, right: true, bottom: true, left: true };
-
-        const borderEl = document.createElement('div');
-        borderEl.style.position = 'absolute';
-        borderEl.style.top = `${borderInset}px`;
-        borderEl.style.left = `${borderInset}px`;
-        borderEl.style.right = `${borderInset}px`;
-        borderEl.style.bottom = `${borderInset}px`;
-        borderEl.style.pointerEvents = 'none';
-        borderEl.style.boxSizing = 'border-box';
-        borderEl.style.borderTop = sides.top !== false ? `${borderWidth}px ${design.borderStyle} ${design.borderColor || '#6f5320'}` : 'none';
-        borderEl.style.borderRight = sides.right !== false ? `${borderWidth}px ${design.borderStyle} ${design.borderColor || '#6f5320'}` : 'none';
-        borderEl.style.borderBottom = sides.bottom !== false ? `${borderWidth}px ${design.borderStyle} ${design.borderColor || '#6f5320'}` : 'none';
-        borderEl.style.borderLeft = sides.left !== false ? `${borderWidth}px ${design.borderStyle} ${design.borderColor || '#6f5320'}` : 'none';
-        pageEl.appendChild(borderEl);
-      }
-
-      // Watermark
-      if (watermark) {
-        const wmEl = document.createElement('div');
-        wmEl.textContent = watermark;
-        wmEl.style.position = 'absolute';
-        wmEl.style.top = '48%';
-        wmEl.style.left = '50%';
-        wmEl.style.transform = 'translate(-50%, -50%) rotate(-28deg)';
-        wmEl.style.fontSize = '72px';
-        wmEl.style.fontWeight = '700';
-        wmEl.style.letterSpacing = '0.08em';
-        wmEl.style.opacity = '0.10';
-        wmEl.style.color = '#6f5320';
-        wmEl.style.pointerEvents = 'none';
-        wmEl.style.userSelect = 'none';
-        wmEl.style.whiteSpace = 'nowrap';
-        pageEl.appendChild(wmEl);
-      }
-
-      // Document Header
-      if (headerFooter.headerText) {
-        const headerTopOffset = Math.max(20, Math.round(padding * 0.38));
-        const headEl = document.createElement('div');
-        headEl.textContent = headerFooter.headerText;
-        headEl.style.position = 'absolute';
-        headEl.style.top = `${headerTopOffset}px`;
-        headEl.style.left = `${padding}px`;
-        headEl.style.right = `${padding}px`;
-        headEl.style.textAlign = String(headerFooter.headerAlign || 'Center').toLowerCase();
-        headEl.style.fontSize = '10px';
-        headEl.style.color = '#71717a';
-        headEl.style.fontFamily = `'${bodyFont}', serif`;
-        headEl.style.pointerEvents = 'none';
-        headEl.style.userSelect = 'none';
-        pageEl.appendChild(headEl);
-      }
-
-      // Document Footer (Footer text & Page Numbers)
-      const footerBottomOffset = Math.max(20, Math.round(padding * 0.38));
-      const footEl = document.createElement('div');
-      footEl.style.position = 'absolute';
-      footEl.style.bottom = `${footerBottomOffset}px`;
-      footEl.style.left = `${padding}px`;
-      footEl.style.right = `${padding}px`;
-      footEl.style.textAlign = String(headerFooter.footerAlign || 'Center').toLowerCase();
-      footEl.style.fontSize = '10px';
-      footEl.style.color = '#71717a';
-      footEl.style.fontFamily = `'${bodyFont}', serif`;
-      footEl.style.pointerEvents = 'none';
-      footEl.style.userSelect = 'none';
-
-      let footerContent = '';
-      if (headerFooter.footerText) {
-        footerContent += escapeHtml(headerFooter.footerText);
-      }
-      if (headerFooter.pageNumberEnabled || !headerFooter.footerText) {
-        const pageNum = pageIdx + headerFooter.pageNumberStart;
-        if (headerFooter.footerText) {
-          footerContent += ` — Page ${pageNum}`;
-        } else {
-          footerContent += `${pageNum}`;
-        }
-      }
-      footEl.innerHTML = footerContent;
-      pageEl.appendChild(footEl);
-
-      // Page Content Box
-      const contentEl = document.createElement('div');
-      contentEl.style.position = 'absolute';
-      contentEl.style.top = `${padding}px`;
-      contentEl.style.left = `${padding}px`;
-      contentEl.style.width = `${contentWidth}px`;
-      contentEl.style.height = `${contentHeight}px`;
-      contentEl.style.boxSizing = 'border-box';
-      contentEl.style.overflow = 'hidden';
-      contentEl.style.wordBreak = 'break-word';
-      contentEl.style.overflowWrap = 'break-word';
-
-      // Attach page blocks
-      blocks.forEach((b) => {
-        contentEl.appendChild(b.cloneNode(true));
-      });
-
-      // Apply typographic hierarchy & element styles to content
-      contentEl.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach((h) => {
-        h.style.fontFamily = `'${headingFont}', serif`;
-        h.style.color = headingColor;
-        h.style.lineHeight = '1.3';
-        h.style.marginTop = '0';
-        h.style.marginBottom = '10pt';
-      });
-      contentEl.querySelectorAll('p').forEach((p) => {
-        p.style.marginTop = '0';
-        p.style.marginBottom = '10pt';
-        p.style.lineHeight = lineSpacing;
-      });
-      contentEl.querySelectorAll('ul, ol').forEach((list) => {
-        list.style.marginTop = '0';
-        list.style.marginBottom = '10pt';
-        list.style.paddingLeft = '28px';
-      });
-      contentEl.querySelectorAll('li').forEach((li) => {
-        li.style.marginBottom = '4pt';
-      });
-      contentEl.querySelectorAll('table').forEach((tbl) => {
-        tbl.style.borderCollapse = 'collapse';
-        tbl.style.boxSizing = 'border-box';
-
-        // Check alignment from align attr, data-align attr, style, or class
-        const alignAttr = (tbl.getAttribute('align') || tbl.getAttribute('data-align') || '').toLowerCase();
-        const mLeft = tbl.style.marginLeft;
-        const mRight = tbl.style.marginRight;
-        const isCenter = alignAttr === 'center' || (mLeft === 'auto' && mRight === 'auto') || tbl.classList.contains('table-align-center');
-        const isRight = alignAttr === 'right' || (mLeft === 'auto' && (mRight === '0' || mRight === '0px')) || tbl.classList.contains('table-align-right');
-
-        if (isCenter) {
-          tbl.style.marginLeft = 'auto';
-          tbl.style.marginRight = 'auto';
-          tbl.style.marginTop = tbl.style.marginTop || '12pt';
-          tbl.style.marginBottom = tbl.style.marginBottom || '12pt';
-        } else if (isRight) {
-          tbl.style.marginLeft = 'auto';
-          tbl.style.marginRight = '0';
-          tbl.style.marginTop = tbl.style.marginTop || '12pt';
-          tbl.style.marginBottom = tbl.style.marginBottom || '12pt';
-        } else {
-          tbl.style.marginLeft = '0';
-          tbl.style.marginRight = 'auto';
-          tbl.style.marginTop = tbl.style.marginTop || '12pt';
-          tbl.style.marginBottom = tbl.style.marginBottom || '12pt';
-        }
-
-        const rawWidth = tbl.style.width || tbl.getAttribute('width');
-        if (rawWidth) {
-          tbl.style.width = rawWidth;
-        } else if (!isCenter && !isRight) {
-          tbl.style.width = '100%';
-        } else {
-          tbl.style.maxWidth = '100%';
-          if (!tbl.style.width) tbl.style.width = '100%';
-        }
-      });
-      contentEl.querySelectorAll('th, td').forEach((cell) => {
-        if (!cell.style.border) cell.style.border = '1px solid #d0d0d0';
-        if (!cell.style.padding) cell.style.padding = '6px 10px';
-        cell.style.boxSizing = 'border-box';
-        const cellAlign = cell.style.textAlign || cell.getAttribute('align');
-        if (cellAlign) {
-          cell.style.textAlign = cellAlign;
-        }
-      });
-      contentEl.querySelectorAll('th').forEach((th) => {
-        if (!th.style.backgroundColor) {
-          th.style.backgroundColor = '#f7f7f7';
-        }
-        th.style.fontWeight = th.style.fontWeight || '600';
-      });
-      contentEl.querySelectorAll('img').forEach((img) => {
-        img.style.maxWidth = '100%';
-        img.style.height = 'auto';
-        img.style.borderRadius = '4px';
-        img.style.display = 'block';
-        img.style.margin = '10px auto';
-      });
-
-      pageEl.appendChild(contentEl);
-      stage.innerHTML = '';
-      stage.appendChild(pageEl);
-
-      // Wait for any images inside this page to complete loading
-      const imgs = Array.from(pageEl.querySelectorAll('img'));
-      if (imgs.length > 0) {
-        await Promise.all(
-          imgs.map((img) => {
-            if (img.complete) return Promise.resolve();
-            return new Promise((res) => {
-              img.onload = res;
-              img.onerror = res;
-              setTimeout(res, 500);
-            });
-          })
-        );
-      }
-
-      // Capture this page
-      const canvas = await h2c(pageEl, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        allowTaint: true,
-        logging: false,
-        scrollX: 0,
-        scrollY: 0,
-      });
-
-      const pageImgData = canvas.toDataURL('image/jpeg', 0.95);
-
-      if (pageIdx > 0) {
-        pdf.addPage(formatKey, isLandscape ? 'l' : 'p');
-      }
-
-      pdf.addImage(pageImgData, 'JPEG', 0, 0, pdfPageWidth, pdfPageHeight);
-    }
-
-    const blob = pdf.output('blob');
-    return { blob, pdf };
-  } finally {
-    stage.remove();
+  const contentWidth = width - padding * 2;
+  const contentHeight = height - padding * 2;
+  const raw = typeof htmlOrEl === 'string' ? htmlOrEl : htmlOrEl?.innerHTML || '<p></p>';
+  const source = document.createElement('div');
+  source.innerHTML = prepareExportHtml(portableExportHtml(raw, meta), { preserveColors: true });
+  flattenExportMedia(source);
+  for (const image of source.querySelectorAll('img')) if (image.style.filter || image.style.opacity) {
+    const raster = await rasterizeExportImage(image.src, { filter: image.style.filter, opacity: image.style.opacity });
+    image.src = raster.src; image.style.filter = ''; image.style.opacity = '';
   }
+  const sections = [[]];
+  for (const node of Array.from(source.childNodes)) {
+    if (isPageBreakElement(node)) sections.push([]);
+    else sections.at(-1).push(node);
+  }
+  const pdf = new jsPDF({ orientation: landscape ? 'l' : 'p', unit: 'mm', format });
+  pdf.setProperties({ title: title || 'Document', creator: 'EtherX Word' });
+  const stage = document.createElement('div');
+  stage.style.cssText = `position:fixed;left:-10000px;top:0;width:${width}px;pointer-events:none;z-index:-99999;`;
+  document.body.appendChild(stage);
+  let pageIndex = 0;
+  try {
+    await document.fonts?.ready;
+    for (const blocks of sections) {
+      const content = document.createElement('div');
+      content.style.cssText = `position:relative;isolation:isolate;width:${contentWidth}px;font-family:"${design.bodyFont || design.font || 'Crimson Pro'}",serif;font-size:${Number(design.fontSize) || 12}pt;line-height:${design.spacing || 1.7};color:#1a1a1a;overflow-wrap:break-word;`;
+      for (const block of blocks) content.appendChild(block.cloneNode(true));
+      content.querySelectorAll('p,h1,h2,h3,h4,h5,h6').forEach((el) => {
+        if (!el.style.marginTop) el.style.marginTop = '0';
+        if (!el.style.marginBottom) el.style.marginBottom = '10pt';
+        if (/^H/.test(el.tagName)) { if (!el.style.fontFamily) el.style.fontFamily = design.headingFont || design.font || 'Crimson Pro'; if (!el.style.color) el.style.color = design.heading || design.accent || '#c9a84c'; }
+      });
+      content.querySelectorAll('table').forEach((table) => { table.style.borderCollapse = 'collapse'; if (!table.style.width) table.style.width = '100%'; });
+      content.querySelectorAll('img').forEach((image) => { image.style.maxWidth = '100%'; });
+      const columns = Math.max(1, Number(pageSettings.columns) || 1);
+      if (columns > 1) { content.style.columnCount = String(columns); content.style.columnGap = '48px'; content.style.columnFill = 'auto'; content.style.height = `${contentHeight}px`; }
+      stage.appendChild(content);
+      await Promise.all(Array.from(content.querySelectorAll('img')).map((image) => image.complete && image.naturalWidth ? Promise.resolve() : new Promise((resolve, reject) => { const timer = setTimeout(() => reject(new Error('An image could not be loaded for PDF export')), 15000); image.onload = () => { clearTimeout(timer); resolve(); }; image.onerror = () => { clearTimeout(timer); reject(new Error('An image could not be loaded for PDF export')); }; })));
+      const extent = Math.max(content.scrollHeight, content.offsetHeight);
+      const cuts = [0];
+      if (columns === 1) {
+        const bounds = content.getBoundingClientRect();
+        const lines = [];
+        const walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT);
+        while (walker.nextNode()) {
+          const range = document.createRange(); range.selectNodeContents(walker.currentNode);
+          for (const rect of range.getClientRects()) if (rect.height) lines.push({ top: rect.top - bounds.top, bottom: rect.bottom - bounds.top });
+        }
+        while (cuts.at(-1) + contentHeight < extent) {
+          const target = cuts.at(-1) + contentHeight;
+          const intersecting = lines.filter((line) => line.top < target && line.bottom > target);
+          const safe = intersecting.length ? Math.min(...intersecting.map((line) => line.top)) : target;
+          cuts.push(safe > cuts.at(-1) + contentHeight * .5 ? safe : target);
+        }
+      } else {
+        const pages = Math.max(1, Math.ceil((content.scrollWidth + 48) / (contentWidth + 48)));
+        for (let index = 1; index < pages; index += 1) cuts.push(index * (contentWidth + 48));
+      }
+      for (const [slice, offset] of cuts.entries()) {
+        const page = document.createElement('div');
+        page.style.backgroundImage = design.pageFillImage || 'none';
+        page.style.cssText = `position:relative;width:${width}px;height:${height}px;background:${exportPageFill(design)};font-family:"${design.bodyFont || design.font || 'Crimson Pro'}",serif;overflow:hidden;`;
+        page.style.backgroundImage = design.pageFillImage || 'none';
+        if (watermark) {
+          const wm = document.createElement('div'); wm.textContent = watermark;
+          wm.style.cssText = 'position:absolute;left:50%;top:45%;transform:translate(-50%,-50%) rotate(-28deg);font-size:78px;font-weight:bold;opacity:.11;color:#6f5320;white-space:nowrap;'; page.appendChild(wm);
+        }
+        if (design.borderSetting && design.borderSetting !== 'none' && design.borderStyle !== 'none') {
+          const frame = document.createElement('div');
+          frame.style.cssText = `position:absolute;inset:${Number(design.borderDistance || 24) * 96 / 72}px;box-sizing:border-box;`;
+          for (const side of ['Top','Right','Bottom','Left']) frame.style[`border${side}`] = design.borderSides?.[side.toLowerCase()] === false ? 'none' : `${Number(design.borderWidth || 1) * 96 / 72}px ${design.borderStyle || 'solid'} ${design.borderColor || '#6f5320'}`;
+          if (design.borderSetting === 'shadow') frame.style.boxShadow = '3px 3px 0 rgba(0,0,0,.35)';
+          page.appendChild(frame);
+        }
+        const number = pageIndex + headerFooter.pageNumberStart;
+        for (const kind of ['header','footer']) {
+          const text = headerFooter[`${kind}Text`];
+          const numbered = headerFooter.pageNumberEnabled && headerFooter.pageNumberStyle.startsWith(kind === 'header' ? 'top' : 'bottom');
+          if (!text && !numbered) continue;
+          const element = document.createElement('div');
+          element.textContent = `${text || ''}${text && numbered ? ' — ' : ''}${numbered ? number : ''}`;
+          element.style.cssText = `position:absolute;${kind === 'header' ? 'top' : 'bottom'}:${Math.max(20,padding * .38)}px;left:${padding}px;right:${padding}px;font-size:10px;white-space:pre-wrap;color:#71717a;text-align:${numbered ? headerFooter.pageNumberStyle.endsWith('right') ? 'right' : 'center' : String(headerFooter[`${kind}Align`] || 'Center').toLowerCase()};`;
+          page.appendChild(element);
+        }
+        const viewport = document.createElement('div');
+        const sliceHeight = columns === 1 && cuts[slice + 1] !== undefined ? cuts[slice + 1] - offset : contentHeight;
+        viewport.style.cssText = `position:absolute;left:${padding}px;top:${padding}px;width:${contentWidth}px;height:${sliceHeight}px;overflow:hidden;`;
+        content.style.transform = columns === 1 ? `translateY(-${offset}px)` : `translateX(-${offset}px)`;
+        viewport.appendChild(content); page.appendChild(viewport); stage.replaceChildren(page);
+        const canvas = await h2c(page, { scale: 2, useCORS: true, backgroundColor: exportPageFill(design), logging: false, scrollX:0, scrollY:0, ignoreElements: (el) => document.body.contains(el) && el !== document.body && !el.contains(stage) && !stage.contains(el) });
+        if (pageIndex) pdf.addPage(format, landscape ? 'l' : 'p');
+        pdf.addImage(canvas.toDataURL('image/jpeg', .98), 'JPEG', 0, 0, pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight());
+        const pageRect = page.getBoundingClientRect();
+        for (const link of content.querySelectorAll('a[href]')) for (const rect of link.getClientRects()) {
+          if (rect.top >= pageRect.top + padding && rect.bottom <= pageRect.top + padding + sliceHeight && rect.left >= pageRect.left + padding && rect.right <= pageRect.left + padding + contentWidth) pdf.link((rect.left - pageRect.left) / width * pdf.internal.pageSize.getWidth(), (rect.top - pageRect.top) / height * pdf.internal.pageSize.getHeight(), rect.width / width * pdf.internal.pageSize.getWidth(), rect.height / height * pdf.internal.pageSize.getHeight(), { url: link.href });
+        }
+        pageIndex += 1;
+      }
+    }
+    return { blob: pdf.output('blob'), pdf };
+  } finally { stage.remove(); }
 }
 
 export async function exportToPdf(title, htmlOrEl, options = {}) {
@@ -773,8 +515,7 @@ async function extractImageBytes(src) {
     if (src.startsWith('data:image/')) {
       const parts = src.split(',');
       if (parts.length < 2) return null;
-      const base64 = parts[1];
-      const binaryString = atob(base64);
+      const binaryString = /;base64/i.test(parts[0]) ? atob(parts.slice(1).join(',')) : decodeURIComponent(parts.slice(1).join(','));
       const len = binaryString.length;
       const bytes = new Uint8Array(len);
       for (let i = 0; i < len; i += 1) {
@@ -868,6 +609,8 @@ export async function buildDocxBlob(rawHtml, options = {}) {
     DeletedTextRun,
     PageOrientation,
     HorizontalPositionAlign,
+    VerticalPositionAlign,
+    CommentRangeStart, CommentRangeEnd, CommentReference,
     HorizontalPositionRelativeFrom,
     VerticalPositionRelativeFrom,
     TextWrappingType,
@@ -906,14 +649,15 @@ export async function buildDocxBlob(rawHtml, options = {}) {
 
   const bodyFont = mapFontForDocx(design.bodyFont || design.font || 'Crimson Pro');
   const headingFont = mapFontForDocx(design.headingFont || design.font || 'Crimson Pro');
-  const headingColor = normalizeExportColor(design.heading || design.accent || '#c9a84c', true) || 'C9A84C';
+  const headingColor = normalizeExportColor(design.heading || design.accent || '#c9a84c', true, true) || 'C9A84C';
   const lineSpacingMultiplier = Number(design.spacing || '1.7') || 1.7;
   // CSS line-height n shows lines n x font size apart; Word's single (240) is ~1.15 x font size.
   const wordLineSpacing = Math.round((lineSpacingMultiplier / WORD_SINGLE_LINE) * 240);
 
-  const cleanHtml = prepareExportHtml(rawHtml, { ...options, keepSuggestions: true });
+  const cleanHtml = prepareExportHtml(portableExportHtml(rawHtml, meta), { ...options, keepSuggestions: true, preserveColors: true });
   const div = document.createElement('div');
   div.innerHTML = cleanHtml;
+  flattenExportMedia(div);
 
   // Paragraph alignment from the editor's `text-align` style (or legacy `align` attribute).
   const alignmentFor = (el) => {
@@ -930,6 +674,11 @@ export async function buildDocxBlob(rawHtml, options = {}) {
     const match = /^(-?\d*\.?\d+)(pt|px)?$/.exec(String(value || '').trim());
     if (!match) return undefined;
     return Math.round(Number(match[1]) * (match[2] === 'px' ? 15 : 20));
+  };
+
+  const cssBorder = (style, side) => {
+    const kind = style.getPropertyValue(`border-${side}-style`);
+    return { style: !kind || ['none', 'hidden'].includes(kind) ? BorderStyle.NONE : ({ double: BorderStyle.DOUBLE, dashed: BorderStyle.DASHED, dotted: BorderStyle.DOTTED })[kind] || BorderStyle.SINGLE, size: Math.max(0, Math.round((parseFloat(style.getPropertyValue(`border-${side}-width`)) || 0) * 6)), color: normalizeExportColor(style.getPropertyValue(`border-${side}-color`), true, true) || 'D0D0D0' };
   };
 
   // Paragraph spacing from the element's inline style (line-height, margin-top/bottom),
@@ -969,9 +718,20 @@ export async function buildDocxBlob(rawHtml, options = {}) {
 
   const imageData = new Map();
   await Promise.all(Array.from(div.querySelectorAll('img')).map(async (img) => {
-    const src = img.getAttribute('src');
-    const [bytes, natural] = await Promise.all([extractImageBytes(src), loadNaturalSize(src)]);
-    if (bytes) imageData.set(img, { bytes, natural });
+    let src = img.getAttribute('src');
+    if (!src) throw new Error('An image has no source');
+    const effects = src.includes('image/svg') || src.includes('image/webp') || img.style.filter || img.style.opacity;
+    if (effects) {
+      const raster = await rasterizeExportImage(src, { filter: img.style.filter, opacity: img.style.opacity });
+      src = raster.src;
+      const bytes = await extractImageBytes(src);
+      if (!bytes) throw new Error('An image could not be embedded');
+      imageData.set(img, { bytes, natural: { w: raster.width, h: raster.height } });
+    } else {
+      const [bytes, natural] = await Promise.all([extractImageBytes(src), loadNaturalSize(src)]);
+      if (!bytes) throw new Error('An image could not be embedded');
+      imageData.set(img, { bytes, natural });
+    }
   }));
 
   const cssPx = (value, percentOf) => {
@@ -1002,7 +762,9 @@ export async function buildDocxBlob(rawHtml, options = {}) {
   const buildImageRun = (img) => {
     const data = imageData.get(img);
     if (!data) return null;
-    const transformation = imageSize(img, data.natural);
+    const transformation = { ...imageSize(img, data.natural), rotation: Number(img.getAttribute('data-rotate')) || Number(img.style.transform?.match(/rotate\((-?[\d.]+)deg\)/)?.[1]) || 0 };
+    const absolute = img.style.position === 'absolute' || ['behindText', 'inFrontOfText'].includes(img.getAttribute('data-wrap'));
+    if (absolute) return new ImageRun({ data: data.bytes, transformation, altText: { name: img.alt || 'Document image', description: img.alt || '' }, floating: { horizontalPosition: { relative: HorizontalPositionRelativeFrom.MARGIN, offset: Math.round((parseFloat(img.style.left) || 0) * PX_TO_EMU) }, verticalPosition: { relative: VerticalPositionRelativeFrom.MARGIN, offset: Math.round((parseFloat(img.style.top) || 0) * PX_TO_EMU) }, behindDocument: img.getAttribute('data-wrap') === 'behindText' || Number(img.style.zIndex) <= 0, allowOverlap: true, wrap: { type: TextWrappingType.NONE } } });
     const side = floatSide(img);
     if (!side) return new ImageRun({ data: data.bytes, transformation });
 
@@ -1063,6 +825,7 @@ export async function buildDocxBlob(rawHtml, options = {}) {
   };
 
   const revisionIds = new Map();
+  const commentIds = new Map(meta.comments.map((comment, index) => [String(comment.id), index]));
   const revisionId = (key) => {
     if (!revisionIds.has(key)) revisionIds.set(key, revisionIds.size + 1);
     return revisionIds.get(key);
@@ -1092,6 +855,8 @@ export async function buildDocxBlob(rawHtml, options = {}) {
       const tag = currNode.tagName.toLowerCase();
       const style = currNode.style || {};
       const nextProps = { font: bodyFont, ...currProps };
+      const commentId = commentIds.get(currNode.getAttribute('data-comment-id'));
+      if (commentId !== undefined) runs.push(new CommentRangeStart(commentId));
 
       if (tag === 'strong' || tag === 'b' || style.fontWeight === 'bold' || parseInt(style.fontWeight, 10) >= 700) {
         nextProps.bold = true;
@@ -1120,16 +885,24 @@ export async function buildDocxBlob(rawHtml, options = {}) {
       }
 
       // Font size in half-points; the editor stores pt, pasted content may use px.
+      if (tag === 'sub') nextProps.subScript = true;
+      if (tag === 'sup') nextProps.superScript = true;
+      if (style.backgroundColor && style.backgroundColor !== 'transparent') {
+        const fill = normalizeExportColor(style.backgroundColor, true, true);
+        if (fill) nextProps.shading = { fill, type: ShadingType.CLEAR };
+      }
+      if (tag === 'mark' && !nextProps.shading) nextProps.shading = { fill: 'FFFF00', type: ShadingType.CLEAR };
+
       if (style.fontSize) {
         const n = parseFloat(style.fontSize);
         const pt = String(style.fontSize).trim().endsWith('px') ? n * 0.75 : n;
-        if (pt > 0) nextProps.size = Math.min(144, Math.max(12, Math.round(pt * 2)));
+        if (pt > 0) nextProps.size = Math.max(2, Math.round(pt * 2));
       }
 
       // Color normalization: must be 6-char hex without #
       const colorVal = style.color || currNode.getAttribute('color');
       if (colorVal) {
-        const hex = normalizeExportColor(colorVal, true);
+        const hex = normalizeExportColor(colorVal, true, true);
         if (hex) nextProps.color = hex;
       }
 
@@ -1139,12 +912,13 @@ export async function buildDocxBlob(rawHtml, options = {}) {
         if (mappedFont) nextProps.font = mappedFont;
       }
 
-      if ((tag === 'ins' || tag === 'del') && currNode.hasAttribute('data-suggestion')) {
+      const tracked = currNode.getAttribute('data-mark');
+      if (((tag === 'ins' || tag === 'del') && currNode.hasAttribute('data-suggestion')) || ['insertion', 'deletion'].includes(tracked)) {
         const revision = {
-          kind: tag,
-          id: revisionId(currNode.getAttribute('data-suggestion')),
+          kind: tracked === 'insertion' ? 'ins' : tracked === 'deletion' ? 'del' : tag,
+          id: revisionId(currNode.getAttribute('data-suggestion') || `${tracked}:${currNode.getAttribute('data-author')}:${currNode.getAttribute('data-date')}`),
           author: currNode.getAttribute('data-author') || 'Pragna',
-          date: currNode.getAttribute('data-created') || new Date().toISOString(),
+          date: currNode.getAttribute('data-created') || currNode.getAttribute('data-date') || new Date().toISOString(),
         };
         currNode.childNodes.forEach((child) => walkInline(child, { ...nextProps, __revision: revision }));
         return;
@@ -1178,9 +952,10 @@ export async function buildDocxBlob(rawHtml, options = {}) {
       }
 
       currNode.childNodes.forEach((child) => walkInline(child, nextProps));
+      if (commentId !== undefined) runs.push(new CommentRangeEnd(commentId), new TextRun({ children: [new CommentReference(commentId)] }));
     };
 
-    node.childNodes.forEach((child) => walkInline(child, inheritedProps));
+    walkInline(node, inheritedProps);
 
     if (!runs.length && node.textContent) {
       runs.push(new TextRun({ text: node.textContent, font: bodyFont, ...inheritedProps }));
@@ -1347,10 +1122,8 @@ export async function buildDocxBlob(rawHtml, options = {}) {
 
           // Shading for header or custom background
           let shading = undefined;
-          if (isHeader) {
-            shading = { fill: 'F7F7F7', type: ShadingType.CLEAR };
-          } else if (cell.style?.backgroundColor) {
-            const hex = normalizeExportColor(cell.style.backgroundColor, true);
+          if (cell.style?.backgroundColor) {
+            const hex = normalizeExportColor(cell.style.backgroundColor, true, true);
             if (hex) {
               shading = { fill: hex.replace('#', ''), type: ShadingType.CLEAR };
             }
@@ -1362,11 +1135,13 @@ export async function buildDocxBlob(rawHtml, options = {}) {
             width: cellWidth,
             columnSpan: colSpan > 1 ? colSpan : undefined,
             rowSpan: rowSpan > 1 ? rowSpan : undefined,
-            margins: { top: 40, bottom: 40, left: 100, right: 100 },
+            verticalAlign: ({ middle: VerticalAlign.CENTER, bottom: VerticalAlign.BOTTOM })[cell.style.verticalAlign] || VerticalAlign.TOP,
+            borders: Object.fromEntries(['top', 'right', 'bottom', 'left'].map((side) => [side, cssBorder(cell.style, side)])),
+            margins: Object.fromEntries(['top', 'bottom', 'left', 'right'].map((side) => [side, cssToTwips(cell.style.getPropertyValue(`padding-${side}`)) ?? (side === 'top' || side === 'bottom' ? 40 : 100)])),
           }));
         }
         if (cells.length) {
-          rows.push(new TableRow({ children: cells }));
+          rows.push(new TableRow({ children: cells, tableHeader: Array.from(tr.cells).every((cell) => cell.tagName === 'TH'), ...(cssToTwips(tr.style.height) ? { height: { value: cssToTwips(tr.style.height), rule: 'atLeast' } } : {}) }));
         }
       }
       if (rows.length) {
@@ -1531,7 +1306,7 @@ export async function buildDocxBlob(rawHtml, options = {}) {
   if (headerFooter.footerText) {
     footerRuns.push(new TextRun({ text: headerFooter.footerText, font: bodyFont, size: 18, color: '71717A' }));
   }
-  if (headerFooter.pageNumberEnabled || !headerFooter.footerText) {
+  if (headerFooter.pageNumberEnabled && !headerFooter.pageNumberStyle.startsWith('top')) {
     if (headerFooter.footerText) {
       footerRuns.push(new TextRun({ text: ' — Page ', font: bodyFont, size: 18, color: '71717A' }));
     }
@@ -1540,13 +1315,25 @@ export async function buildDocxBlob(rawHtml, options = {}) {
 
   const footerChildren = [
     new Paragraph({
-      alignment: footerAlignmentType,
+      alignment: headerFooter.pageNumberEnabled && !headerFooter.pageNumberStyle.startsWith('top') ? (headerFooter.pageNumberStyle.endsWith('right') ? AlignmentType.RIGHT : AlignmentType.CENTER) : footerAlignmentType,
       children: footerRuns.length ? footerRuns : [new TextRun({ text: '', font: bodyFont })],
       spacing: { before: 120 },
     }),
   ];
 
+  if (headerFooter.pageNumberEnabled && headerFooter.pageNumberStyle.startsWith('top')) headerChildren.push(new Paragraph({ alignment: headerFooter.pageNumberStyle.endsWith('right') ? AlignmentType.RIGHT : AlignmentType.CENTER, children: [new TextRun({ children: [PageNumber.CURRENT], font: bodyFont, size: 18 })] }));
+  if (meta.watermark) {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="240"><text x="320" y="140" text-anchor="middle" font-size="64" font-family="serif" fill="#6f5320" fill-opacity="0.11">${escapeHtml(meta.watermark)}</text></svg>`;
+    const raster = await rasterizeExportImage(`data:image/svg+xml,${encodeURIComponent(svg)}`);
+    headerChildren.push(new Paragraph({ children: [new ImageRun({ data: await extractImageBytes(raster.src), transformation: { width: 500, height: 188, rotation: 332 }, floating: { horizontalPosition: { relative: HorizontalPositionRelativeFrom.PAGE, align: HorizontalPositionAlign.CENTER }, verticalPosition: { relative: VerticalPositionRelativeFrom.PAGE, align: VerticalPositionAlign.CENTER }, behindDocument: true, allowOverlap: true, wrap: { type: TextWrappingType.NONE } } })] }));
+  }
+  const pageBorders = design.borderSetting && design.borderSetting !== 'none' && design.borderStyle !== 'none' ? { pageBorders: { offsetFrom: 'page', zOrder: 'back' }, ...Object.fromEntries(['top','right','bottom','left'].map((side) => [`pageBorder${side[0].toUpperCase() + side.slice(1)}`, { style: design.borderSides?.[side] === false ? BorderStyle.NONE : ({ dashed: BorderStyle.DASHED, double: BorderStyle.DOUBLE })[design.borderStyle] || BorderStyle.SINGLE, color: normalizeExportColor(design.borderColor || '#6f5320', true, true), size: Math.round(Number(design.borderWidth || 1) * 8), space: Number(design.borderDistance || 24) }])) } : undefined;
+
   const doc = new Document({
+    comments: { children: meta.comments.map((comment, id) => ({ id, author: comment.author?.name || comment.author || 'Reviewer', date: new Date(comment.createdAt || comment.timestamp || Date.now()), children: [new Paragraph({ children: [new TextRun(comment.text || comment.body || '')] })] })) },
+    background: { color: normalizeExportColor(exportPageFill(design), true, true) || 'FFFFFF' },
+    features: { updateFields: true, trackRevisions: Boolean(options.trackChanges) },
+    customProperties: [{ name: 'EtherX.DocumentMetadata', value: JSON.stringify({ ...meta, signatures: options.signatures || [], documentParts: options.documentParts || [], styles: options.styles || [] }) }],
     numbering: {
       config: [{
         reference: 'etherx-ordered',
@@ -1564,8 +1351,8 @@ export async function buildDocxBlob(rawHtml, options = {}) {
         document: {
           run: {
             font: bodyFont,
-            size: 24,
-            color: '1A1A1A',
+            size: Math.round((Number(design.fontSize) || 12) * 2),
+            color: normalizeExportColor(design.subtle, true) || '1A1A1A',
           },
           paragraph: {
             spacing: { line: wordLineSpacing, after: 200 },
@@ -1609,7 +1396,11 @@ export async function buildDocxBlob(rawHtml, options = {}) {
     sections: [
       {
         properties: {
+          column: { count: Math.max(1, Number(pageSettings.columns) || 1), space: 720, equalWidth: true },
+          ...(pageSettings.lineNumbers ? { lineNumbers: { countBy: 1, start: 1, restart: 'continuous' } } : {}),
           page: {
+            borders: pageBorders,
+            pageNumbers: { start: headerFooter.pageNumberStart },
             size: {
               width: convertMillimetersToTwip(pageWidthMm),
               height: convertMillimetersToTwip(pageHeightMm),

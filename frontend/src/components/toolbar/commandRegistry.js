@@ -1,4 +1,5 @@
 import { DEFAULT_COMMANDS } from './defaultCommands.js';
+import { useUIStore, useEditorStore, useDocumentStore } from '@/store';
 
 let COMMANDS = [...DEFAULT_COMMANDS];
 let REGISTERED = true;
@@ -104,3 +105,70 @@ export function searchCommands(query, { limit = 12 } = {}) {
   return scored;
 }
 
+
+// Live execution context every command's run() receives. Read from the stores
+// at call time so a command always sees current state.
+export function buildCommandContext({ navigate } = {}) {
+  const ui = useUIStore.getState();
+  const ed = useEditorStore.getState();
+  const doc = useDocumentStore.getState();
+  return {
+    editor: ed.editor,
+    openDialog: ui.openDialog,
+    closeDialog: ui.closeDialog,
+    toast: ui.toast,
+    setActiveTab: ui.setActiveTab,
+    watermarkText: ui.watermarkText,
+    setWatermarkText: ui.setWatermarkText,
+    openPragna: ui.openPragna,
+    setFindQuery: ui.setFindQuery,
+    navigate,
+    toggleRuler: ui.toggleRuler,
+    toggleGridlines: ui.toggleGridlines,
+    toggleSidebar: ui.toggleSidebar,
+    toggleFullscreen: ui.toggleFullscreen,
+    setViewMode: ui.setViewMode,
+    setPageView: ui.setPageView,
+    setSidePane: ui.setSidePane,
+    toggleFocusMode: ui.toggleFocusMode,
+    toggleFitPage: ui.toggleFitPage,
+    togglePageWidth: ui.togglePageWidth,
+    setZoom: ui.setZoom,
+    zoom: ui.zoom,
+    setPageOrientation: ui.setPageOrientation,
+    pageOrientation: ui.pageOrientation,
+    setHeaderFooterTab: ui.setHeaderFooterTab,
+    setDrawTool: ui.setDrawTool,
+    toggleFormattingMarks: ui.toggleFormattingMarks,
+    toggleSpellCheck: ed.toggleSpellCheck,
+    spellCheck: ed.spellCheck,
+    addComment: doc.addComment,
+    toggleTrackChanges: doc.toggleTrackChanges,
+    trackChanges: doc.trackChanges,
+    setDesign: doc.setDesign,
+    getDesign: () => useDocumentStore.getState().design,
+    designPopover: ui.designPopover,
+    setDesignPopover: ui.setDesignPopover,
+    pageBordersModalOpen: ui.pageBordersModalOpen,
+    setPageBordersModalOpen: ui.setPageBordersModalOpen,
+  };
+}
+
+// Run a command (object or id) with a fresh context. Returns false when the
+// command does not exist.
+export function runCommand(cmdOrId, { navigate } = {}) {
+  const cmd = typeof cmdOrId === 'string' ? COMMANDS.find((c) => c.id === cmdOrId) : cmdOrId;
+  const context = buildCommandContext({ navigate });
+  if (!cmd || typeof cmd.run !== 'function') return false;
+  try {
+    const result = cmd.run(context);
+    result?.catch?.((error) => {
+      console.error('Feature execution error:', error);
+      context.toast?.('Could not execute this feature', 'error');
+    });
+  } catch (e) {
+    console.error('Feature execution error:', e);
+    context.toast?.('Could not execute this feature', 'error');
+  }
+  return true;
+}

@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { ToastContainer } from '@/components/ui/Toast';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { SignInPage }        from '@/pages/SignInPage';
 import { SignUpPage }        from '@/pages/SignUpPage';
@@ -82,6 +83,8 @@ export default function App() {
         <Route path="*"              element={<Navigate to="/signin" replace />} />
       </Routes>
       <UpgradeModal />
+      {/* One toast host for every route (File pages included). */}
+      <ToastContainer />
     </BrowserRouter>
   );
 }

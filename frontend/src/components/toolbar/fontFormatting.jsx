@@ -42,6 +42,18 @@ export const FONT_FAMILY_OPTIONS = [
 export const FONT_SIZE_OPTIONS = ['8', '9', '10', '11', '12', '14', '16', '18', '20', '24', '28', '32', '36', '48', '72']
   .map((size) => ({ value: size, label: size }));
 
+// The family a font picker shows for the current text, plus an options list that
+// contains it. Fonts outside the list (a design's Inter or Lora) show by name
+// instead of falling back to an unrelated default.
+export function fontFamilyChoice(rawFamily, fallback = 'Crimson Pro') {
+  const raw = typeof rawFamily === 'string' ? rawFamily.split(',')[0].replace(/['"]/g, '').trim() : '';
+  const family = normalizeFontFamily(rawFamily) || raw || fallback;
+  const options = FONT_FAMILY_OPTIONS.some((o) => o.value === family)
+    ? FONT_FAMILY_OPTIONS
+    : [{ value: family, label: family, style: { fontFamily: `${family}, sans-serif` }, searchTerms: family }, ...FONT_FAMILY_OPTIONS];
+  return { family, options };
+}
+
 export function normalizeFontFamily(rawFamily) {
   if (!rawFamily || typeof rawFamily !== 'string') return '';
   const trimmed = rawFamily.trim();
@@ -187,7 +199,7 @@ export function FontFormattingControls({
 
   // Resolve current active font from editor attrs if available, fallback to prop or store
   const currentAttrFamily = editor?.getAttributes('textStyle')?.fontFamily;
-  const resolvedFamily = normalizeFontFamily(currentAttrFamily || fontFamilyProp || storeFontFamily) || 'Calibri';
+  const { family: resolvedFamily, options: familyOptions } = fontFamilyChoice(currentAttrFamily || fontFamilyProp || storeFontFamily);
 
   const currentAttrSize = editor?.getAttributes('textStyle')?.fontSize;
   const parsedSize = currentAttrSize ? parseInt(String(currentAttrSize), 10) : NaN;
@@ -206,7 +218,7 @@ export function FontFormattingControls({
         value={resolvedFamily}
         onChange={applyFontFamily}
         onFocus={handleFocus}
-        options={FONT_FAMILY_OPTIONS}
+        options={familyOptions}
         width={familyWidth}
         title="Font Family"
         searchable={searchable}

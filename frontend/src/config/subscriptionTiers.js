@@ -31,7 +31,7 @@ export const SUBSCRIPTION_TIERS = {
       templatesDisplay: '3–5 basic templates',
     },
     features: {
-      exportFormats: ['pdf', 'docx'],
+      exportFormats: ['pdf', 'docx', 'txt'],
       realTimeCollaboration: false,
       collaboratorsCount: 0,
       comments: false,
@@ -86,7 +86,7 @@ export const SUBSCRIPTION_TIERS = {
       templatesDisplay: 'Expanded template library',
     },
     features: {
-      exportFormats: ['docx', 'pdf', 'odt', 'markdown'],
+      exportFormats: ['docx', 'pdf', 'odt', 'markdown', 'txt'],
       realTimeCollaboration: true,
       collaboratorsCount: 3,
       comments: true,
@@ -141,7 +141,7 @@ export const SUBSCRIPTION_TIERS = {
       templatesDisplay: 'All + Custom templates & brand kits',
     },
     features: {
-      exportFormats: ['docx', 'pdf', 'odt', 'markdown', 'html', 'epub'],
+      exportFormats: ['docx', 'pdf', 'odt', 'markdown', 'html', 'epub', 'txt'],
       realTimeCollaboration: true,
       collaboratorsCount: Infinity,
       comments: true,

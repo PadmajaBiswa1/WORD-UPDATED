@@ -297,7 +297,7 @@ export function DigitalSignatureDialog() {
               <Label>Signer Full Name</Label>
               <Input
                 value={signerName}
-                onChange={(e) => setSignerName(e.target.value)}
+                onChange={setSignerName}
                 placeholder="Your Name"
               />
             </div>
@@ -305,7 +305,7 @@ export function DigitalSignatureDialog() {
               <Label>Signer Email</Label>
               <Input
                 value={signerEmail}
-                onChange={(e) => setSignerEmail(e.target.value)}
+                onChange={setSignerEmail}
                 placeholder="signer@example.com"
               />
             </div>
@@ -316,7 +316,7 @@ export function DigitalSignatureDialog() {
               <Label>Signer Role / Title</Label>
               <Input
                 value={signerRole}
-                onChange={(e) => setSignerRole(e.target.value)}
+                onChange={setSignerRole}
                 placeholder="Author, Reviewer, Executive..."
               />
             </div>
@@ -324,7 +324,7 @@ export function DigitalSignatureDialog() {
               <Label>Reason for Signing</Label>
               <Input
                 value={reason}
-                onChange={(e) => setReason(e.target.value)}
+                onChange={setReason}
                 placeholder="Document approved and verified"
               />
             </div>

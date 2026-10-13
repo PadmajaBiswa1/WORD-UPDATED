@@ -102,7 +102,7 @@ export function PictureFormatToolbar({ editor, scrollContainerRef }) {
   }, [hideToolbar]);
 
   const showToolbar = useCallback(() => {
-    if (!editor) return;
+    if (!editor?.isEditable) { hideToolbar(); return; }
     if (!isImageSelection(editor)) {
       hideToolbar();
       return;
@@ -115,6 +115,11 @@ export function PictureFormatToolbar({ editor, scrollContainerRef }) {
     setAnchor(nextAnchor);
     setMounted(true);
   }, [editor, hideToolbar]);
+
+  const viewMode = useUIStore((state) => state.viewMode);
+  useEffect(() => {
+    if (viewMode === 'read') hideToolbar();
+  }, [viewMode, hideToolbar]);
 
   // Recompute position from the toolbar's REAL measured size, placed beside
   // the image, then ALWAYS clamp the final box fully inside the viewport.
@@ -289,6 +294,9 @@ export function PictureFormatToolbar({ editor, scrollContainerRef }) {
       const target = event.target;
       if (toolbarRef.current?.contains(target)) return;
       if (target?.closest?.('[data-select-menu="true"]')) return;
+      // The ribbon, its menus and dialogs act on the selected picture, so using
+      // them must keep it selected (Layout > Rotate, Wrap Text, Group…).
+      if (target?.closest?.('.etherx-ribbon, [data-ribbon-menu], [role="dialog"]')) return;
 
       // A node selection can remain active in ProseMirror after the editor
       // loses focus. Convert it to a regular text selection before blurring so

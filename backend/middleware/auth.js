@@ -74,15 +74,18 @@ function extractUserFromRequest(req) {
     };
   }
 
-  // Fallback: guest user with request headers / query info if available
-  const guestId = req.headers?.['x-etherx-user-id'] || req.headers?.['x-user-id'] || req.query?.id || 'guest-user';
-  const guestName = req.headers?.['x-etherx-user-name'] || req.headers?.['x-user-name'] || req.query?.name || 'Guest User';
-  const guestEmail = req.headers?.['x-etherx-user-email'] || req.headers?.['x-user-email'] || req.query?.email || '';
+  // Unauthenticated guest. Identity is never taken from client-supplied headers: a
+  // claimed id or email would let anyone act as that user. Only an unguessable guest
+  // session token (`guest_` + 16+ chars) is honoured, so guest-created documents stay
+  // reachable by their creator; registered user ids never have that prefix.
+  const claimedId = String(req.headers?.['x-etherx-user-id'] || '').trim();
+  const guestId = /^guest_[A-Za-z0-9_-]{16,}$/.test(claimedId) ? claimedId : 'guest-user';
+  const guestName = req.headers?.['x-etherx-user-name'] || req.headers?.['x-user-name'] || 'Guest User';
 
   return {
-    id: String(guestId).trim(),
-    name: String(guestName).trim(),
-    email: String(guestEmail).trim().toLowerCase(),
+    id: guestId,
+    name: String(guestName).trim().slice(0, 80) || 'Guest User',
+    email: '',
     isGuest: true,
     isAuthenticated: false,
   };

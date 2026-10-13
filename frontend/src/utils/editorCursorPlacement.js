@@ -11,6 +11,7 @@ import { TextSelection } from '@tiptap/pm/state';
 export function focusBelowBlockOrDocEnd(editorOrView, clickX, clickY) {
   if (!editorOrView) return false;
   const view = editorOrView.view || editorOrView;
+  if (editorOrView.isEditable === false || view?.editable === false) return false;
   const state = view?.state;
   if (!view || !state || !view.dom) return false;
 

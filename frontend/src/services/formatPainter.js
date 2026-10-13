@@ -16,8 +16,6 @@ export class FormatPainterService {
 
     try {
       const { from, to } = editor.state.selection;
-      const marks = editor.state.doc.rangeHasMark(from, to, editor.schema.marks.strong);
-
       // Extract all active marks
       const activeMarks = {};
       Object.keys(editor.schema.marks).forEach((markName) => {
@@ -59,12 +57,12 @@ export class FormatPainterService {
     }
 
     try {
-      let chain = editor.chain().focus();
+      let chain = editor.chain().focus().unsetAllMarks();
 
       // Apply marks
       Object.entries(this.#sourceFormat.marks).forEach(([markName, markData]) => {
         if (markData.active) {
-          chain = chain.toggleMark(markName, markData.attrs);
+          chain = chain.setMark(markName, markData.attrs);
         }
       });
 

@@ -5,7 +5,7 @@ import {
   ExternalLink, BookmarkPlus, ListFilter, Scale, ScrollText, GraduationCap, Search
 } from 'lucide-react';
 import { useUIStore, useEditorStore, useDocumentStore } from '@/store';
-import { Button, Tooltip } from '@/components/ui';
+import { Button, Input, Label, Modal, Stack, Tooltip } from '@/components/ui';
 import { RibbonGroup } from '../RibbonGroup';
 import {
   buildTocHtml,
@@ -19,6 +19,7 @@ import {
   buildIndexHtml,
   upsertReferenceSection,
 } from '@/components/dialogs/ReferenceDialogs';
+import { insertNote } from '@/utils/notes';
 
 const INDEX_STORE_KEY = 'etherx-reference-index-entries';
 const AUTH_STORE_KEY = 'etherx-reference-authority-entries';
@@ -55,7 +56,7 @@ function escapeHtml(value) {
     .replace(/"/g, '&quot;');
 }
 
-export function ReferenceTab() {
+export function ReferenceTab({ renderRibbon } = {}) {
   const { toast, openDialog } = useUIStore();
   const { editor } = useEditorStore();
   const nextFootnoteIndex = useRef(0);
@@ -213,17 +214,59 @@ export function ReferenceTab() {
     toast(shouldHide ? 'Notes hidden' : 'Notes shown', 'success');
   };
 
+  // Word's Caption dialog: label (Figure/Table) and caption text, numbered after the existing ones.
+  const [captionDraft, setCaptionDraft] = useState(null);
+  const captionNumber = (type) => (type === 'Figure' ? scanFigures(editor).length : scanTables(editor).length) + 1;
+
   const insertCaption = () => {
     if (!editor) return;
-    const type = window.confirm('Click OK for Figure caption, or Cancel for Table caption') ? 'Figure' : 'Table';
-    const num = (type === 'Figure' ? scanFigures(editor).length : scanTables(editor).length) + 1;
-    const captionText = (window.prompt(`Enter ${type} caption`, `${type} ${num}: Description`) || '').trim();
-    if (!captionText) return;
+    setCaptionDraft({ type: 'Figure', text: '' });
+  };
+
+  const commitCaption = () => {
+    const { type, text } = captionDraft;
+    const num = captionNumber(type);
+    const captionText = `${type} ${num}${text.trim() ? `: ${text.trim()}` : ''}`;
     const id = `${type.toLowerCase()}-${Date.now()}`;
     useDocumentStore.getState().addCaption?.({ id, type: type.toLowerCase(), text: captionText, label: `${type} ${num}` });
     insertHtml(`<p id="${id}" data-caption-type="${type.toLowerCase()}"><strong>${escapeHtml(captionText)}</strong></p>`);
     toast(`${type} caption inserted`, 'success');
+    setCaptionDraft(null);
   };
+
+  const captionModal = captionDraft && (
+    <Modal title="Caption" onClose={() => setCaptionDraft(null)} width={400}>
+      <Stack gap={12}>
+        <div>
+          <Label>Label</Label>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {['Figure', 'Table'].map((type) => (
+              <Button key={type} variant={captionDraft.type === type ? 'primary' : 'subtle'} onClick={() => setCaptionDraft({ ...captionDraft, type })}>
+                {type}
+              </Button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <Label>Caption</Label>
+          <Input
+            autoFocus
+            value={captionDraft.text}
+            placeholder="Description (optional)"
+            onChange={(text) => setCaptionDraft({ ...captionDraft, text })}
+            onKeyDown={(e) => { if (e.key === 'Enter') commitCaption(); }}
+          />
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>
+            {`${captionDraft.type} ${captionNumber(captionDraft.type)}${captionDraft.text.trim() ? `: ${captionDraft.text.trim()}` : ''}`}
+          </div>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <Button variant="subtle" onClick={() => setCaptionDraft(null)}>Cancel</Button>
+          <Button variant="primary" onClick={commitCaption}>Insert</Button>
+        </div>
+      </Stack>
+    </Modal>
+  );
 
   const insertTableOfFigures = () => {
     openDialog('tableOfFigures');
@@ -409,8 +452,18 @@ function MiniAction({ icon, text, onClick, onMouseDown, title, shortcut }) {
   );
 }
 
+  if (renderRibbon) return <>{renderRibbon({
+    'Add Text': addTextToToc, 'Table of Contents/Update Table': updateToc,
+    'Next Footnote': jumpToNextFootnote, 'Show Notes': toggleNotesVisibility,
+    'Style: APA': insertCitation, 'Insert Caption': insertCaption,
+    'Captions/Update Table': updateCaptionsTable, 'Mark Entry': markIndexEntry,
+    'Insert Index': insertIndex, 'Update Index': updateIndex,
+    'Mark Citation': markCitation, 'Insert Table of Authorities': insertAuthorities,
+    'Table of Authorities/Update Table': updateAuthorities,
+  })}{captionModal}</>;
   return (
     <>
+      {captionModal}
       <RibbonGroup label="Table of Contents">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
           <HeroBtn icon={<BookOpen size={20} strokeWidth={1.75} />} label="Contents" title="Insert Table of Contents" onMouseDown={keepSelectionOnMouseDown} onClick={insertToc} />
@@ -423,9 +476,9 @@ function MiniAction({ icon, text, onClick, onMouseDown, title, shortcut }) {
 
       <RibbonGroup label="Footnotes">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon={<FileText size={20} strokeWidth={1.75} />} label="Footnote" title="Insert Footnote" shortcut="Alt+Ctrl+F" onMouseDown={keepSelectionOnMouseDown} onClick={() => insertHtml('<p><sup>[1]</sup> Footnote: Footnote text</p>')} />
+          <HeroBtn icon={<FileText size={20} strokeWidth={1.75} />} label="Footnote" title="Insert Footnote" shortcut="Alt+Ctrl+F" onMouseDown={keepSelectionOnMouseDown} onClick={() => insertNote(editor, 'footnote')} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, height: 74, justifyContent: 'center' }}>
-            <MiniAction icon={<ArrowDownToLine size={13} strokeWidth={1.75} />} text="Insert Endnote" shortcut="Alt+Ctrl+D" onMouseDown={keepSelectionOnMouseDown} onClick={() => insertHtml('<p><sup>[a]</sup> Endnote: Endnote text</p>')} />
+            <MiniAction icon={<ArrowDownToLine size={13} strokeWidth={1.75} />} text="Insert Endnote" shortcut="Alt+Ctrl+D" onMouseDown={keepSelectionOnMouseDown} onClick={() => insertNote(editor, 'endnote')} />
             <MiniAction icon={<ArrowRight size={13} strokeWidth={1.75} />} text="Next Footnote ▾" onMouseDown={keepSelectionOnMouseDown} onClick={jumpToNextFootnote} />
             <MiniAction icon={<Eye size={13} strokeWidth={1.75} />} text={notesVisible ? 'Hide Notes' : 'Show Notes'} onMouseDown={keepSelectionOnMouseDown} onClick={toggleNotesVisibility} />
           </div>

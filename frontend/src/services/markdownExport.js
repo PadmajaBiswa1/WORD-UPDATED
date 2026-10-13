@@ -2,6 +2,7 @@
 //  EtherX Word — Markdown Export Service
 // ═══════════════════════════════════════════════════════════════
 import fileSaver from 'file-saver';
+import { flattenExportMedia } from './exportAppearance';
 import { acceptSuggestionsInHtml } from '@/services/suggestionHtml';
 
 const saveAs = fileSaver?.saveAs || fileSaver;
@@ -242,6 +243,18 @@ export function htmlToMarkdown(html) {
   html = acceptSuggestionsInHtml(html);
   if (!html || typeof html !== 'string') return '';
 
+  const root = document.createElement('div');
+  root.innerHTML = html;
+  flattenExportMedia(root);
+  for (const table of Array.from(root.querySelectorAll('table')).reverse()) {
+    const rows = Array.from(table.rows).map((row) => Array.from(row.cells).map((cell) => htmlToMarkdown(cell.innerHTML).trim().replace(/\n/g, '<br>').replace(/\|/g, '\\|')));
+    if (!rows.length) continue;
+    const columns = Math.max(...rows.map((row) => row.length));
+    const line = (row) => `| ${Array.from({ length: columns }, (_, index) => row[index] || '').join(' | ')} |`;
+    const text = [line(rows[0]), line(Array(columns).fill('---')), ...rows.slice(1).map(line)].join('\n');
+    table.replaceWith(document.createTextNode(`\n\n${text}\n\n`));
+  }
+  html = root.innerHTML;
   let text = html
     .replace(/<div\b[^>]*?(?:data-page-break=["']true["']|class=["'][^"']*?etherx-page-break[^"']*?["']|data-etherx-auto-break=["']true["'])[^>]*>(?:&nbsp;|\s)*<\/div>/gi, '\n\n---\n\n')
     .replace(/<div[^>]*data-page-break="true"[^>]*><\/div>/gi, '\n\n---\n\n');

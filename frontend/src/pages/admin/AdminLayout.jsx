@@ -24,6 +24,7 @@ const NAV_ITEMS = [
 export function AdminLayout() {
   const navigate = useNavigate();
   const user = getStoredUser();
+  const [activeTab, setActiveTab] = useState('overview');
 
   // Stealth Access Guard:
   // Only Owner and Admin roles are permitted. All others are silently redirected to /home.
@@ -31,8 +32,6 @@ export function AdminLayout() {
   if (!hasAdminAccess) {
     return <Navigate to="/home" replace />;
   }
-
-  const [activeTab, setActiveTab] = useState('overview');
 
   const currentNav = NAV_ITEMS.find((item) => item.key === activeTab) || NAV_ITEMS[0];
 

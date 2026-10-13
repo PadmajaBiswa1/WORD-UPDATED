@@ -1,0 +1,127 @@
+[
+ {
+  "name": "TopBarView",
+  "start": 824,
+  "end": 5321
+ },
+ {
+  "name": "TabStripView",
+  "start": 5341,
+  "end": 9050
+ },
+ {
+  "name": "RibbonView",
+  "start": 9141,
+  "end": 28374
+ },
+ {
+  "name": "NavPaneView",
+  "start": 28456,
+  "end": 30937
+ },
+ {
+  "name": "CanvasView",
+  "start": 30943,
+  "end": 38001
+ },
+ {
+  "name": "PragnaPanelView",
+  "start": 38007,
+  "end": 50541
+ },
+ {
+  "name": "StatusBarView",
+  "start": 50572,
+  "end": 53933
+ },
+ {
+  "name": "ToastView",
+  "start": 53937,
+  "end": 54718
+ },
+ {
+  "name": "BackstageNavView",
+  "start": 54847,
+  "end": 57185
+ },
+ {
+  "name": "CanvasStartersView",
+  "start": 33750,
+  "end": 35000
+ },
+ {
+  "name": "CanvasStartersLightView",
+  "start": 36612,
+  "end": 37811
+ },
+ {
+  "name": "BackstageHomeView",
+  "start": 57237,
+  "end": 63782
+ },
+ {
+  "name": "BackstageNewView",
+  "start": 63783,
+  "end": 65556
+ },
+ {
+  "name": "BackstageOpenView",
+  "start": 65557,
+  "end": 69488
+ },
+ {
+  "name": "BackstageSaveView",
+  "start": 69489,
+  "end": 72591
+ },
+ {
+  "name": "BackstageSaveAsView",
+  "start": 72592,
+  "end": 76903
+ },
+ {
+  "name": "BackstagePrintView",
+  "start": 76904,
+  "end": 80498
+ },
+ {
+  "name": "BackstageExportView",
+  "start": 80499,
+  "end": 84676
+ },
+ {
+  "name": "BackstageShareView",
+  "start": 84677,
+  "end": 88973
+ },
+ {
+  "name": "BackstageInfoView",
+  "start": 88974,
+  "end": 91232
+ },
+ {
+  "name": "BackstageStatsView",
+  "start": 91233,
+  "end": 92240
+ },
+ {
+  "name": "BackstagePragnaView",
+  "start": 92241,
+  "end": 94755
+ },
+ {
+  "name": "BackstagePlansView",
+  "start": 94756,
+  "end": 98255
+ },
+ {
+  "name": "BackstageAdminView",
+  "start": 98256,
+  "end": 102367
+ },
+ {
+  "name": "BackstageSettingsView",
+  "start": 102368,
+  "end": 104524
+ }
+]

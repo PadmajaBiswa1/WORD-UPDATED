@@ -79,6 +79,12 @@ function defaultLayout() {
   };
 }
 
+// Page count is computed by the editor's paginator; stored so lists match it.
+function normalizePageCount(value) {
+  const n = Number(value);
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
 function normalizeLayout(layout) {
   if (!layout || typeof layout !== 'object') return defaultLayout();
   return {
@@ -86,9 +92,21 @@ function normalizeLayout(layout) {
     pageOrientation: layout.pageOrientation || 'portrait',
     pageMargin: layout.pageMargin || 'normal',
     pageColumns: typeof layout.pageColumns === 'number' ? layout.pageColumns : (parseInt(layout.pageColumns, 10) || 1),
+    customMargins: normalizeCustomMargins(layout.customMargins),
     lineNumbers: Boolean(layout.lineNumbers),
+    lineNumberRestart: layout.lineNumberRestart === 'page' ? 'page' : 'continuous',
     hyphenation: Boolean(layout.hyphenation),
   };
+}
+
+// Custom page margins in inches: { top, bottom, left, right }, each 0–22".
+function normalizeCustomMargins(value) {
+  if (!value || typeof value !== 'object') return null;
+  const side = (key) => {
+    const n = Number(value[key]);
+    return Number.isFinite(n) ? Math.min(22, Math.max(0, n)) : 1;
+  };
+  return { top: side('top'), bottom: side('bottom'), left: side('left'), right: side('right') };
 }
 
 function defaultAiProfile() {
@@ -124,6 +142,8 @@ function defaultSecurityEnvelope() {
 
 function defaultReferences() {
   return {
+    mailMerge: {},
+    sources: [],
     citations: [],
     captions: [],
     indexEntries: [],
@@ -221,13 +241,16 @@ function normalizeDoc(document) {
         }))
       : [],
     shareLinkEnabled: document.shareLinkEnabled === true,
-    shareLinkRole: ['owner', 'editor', 'commenter', 'viewer'].includes(document.shareLinkRole) ? document.shareLinkRole : 'editor',
+    // A share link never grants ownership (older documents may have stored 'owner').
+    shareLinkRole: ['editor', 'commenter', 'viewer'].includes(document.shareLinkRole) ? document.shareLinkRole : 'editor',
     versions: Array.isArray(document.versions) ? document.versions : [],
     comments: Array.isArray(document.comments) ? document.comments.map(normalizeComment) : [],
     trackChanges: Boolean(document.trackChanges),
     styles: Array.isArray(document.styles) ? document.styles : [],
     references: document.references && typeof document.references === 'object'
       ? {
+          mailMerge: document.references.mailMerge || {},
+          sources: Array.isArray(document.references.sources) ? document.references.sources : [],
           citations: Array.isArray(document.references.citations) ? document.references.citations : [],
           captions: Array.isArray(document.references.captions) ? document.references.captions : [],
           indexEntries: Array.isArray(document.references.indexEntries) ? document.references.indexEntries : [],
@@ -277,6 +300,7 @@ function normalizeDoc(document) {
       : defaultDesign(),
     headerFooter: normalizeHeaderFooter(document.headerFooter),
     layout: normalizeLayout(document.layout),
+    pageCount: normalizePageCount(document.pageCount),
     ipfsHash: document.ipfsHash || null,
     ipfsGatewayUrl: document.ipfsGatewayUrl || null,
     ipfsPinnedAt: document.ipfsPinnedAt || null,
@@ -454,6 +478,7 @@ async function createDocument(input = {}, user = {}) {
     design: input.design && typeof input.design === 'object' ? { ...defaultDesign(), ...input.design } : defaultDesign(),
     headerFooter: normalizeHeaderFooter(input.headerFooter),
     layout: normalizeLayout(input.layout),
+    pageCount: normalizePageCount(input.pageCount),
   });
 
   if (!isMongoConnected()) {
@@ -508,6 +533,8 @@ async function updateDocument(id, input = {}, options = {}) {
   if (Array.isArray(input.styles)) next.styles = input.styles;
   if (input.references && typeof input.references === 'object') {
     next.references = {
+      mailMerge: input.references.mailMerge || next.references.mailMerge || {},
+      sources: Array.isArray(input.references.sources) ? input.references.sources : next.references.sources,
       citations: Array.isArray(input.references.citations) ? input.references.citations : next.references.citations,
       captions: Array.isArray(input.references.captions) ? input.references.captions : next.references.captions,
       indexEntries: Array.isArray(input.references.indexEntries) ? input.references.indexEntries : next.references.indexEntries,
@@ -534,6 +561,7 @@ async function updateDocument(id, input = {}, options = {}) {
   if (input.headerFooter && typeof input.headerFooter === 'object') {
     next.headerFooter = normalizeHeaderFooter({ ...(current.headerFooter || {}), ...input.headerFooter });
   }
+  if (input.pageCount !== undefined) next.pageCount = normalizePageCount(input.pageCount);
   if (input.layout && typeof input.layout === 'object') {
     next.layout = normalizeLayout({ ...(current.layout || {}), ...input.layout });
   }
@@ -649,14 +677,16 @@ async function shareDocument(id, share = {}) {
   const role = ['owner', 'editor', 'commenter', 'viewer'].includes(roleCandidate) ? roleCandidate : 'editor';
 
   if (!email) {
+    // Anyone holding the link gets this role, so a link never grants ownership.
+    const linkRole = role === 'owner' ? 'editor' : role;
     const shareEntry = {
       id: makeId('share'),
       email: '',
-      role,
+      role: linkRole,
       sharedAt: new Date().toISOString(),
     };
     current.shareLinkEnabled = true;
-    current.shareLinkRole = role;
+    current.shareLinkRole = linkRole;
     const existingIndex = current.sharedWith.findIndex((entry) => !entry?.email && !entry?.id);
     if (existingIndex >= 0) {
       current.sharedWith[existingIndex] = { ...current.sharedWith[existingIndex], ...shareEntry };

@@ -4,8 +4,19 @@
 import { create } from 'zustand';
 import { stripAutoPageBreaks } from '@/components/editor/PageBreak';
 
+// Numeric ids unique within this session: Date.now() alone collides when two
+// toasts, comments or versions are created in the same millisecond.
+let lastId = 0;
+function uniqueId() {
+  lastId = Math.max(Date.now(), lastId + 1);
+  return lastId;
+}
+
 const DESIGN_STORAGE_PREFIX = 'etherx-doc-design:';
 const HEADER_FOOTER_STORAGE_PREFIX = 'etherx-doc-header-footer:';
+function readPreference(key, fallback) {
+  try { return typeof window !== 'undefined' ? window.localStorage.getItem(key) || fallback : fallback; } catch { return fallback; }
+}
 
 function getDefaultPageColor() {
   return '#1a1a1a';
@@ -25,10 +36,25 @@ const baseDesignState = () => ({
   accent: '#c9a84c',
   heading: '#c9a84c',
   subtle: '#F5F1E8',
-  font: 'Crimson Pro',
+  font: readPreference('etherx.defaultFont', 'Lora'),
+  fontSize: readPreference('etherx.defaultFontSize', '12'),
   spacing: '1.7',
   effect: 'none',
+  ...readDesignDefault(),
 });
+
+// Design > Set as Default: like Word, it carries the theme, colours, fonts,
+// paragraph spacing and effects into new documents, not page colour or borders.
+const DESIGN_DEFAULT_KEYS = ['themeName', 'accent', 'heading', 'subtle', 'font', 'headingFont', 'bodyFont', 'fontSize', 'spacing', 'effect'];
+function readDesignDefault() {
+  try {
+    const saved = JSON.parse(window.localStorage.getItem('etherx-design-default') || 'null');
+    if (!saved || typeof saved !== 'object') return {};
+    return Object.fromEntries(DESIGN_DEFAULT_KEYS.filter((k) => saved[k] !== undefined).map((k) => [k, saved[k]]));
+  } catch {
+    return {};
+  }
+}
 
 function getDefaultHeaderFooter() {
   return {
@@ -104,7 +130,7 @@ const baseDocumentState = () => ({
   contentFormatVersion: 2,
   contentJson: null,
   styles: [],
-  references: { citations: [], captions: [], indexEntries: [] },
+  references: { sources: [], citations: [], captions: [], indexEntries: [], mailMerge: {} },
   security: { protected: false, keyVersion: 1, unlocked: true },
   isLocked: false,
   cryptoKey: null,
@@ -191,25 +217,18 @@ export const useDocumentStore = create((set, get) => ({
         pageColumns: nextLayout.pageColumns || 1,
       });
 
-      // Synchronize DOM line numbers and hyphenation for active editor
-      if (typeof document !== 'undefined') {
-        const pm = document.querySelector('.ProseMirror');
-        if (pm) {
-          pm.classList.toggle('etherx-line-numbers', Boolean(nextLayout.lineNumbers));
-          pm.style.hyphens = nextLayout.hyphenation ? 'auto' : 'manual';
-          pm.lang = nextLayout.hyphenation ? 'en' : '';
-        }
-      }
-
       return {
         ...state,
         id: docId,
         title: doc.title || 'Untitled Document',
         content: typeof doc.content === 'string' ? stripAutoPageBreaks(doc.content) : '<p></p>',
+        pageCount: Math.max(1, Number(doc.pageCount) || 1),
         contentFormatVersion: doc.contentFormatVersion ?? 2,
         contentJson: doc.contentJson ?? null,
         styles: Array.isArray(doc.styles) ? doc.styles : [],
         references: {
+          mailMerge: doc.references?.mailMerge || {},
+          sources: Array.isArray(doc.references?.sources) ? doc.references.sources : [],
           citations: Array.isArray(doc.references?.citations) ? doc.references.citations : [],
           captions: Array.isArray(doc.references?.captions) ? doc.references.captions : [],
           indexEntries: Array.isArray(doc.references?.indexEntries) ? doc.references.indexEntries : [],
@@ -249,6 +268,7 @@ export const useDocumentStore = create((set, get) => ({
       styles: Array.isArray(patch.styles) ? patch.styles : state.styles,
       references: patch.references
         ? {
+            sources: Array.isArray(patch.references.sources) ? patch.references.sources : state.references.sources,
             citations: Array.isArray(patch.references.citations) ? patch.references.citations : state.references.citations,
             captions: Array.isArray(patch.references.captions) ? patch.references.captions : state.references.captions,
             indexEntries: Array.isArray(patch.references.indexEntries) ? patch.references.indexEntries : state.references.indexEntries,
@@ -337,11 +357,12 @@ export const useDocumentStore = create((set, get) => ({
       return { pageOrder: order };
     }),
   addVersion: (snapshot) =>
-    set((s) => ({ versions: [{ id: Date.now(), snapshot, savedAt: new Date(), label: `v${s.versions.length + 1}` }, ...s.versions] })),
+    set((s) => ({ versions: [{ id: uniqueId(), snapshot, savedAt: new Date(), label: `v${s.versions.length + 1}` }, ...s.versions] })),
   setComments: (comments) => set({ comments, isDirty: true, updatedAt: new Date() }),
   replaceComments: (comments) => set({ comments, isDirty: false, updatedAt: new Date() }),
-  addComment: (c) => set((s) => ({ comments: [...s.comments, { id: Date.now(), ...c, resolved: false }], isDirty: true, updatedAt: new Date() })),
+  addComment: (c) => set((s) => ({ comments: [...s.comments, { id: uniqueId(), ...c, resolved: false }], isDirty: true, updatedAt: new Date() })),
   deleteComment: (id) => set((s) => ({ comments: s.comments.filter((c) => c.id !== id), isDirty: true, updatedAt: new Date() })),
+  replyComment: (id, reply) => set((s) => ({ comments: s.comments.map((c) => (c.id === id ? { ...c, replies: [...(c.replies || []), reply] } : c)), isDirty: true, updatedAt: new Date() })),
   resolveComment: (id) => set((s) => ({ comments: s.comments.map((c) => (c.id === id ? { ...c, resolved: true } : c)), isDirty: true, updatedAt: new Date() })),
   toggleTrackChanges: () => set((s) => ({ trackChanges: !s.trackChanges, isDirty: true, updatedAt: new Date() })),
   setContentJson: (contentJson) => set({ contentJson, isDirty: true, updatedAt: new Date() }),
@@ -358,6 +379,8 @@ export const useDocumentStore = create((set, get) => ({
   setReferences: (references) =>
     set((state) => ({
       references: {
+        mailMerge: references?.mailMerge || state.references?.mailMerge || {},
+        sources: Array.isArray(references?.sources) ? references.sources : (state.references?.sources || []),
         citations: Array.isArray(references?.citations) ? references.citations : (state.references?.citations || []),
         captions: Array.isArray(references?.captions) ? references.captions : (state.references?.captions || []),
         indexEntries: Array.isArray(references?.indexEntries) ? references.indexEntries : (state.references?.indexEntries || []),
@@ -446,18 +469,6 @@ export const useDocumentStore = create((set, get) => ({
         ...(patch.pageMargin ? { pageMargin: patch.pageMargin } : {}),
         ...(patch.pageColumns !== undefined ? { pageColumns: patch.pageColumns } : {}),
       });
-      if (typeof document !== 'undefined') {
-        const pm = document.querySelector('.ProseMirror');
-        if (pm) {
-          if (patch.lineNumbers !== undefined) {
-            pm.classList.toggle('etherx-line-numbers', Boolean(patch.lineNumbers));
-          }
-          if (patch.hyphenation !== undefined) {
-            pm.style.hyphens = patch.hyphenation ? 'auto' : 'manual';
-            pm.lang = patch.hyphenation ? 'en' : '';
-          }
-        }
-      }
       const undoItem = recordUndo ? {
         type: 'layout',
         description: 'Page Setup',
@@ -575,14 +586,6 @@ export const useDocumentStore = create((set, get) => ({
       pageMargin: def.pageMargin,
       pageColumns: def.pageColumns,
     });
-    if (typeof document !== 'undefined') {
-      const pm = document.querySelector('.ProseMirror');
-      if (pm) {
-        pm.classList.remove('etherx-line-numbers');
-        pm.style.hyphens = 'manual';
-        pm.lang = '';
-      }
-    }
     set(baseDocumentState());
   },
 }));
@@ -616,7 +619,7 @@ export const useUIStore = create((set) => ({
   activePage: 0,
   headerFooterTab: 'header',
 
-  rulerVisible: false,
+  rulerVisible: true,
   gridlinesVisible: false,
   toggleRuler: () => set((s) => ({ rulerVisible: !s.rulerVisible })),
   toggleGridlines: () => set((s) => ({ gridlinesVisible: !s.gridlinesVisible })),
@@ -638,13 +641,26 @@ export const useUIStore = create((set) => ({
   // Page view (print, web, outline, draft, read) and focus mode, shown on the editor scroll area.
   viewMode: 'print',
   setViewMode: (mode) => {
+    if (mode === 'read' && useUIStore.getState().viewMode === 'read') mode = 'print';
     const scroll = typeof document !== 'undefined' ? document.getElementById('editor-scroll-area') : null;
     if (scroll) {
       scroll.classList.remove('etherx-view-print', 'etherx-view-web', 'etherx-view-outline', 'etherx-view-draft', 'etherx-view-read');
       scroll.classList.add(`etherx-view-${mode}`);
     }
-    set({ viewMode: mode });
+    set({ viewMode: mode, pageView: null });
   },
+  // View > Multiple Pages / Side to Side ('multiple' | 'side'), or null for the
+  // normal vertical page flow.
+  pageView: null,
+  setPageView: (pageView) => set({ pageView: pageView || null }),
+  // View > Split / View Side by Side: a second pane beside the document.
+  // { kind: 'split' } shows this document; { kind: 'doc', id, title } another one.
+  sidePane: null,
+  setSidePane: (sidePane) => set({ sidePane: sidePane || null }),
+  syncScroll: true,
+  toggleSyncScroll: () => set((s) => ({ syncScroll: !s.syncScroll })),
+  paneRatio: 0.5,
+  setPaneRatio: (ratio) => set({ paneRatio: Math.min(0.8, Math.max(0.2, ratio)) }),
   focusMode: false,
   toggleFocusMode: () => set((s) => {
     const next = !s.focusMode;
@@ -788,7 +804,9 @@ export const useUIStore = create((set) => ({
   setDrawOpacity: (o) => set({ drawOpacity: Math.max(0.1, Math.min(1, o)) }),
   setWatermarkText: (text) => set({ watermarkText: text }),
 
+  sourceReturnDialog: null,
   dialogs: {
+    arrangeWindows: false,
     insertImage: false, insertTable: false, insertLink: false,
     insertChart: false, insertShape: false, insertSymbol: false,
     findReplace: false, versionHistory: false, exportDoc: false,
@@ -822,11 +840,14 @@ export const useUIStore = create((set) => ({
   },
   pragnaInitialTab: 'ask',
   pragnaInitialPrompt: '',
-  openPragna: (initialTab = 'ask', initialPrompt = '') =>
+  // Bumped when a caller wants the initial prompt sent, not just prefilled.
+  pragnaAutoSend: 0,
+  openPragna: (initialTab = 'ask', initialPrompt = '', { send = false } = {}) =>
     set((s) => ({
       copilotOpen: true,
       pragnaInitialTab: initialTab,
       pragnaInitialPrompt: initialPrompt,
+      pragnaAutoSend: send ? s.pragnaAutoSend + 1 : s.pragnaAutoSend,
     })),
   openDialog: (name) => set((s) => ({ dialogs: { ...s.dialogs, [name]: true } })),
   closeDialog: (name) => set((s) => ({ dialogs: { ...s.dialogs, [name]: false } })),
@@ -844,7 +865,7 @@ export const useUIStore = create((set) => ({
 
   toasts: [],
   toast: (message, type = 'info', duration = 3200) =>
-    set((s) => ({ toasts: [...s.toasts, { id: Date.now(), message, type, duration }] })),
+    set({ toasts: [{ id: uniqueId(), message, type, duration }] }),
   removeToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
 
   findQuery: '', replaceQuery: '',
@@ -856,7 +877,7 @@ export const useUIStore = create((set) => ({
 export const useEditorStore = create((set) => ({
   editor: null,
   setEditor: (editor) => set({ editor }),
-  fontFamily: 'Crimson Pro',
+  fontFamily: 'Lora',
   fontSize: '12',
   setFontFamily: (v) => set({ fontFamily: v }),
   setFontSize: (v) => set({ fontSize: v }),
@@ -1075,14 +1096,15 @@ export const useProductivityStore = create((set, get) => {
     // Clipboard History (max 20 items)
     addClipboardItem: (item) =>
       set((s) => {
+        const existing = s.clipboardHistory.find((clip) => clip.text === (item.text || '') && clip.html === (item.html || ''));
         const newItem = {
-          id: item.id || `clip_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+          id: existing?.id || item.id || `clip_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
           text: item.text || '',
           html: item.html || '',
           copiedAt: item.copiedAt || new Date().toISOString(),
-          pinned: Boolean(item.pinned),
+          pinned: Boolean(existing?.pinned || item.pinned),
         };
-        const filtered = s.clipboardHistory.filter((c) => c.text !== newItem.text);
+        const filtered = s.clipboardHistory.filter((c) => c.id !== newItem.id);
         const combined = [newItem, ...filtered];
         const pinned = combined.filter((c) => c.pinned);
         const unpinned = combined.filter((c) => !c.pinned);

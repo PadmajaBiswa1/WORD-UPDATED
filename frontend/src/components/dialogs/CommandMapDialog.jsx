@@ -9,6 +9,11 @@ const GROUPS = [
       ['Ctrl+B', 'Bold'],
       ['Ctrl+I', 'Italic'],
       ['Ctrl+U', 'Underline'],
+      ['Ctrl+= / Ctrl+Shift+=', 'Subscript / Superscript'],
+      ['Ctrl+Shift+> / Ctrl+Shift+<', 'Grow / shrink font'],
+      ['Ctrl+] / Ctrl+[', 'Font size up / down 1 pt'],
+      ['Shift+F3', 'Change case'],
+      ['Ctrl+K', 'Insert link'],
       ['Ctrl+Z / Ctrl+Shift+Z', 'Undo / Redo'],
       ['Ctrl+Y', 'Redo'],
       ['Ctrl+P', 'Print'],
@@ -17,7 +22,7 @@ const GROUPS = [
   {
     title: 'View and Window',
     items: [
-      ['Ctrl++ / Ctrl+- / Ctrl+0', 'Zoom in / out / reset'],
+      ['Ctrl+- / Ctrl+0', 'Zoom out / reset'],
       ['F11', 'Toggle Fullscreen'],
     ],
   },
@@ -26,7 +31,7 @@ const GROUPS = [
     items: [
       ['F7', 'Toggle Spelling and Grammar'],
       ['Ctrl+Alt+M', 'New Comment from selection'],
-      ['Ctrl+Shift+T', 'Toggle Track Changes'],
+      ['Ctrl+Shift+E / Ctrl+Shift+T', 'Toggle Track Changes'],
       ['Ctrl+Alt+L', 'Open Language dialog'],
       ['Ctrl+Alt+W', 'Open Word Count dialog'],
       ['Ctrl+Alt+A', 'Open Accessibility check'],
@@ -36,7 +41,6 @@ const GROUPS = [
     title: 'Mailings and References',
     items: [
       ['Ctrl+Shift+M', 'Start Mail Merge'],
-      ['Ctrl+Shift+E', 'Select Recipients'],
       ['Ctrl+Shift+F', 'Insert Merge Field'],
       ['Ctrl+Alt+F', 'Insert Footnote'],
       ['Ctrl+Alt+D', 'Insert Endnote'],

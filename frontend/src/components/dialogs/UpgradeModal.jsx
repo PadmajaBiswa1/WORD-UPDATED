@@ -379,29 +379,31 @@ export function UpgradeModal() {
             </button>
           </div>
 
-          {/* Dev Switch Tools */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ color: '#52525b' }}>Demo Switch:</span>
-            {['free', 'basic', 'pro'].map((t) => (
-              <button
-                key={t}
-                onClick={() => handleDevSwitch(t)}
-                style={{
-                  background: plan === t ? '#c9a84c' : '#27272a',
-                  color: plan === t ? '#000' : '#a1a1aa',
-                  border: 'none',
-                  borderRadius: 4,
-                  padding: '2px 7px',
-                  fontSize: 10,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  textTransform: 'uppercase',
-                }}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
+          {/* Dev-only plan switch (the server refuses it in production) */}
+          {import.meta.env.DEV && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ color: '#52525b' }}>Demo Switch:</span>
+              {['free', 'basic', 'pro'].map((t) => (
+                <button
+                  key={t}
+                  onClick={() => handleDevSwitch(t)}
+                  style={{
+                    background: plan === t ? '#c9a84c' : '#27272a',
+                    color: plan === t ? '#000' : '#a1a1aa',
+                    border: 'none',
+                    borderRadius: 4,
+                    padding: '2px 7px',
+                    fontSize: 10,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

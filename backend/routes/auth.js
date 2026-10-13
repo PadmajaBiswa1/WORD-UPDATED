@@ -17,10 +17,14 @@ function isMongoConnected() {
   return Boolean(mongoose.connection && mongoose.connection.readyState === 1);
 }
 
+const DEMO_EMAIL = 'demo@etherx.com';
+
 function readUsersStore() {
   try {
     if (!fs.existsSync(USERS_FILE)) {
-      const defaultUsers = [
+      // Local development only: a demo fixture account. Never seed real people or
+      // passwords into source, and never seed anything in production.
+      const defaultUsers = process.env.NODE_ENV === 'production' ? [] : [
         {
           _id: 'user_demo',
           name: 'Demo User',
@@ -31,34 +35,6 @@ function readUsersStore() {
           billingCycle: 'monthly',
           subscriptionExpiresAt: null,
           role: 'Owner',
-          status: 'active',
-          department: 'Engineering',
-          createdAt: new Date().toISOString(),
-        },
-        {
-          _id: 'user_padmaja',
-          name: 'Padmaja Biswal',
-          email: 'biswalpadmaja411@gmail.com',
-          passwordHash: bcrypt.hashSync('password123', 10),
-          isVerified: true,
-          plan: 'free',
-          billingCycle: 'monthly',
-          subscriptionExpiresAt: null,
-          role: 'Owner',
-          status: 'active',
-          department: 'Executive',
-          createdAt: new Date().toISOString(),
-        },
-        {
-          _id: 'user_vinay',
-          name: 'Vinay',
-          email: 'vinaygk219@gmail.com',
-          passwordHash: bcrypt.hashSync('vinay@3374', 10),
-          isVerified: true,
-          plan: 'free',
-          billingCycle: 'monthly',
-          subscriptionExpiresAt: null,
-          role: 'Admin',
           status: 'active',
           department: 'Engineering',
           createdAt: new Date().toISOString(),
@@ -145,7 +121,11 @@ function signToken(user) {
 }
 
 // ── POST /api/auth/demo ───────────────────────────────────────
+// Local development only: mints an Owner token without credentials.
 router.post('/demo', async (req, res) => {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(404).json({ message: 'Not found' });
+  }
   try {
     const demoUser = {
       _id: 'user_demo',
@@ -345,6 +325,12 @@ router.post('/signin', async (req, res) => {
     const { email, password } = req.body || {};
     const normalizedEmail = String(email || '').trim().toLowerCase();
     const suppliedPassword = String(password || '');
+
+    // The demo account is a development fixture with a published password; it may
+    // still exist in older data stores, so refuse it outright in production.
+    if (process.env.NODE_ENV === 'production' && normalizedEmail === DEMO_EMAIL) {
+      return res.status(401).json({ message: 'Invalid email or password' });
+    }
 
     if (isMongoConnected()) {
       let user = await User.findOne({ email: normalizedEmail });

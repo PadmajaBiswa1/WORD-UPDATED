@@ -5,13 +5,13 @@ import { safe } from '@/ai/tools/readTools';
 
 const AUTHOR = 'Pragna';
 
-function dispatch(ctx, tr) {
+export function dispatch(ctx, tr) {
   tr.setMeta('pragnaAgent', true);
   ctx.editor.view.dispatch(tr);
 }
 
 // Rejects pending suggestions inside the block, then diffs its original text to `newText`, all in `tr`.
-function rewriteInTr(ctx, tr, hit, newText, id) {
+export function rewriteInTr(ctx, tr, hit, newText, id) {
   const start = hit.pos + 1;
   // A block Pragna inserted in this or an earlier run has no original text: rejecting would delete
   // the block itself. Replace its text instead, keeping it one pending insertion.
@@ -90,7 +90,7 @@ function listItemsFor(schema, parentItem, content) {
   return items.filter(Boolean);
 }
 
-function insertBlocksImpl({ after_id, markdown } = {}, ctx) {
+export function insertBlocksImpl({ after_id, markdown } = {}, ctx) {
   const hit = ctx.refs.resolve(after_id);
   if (!hit) return { error: 'unknown or deleted block id; call get_outline or find_text first' };
   if (!markdown) return { error: 'markdown is required' };

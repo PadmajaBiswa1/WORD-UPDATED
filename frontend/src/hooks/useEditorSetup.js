@@ -5,7 +5,7 @@
 // ═══════════════════════════════════════════════════════════════
 import { useEffect, useCallback, useMemo, useRef } from 'react';
 import { useEditor as useTiptap } from '@tiptap/react';
-import { Extension, Mark } from '@tiptap/core';
+import { Extension } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
@@ -15,6 +15,7 @@ import Highlight from '@tiptap/extension-highlight';
 import Link from '@tiptap/extension-link';
 import Image from '@tiptap/extension-image';
 import Table from '@tiptap/extension-table';
+import { StyledTableView } from '@/components/editor/StyledTableView';
 import TableRow from '@tiptap/extension-table-row';
 import TableCell from '@tiptap/extension-table-cell';
 import TableHeader from '@tiptap/extension-table-header';
@@ -22,13 +23,16 @@ import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import CharacterCount from '@tiptap/extension-character-count';
 import Placeholder from '@tiptap/extension-placeholder';
+import { Insertion, Deletion } from '@/services/trackedChanges';
 import Typography from '@tiptap/extension-typography';
 import Focus from '@tiptap/extension-focus';
 import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript';
 import FontFamily from '@tiptap/extension-font-family';
 import Blockquote from '@tiptap/extension-blockquote';
-import { PageBreak } from '@/components/editor/PageBreak';
+import { PageBreak, supportsColumnFlow } from '@/components/editor/PageBreak';
+import { getLayoutMetrics, PAGE_GAP, PAGE_BORDER_WIDTH } from '@/utils/pageLayout';
+import { MediaEmbed } from '@/components/editor/MediaEmbed';
 import { TrailingNode } from '@/components/editor/TrailingNode';
 import { ProductivityExtension } from '@/services/productivityExtension';
 import { useEditorStore, useDocumentStore, useUIStore } from '@/store';
@@ -161,6 +165,11 @@ const BlockStyle = Extension.create({
       {
         types: ['paragraph', 'heading', 'blockquote', 'table', 'tableCell', 'tableHeader', 'tableRow'],
         attributes: {
+          id: {
+            default: null,
+            parseHTML: (element) => element.getAttribute('id'),
+            renderHTML: (attributes) => attributes.id ? { id: attributes.id } : {},
+          },
           style: {
             default: null,
             parseHTML: (element) => element.getAttribute('style'),
@@ -222,40 +231,21 @@ const BlockStyle = Extension.create({
   },
 });
 
-// ── Track Changes marks ─────────────────────────────────────
-const Insertion = Mark.create({
-  name: 'insertion',
-  addOptions() {
+// Word's paragraph alignment shortcuts. Higher priority than the Code mark, which
+// binds Mod-e to inline code by default.
+const WordAlignKeymap = Extension.create({
+  name: 'wordAlignKeymap',
+  priority: 1000,
+  addKeyboardShortcuts() {
+    const align = (value) => ({ editor }) => editor.commands.setTextAlign(value);
+    // The Shift variants are bound so ProseMirror does not fall back to Mod-e etc.:
+    // Ctrl+Shift+L is Word's bullet list; Ctrl+Shift+E/R/J belong to app shortcuts.
+    const appShortcut = () => true;
     return {
-      HTMLAttributes: {
-        class: 'etherx-insertion',
-        'data-mark': 'insertion',
-      },
+      'Mod-l': align('left'), 'Mod-e': align('center'), 'Mod-r': align('right'), 'Mod-j': align('justify'),
+      'Mod-Shift-l': ({ editor }) => editor.commands.toggleBulletList(),
+      'Mod-Shift-e': appShortcut, 'Mod-Shift-r': appShortcut, 'Mod-Shift-j': appShortcut,
     };
-  },
-  parseHTML() {
-    return [{ tag: 'ins' }, { tag: 'span[data-mark="insertion"]' }];
-  },
-  renderHTML({ HTMLAttributes }) {
-    return ['span', HTMLAttributes, 0];
-  },
-});
-
-const Deletion = Mark.create({
-  name: 'deletion',
-  addOptions() {
-    return {
-      HTMLAttributes: {
-        class: 'etherx-deletion',
-        'data-mark': 'deletion',
-      },
-    };
-  },
-  parseHTML() {
-    return [{ tag: 'del' }, { tag: 'span[data-mark="deletion"]' }];
-  },
-  renderHTML({ HTMLAttributes }) {
-    return ['span', HTMLAttributes, 0];
   },
 });
 
@@ -345,19 +335,20 @@ const TableExitKeymap = Extension.create({
 export function useEditorSetup() {
   const { setEditor, fontFamily, fontSize, spellCheck, beginProgrammaticChange } = useEditorStore();
   const { content } = useDocumentStore();
-  const { pageColumns } = useUIStore();
+  const { pageColumns, pageSize, pageOrientation, pageMargin } = useUIStore();
   const isLocalChange = useRef(false);
 
   const syncToolbarFormattingState = useCallback((instance) => {
     const attrs = instance.getAttributes('textStyle') || {};
     const currentStore = useEditorStore.getState();
+    const currentDesign = useDocumentStore.getState().design || {};
     const rawFamily = attrs.fontFamily;
-    const nextFamily = rawFamily ? (normalizeFontFamily(rawFamily) || rawFamily) : currentStore.fontFamily;
+    const nextFamily = rawFamily ? (normalizeFontFamily(rawFamily) || rawFamily) : currentDesign.bodyFont || currentDesign.font || 'Lora';
     const rawSize = attrs.fontSize;
     const parsedSize = rawSize ? parseInt(String(rawSize), 10) : NaN;
     const nextSize = Number.isFinite(parsedSize)
       ? String(parsedSize)
-      : currentStore.fontSize;
+      : String(currentDesign.fontSize || '12');
 
     if (currentStore.fontFamily !== nextFamily) currentStore.setFontFamily(nextFamily);
     if (currentStore.fontSize !== nextSize) currentStore.setFontSize(nextSize);
@@ -376,6 +367,9 @@ export function useEditorSetup() {
     }),
     Underline,
     TextAlign.extend({
+      // WordAlignKeymap binds Word's Ctrl+L/E/R/J; Tiptap's Ctrl+Shift+L/E/R/J
+      // would shadow Word shortcuts such as Ctrl+Shift+E (Track Changes).
+      addKeyboardShortcuts() { return {}; },
       addGlobalAttributes() {
         return [
           {
@@ -411,8 +405,9 @@ export function useEditorSetup() {
     Highlight.configure({ multicolor: true }),
     Link.configure({ openOnClick: false, HTMLAttributes: { rel: 'noopener noreferrer', target: '_blank' } }),
     ResizableImage.configure({ allowBase64: true }),
+    MediaEmbed,
     SuggestInsert, SuggestDelete, CommentAnchor, Suggestions,
-    Table.configure({ resizable: true }),
+    Table.configure({ resizable: true, View: StyledTableView }),
     TableRow, TableCell, TableHeader,
     TaskList,
     TaskItem.configure({ nested: true }),
@@ -429,6 +424,7 @@ export function useEditorSetup() {
     ProductivityExtension,
     TrailingNode,
     TableExitKeymap,
+    WordAlignKeymap,
   ], []);
 
   const editor = useTiptap({
@@ -479,12 +475,26 @@ export function useEditorSetup() {
   }, [extensions]);
 
 
-  // Sync layout columns
+  // Layout columns, as in Word: text fills each page's first column, then the
+  // next, then continues on the next page. Each page is one row of columns as tall
+  // as the page's text area (column-height + column-wrap); the row gap spans the
+  // bottom margin, the gap between pages and the next top margin. Without
+  // column-wrap support the columns fall back to running across the whole document.
   useEffect(() => {
     if (!editor) return;
-    editor.view.dom.style.setProperty('column-count', pageColumns > 1 ? String(pageColumns) : 'auto');
-    editor.view.dom.style.setProperty('column-gap', pageColumns > 1 ? '40px' : 'normal');
-  }, [editor, pageColumns]);
+    const style = editor.view.dom.style;
+    const columns = pageColumns > 1;
+    const flow = columns && supportsColumnFlow();
+    const metrics = getLayoutMetrics({ size: pageSize, orientation: pageOrientation, margin: pageMargin });
+    const columnHeight = Math.max(1, metrics.contentHeight - PAGE_BORDER_WIDTH * 2);
+    style.setProperty('column-count', columns ? String(pageColumns) : 'auto');
+    style.setProperty('column-gap', columns ? '40px' : 'normal');
+    style.setProperty('column-fill', flow ? 'auto' : '');
+    style.setProperty('column-height', flow ? `${columnHeight}px` : '');
+    style.setProperty('column-wrap', flow ? 'wrap' : '');
+    style.setProperty('row-gap', flow ? `${metrics.pageHeight + PAGE_GAP - columnHeight}px` : '');
+    editor.view.dom.classList.toggle('etherx-column-flow', flow);
+  }, [editor, pageColumns, pageSize, pageOrientation, pageMargin]);
 
   useEffect(() => {
     if (!editor?.view?.dom || typeof window === 'undefined') return;
@@ -530,17 +540,6 @@ export function useEditorSetup() {
       if (typeof window !== 'undefined') window.__ETHERX_EDITOR__ = null;
     };
   }, [editor, setEditor]);
-
-  // Handle Track Changes state toggle
-  const trackChanges = useDocumentStore((s) => s.trackChanges);
-  useEffect(() => {
-    if (!editor || editor.isDestroyed) return;
-    if (trackChanges) {
-      editor.chain().focus().setMark('insertion').run();
-    } else {
-      editor.chain().focus().unsetMark('insertion').run();
-    }
-  }, [editor, trackChanges]);
 
   return editor;
 }

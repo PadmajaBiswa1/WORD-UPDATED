@@ -3,7 +3,7 @@ import { Crop, Sparkles, Waves, BoxSelect, PenLine } from 'lucide-react';
 import { useEditorStore, useUIStore } from '@/store';
 import { Button, Divider, Tooltip, Select } from '@/components/ui';
 import { getSelectedImageElement, isImageSelection } from '@/utils/imageSelection';
-import { isShapeSrc, parseShapeInfo, generateShapeDataUrl, SHAPE_PRESETS } from '@/utils/shapeUtils';
+import { isShapeSrc, parseShapeInfo, updateShapeDataUrl, SHAPE_PRESETS } from '@/utils/shapeUtils';
 import { PenCustomizerPopover } from '@/components/editor/PenCustomizerPanel';
 
 const BORDER_STYLES = [
@@ -192,7 +192,7 @@ export function PictureFormatTab({ mode = 'auto' }) {
       const isShapeDetected = isShapeSrc(attrs.src);
       setIsShape(isShapeDetected);
       if (isShapeDetected) {
-        const parsed = parseShapeInfo(attrs.src);
+        const parsed = parseShapeInfo(attrs.src, attrs.alt);
         setShapeInfo(parsed);
         setShapeDraftText(parsed.text || '');
       } else {
@@ -214,9 +214,9 @@ export function PictureFormatTab({ mode = 'auto' }) {
       setImgHeight(height);
       setDraftWidth(String(width));
       setDraftHeight(String(height));
-      setBorderColor(css.borderColor || '#000000');
-      setBorderThickness(String(parseInt(css.borderWidth, 10) || 1));
-      setBorderStyle(css.borderStyle || 'solid');
+      setBorderColor(css['border-color'] || '#000000');
+      setBorderThickness(String(parseInt(css['border-width'], 10) || 1));
+      setBorderStyle(css['border-style'] || 'solid');
       setCustomRotation(parseInt(String(attrs.rotate || css.transform?.match(/rotate\(([^)]+)\)/)?.[1] || 0), 10) || 0);
 
       const opacity = Number.parseFloat(css.opacity);
@@ -342,6 +342,7 @@ export function PictureFormatTab({ mode = 'auto' }) {
       toast('Editor is not ready yet', 'info');
       return;
     }
+    if (!editor.isEditable) return;
     const info = findCurrentImageNode();
     if (!info) {
       toast('Select an image first', 'info');
@@ -357,13 +358,13 @@ export function PictureFormatTab({ mode = 'auto' }) {
   // ProseMirror transaction. This never calls focus() or relies on the
   // TipTap selection state, so it works even when focus is in a toolbar input.
   const patchImageNode = (pos, attrsPatch = {}, cssPatch = {}) => {
-    if (pos == null || !editor || editor.isDestroyed) return false;
+    if (pos == null || !editor || editor.isDestroyed || !editor.isEditable) return false;
     try {
       const { state } = editor;
       const node = state.doc.nodeAt(pos);
       if (!node || node.type.name !== 'image') return false;
 
-      const css = parseCssStyle(node.attrs.style || '');
+      const css = attrsPatch.style === null ? {} : parseCssStyle(node.attrs.style || '');
       Object.entries(cssPatch).forEach(([k, v]) => {
         if (v === null || v === undefined || v === '') delete css[k];
         else css[k] = v;
@@ -553,11 +554,10 @@ export function PictureFormatTab({ mode = 'auto' }) {
   // Shape style update
   const updateShapeProperty = (patch) => {
     withSelectedImage((attrs) => {
-      if (!shapeInfo) return;
-      const nextInfo = { ...shapeInfo, ...patch };
+      const nextInfo = { ...parseShapeInfo(attrs.src, attrs.alt), ...patch };
       setShapeInfo(nextInfo);
-      const newSrc = generateShapeDataUrl(nextInfo.shapeType, nextInfo);
-      editor.chain().focus().updateAttributes('image', { src: newSrc }).run();
+      const newSrc = updateShapeDataUrl(attrs.src, patch);
+      updateImageAttrs({ src: newSrc });
     });
   };
 
@@ -640,9 +640,9 @@ export function PictureFormatTab({ mode = 'auto' }) {
       } else if (mode === 'topAndBottom') {
         updateImageAttrs({ wrap: mode }, { display: 'block', margin: '24px auto', float: null, position: 'static' });
       } else if (mode === 'behindText') {
-        updateImageAttrs({ wrap: mode }, { position: 'relative', 'z-index': '0', opacity: '0.85' });
+        placeOverText(0, mode);
       } else if (mode === 'inFrontOfText') {
-        updateImageAttrs({ wrap: mode }, { position: 'relative', 'z-index': '10' });
+        placeOverText(10, mode);
       } else if (mode === 'through') {
         updateImageAttrs({ wrap: mode }, { float: 'left', margin: '4px 8px' });
       }
@@ -650,20 +650,37 @@ export function PictureFormatTab({ mode = 'auto' }) {
     });
   };
 
+  const placeOverText = (layer, mode) => {
+    const info = findCurrentImageNode();
+    if (!info) return;
+    const css = parseCssStyle(info.node.attrs.style || '');
+    const image = editor.view.nodeDOM(info.pos);
+    const img = image?.tagName === 'IMG' ? image : image?.querySelector?.('img');
+    const root = editor.view.dom;
+    const rootRect = root.getBoundingClientRect();
+    const scale = root.offsetWidth ? rootRect.width / root.offsetWidth : 1;
+    const rect = img?.getBoundingClientRect();
+    const coordinates = css.position === 'absolute' ? {} : {
+      left: `${rect ? (rect.left - rootRect.left) / (scale || 1) : 0}px`,
+      top: `${rect ? (rect.top - rootRect.top) / (scale || 1) : 0}px`,
+    };
+    updateImageAttrs({ wrap: mode, zIndex: String(layer) }, {
+      position: 'absolute', 'z-index': String(layer), float: null, margin: '0', ...coordinates,
+    });
+  };
+
   const bringForward = () => {
     withSelectedImage((attrs, css) => {
       const current = parseInt(String(css['z-index'] || attrs.zIndex || '1'), 10) || 1;
-      const next = current + 1;
-      updateImageAttrs({ zIndex: String(next) }, { position: 'relative', 'z-index': String(next) });
+      const next = Math.max(2, current + 1);
+      placeOverText(next, 'inFrontOfText');
       toast('Brought forward', 'success');
     });
   };
 
   const sendBackward = () => {
-    withSelectedImage((attrs, css) => {
-      const current = parseInt(String(css['z-index'] || attrs.zIndex || '1'), 10) || 1;
-      const next = Math.max(0, current - 1);
-      updateImageAttrs({ zIndex: String(next) }, { position: 'relative', 'z-index': String(next) });
+    withSelectedImage(() => {
+      placeOverText(0, 'behindText');
       toast('Sent backward', 'success');
     });
   };
@@ -671,7 +688,7 @@ export function PictureFormatTab({ mode = 'auto' }) {
   const resetFormatting = () => {
     withSelectedImage((attrs) => {
       const src = attrs.src;
-      editor.chain().focus().updateAttributes('image', {
+      updateImageAttrs({
         src,
         width: null,
         height: null,
@@ -680,7 +697,7 @@ export function PictureFormatTab({ mode = 'auto' }) {
         rotate: null,
         wrap: null,
         zIndex: null,
-      }).run();
+      });
 
       setImgWidth(240);
       setImgHeight(180);
@@ -761,7 +778,8 @@ export function PictureFormatTab({ mode = 'auto' }) {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
               {SHAPE_PRESETS.map((p) => (
                 <button
-                  key={p.name}
+                  key={p.id}
+                  title={p.label}
                   type="button"
                   onClick={() => updateShapeProperty({
                     fill: p.fill,
@@ -782,7 +800,7 @@ export function PictureFormatTab({ mode = 'auto' }) {
                     overflow: 'hidden',
                   }}
                 >
-                  {p.name}
+                  {p.label}
                 </button>
               ))}
             </div>
@@ -793,24 +811,25 @@ export function PictureFormatTab({ mode = 'auto' }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
                   <input
                     type="color"
-                    value={shapeInfo.fill === 'none' ? '#ffffff' : shapeInfo.fill}
+                    aria-label="Shape fill color"
+                    value={['none', 'transparent'].includes(shapeInfo.fill) ? '#ffffff' : shapeInfo.fill}
                     onChange={(e) => updateShapeProperty({ fill: e.target.value })}
                     style={{ width: 24, height: 24, border: 'none', borderRadius: 4, cursor: 'pointer', padding: 0 }}
                   />
                   <button
                     type="button"
-                    onClick={() => updateShapeProperty({ fill: shapeInfo.fill === 'none' ? '#2563eb' : 'none' })}
+                    onClick={() => updateShapeProperty({ fill: ['none', 'transparent'].includes(shapeInfo.fill) ? '#2563eb' : 'none' })}
                     style={{
                       fontSize: 10,
                       padding: '2px 6px',
                       borderRadius: 4,
                       border: '1px solid var(--border)',
-                      background: shapeInfo.fill === 'none' ? '#2563eb' : 'var(--bg-surface)',
-                      color: shapeInfo.fill === 'none' ? '#fff' : 'var(--text-primary)',
+                      background: ['none', 'transparent'].includes(shapeInfo.fill) ? '#2563eb' : 'var(--bg-surface)',
+                      color: ['none', 'transparent'].includes(shapeInfo.fill) ? '#fff' : 'var(--text-primary)',
                       cursor: 'pointer',
                     }}
                   >
-                    {shapeInfo.fill === 'none' ? 'No Fill ✓' : 'No Fill'}
+                    {['none', 'transparent'].includes(shapeInfo.fill) ? 'No Fill ✓' : 'No Fill'}
                   </button>
                 </div>
               </div>
@@ -820,11 +839,13 @@ export function PictureFormatTab({ mode = 'auto' }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
                   <input
                     type="color"
+                    aria-label="Shape outline color"
                     value={shapeInfo.stroke}
                     onChange={(e) => updateShapeProperty({ stroke: e.target.value })}
                     style={{ width: 24, height: 24, border: 'none', borderRadius: 4, cursor: 'pointer', padding: 0 }}
                   />
                   <select
+                    aria-label="Shape outline width"
                     value={shapeInfo.strokeWidth}
                     onChange={(e) => updateShapeProperty({ strokeWidth: Number(e.target.value) })}
                     style={{ ...numberInputStyle, width: 50, height: 24, padding: '0 4px', fontSize: 11 }}
@@ -1126,8 +1147,8 @@ export function PictureFormatTab({ mode = 'auto' }) {
               <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <span style={miniLabel}>Opacity</span>
                 <Select
-                  value={String(transparency)}
-                  onChange={(v) => applyTransparency(v)}
+                  value={String(100 - transparency)}
+                  onChange={(v) => applyTransparency(100 - Number(v))}
                   options={TRANSPARENCY_OPTIONS}
                   width={68}
                   title="Transparency"

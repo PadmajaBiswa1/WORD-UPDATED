@@ -1,14 +1,34 @@
 import { useState, useEffect, useRef } from 'react';
-import {
-  Sparkles, Sliders, Globe, X, FileText,
-  AlertTriangle, Paperclip, Image as ImageIcon, Link as LinkIcon, ArrowUp,
-  SquarePen, MessageCircle, ListChecks, PenLine, WandSparkles, CheckCheck,
-} from 'lucide-react';
+import { buildHistory } from '@/ai/memory';
+import { listSuggestionIds } from '@/ai/suggestions';
+import { Sparkles, X, FileText, AlertTriangle, ArrowUp, PenLine, CheckCheck } from 'lucide-react';
 import { useUIStore, useEditorStore, useDocumentStore } from '@/store';
 import { markdownToHtml } from '@/services/ai';
 import { aiApi, uploadApi } from '@/services/api';
 import { useDocumentAgent } from '@/ai/useDocumentAgent';
 import { SuggestionReview } from './SuggestionReview';
+
+// Empty-state skills (design). Each runs as a normal Pragna request.
+const PRAGNA_SKILLS = [
+  ['/check-doc', 'Check this document for errors, inconsistencies and unclear passages, and list what to fix.'],
+  ['/copy-edit', 'Copy-edit the selected text, or the whole document if nothing is selected: fix grammar, spelling, punctuation and word choice without changing the meaning.'],
+  ['/summarize', 'Summarize the selected text, or the whole document if nothing is selected, as a short paragraph followed by key points.'],
+  ['/flag-issues', 'Flag factual, logical and tone issues in this document as comments, without rewriting it.'],
+  ['/tighten', 'Tighten the selected text, or the whole document if nothing is selected: cut filler and redundancy while keeping every point.'],
+  ['/outline', 'Draft an outline for this document as headings with one-line notes under each.'],
+];
+
+const skillBtn = {
+  height: 34,
+  padding: '0 16px',
+  borderRadius: 999,
+  border: '1px solid rgba(var(--ink,255,255,255),0.16)',
+  background: 'transparent',
+  color: 'var(--t20,#e8e6e1)',
+  fontSize: 13.5,
+  fontFamily: 'inherit',
+  cursor: 'pointer',
+};
 
 const QUICK_PROMPTS = [
   { label: 'Summarize', icon: FileText, prompt: 'Summarize the selected text, or the whole document if nothing is selected, as a short paragraph followed by key points.' },
@@ -70,13 +90,21 @@ function extractImagesFromMessage(content = '', html = '') {
   return images;
 }
 
+function preferredTone(profile) {
+  if (profile?.tone && profile.tone !== 'balanced') return profile.tone;
+  try {
+    const style = JSON.parse(localStorage.getItem('etherx.preferences') || '{}').responseStyle;
+    return { Balanced: 'balanced', Precise: 'technical', Creative: 'creative' }[style] || 'balanced';
+  } catch { return 'balanced'; }
+}
+
 export function PragnaChatSidebar() {
-  const { copilotOpen, toggleCopilot, pragnaInitialTab, pragnaInitialPrompt, toast } = useUIStore();
+  const { copilotOpen, toggleCopilot, pragnaInitialTab, pragnaInitialPrompt, pragnaAutoSend, toast } = useUIStore();
   const { editor } = useEditorStore();
   const { title: docTitle, aiProfile, setAiProfile } = useDocumentStore();
 
   const [activeSidebarTab, setActiveSidebarTab] = useState('chat'); // 'chat' | 'persona'
-  const [personaTone, setPersonaTone] = useState(aiProfile?.tone || 'professional');
+  const [personaTone, setPersonaTone] = useState(() => preferredTone(aiProfile));
   const [personaAudience, setPersonaAudience] = useState(aiProfile?.audience || 'general');
   const [personaResponseStyle, setPersonaResponseStyle] = useState(aiProfile?.responseStyle || 'concise');
   const [personaInstructions, setPersonaInstructions] = useState(aiProfile?.instructions || '');
@@ -108,7 +136,7 @@ export function PragnaChatSidebar() {
 
   useEffect(() => {
     if (aiProfile) {
-      if (aiProfile.tone) setPersonaTone(aiProfile.tone);
+      setPersonaTone(preferredTone(aiProfile));
       if (aiProfile.audience) setPersonaAudience(aiProfile.audience);
       if (aiProfile.responseStyle) setPersonaResponseStyle(aiProfile.responseStyle);
       if (aiProfile.instructions !== undefined) setPersonaInstructions(aiProfile.instructions);
@@ -161,7 +189,12 @@ Ask me anything or attach files below.`,
 
   const [inputPrompt, setInputPrompt] = useState('');
   const [loading, setLoading] = useState(false);
+  // Web search starts off: while it is on, messages go to research chat instead of
+  // the document agent. The "Web access" setting only decides whether it may be on.
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
+  const webAccessAllowed = (() => {
+    try { return JSON.parse(localStorage.getItem('etherx.preferences') || '{}').web !== false; } catch { return true; }
+  })();
   const [agentMode, setAgentMode] = useState(true);
   const agent = useDocumentAgent(editor);
   const [selectedText, setSelectedText] = useState('');
@@ -173,6 +206,8 @@ Ask me anything or attach files below.`,
   const [isDragging, setIsDragging] = useState(false);
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [imageUrlValue, setImageUrlValue] = useState('');
+  const [attachmentMenu, setAttachmentMenu] = useState(false);
+  const [listening, setListening] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState(false);
 
   const fileInputRef = useRef(null);
@@ -240,11 +275,21 @@ Ask me anything or attach files below.`,
         }
       }
       setTimeout(() => {
-        textareaRef.current?.focus();
+        if (pragnaInitialPrompt || pragnaInitialTab !== 'ask') textareaRef.current?.focus();
         scrollToBottom();
       }, 100);
     }
   }, [copilotOpen, pragnaInitialTab, pragnaInitialPrompt]);
+
+  // Callers such as an @Pragna comment ask for the prompt to be sent at once.
+  const autoSentRef = useRef(pragnaAutoSend);
+  useEffect(() => {
+    if (!copilotOpen || pragnaAutoSend === autoSentRef.current || !pragnaInitialPrompt) return;
+    autoSentRef.current = pragnaAutoSend;
+    setActiveSidebarTab('chat');
+    handleSendMessage(pragnaInitialPrompt, { forceAgent: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [copilotOpen, pragnaAutoSend]);
 
   useEffect(() => {
     if (copilotOpen) {
@@ -437,19 +482,19 @@ Ask me anything or attach files below.`,
     });
   };
 
-  const handleSendMessage = async (customText) => {
+  // forceAgent: requests that must edit the document (e.g. an @Pragna comment)
+  // take the agent path even if web search or attachments are active.
+  // display: what the chat shows for the user's turn (e.g. a skill name) when it differs from the prompt.
+  const handleSendMessage = async (customText, { forceAgent = false, display } = {}) => {
     const rawPrompt = customText || inputPrompt || textareaRef.current?.value || '';
     const currentAttachments = [...attachments];
     const promptToSend = rawPrompt.trim();
 
     if ((!promptToSend && currentAttachments.length === 0) || loading) return;
 
-    if (agentMode && !currentAttachments.length && !webSearchEnabled && editor) {
-      const userMsg = { id: `user-${Date.now()}`, role: 'user', content: promptToSend, timestamp: new Date() };
-      const history = messages
-        .filter((m) => (m.role === 'user' || m.role === 'assistant') && !m.isError && typeof m.content === 'string')
-        .slice(-6)
-        .map((m) => ({ role: m.role, content: m.content }));
+    if (editor && (forceAgent || (agentMode && !currentAttachments.length && !webSearchEnabled))) {
+      const userMsg = { id: `user-${Date.now()}`, role: 'user', content: promptToSend, display, timestamp: new Date() };
+      const history = buildHistory(messages, new Set(listSuggestionIds(editor.state.doc)));
       setMessages((prev) => [...prev, userMsg]);
       setInputPrompt('');
       setLoading(true);
@@ -460,7 +505,7 @@ Ask me anything or attach files below.`,
           : `${result?.summary || 'Done.'}${result?.suggestions ? `\n\n_${result.suggestions} change(s) to review._` : ''}`;
         setMessages((prev) => [...prev, {
           id: `assistant-${Date.now()}`, role: 'assistant', content: text, html: markdownToHtml(text),
-          isAgentRun: true, runId: result?.runId, canUndo: Boolean(result?.recorder?.changed), timestamp: new Date(),
+          isAgentRun: true, runId: result?.runId, canUndo: Boolean(result?.recorder?.changed), plan: result?.plan || null, changes: result?.changes || [], timestamp: new Date(),
         }]);
       } catch (err) {
         setMessages((prev) => [...prev, {
@@ -759,14 +804,13 @@ Ask me anything or attach files below.`,
       }}
       className="pragna-sidebar-container"
       style={{
-        width: 372,
-        minWidth: 340,
-        maxWidth: 440,
+        width: 360,
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        background: '#101012',
-        borderLeft: '1px solid rgba(255,255,255,0.07)',
+        background: 'var(--t3,#131210)',
+        borderLeft: '1px solid rgba(var(--ink,255,255,255),0.07)',
+        overflow: 'hidden',
         zIndex: 100,
         flexShrink: 0,
         fontFamily: 'var(--font-ui)',
@@ -800,237 +844,68 @@ Ask me anything or attach files below.`,
         </div>
       )}
 
-      {/* Header: brand, mode, new chat, close; then Chat / Directives switch */}
-      <div style={{ flex: 'none', display: 'flex', flexDirection: 'column', gap: 12, padding: '14px 12px 12px 16px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span aria-hidden="true" style={{ ...pragnaOrb, width: 28, height: 28 }}><Sparkles size={14} /></span>
-          <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 7, fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
-            Pragna
-            <span title={aiConfigured ? 'Online' : 'Not configured'} style={{ width: 6, height: 6, borderRadius: '50%', background: aiConfigured ? '#6bbf7a' : '#6f6d68' }} />
-          </div>
-          <button type="button" onClick={handleClearChat} title="New chat" aria-label="New chat" style={headerIconBtn} onMouseEnter={iconHoverOn} onMouseLeave={iconHoverOff}>
-            <SquarePen size={15} strokeWidth={1.75} />
-          </button>
-          <button type="button" onClick={toggleCopilot} title="Close" aria-label="Close Pragna" style={headerIconBtn} onMouseEnter={iconHoverOn} onMouseLeave={iconHoverOff}>
-            <X size={15} strokeWidth={1.75} />
-          </button>
-        </div>
-        <div role="tablist" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', padding: 3, borderRadius: 9, background: '#1a1a1d' }}>
-          {[['chat', 'Chat', MessageCircle], ['persona', 'Directives', ListChecks]].map(([id, name, Icon]) => (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={activeSidebarTab === id}
-              onClick={() => setActiveSidebarTab(id)}
-              style={{
-                height: 28, border: 0, borderRadius: 7, cursor: 'pointer', fontSize: 12.5, fontWeight: 500, fontFamily: 'var(--font-ui)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                background: activeSidebarTab === id ? 'var(--bg-elevated)' : 'transparent',
-                boxShadow: activeSidebarTab === id ? '0 1px 2px rgba(0,0,0,0.25)' : 'none',
-                color: activeSidebarTab === id ? 'var(--text-primary)' : 'var(--text-muted)',
-              }}
-            >
-              <Icon size={13} />{name}
-            </button>
-          ))}
-        </div>
+      {/* Header (design): title, collapse, close */}
+      <div style={{ height: 48, flex: 'none', display: 'flex', alignItems: 'center', gap: 4, padding: '0 8px 0 16px' }}>
+        <span style={{ flex: 1, fontSize: 15, fontWeight: 600, color: 'var(--t18,#f1efea)', display: 'flex', alignItems: 'center', gap: 7 }}>
+          Pragna
+          {!aiConfigured && <span title="Not configured" style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--t28,#6f6d68)' }} />}
+        </span>
+        <button type="button" onClick={toggleCopilot} title="Collapse" aria-label="Collapse Pragna" className="pragna-icon-btn" style={headerIconBtn}><i className="icon-chevron-down" style={{ fontSize: 15 }} /></button>
+        <button type="button" onClick={toggleCopilot} title="Close" aria-label="Close Pragna" className="pragna-icon-btn" style={headerIconBtn}><i className="icon-x" style={{ fontSize: 15 }} /></button>
+      </div>
+
+      {/* Card (design): history, new chat, directives; then chat or directives; then composer */}
+      <div style={{ flex: 1, minHeight: 0, margin: '0 12px 12px', display: 'flex', flexDirection: 'column', border: '1px solid rgba(var(--ink,255,255,255),0.1)', borderRadius: 6, background: 'var(--t4,#121214)' }}>
+      <div style={{ flex: 'none', display: 'flex', justifyContent: 'flex-end', gap: 6, padding: '10px 12px 0' }}>
+        <button type="button" disabled title="Chat history (coming soon)" aria-label="Chat history" style={{ ...headerIconBtn, opacity: 0.45, cursor: 'default' }}><i className="icon-history" style={{ fontSize: 16 }} /></button>
+        <button type="button" onClick={() => { handleClearChat(); setActiveSidebarTab('chat'); }} title="New chat" aria-label="New chat" className="pragna-icon-btn" style={headerIconBtn}><i className="icon-message-circle-plus" style={{ fontSize: 16 }} /></button>
+        <button type="button" onClick={() => setActiveSidebarTab(activeSidebarTab === 'persona' ? 'chat' : 'persona')} title="Directives" aria-label="Directives" aria-pressed={activeSidebarTab === 'persona'} className="pragna-icon-btn" style={headerIconBtn}><i className="icon-ellipsis-vertical" style={{ fontSize: 16 }} /></button>
       </div>
 
       {activeSidebarTab === 'persona' ? (
-        <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gold)', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Sliders size={14} /> Document AI Persona & Directives
+        <div style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--t18,#f1efea)' }}>Directives</span>
+            <button type="button" onClick={handleSavePersona} className="pragna-skill-btn" style={{ height: 28, padding: '0 12px', borderRadius: 999, border: '1px solid rgba(var(--ink,255,255,255),0.16)', background: 'transparent', color: 'var(--t20,#e8e6e1)', fontSize: 12.5, fontFamily: 'inherit', cursor: 'pointer' }}>Done</button>
+          </div>
+          {[
+            ['TONE', personaTone, setPersonaTone, PERSONA_TONES],
+            ['AUDIENCE', personaAudience, setPersonaAudience, PERSONA_AUDIENCES],
+            ['RESPONSE STYLE', personaResponseStyle, setPersonaResponseStyle, PERSONA_STYLES],
+          ].map(([label, value, setValue, options]) => (
+            <div key={label} role="radiogroup" aria-label={label} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <span style={directiveLabel}>{label}</span>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {options.map(([id, name]) => {
+                  const on = value === id;
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      role="radio"
+                      aria-checked={on}
+                      onClick={() => setValue(id)}
+                      style={{ height: 28, padding: '0 11px', borderRadius: 14, border: `1px solid ${on ? 'rgba(212,175,55,0.45)' : 'rgba(var(--ink,255,255,255),0.08)'}`, background: on ? 'rgba(212,175,55,0.12)' : 'transparent', color: on ? 'var(--t32,#e3c378)' : 'var(--t22,#c4c2bd)', fontSize: 12, fontFamily: 'inherit', cursor: 'pointer' }}
+                    >
+                      {name}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-              Configure persistent tone, audience, instructions, and vocabulary enforced by Pragna for this document.
-            </div>
-          </div>
-
-          <div>
-            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
-              Tone of Voice
-            </label>
-            <select
-              value={personaTone}
-              onChange={(e) => setPersonaTone(e.target.value)}
-              style={{
-                width: '100%',
-                background: 'var(--bg-elevated)',
-                border: '1px solid var(--border)',
-                color: 'var(--text-primary)',
-                padding: '6px 8px',
-                borderRadius: 4,
-                fontSize: 11,
-                fontFamily: 'var(--font-ui)',
-              }}
-            >
-              <option value="professional">Professional & Authoritative</option>
-              <option value="academic">Academic & Scholarly</option>
-              <option value="executive">Executive & C-Suite</option>
-              <option value="conversational">Conversational & Friendly</option>
-              <option value="technical">Technical & Precise</option>
-              <option value="persuasive">Persuasive & Compelling</option>
-              <option value="creative">Creative & Expressive</option>
-            </select>
-          </div>
-
-          <div>
-            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
-              Target Audience
-            </label>
-            <select
-              value={personaAudience}
-              onChange={(e) => setPersonaAudience(e.target.value)}
-              style={{
-                width: '100%',
-                background: 'var(--bg-elevated)',
-                border: '1px solid var(--border)',
-                color: 'var(--text-primary)',
-                padding: '6px 8px',
-                borderRadius: 4,
-                fontSize: 11,
-                fontFamily: 'var(--font-ui)',
-              }}
-            >
-              <option value="general">General Audience</option>
-              <option value="executive">Executive Leadership / Board</option>
-              <option value="technical">Technical Specialists & Engineers</option>
-              <option value="legal">Legal & Compliance Officers</option>
-              <option value="academic">Academic Peer Reviewers</option>
-              <option value="students">Students & General Learners</option>
-            </select>
-          </div>
-
-          <div>
-            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
-              Response Style
-            </label>
-            <select
-              value={personaResponseStyle}
-              onChange={(e) => setPersonaResponseStyle(e.target.value)}
-              style={{
-                width: '100%',
-                background: 'var(--bg-elevated)',
-                border: '1px solid var(--border)',
-                color: 'var(--text-primary)',
-                padding: '6px 8px',
-                borderRadius: 4,
-                fontSize: 11,
-                fontFamily: 'var(--font-ui)',
-              }}
-            >
-              <option value="concise">Concise & Direct</option>
-              <option value="balanced">Balanced</option>
-              <option value="detailed">In-depth & Comprehensive</option>
-            </select>
-          </div>
-
-          <div>
-            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
-              Custom Instructions & Directives
-            </label>
-            <textarea
-              value={personaInstructions}
-              onChange={(e) => setPersonaInstructions(e.target.value)}
-              placeholder="e.g. Always structure findings with clear metrics. Adopt the perspective of a seasoned management consultant."
-              rows={4}
-              style={{
-                width: '100%',
-                boxSizing: 'border-box',
-                background: 'var(--bg-elevated)',
-                border: '1px solid var(--border)',
-                color: 'var(--text-primary)',
-                padding: '8px',
-                borderRadius: 4,
-                fontSize: 11,
-                fontFamily: 'var(--font-ui)',
-                resize: 'vertical',
-                lineHeight: 1.4,
-              }}
-            />
-          </div>
-
-          <div>
-            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
-              Preferred Terminology (comma-separated)
-            </label>
-            <input
-              type="text"
-              value={preferredTermsInput}
-              onChange={(e) => setPreferredTermsInput(e.target.value)}
-              placeholder="e.g. EtherX, cloud infrastructure, stakeholders"
-              style={{
-                width: '100%',
-                boxSizing: 'border-box',
-                background: 'var(--bg-elevated)',
-                border: '1px solid var(--border)',
-                color: 'var(--text-primary)',
-                padding: '6px 8px',
-                borderRadius: 4,
-                fontSize: 11,
-                fontFamily: 'var(--font-ui)',
-              }}
-            />
-            <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Preferred terms Pragna must use.</span>
-          </div>
-
-          <div>
-            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
-              Forbidden Terminology (comma-separated)
-            </label>
-            <input
-              type="text"
-              value={forbiddenTermsInput}
-              onChange={(e) => setForbiddenTermsInput(e.target.value)}
-              placeholder="e.g. synergy, paradigm shift, utilizes"
-              style={{
-                width: '100%',
-                boxSizing: 'border-box',
-                background: 'var(--bg-elevated)',
-                border: '1px solid var(--border)',
-                color: 'var(--text-primary)',
-                padding: '6px 8px',
-                borderRadius: 4,
-                fontSize: 11,
-                fontFamily: 'var(--font-ui)',
-              }}
-            />
-            <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Forbidden terms Pragna must never use.</span>
-          </div>
-
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 10, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
-            <button
-              onClick={() => setActiveSidebarTab('chat')}
-              style={{
-                background: 'transparent',
-                border: '1px solid var(--border)',
-                color: 'var(--text-secondary)',
-                padding: '6px 12px',
-                borderRadius: 4,
-                fontSize: 11,
-                cursor: 'pointer',
-              }}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSavePersona}
-              style={{
-                background: 'var(--gold)',
-                border: '1px solid var(--gold-border)',
-                color: 'var(--text-on-gold)',
-                padding: '6px 14px',
-                borderRadius: 4,
-                fontSize: 11,
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              Save Persona
-            </button>
-          </div>
+          ))}
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <span style={directiveLabel}>CUSTOM INSTRUCTIONS</span>
+            <textarea value={personaInstructions} onChange={(e) => setPersonaInstructions(e.target.value)} placeholder="Anything else Pragna should follow…" style={{ ...directiveField, minHeight: 96, resize: 'vertical' }} />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <span style={directiveLabel}>PREFERRED TERMS</span>
+            <input type="text" value={preferredTermsInput} onChange={(e) => setPreferredTermsInput(e.target.value)} placeholder="Comma-separated, e.g. EtherX, stakeholders" style={directiveField} />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <span style={directiveLabel}>FORBIDDEN TERMS</span>
+            <input type="text" value={forbiddenTermsInput} onChange={(e) => setForbiddenTermsInput(e.target.value)} placeholder="Comma-separated, e.g. synergy, utilize" style={directiveField} />
+          </label>
         </div>
       ) : (
         <>
@@ -1045,35 +920,17 @@ Ask me anything or attach files below.`,
           gap: 18,
         }}
       >
-        {!messages.some((m) => m.id !== 'welcome') && (
-          <>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 14, paddingTop: 6 }}>
-              <span aria-hidden="true" style={{ ...pragnaOrb, width: 40, height: 40, boxShadow: '0 0 40px rgba(212,175,55,0.3)' }}><Sparkles size={20} /></span>
-              <div style={{ fontFamily: 'Lora, Georgia, serif', fontSize: 22, lineHeight: 1.25, color: 'var(--text-primary)' }}>
-                How can <span style={{ background: GOLD_GRADIENT, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent', fontWeight: 600 }}>Pragna</span> help?
-              </div>
+        {!messages.some((m) => m.id !== 'welcome') && !loading && (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: '24px 0', transform: 'translateY(8px)' }}>
+            <div style={{ fontSize: 15, color: 'var(--t20,#e8e6e1)', marginBottom: 4 }}>Get started with these skills:</div>
+            {PRAGNA_SKILLS.map(([name, prompt]) => (
+              <button key={name} type="button" className="pragna-skill-btn" onClick={() => handleSendMessage(prompt, { forceAgent: true, display: name })} style={skillBtn}>{name}</button>
+            ))}
+            <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, fontSize: 12.5, color: 'var(--t25,#8b8984)' }}>
+              <a href="#directives" onClick={(e) => { e.preventDefault(); setActiveSidebarTab('persona'); }} style={{ color: 'var(--t22,#c4c2bd)', textDecoration: 'underline', textUnderlineOffset: 2 }}>Create and manage skills</a>
+              <span>in your Pragna directives</span>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              {[
-                ['Embed files', Paperclip, () => fileInputRef.current?.click()],
-                ['Draft', PenLine, () => setInputPrompt('Draft ')],
-                ['Edit & polish', WandSparkles, () => setInputPrompt('Edit & polish ')],
-                ['Summarize', ListChecks, () => setInputPrompt('Summarize ')],
-              ].map(([title, Icon, use]) => (
-                <button
-                  key={title}
-                  type="button"
-                  onClick={() => { use(); textareaRef.current?.focus(); }}
-                  style={capCard}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(214,178,94,0.35)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)'; }}
-                >
-                  <span style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(212,175,55,0.12)', color: 'var(--gold)', display: 'grid', placeItems: 'center', flex: 'none' }}><Icon size={14} /></span>
-                  <span style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--text-primary)', lineHeight: 1.3 }}>{title}</span>
-                </button>
-              ))}
-            </div>
-          </>
+          </div>
         )}
         {messages.filter((m) => m.id !== 'welcome').map((msg) => {
           const isUser = msg.role === 'user';
@@ -1107,7 +964,7 @@ Ask me anything or attach files below.`,
               >
                 {/* Text Content */}
                 {isUser ? (
-                  <div style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</div>
+                  <div style={{ whiteSpace: 'pre-wrap' }}>{msg.display || msg.content}</div>
                 ) : (
                   <div
                     className="pragna-sidebar-rendered"
@@ -1340,6 +1197,7 @@ Ask me anything or attach files below.`,
                   </button>
                 </div>
               )}
+              {msg.plan && <PlanChecklist plan={msg.plan} />}
               {msg.isAgentRun && msg.canUndo && !msg.undone && !agent.running && msg.runId === agent.lastRunId && (
                 <button type="button" onClick={() => handleUndoAgentRun(msg)} style={{ marginTop: 4, fontSize: 11, background: 'none', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-secondary)', padding: '2px 8px', cursor: 'pointer' }}>
                   Undo Pragna's changes
@@ -1350,9 +1208,15 @@ Ask me anything or attach files below.`,
         })}
 
         {agent.running && (
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', padding: '4px 2px' }}>
-            {agent.steps.slice(-4).map((s, i) => <div key={i}>{s.label}</div>)}
-            <button type="button" onClick={agent.stop} style={{ marginTop: 4, fontSize: 11 }}>Stop</button>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+            <span aria-hidden="true" style={{ ...pragnaOrb, width: 22, height: 22 }}><i className="icon-sparkles" style={{ fontSize: 11 }} /></span>
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {agent.plan && <PlanChecklist plan={agent.plan} />}
+              <span role="status" style={{ fontSize: 13, color: 'var(--t25,#8b8984)', fontStyle: 'italic' }}>
+                {agent.steps.at(-1)?.label || 'Pragna is writing…'}
+              </span>
+              <button type="button" onClick={agent.stop} style={{ alignSelf: 'flex-start', height: 26, padding: '0 10px', borderRadius: 7, border: '1px solid rgba(var(--ink,255,255,255),0.12)', background: 'transparent', color: 'var(--t22,#c4c2bd)', fontSize: 12, cursor: 'pointer' }}>Stop</button>
+            </div>
           </div>
         )}
 
@@ -1368,25 +1232,6 @@ Ask me anything or attach files below.`,
 
       <SuggestionReview editor={editor} />
 
-      {/* Quick Suggestion Chips */}
-      <div style={{ display: 'flex', gap: 6, overflowX: 'auto', padding: '8px 12px 6px', whiteSpace: 'nowrap', flexShrink: 0 }} className="ribbon-scroll">
-        {QUICK_PROMPTS.map((qp, idx) => {
-          const Icon = qp.icon || Sparkles;
-          return (
-            <button
-              key={idx}
-              type="button"
-              onClick={() => handleSendMessage(qp.prompt)}
-              disabled={loading}
-              style={{ ...chipBtn, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1 }}
-              onMouseEnter={(e) => { if (!loading) e.currentTarget.style.borderColor = 'rgba(214,178,94,0.4)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; }}
-            >
-              <Icon size={13} color="var(--gold)" />{qp.label}
-            </button>
-          );
-        })}
-      </div>
 
       {/* AI Not Configured Alert */}
       {!aiConfigured && (
@@ -1412,25 +1257,27 @@ Ask me anything or attach files below.`,
       {/* Unified Modern Input Card */}
       <div
         style={{
-          padding: '6px 12px 12px',
+          padding: '8px 10px 10px',
           background: 'transparent',
           flexShrink: 0,
         }}
       >
         <div
+          className="reference-pragna-composer"
           style={{
-            background: 'var(--bg-elevated)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            borderRadius: 12,
-            padding: '10px 10px 8px 12px',
+            position: 'relative',
+            background: 'var(--t11)',
+            border: '1px solid rgba(var(--ink),0.12)',
+            borderRadius: 16,
+            padding: '14px 10px 8px 16px',
             display: 'flex',
             flexDirection: 'column',
-            gap: 6,
+            gap: 10,
             boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
             transition: 'border-color 0.15s ease',
           }}
           onFocusCapture={(e) => { e.currentTarget.style.borderColor = 'var(--gold)'; }}
-          onBlurCapture={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; }}
+          onBlurCapture={(e) => { e.currentTarget.style.borderColor = 'rgba(var(--ink),0.12)'; }}
         >
           {hasSelection && (
             <span style={{ alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--gold-hover)', background: 'rgba(212,175,55,0.1)', borderRadius: 999, padding: '2px 8px' }}>
@@ -1606,17 +1453,18 @@ Ask me anything or attach files below.`,
               }
             }}
             disabled={loading || !aiConfigured}
-            placeholder={!aiConfigured ? "AI assistant not configured. Please check backend .env..." : "Ask Pragna to draft, edit, summarize, or attach files..."}
-            rows={2}
+            aria-label="Ask Pragna"
+            placeholder={!aiConfigured ? 'Pragna is unavailable. Try again later.' : 'Ask Pragna for help, or / for skills'}
+            rows={1}
             style={{
               width: '100%',
               background: 'transparent',
               border: 'none',
               outline: 'none',
               color: 'var(--text-primary)',
-              fontSize: 11.5,
+              fontSize: 14,
               fontFamily: 'var(--font-ui)',
-              lineHeight: 1.45,
+              lineHeight: 1.5,
               resize: 'none',
               padding: 0,
               opacity: !aiConfigured ? 0.6 : 1,
@@ -1630,7 +1478,8 @@ Ask me anything or attach files below.`,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              paddingTop: 3,
+              paddingTop: 0,
+              marginLeft: -6,
             }}
           >
             {/* Left Attachment Buttons */}
@@ -1658,140 +1507,69 @@ Ask me anything or attach files below.`,
                 }}
               />
 
-              {/* Attach File Button */}
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                title="Attach document or data file (.docx, .pdf, .txt, .csv...)"
-                aria-label="Attach file"
-                style={{
-                  background: 'transparent',
-                  color: 'var(--text-secondary)',
-                  border: 'none',
-                  borderRadius: 4,
-                  padding: '3px 6px',
-                  fontSize: 11,
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 3,
-                  transition: 'all 0.12s ease',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.background = 'var(--bg-hover)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.background = 'transparent'; }}
-              >
-                <Paperclip size={13} strokeWidth={1.75} />
-              </button>
-
-              {/* Add Image Button */}
-              <button
-                onClick={() => imageInputRef.current?.click()}
-                title="Upload and insert image"
-                aria-label="Add image"
-                style={{
-                  background: 'transparent',
-                  color: 'var(--text-secondary)',
-                  border: 'none',
-                  borderRadius: 4,
-                  padding: '3px 6px',
-                  fontSize: 11,
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 3,
-                  transition: 'all 0.12s ease',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.background = 'var(--bg-hover)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.background = 'transparent'; }}
-              >
-                <ImageIcon size={13} strokeWidth={1.75} />
-              </button>
-
-              {/* Image by URL */}
-              <button
-                onClick={() => setShowUrlInput(!showUrlInput)}
-                title="Insert image from web URL"
-                style={{
-                  background: showUrlInput ? 'rgba(212,175,55,0.15)' : 'transparent',
-                  color: showUrlInput ? 'var(--gold)' : 'var(--text-muted)',
-                  border: 'none',
-                  borderRadius: 4,
-                  padding: '3px 6px',
-                  fontSize: 11,
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 2,
-                  transition: 'all 0.12s ease',
-                }}
-              >
-                <LinkIcon size={13} strokeWidth={1.75} />
-              </button>
+              <button type="button" aria-label="Attach files" title="Attach files" onClick={() => setAttachmentMenu((open) => !open)} className="reference-composer-icon"><i className="icon-plus" /></button>
+              <button type="button" aria-label="Toggle document editing" aria-pressed={agentMode} title={agentMode ? 'Edit document with Pragna' : 'Chat without editing'} onClick={() => setAgentMode((on) => !on)} className="reference-composer-icon"><i className="icon-hand" /></button>
+              {attachmentMenu && <div className="reference-attachment-menu" role="menu">
+                <button role="menuitem" onClick={() => { fileInputRef.current?.click(); setAttachmentMenu(false); }}>Attach file</button>
+                <button role="menuitem" onClick={() => { imageInputRef.current?.click(); setAttachmentMenu(false); }}>Add image</button>
+                <button role="menuitem" onClick={() => { setShowUrlInput(true); setAttachmentMenu(false); }}>Image from URL</button>
+              </div>}
             </div>
-
-            {/* Mode pills: Edit/Ask, web grounding, persona tone */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto', marginRight: 6 }}>
-              <button
-                type="button"
-                onClick={() => setAgentMode((on) => !on)}
-                aria-pressed={agentMode}
-                title={agentMode ? 'Edit: Pragna edits the document as suggestions you accept or reject' : 'Ask: Pragna answers in chat only'}
-                style={{ ...pillBtn, ...(agentMode ? pillOn : null) }}
-              >
-                <PenLine size={12} />{agentMode ? 'Edit' : 'Ask'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setWebSearchEnabled(!webSearchEnabled)}
-                aria-pressed={webSearchEnabled}
-                title={webSearchEnabled ? 'Web search on (answers in chat)' : 'Web search off'}
-                style={{ ...pillBtn, ...(webSearchEnabled ? pillOn : null) }}
-              >
-                <Globe size={12} />Web
-              </button>
-              <button type="button" onClick={() => setActiveSidebarTab('persona')} title="Tone and directives" style={pillBtn}>
-                <Sliders size={12} /><span style={{ textTransform: 'capitalize' }}>{personaTone}</span>
-              </button>
-            </div>
-
-            {/* Right Send Control */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              {uploadingFiles && (
-                <span style={{ fontSize: 9.5, color: 'var(--gold)' }}>Uploading...</span>
-              )}
-              <button
-                onClick={() => handleSendMessage()}
-                disabled={loading || !aiConfigured || (!inputPrompt.trim() && attachments.length === 0)}
-                title={!aiConfigured ? "AI assistant not configured" : "Send message (Enter)"}
-                style={{
-                  width: 30,
-                  height: 30,
-                  background: (!loading && aiConfigured && (inputPrompt.trim() || attachments.length > 0)) ? GOLD_GRADIENT : '#1a1a1d',
-                  color: (!loading && aiConfigured && (inputPrompt.trim() || attachments.length > 0)) ? '#1a1405' : '#6f6d68',
-                  border: 0,
-                  borderRadius: '50%',
-                  cursor: (!loading && aiConfigured && (inputPrompt.trim() || attachments.length > 0)) ? 'pointer' : 'not-allowed',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'all 0.15s ease',
-                  boxShadow: (!loading && aiConfigured && (inputPrompt.trim() || attachments.length > 0)) ? '0 1px 4px rgba(212,175,55,0.3)' : 'none',
-                }}
-              >
-                <ArrowUp size={14} strokeWidth={2} />
-              </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+              {webAccessAllowed && <button type="button" aria-label="Web search" aria-pressed={webSearchEnabled} title={webSearchEnabled ? 'Web search on' : 'Web search off'} onClick={() => setWebSearchEnabled((on) => !on)} className="reference-composer-icon" style={{ color: webSearchEnabled ? 'var(--t31)' : 'var(--t25)' }}><i className="icon-globe" /></button>}
+              <button type="button" onClick={() => setActiveSidebarTab('persona')} title="Tone and directives" style={{ display: 'flex', gap: 4, alignItems: 'center', border: 0, background: 'transparent', color: 'var(--t21)', cursor: 'pointer', fontSize: 12.5 }}><span style={{ textTransform: 'capitalize' }}>{personaTone}</span><i className="icon-chevron-down" style={{ fontSize: 10 }} /></button>
+              {inputPrompt.trim() || attachments.length ? <button type="button" aria-label="Send message" title="Send message (Enter)" onClick={() => handleSendMessage()} disabled={loading || !aiConfigured} className="reference-composer-send"><ArrowUp size={15} /></button> : <button type="button" aria-label="Voice input" title={listening ? 'Listening…' : 'Voice input'} className="reference-composer-icon" onClick={() => {
+                const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if (!Recognition) return toast('Voice input is unavailable in this browser', 'info');
+                const recognition = new Recognition(); recognition.lang = 'en-US';
+                recognition.onresult = (event) => setInputPrompt((text) => `${text}${text ? ' ' : ''}${event.results[0][0].transcript}`);
+                recognition.onend = () => setListening(false);
+                recognition.onerror = () => { setListening(false); toast('Voice input could not start. Check microphone permissions.', 'warning'); };
+                try { recognition.start(); setListening(true); } catch { setListening(false); }
+              }}><i className="icon-mic" style={{ color: listening ? 'var(--t31)' : 'inherit' }} /></button>}
             </div>
           </div>
         </div>
       </div>
       </>
       )}
+      </div>
     </div>
   );
 }
 
 const GOLD_GRADIENT = 'linear-gradient(135deg,#e5c76b 0%,#d4af37 50%,#b8860b 100%)';
+
+const PERSONA_TONES = [
+  ['balanced', 'Balanced'], ['professional', 'Professional'], ['academic', 'Academic'], ['executive', 'Executive'],
+  ['conversational', 'Friendly'], ['technical', 'Technical'], ['persuasive', 'Persuasive'], ['creative', 'Creative'],
+];
+const PERSONA_AUDIENCES = [
+  ['general', 'General'], ['executive', 'Executives'], ['technical', 'Technical'], ['legal', 'Legal'], ['academic', 'Academic'], ['students', 'Students'],
+];
+const PERSONA_STYLES = [['concise', 'Concise'], ['balanced', 'Balanced'], ['detailed', 'Detailed']];
+
+const directiveLabel = { fontSize: 10.5, fontWeight: 600, letterSpacing: '0.08em', color: 'var(--t27,#7d7b76)' };
+const directiveField = {
+  padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(var(--ink,255,255,255),0.07)', background: 'var(--t8,#17171a)',
+  color: 'var(--t18,#f1efea)', fontFamily: 'inherit', fontSize: 13, lineHeight: 1.5, outline: 'none', boxSizing: 'border-box', width: '100%',
+};
+
+const PLAN_ICON = { done: 'circle-check', active: 'loader', pending: 'circle' };
+
+// A run's plan as a checklist (update_plan).
+function PlanChecklist({ plan }) {
+  return (
+    <ol aria-label="Plan" style={{ listStyle: 'none', margin: '6px 0 0', padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(var(--ink,255,255,255),0.08)', display: 'flex', flexDirection: 'column', gap: 5 }}>
+      {plan.map((step, i) => (
+        <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12.5, lineHeight: 1.4, color: step.status === 'pending' ? 'var(--t25,#8b8984)' : 'var(--t20,#e8e6e1)' }}>
+          <i className={`icon-${PLAN_ICON[step.status] || 'circle'}`} aria-label={step.status} style={{ fontSize: 13, marginTop: 1, color: step.status === 'pending' ? 'var(--t28,#6f6d68)' : 'var(--t31,#d6b25e)' }} />
+          <span style={{ textDecoration: step.status === 'done' ? 'line-through' : 'none', textDecorationColor: 'rgba(var(--ink,255,255,255),0.3)' }}>{step.text}</span>
+        </li>
+      ))}
+    </ol>
+  );
+}
 
 const pragnaOrb = {
   flex: 'none',
@@ -1804,13 +1582,13 @@ const pragnaOrb = {
 };
 
 const headerIconBtn = {
-  width: 28,
-  height: 28,
+  width: 30,
+  height: 30,
   border: 0,
   background: 'transparent',
-  borderRadius: 7,
+  borderRadius: 6,
   cursor: 'pointer',
-  color: 'var(--text-muted)',
+  color: 'var(--t23,#a19f99)',
   display: 'grid',
   placeItems: 'center',
 };

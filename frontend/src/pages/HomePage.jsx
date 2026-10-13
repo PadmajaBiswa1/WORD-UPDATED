@@ -4,7 +4,7 @@ import {
   Home, Sparkles, FilePlus, FolderOpen, Save, SaveAll,
   Printer, Download, Share2, Info, BarChart2, Settings,
   X, FileText, CheckCheck, RotateCcw, Tag, Globe, Zap, Lock, ShieldCheck,
-  Copy, Check
+  Copy, Check, ArrowLeft, Search, Plus, Upload, Menu
 } from 'lucide-react';
 import { docxToHtml } from '@/services/docxImport';
 import { documentApi } from '@/services/api';
@@ -26,10 +26,17 @@ import { buildAiResult, executePragnaAi, getPlainTextFromHtml, openTranslationUr
 import { useUIStore, useDocumentStore, useSubscriptionStore, getDefaultLayout } from '@/store';
 import { canAccessAi, canAccessTemplate, canCreateDocument, canExportFormat } from '@/utils/featureGate';
 import { getStoredUser } from '@/services/api';
+import { FileWorkspace } from '@/components/design/FileWorkspace';
+import { DialogManager } from '@/components/dialogs/DialogManager';
+import { Modal, Button } from '@/components/ui';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
-import { UpgradeModal } from '@/components/dialogs/UpgradeModal';
+import { applyDesignTheme, getUiTheme } from '@/theme/tokens';
 import { ShareDialog } from '@/components/dialogs/ShareDialog';
+import EtherxWordLogo from '@/components/brand/EtherxWordLogo';
 import { clearLocalDraft, readLocalDraft } from '@/utils/draftStorage';
+import { printHtml } from '@/utils/printUtils';
+import { buildOdtBlob, buildTextBlob } from '@/services/odtExport';
+import { useAutoSave } from '@/hooks/useAutoSave';
 import {
   readCachedRecentDocs,
   writeCachedRecentDocs,
@@ -93,20 +100,20 @@ const LoadingIcon = () => (
 );
 
 const MENU_ITEMS = [
-  { key: 'home', label: 'Home', icon: Home },
-  { key: 'pricing', label: 'Plans & Pricing', icon: Zap },
-  { key: 'ai', label: 'Pragna AI', icon: Sparkles },
-  { key: 'new', label: 'New', icon: FilePlus },
-  { key: 'open', label: 'Open', icon: FolderOpen },
-  { key: 'save', label: 'Save', icon: Save },
-  { key: 'saveAs', label: 'Save As', icon: SaveAll },
-  { key: 'print', label: 'Print', icon: Printer },
-  { key: 'export', label: 'Export', icon: Download },
-  { key: 'share', label: 'Share', icon: Share2 },
-  { key: 'info', label: 'Info', icon: Info },
-  { key: 'statistics', label: 'Statistics', icon: BarChart2 },
-  { key: 'settings', label: 'Settings', icon: Settings },
-  { key: 'close', label: 'Close', icon: X, danger: true },
+  { key: 'home', label: 'Home', icon: Home, group: 1 },
+  { key: 'new', label: 'New', icon: FilePlus, group: 1 },
+  { key: 'open', label: 'Open', icon: FolderOpen, group: 1 },
+  { key: 'save', label: 'Save', icon: Save, group: 2 },
+  { key: 'saveAs', label: 'Save As', icon: SaveAll, group: 2 },
+  { key: 'print', label: 'Print', icon: Printer, group: 2 },
+  { key: 'export', label: 'Export', icon: Download, group: 2 },
+  { key: 'share', label: 'Share', icon: Share2, group: 2 },
+  { key: 'info', label: 'Info', icon: Info, group: 3 },
+  { key: 'statistics', label: 'Statistics', icon: BarChart2, group: 3 },
+  { key: 'ai', label: 'Pragna AI', icon: Sparkles, group: 3 },
+  { key: 'pricing', label: 'Plans & Pricing', icon: Zap, group: 3 },
+  { key: 'settings', label: 'Settings', icon: Settings, group: 3 },
+  { key: 'close', label: 'Close', icon: X, danger: true, group: 3 },
 ];
 
 const START_TEMPLATES = [
@@ -548,7 +555,7 @@ function downloadBlob(blob, filename) {
   window.setTimeout(() => {
     link.remove();
     URL.revokeObjectURL(url);
-  }, 0);
+  }, 45000);
 }
 
 function downloadEtherxFile(title, content) {
@@ -646,6 +653,10 @@ async function generateFormatBlob(name, format, content, options = {}) {
   } else if (normFormat === 'epub') {
     const res = await buildEpubBlob(safeName, safeContent, options);
     return res.blob;
+  } else if (normFormat === 'odt') {
+    return buildOdtBlob(safeName, safeContent, options);
+  } else if (normFormat === 'txt') {
+    return buildTextBlob(safeContent);
   } else {
     const payload = {
       title: safeName,
@@ -672,6 +683,35 @@ async function saveWithFilePicker(name, format, blob) {
     return false;
   }
 }
+const NARROW_QUERY = '(max-width: 760px)';
+
+// Phone-width overrides, merged over `styles` by `sx` in HomePage.
+const narrowStyles = {
+  sidebar: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    bottom: 0,
+    width: 'min(280px, 86vw)',
+    zIndex: 50,
+    boxShadow: '0 0 40px rgba(0,0,0,0.5)',
+    transition: 'transform 200ms ease, visibility 200ms',
+  },
+  hero: { padding: '20px 16px 4px', flexDirection: 'column', alignItems: 'stretch', gap: 14 },
+  heroTitle: { fontSize: 26 },
+  searchBox: { flex: 1, width: 'auto' },
+  homeArea: { padding: '16px 16px 40px' },
+  startCards: { gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10, marginBottom: 28 },
+  startCard: { padding: 12, minWidth: 0 },
+  templateGrid: { gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))', gap: 12 },
+  recentRow: { gridTemplateColumns: 'minmax(0, 1fr) auto 40px', padding: '6px 4px', minHeight: 52 },
+  recentDeleteBtn: { width: 40, height: 40 },
+  catChip: { height: 36, padding: '0 14px', flexShrink: 0 },
+  panel: { margin: '8px 16px 32px', padding: 14 },
+  saveAsShell: { margin: '8px 16px 32px', padding: 14 },
+  saveAsMainContent: { gridTemplateColumns: '1fr', gap: 16 },
+  saveAsQuickAccess: { paddingRight: 0, borderRight: 'none', borderBottom: '1px solid var(--border)', paddingBottom: 12, maxHeight: 'none' },
+};
 
 function selectedStyle(active, danger) {
   return {
@@ -733,6 +773,9 @@ export function HomePage() {
   const navigate = useNavigate();
   const location = useLocation();
   const toast = useUIStore((s) => s.toast);
+  const { save: saveActiveDocument } = useAutoSave();
+  const activeDocument = useDocumentStore();
+  const autoSaveEnabled = useUIStore((s) => s.autoSaveEnabled);
   const dialogs = useUIStore((s) => s.dialogs);
   const closeDialog = useUIStore((s) => s.closeDialog);
   const resetDoc = useDocumentStore((s) => s.reset);
@@ -742,6 +785,7 @@ export function HomePage() {
   const currentEditorTitle = useDocumentStore((s) => s.title);
   const currentEditorContent = useDocumentStore((s) => s.content);
   const currentEditorDesign = useDocumentStore((s) => s.design);
+  const currentEditorLayout = useDocumentStore((s) => s.layout);
   const currentEditorHeaderFooter = useDocumentStore((s) => s.headerFooter);
   const currentEditorComments = useDocumentStore((s) => s.comments);
   const currentEditorTrackChanges = useDocumentStore((s) => s.trackChanges);
@@ -757,7 +801,7 @@ export function HomePage() {
     return m?.[1] || null;
   })();
 
-  const [activeMenu, setActiveMenu] = useState('home');
+  const [activeMenu, setActiveMenu] = useState(() => location.state?.menu || 'home');
   const [docs, setDocs] = useState(() => getInitialRecentDocs());
   const [loading, setLoading] = useState(() => getInitialRecentDocs().length === 0);
   const [selectedDocId, setSelectedDocId] = useState(() => {
@@ -768,6 +812,31 @@ export function HomePage() {
     return initial[0]?.id || null;
   });
   const [search, setSearch] = useState('');
+  const [templateFilter, setTemplateFilter] = useState('all');
+  const [recentTab, setRecentTab] = useState('recent');
+  const [isNarrow, setIsNarrow] = useState(() => window.matchMedia(NARROW_QUERY).matches);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  useEffect(() => {
+    if (!confirmDelete) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') setConfirmDelete(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [confirmDelete]);
+  useEffect(() => {
+    const mq = window.matchMedia(NARROW_QUERY);
+    const onChange = (e) => setIsNarrow(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  useEffect(() => {
+    if (!drawerOpen) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') setDrawerOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [drawerOpen]);
+  // Base style, plus its narrow-screen override when the viewport is phone sized.
+  const sx = (key) => (isNarrow && narrowStyles[key] ? { ...styles[key], ...narrowStyles[key] } : styles[key]);
   const [saveAsName, setSaveAsName] = useState('');
   const [saveAsFormat, setSaveAsFormat] = useState('docx');
   const [saveAsLocation, setSaveAsLocation] = useState('thisPc');
@@ -795,7 +864,7 @@ export function HomePage() {
     if (!isAdminUser) return MENU_ITEMS;
     const items = [...MENU_ITEMS];
     const settingsIdx = items.findIndex((i) => i.key === 'settings');
-    const adminEntry = { key: 'admin', label: 'Admin Console', icon: ShieldCheck };
+    const adminEntry = { key: 'admin', label: 'Admin Console', icon: ShieldCheck, group: 3 };
     if (settingsIdx >= 0) {
       items.splice(settingsIdx, 0, adminEntry);
     } else {
@@ -808,7 +877,9 @@ export function HomePage() {
   const fileInputRef = useRef(null);
 
   const handleBackToEditor = () => {
-    if (selectedDoc?.id && !selectedDoc.localOnly) {
+    if (location.state?.returnTo) {
+      navigate(location.state.returnTo);
+    } else if (selectedDoc?.id && !selectedDoc.localOnly) {
       navigate(`/doc/${selectedDoc.id}`);
     } else if (docs[0]?.id && !docs[0].localOnly) {
       navigate(`/doc/${docs[0].id}`);
@@ -833,21 +904,31 @@ export function HomePage() {
         const list = Array.isArray(data) ? data : data.documents || data.items || [];
         const locals = readLocalDocs();
         if (!alive) return;
-        // Filter out unsaved documents (Untitled Document with default empty content)
-        const filtered = list.filter((d) => !(d.title === 'Untitled Document' && (d.content === '<p></p>' || d.content === '' || !d.content)));
-        const normalized = [...locals, ...filtered.map((d, i) => ({
+        const normalized = [...locals, ...list.map((d, i) => ({
           id: String(d.id || d._id || i + 1),
           title: d.title || 'Untitled Document',
           updatedAt: d.updatedAt || d.updated || new Date().toISOString(),
           content: d.content || '',
           design: d.design,
+          layout: d.layout,
+          pageCount: d.pageCount,
+          sharedWith: Array.isArray(d.sharedWith) ? d.sharedWith : [],
+          shareLinkEnabled: d.shareLinkEnabled === true,
+          shareLinkRole: d.shareLinkRole,
           headerFooter: d.headerFooter,
           comments: Array.isArray(d.comments) ? d.comments : [],
           trackChanges: Boolean(d.trackChanges),
           localOnly: Boolean(d.localOnly),
+          owner: d.owner,
         }))];
-        setDocs(normalized);
-        writeCachedRecentDocs(normalized);
+        // An editor save may finish while this list request is still in flight.
+        const cached = readCachedRecentDocs();
+        const reconciled = normalized.map((doc) => {
+          const latest = cached.find((entry) => entry.id === doc.id);
+          return latest && new Date(latest.updatedAt) > new Date(doc.updatedAt) ? { ...doc, ...latest } : doc;
+        }).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+        setDocs(reconciled);
+        writeCachedRecentDocs(reconciled);
         if (currentDocIdFromRoute && normalized.some((d) => d.id === currentDocIdFromRoute)) {
           setSelectedDocId(currentDocIdFromRoute);
         } else if (!selectedDocId && normalized[0]) {
@@ -868,8 +949,23 @@ export function HomePage() {
     return () => { alive = false; };
   }, [currentDocIdFromRoute, fetchSubscription]);
 
+  useEffect(() => {
+    const syncRecentDocs = () => setDocs((previous) => {
+      const cached = readCachedRecentDocs();
+      const ids = new Set(cached.map((doc) => doc.id));
+      return [...cached, ...previous.filter((doc) => !ids.has(doc.id))]
+        .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+    });
+    window.addEventListener('etherx:recent-docs-change', syncRecentDocs);
+    return () => window.removeEventListener('etherx:recent-docs-change', syncRecentDocs);
+  }, []);
+
   const selectedDoc = useMemo(() => docs.find((d) => d.id === selectedDocId) || null, [docs, selectedDocId]);
   const saveAsSourceDoc = useMemo(() => {
+    // File commands act on the document we came from, even before the list loads.
+    if (currentEditorId && (!currentDocIdFromRoute || currentDocIdFromRoute === currentEditorId)) {
+      return { ...activeDocument, localOnly: false };
+    }
     // If the user came from /doc/new or is editing a new/unsaved doc, prioritize in-memory editor document
     const isEditingNewDoc = returnTo === '/doc/new' || !currentEditorId || currentEditorId === 'new';
     if (isEditingNewDoc && (currentEditorContent || currentEditorTitle)) {
@@ -878,6 +974,7 @@ export function HomePage() {
         title: currentEditorTitle || 'Untitled Document',
         content: currentEditorContent || '<p></p>',
         design: currentEditorDesign,
+        layout: currentEditorLayout,
         headerFooter: currentEditorHeaderFooter,
         comments: currentEditorComments,
         trackChanges: currentEditorTrackChanges,
@@ -908,6 +1005,7 @@ export function HomePage() {
         ...selectedDoc,
         title: (currentEditorId === selectedDoc.id && currentEditorTitle) ? currentEditorTitle : selectedDoc.title,
         content: resolvedContent || '<p></p>',
+        layout: currentEditorId === selectedDoc.id ? currentEditorLayout : selectedDoc.layout,
       };
     }
 
@@ -918,6 +1016,7 @@ export function HomePage() {
         title: currentEditorTitle || 'Untitled Document',
         content: currentEditorContent || '<p></p>',
         design: currentEditorDesign,
+        layout: currentEditorLayout,
         headerFooter: currentEditorHeaderFooter,
         comments: currentEditorComments,
         trackChanges: currentEditorTrackChanges,
@@ -928,11 +1027,14 @@ export function HomePage() {
     return null;
   }, [
     returnTo,
+    currentDocIdFromRoute,
+    activeDocument,
     selectedDoc,
     currentEditorId,
     currentEditorTitle,
     currentEditorContent,
     currentEditorDesign,
+    currentEditorLayout,
     currentEditorHeaderFooter,
     currentEditorComments,
     currentEditorTrackChanges,
@@ -946,6 +1048,23 @@ export function HomePage() {
     }
     setSaveAsName(nextCopyName(doc.title));
   }, [saveAsSourceDoc?.id, saveAsSourceDoc?.title]);
+
+  const me = getStoredUser() || {};
+  const isMine = (doc) => {
+    const owner = doc.owner || {};
+    const ownerId = String(owner.id || owner._id || owner.email || '');
+    return !ownerId || ownerId === String(me.id || me._id || '') || ownerId === String(me.email || '');
+  };
+  const ownerLabel = (doc) => (isMine(doc) ? 'You' : (doc.owner?.name || doc.owner?.email || 'Someone'));
+  const homeDocs = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return docs
+      .filter((d) => (recentTab === 'shared' ? !isMine(d) : true))
+      .filter((d) => !q || String(d.title || '').toLowerCase().includes(q))
+      .slice(0, 8);
+    // isMine reads the signed-in user, which does not change while this page is open
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [docs, search, recentTab]);
 
   const visibleDocs = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -1237,7 +1356,7 @@ export function HomePage() {
     navigate(`/doc/${doc.id}`);
   }
 
-  async function runMenuAction(key) {
+  async function runMenuAction(key, options = {}) {
     if (key === 'pricing') {
       openUpgradeModal();
       return;
@@ -1282,66 +1401,45 @@ export function HomePage() {
     }
 
     if (key === 'save') {
-      if (!selectedDoc) return toast('Select a document first', 'info');
+      const source = saveAsSourceDoc || selectedDoc;
+      if (!source) return toast('Select a document first', 'info');
 
-      // Pull live content from the editor store if this doc is currently open
-      const editorStoreState = (() => {
-        try {
-          return useDocumentStore.getState();
-        } catch { return null; }
-      })();
-      const isCurrentlyOpen = editorStoreState?.id === selectedDoc.id || currentEditorId === selectedDoc.id;
-      const liveTitle = isCurrentlyOpen ? (currentEditorTitle || selectedDoc.title) : selectedDoc.title;
-      const liveContent = isCurrentlyOpen ? (currentEditorContent || selectedDoc.content || '') : (selectedDoc.content || '');
+      if (source.id && source.id === useDocumentStore.getState().id && !source.localOnly) {
+        const saved = await saveActiveDocument({ manual: true });
+        if (saved) {
+          setSelectedDocId(String(saved.id || source.id));
+          setActiveMenu('home');
+        }
+        return;
+      }
 
-      if (selectedDoc.localOnly) {
-        const localDoc = { ...selectedDoc, title: liveTitle, content: liveContent, updatedAt: new Date().toISOString(), localOnly: true };
-        const next = upsertLocalDoc(localDoc);
-        setDocs(next);
+      if (source.localOnly) {
+        const localDoc = { ...source, updatedAt: new Date().toISOString(), localOnly: true };
+        upsertLocalDoc(localDoc);
+        updateCachedRecentDoc(localDoc.id, localDoc);
         setSelectedDocId(localDoc.id);
         toast('Document saved locally', 'success');
         setActiveMenu('home');
         return;
       }
       try {
-        await documentApi.save(selectedDoc.id, { title: liveTitle, content: liveContent });
-        setDocs((prev) => {
-          const exists = prev.some((d) => d.id === selectedDoc.id);
-          const updated = { ...selectedDoc, title: liveTitle, content: liveContent, updatedAt: new Date().toISOString() };
-          if (exists) return prev.map((d) => d.id === selectedDoc.id ? updated : d);
-          return [updated, ...prev];
-        });
+        const saved = await documentApi.save(source.id, source);
+        updateCachedRecentDoc(source.id, saved);
         toast('Document saved', 'success');
-      } catch {
-        const localDoc = { ...selectedDoc, title: liveTitle, content: liveContent, id: `local-${Date.now()}`, updatedAt: new Date().toISOString(), localOnly: true };
-        const next = upsertLocalDoc(localDoc);
-        setDocs(next);
-        setSelectedDocId(localDoc.id);
-        toast('Cloud save failed, saved locally', 'warning');
+        setActiveMenu('home');
+      } catch (error) {
+        toast(`Save failed: ${error?.message || 'Unable to save document'}`, 'error');
       }
-      setActiveMenu('home');
       return;
     }
 
     if (key === 'print') {
-      if (!selectedDoc) return toast('Select a document first', 'info');
-      const popup = window.open('', '_blank', 'width=980,height=760');
-      if (!popup) return toast('Popup blocked for printing', 'warning');
-      popup.document.write(`<!DOCTYPE html><html><head><title>&nbsp;</title><style>
-        @page { margin: 15mm 20mm; }
-        body { margin: 0; font-family: Calibri, 'Segoe UI', Arial, sans-serif; color: #111; line-height: 1.6; }
-        h1, h2, h3, h4, h5, h6 { color: #111; margin-top: 1.2em; margin-bottom: 0.4em; }
-        p { margin: 0 0 1em; }
-        img { max-width: 100%; height: auto; }
-        table { border-collapse: collapse; width: 100%; margin: 1em 0; }
-        th, td { border: 1px solid #ccc; padding: 6px 10px; }
-      </style></head><body><div class="print-document-content">${selectedDoc.content || '<p>No content available.</p>'}</div></body></html>`);
-      popup.document.close();
-      popup.focus();
-      setTimeout(() => {
-        popup.print();
-        popup.close();
-      }, 250);
+      // Print what the Print pane shows: the open document's live content when it is
+      // the selected one, with the pane's page settings over the document's own.
+      const doc = saveAsSourceDoc || selectedDoc;
+      if (!doc) return toast('Select a document first', 'info');
+      const layout = { ...(doc.layout || {}), ...(options.layout || {}) };
+      if (!printHtml(doc.content || '<p>No content available.</p>', { layout })) return toast('Popup blocked for printing', 'warning');
       setActiveMenu('home');
       return;
     }
@@ -1353,7 +1451,10 @@ export function HomePage() {
   }
 
   async function exportSelectedDoc(fmtOverride) {
-    if (!selectedDoc) return toast('Select a document first', 'info');
+    // Export what the Export pane shows: the open document's live content and
+    // settings when it is the selected one.
+    const doc = saveAsSourceDoc || selectedDoc;
+    if (!doc) return toast('Select a document first', 'info');
     if (exportBusy) return;
     const fmt = (fmtOverride || exportFormat || 'pdf').toLowerCase();
 
@@ -1367,19 +1468,19 @@ export function HomePage() {
 
     setExportBusy(true);
     try {
-      let content = selectedDoc.content || '';
+      let content = doc.content || '';
       if (!content || content === '<p></p>') {
-        if (selectedDoc.id === currentEditorId && currentEditorContent && currentEditorContent !== '<p></p>') {
+        if (doc.id === currentEditorId && currentEditorContent && currentEditorContent !== '<p></p>') {
           content = currentEditorContent;
-        } else if (selectedDoc.id) {
+        } else if (doc.id) {
           try {
-            const draft = readLocalDraft(selectedDoc.id);
+            const draft = readLocalDraft(doc.id);
             if (draft?.content && draft.content !== '<p></p>') content = draft.content;
           } catch {}
         }
-        if ((!content || content === '<p></p>') && selectedDoc.id && !selectedDoc.localOnly) {
+        if ((!content || content === '<p></p>') && doc.id && !doc.localOnly) {
           try {
-            const fullDoc = await documentApi.get(selectedDoc.id);
+            const fullDoc = await documentApi.get(doc.id);
             if (fullDoc?.content && fullDoc.content !== '<p></p>') content = fullDoc.content;
           } catch (err) {
             console.warn('Could not fetch full document before export:', err.message);
@@ -1388,16 +1489,18 @@ export function HomePage() {
       }
       if (!content) content = '<p></p>';
 
-      const cleanTitle = cleanBaseName(selectedDoc.title) || 'document';
+      const cleanTitle = cleanBaseName(doc.title) || 'document';
       const exportOptions = {
-        headerFooter: selectedDoc.headerFooter,
-        design: selectedDoc.design,
+        ...doc,
+        headerFooter: doc.headerFooter,
+        design: doc.design,
         pageSettings: {
-          format: selectedDoc.layout?.pageSize || 'a4',
-          orientation: selectedDoc.layout?.pageOrientation || 'portrait',
-          margin: selectedDoc.layout?.pageMargin || 'normal',
+          format: doc.layout?.pageSize || 'a4',
+          orientation: doc.layout?.pageOrientation || 'portrait',
+          margin: doc.layout?.pageMargin || 'normal',
+          columns: doc.layout?.pageColumns || 1,
         },
-        watermark: selectedDoc.design?.watermark || '',
+        watermark: doc.design?.watermark || '',
       };
       const blob = await generateFormatBlob(cleanTitle, fmt, content, exportOptions);
       const ext = fmt === 'etherx' ? 'ethex' : (fmt === 'markdown' ? 'md' : fmt);
@@ -1410,7 +1513,9 @@ export function HomePage() {
     }
   }
 
-  async function shareSelectedDoc() {
+  // role: what anyone with the link may do ('viewer' | 'commenter' | 'editor'),
+  // or 'restricted' to turn the link off so only invited people can open it.
+  async function shareSelectedDoc(role = 'viewer') {
     if (!selectedDoc) return toast('Select a document first', 'info');
 
     if (plan === 'free') {
@@ -1427,17 +1532,20 @@ export function HomePage() {
     try {
       const targetDoc = await ensureCloudDocForShare(selectedDoc);
       let link = buildSharedUrl(targetDoc.id);
-      try {
-        const response = await documentApi.share(targetDoc.id, { role: 'editor' });
+      if (role === 'restricted') {
+        await documentApi.save(targetDoc.id, { shareLinkEnabled: false });
+      } else {
+        const response = await documentApi.share(targetDoc.id, { role });
         if (response?.shareUrl) link = response.shareUrl;
-      } catch (apiErr) {
-        console.warn('Share API call error, falling back to default shared URL:', apiErr?.message);
       }
+      setDocs((prev) => prev.map((doc) => String(doc.id) === String(targetDoc.id)
+        ? { ...doc, shareLinkEnabled: role !== 'restricted', shareLinkRole: role === 'restricted' ? doc.shareLinkRole : role }
+        : doc));
 
       const copied = await copyTextToClipboard(link);
       if (copied) {
         setShareCopied(true);
-        toast('Share link copied to clipboard', 'success');
+        toast(role === 'restricted' ? 'Link copied. Only invited people can open it.' : 'Share link copied to clipboard', 'success');
         setTimeout(() => setShareCopied(false), 2000);
       } else {
         toast('Failed to copy link to clipboard', 'error');
@@ -1498,7 +1606,7 @@ export function HomePage() {
     return cloudDoc;
   }
 
-  const openShareForSaveAs = async () => {
+  const openShareForSaveAs = async (invite = {}) => {
     const doc = saveAsSourceDoc;
     if (!doc) {
       toast('Open or select a document first', 'info');
@@ -1514,7 +1622,7 @@ export function HomePage() {
     setSaveAsBusy(true);
     try {
       const cloudDoc = await ensureCloudDocForShare(doc);
-      setShareDialogDoc(cloudDoc);
+      setShareDialogDoc({ ...cloudDoc, initialEmail: invite.email || '', initialRole: invite.role || 'editor' });
     } catch (err) {
       toast(`Unable to prepare document for sharing: ${err?.message || 'Error'}`, 'error');
     } finally {
@@ -1569,12 +1677,14 @@ export function HomePage() {
           }
         }
         const exportOptions = {
+          ...sourceDoc,
           headerFooter: sourceDoc.headerFooter,
           design: sourceDoc.design,
           pageSettings: {
-            format: sourceDoc.layout?.size || 'a4',
-            orientation: sourceDoc.layout?.orientation || 'portrait',
-            margin: sourceDoc.layout?.margin || 'normal',
+            format: sourceDoc.layout?.pageSize || sourceDoc.layout?.size || 'a4',
+            orientation: sourceDoc.layout?.pageOrientation || sourceDoc.layout?.orientation || 'portrait',
+            margin: sourceDoc.layout?.pageMargin || sourceDoc.layout?.margin || 'normal',
+            columns: sourceDoc.layout?.pageColumns || 1,
           },
           watermark: sourceDoc.design?.watermark || '',
         };
@@ -1706,789 +1816,33 @@ export function HomePage() {
       })()
     : { words: 0, chars: 0, pages: 0 };
 
-  return (
-    <>
-      <style>{`
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
-      <div style={styles.page}>
-      <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={handleUploadOpen} />
 
-      <aside style={styles.sidebar} aria-label="File menu" tabIndex={0}>
-        <img src="/assets/etherxwordlogo.png" alt="EtherX Word Logo" style={{ ...styles.fileMenuTitle, maxHeight: '100%', objectFit: 'contain' }} />
-
-        <div style={styles.menuList}>
-          {visibleMenuItems.map((item) => (
-            <button
-              key={item.key}
-              style={selectedStyle(activeMenu === item.key, item.danger)}
-              onClick={() => runMenuAction(item.key)}
-              title={item.label}
-            >
-              <span style={styles.menuIcon}><item.icon size={16} strokeWidth={1.75} /></span>
-              <span>{item.label}</span>
-            </button>
-          ))}
-        </div>
-
-        <div style={styles.usageWidget}>
-          <div style={styles.usageHeader}>
-            <span style={styles.usagePlanBadge}>{(plan || 'free').toUpperCase()} PLAN</span>
-            {plan !== 'pro' && (
-              <button
-                type="button"
-                style={styles.usageUpgradeBtn}
-                onClick={() => openUpgradeModal('Upgrade for unlimited documents, AI writing, and advanced features', 'pro')}
-              >
-                Upgrade
-              </button>
-            )}
-          </div>
-          <div style={styles.usageLabel}>
-            <span>{plan === 'free' ? `${docs.length} / 5 documents` : `${docs.length} documents`}</span>
-            <span>{plan === 'free' ? '500MB cap' : plan === 'basic' ? '15GB cap' : 'Unlimited'}</span>
-          </div>
-          {plan === 'free' && (
-            <div style={styles.usageBarBg}>
-              <div
-                style={{
-                  ...styles.usageBarFill,
-                  width: `${Math.min(100, (docs.length / 5) * 100)}%`,
-                  backgroundColor: docs.length >= 5 ? '#ef4444' : '#2563eb',
-                }}
-              />
-            </div>
-          )}
-        </div>
-
-        <div style={styles.sidebarFooter}>
-          <div style={styles.docPill}>
-            <div style={styles.docPillTitle}>{selectedDoc?.title || 'Untitled Document'}</div>
-            <div style={styles.docPillMeta}>{stats.words} words • {stats.pages} page</div>
-          </div>
-          <div style={styles.darkModeStatus} aria-label="Appearance mode">
-            <span style={styles.darkModeIndicator} aria-hidden="true" />
-            Dark mode
-          </div>
-          <button style={styles.backEditorBtn} onClick={handleBackToEditor}>← Back to Editor</button>
-        </div>
-      </aside>
-
-      <main style={styles.main}>
-        <div style={{
-          ...styles.topBar,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          cursor: 'default',
-        }}>
-          <button
-            type="button"
-            style={{
-              background: 'none',
-              border: 'none',
-              color: 'var(--text-muted)',
-              fontSize: 13,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: 0,
-            }}
-            onClick={handleBackToEditor}
-          >
-            ← Editor
-          </button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <NotificationBell />
-          </div>
-        </div>
-
-        <section style={styles.hero}>
-          <h1 style={styles.heroTitle}>Start Here</h1>
-          <p style={styles.heroSub}>Create a new document or access your recent files</p>
-        </section>
-
-        {activeMenu === 'home' && (
-          <section style={styles.gridArea}>
-            <div>
-              <div style={styles.sectionLabel}>RECENT DOCUMENTS</div>
-              {loading ? (
-                <div style={styles.empty}>Loading...</div>
-              ) : visibleDocs.length === 0 ? (
-                <div style={styles.empty}>No recent documents</div>
-              ) : (
-                <div style={styles.recentsWrap}>
-                  {visibleDocs.map((doc) => (
-                    <div key={doc.id} style={styles.recentCard}>
-                      <button style={styles.recentOpenBtn} onClick={() => openDoc(doc)}>
-                        <span style={styles.recentIcon}>▣</span>
-                        <span style={styles.recentTextWrap}>
-                          <span style={styles.recentTitle}>{doc.title}</span>
-                          <span style={styles.recentMeta}>{formatActualTime(doc.updatedAt)} • {estimatePagesFromHtml(doc.content)} pages</span>
-                        </span>
-                      </button>
-                      <button
-                        style={styles.recentDeleteBtn}
-                        onClick={() => deleteDoc(doc)}
-                        title="Delete document"
-                      >
-                        <X size={13} strokeWidth={2} />
-                      </button>
-                    </div>
-                  ))}
-                  <button style={styles.viewAllBtn} onClick={() => runMenuAction('open')}>View All Recent →</button>
-                </div>
-              )}
-            </div>
-
-            <div>
-              <div style={styles.sectionLabel}>TEMPLATE CATEGORIES</div>
-              <div style={styles.templateGrid}>
-                {START_TEMPLATES.map((tpl) => {
-                  const isLocked = (tpl.tier === 'basic' && plan === 'free') || (tpl.tier === 'pro' && plan !== 'pro');
-                  return (
-                    <button
-                      key={tpl.key}
-                      style={{
-                        ...styles.templateBtn,
-                        position: 'relative',
-                        opacity: isLocked ? 0.9 : 1,
-                      }}
-                      onClick={() => createFromTemplate(tpl.key)}
-                    >
-                      <span>{tpl.label}</span>
-                      {isLocked && (
-                        <span
-                          style={{
-                            position: 'absolute',
-                            top: 6,
-                            right: 6,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 2,
-                            padding: '2px 5px',
-                            fontSize: 9,
-                            fontWeight: 700,
-                            borderRadius: 3,
-                            background: tpl.tier === 'pro' ? 'linear-gradient(135deg, #f59e0b, #d97706)' : '#2563eb',
-                            color: '#fff',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.4px',
-                          }}
-                        >
-                          <Lock size={9} strokeWidth={2.5} />
-                          {tpl.tier}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </section>
-        )}
-
-        {activeMenu === 'ai' && (
-          <section style={styles.panel}>
-            <h2 style={styles.panelTitle}>Pragna AI Assist</h2>
-            <p style={styles.panelSubtitle}>Apply intelligent Pragna AI actions to your documents powered by Ollama Cloud.</p>
-            <div style={styles.aiGrid}>
-              {[
-                { key: 'content-generator', icon: Sparkles, label: 'Content Generator', desc: 'Start a new AI draft from a topic' },
-                { key: 'summarize', icon: FileText, label: 'Text Summarizer', desc: 'Create a summary document' },
-                { key: 'grammar', icon: CheckCheck, label: 'Grammar Correction', desc: 'Fix grammar in the selected document' },
-                { key: 'rewrite', icon: RotateCcw, label: 'Rewrite Assistant', desc: 'Rewrite the selected document' },
-                { key: 'title', icon: Tag, label: 'Title Generator', desc: 'Generate a better document title' },
-                { key: 'translate', icon: Globe, label: 'Translation', desc: 'Open a translation view for the document' },
-              ].map(({ key, icon: IconComponent, label, desc }) => (
-                <button
-                  key={key}
-                  style={{ ...styles.aiBtn, ...(aiAction === key ? styles.aiBtnActive : null) }}
-                  onClick={() => setAiAction(aiAction === key ? null : key)}
-                  disabled={aiRunning}
-                >
-                  <span style={styles.aiBtnIcon}><IconComponent size={18} strokeWidth={1.75} /></span>
-                  <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <strong>{label}</strong>
-                    <small>{desc}</small>
-                  </span>
-                </button>
-              ))}
-            </div>
-
-            {aiAction && (
-              <div style={styles.aiFormArea}>
-                <div style={styles.aiFormTitle}>
-                  {aiAction === 'content-generator' && 'Generate Content'}
-                  {aiAction === 'summarize' && 'Summarize Document'}
-                  {aiAction === 'grammar' && 'Correct Grammar'}
-                  {aiAction === 'rewrite' && 'Rewrite Document'}
-                  {aiAction === 'title' && 'Generate Title'}
-                  {aiAction === 'translate' && 'Translate Document'}
-                </div>
-
-                {aiAction === 'content-generator' && (
-                  <>
-                    <div style={styles.aiFormGroup}>
-                      <label style={styles.aiFormLabel}>Topic *</label>
-                      <input
-                        style={styles.aiFormInput}
-                        value={aiTopic}
-                        onChange={(e) => setAiTopic(e.target.value)}
-                        placeholder="e.g. Project Update, Market Analysis"
-                        autoFocus
-                        onKeyDown={(e) => e.key === 'Enter' && handleRunAiAction()}
-                      />
-                    </div>
-                    <div style={styles.aiFormGroup}>
-                      <label style={styles.aiFormLabel}>Tone</label>
-                      <select
-                        style={styles.aiFormSelect}
-                        value={aiTone}
-                        onChange={(e) => setAiTone(e.target.value)}
-                      >
-                        <option value="professional">Professional</option>
-                        <option value="casual">Casual</option>
-                        <option value="formal">Formal</option>
-                        <option value="friendly">Friendly</option>
-                      </select>
-                    </div>
-                    <div style={styles.aiFormGroup}>
-                      <label style={styles.aiFormLabel}>Page count (1-10)</label>
-                      <input
-                        type="number"
-                        min="1"
-                        max="10"
-                        style={styles.aiFormInput}
-                        value={aiPageCount}
-                        onChange={(e) => setAiPageCount(parseInt(e.target.value, 10) || 1)}
-                      />
-                    </div>
-                  </>
-                )}
-
-                {aiAction === 'rewrite' && (
-                  <div style={styles.aiFormGroup}>
-                    <label style={styles.aiFormLabel}>Rewrite style</label>
-                    <select
-                      style={styles.aiFormSelect}
-                      value={aiRewriteMode}
-                      onChange={(e) => setAiRewriteMode(e.target.value)}
-                    >
-                      <option value="clear">Clear</option>
-                      <option value="formal">Formal</option>
-                      <option value="short">Short</option>
-                    </select>
-                  </div>
-                )}
-
-                {aiAction === 'title' && (
-                  <div style={styles.aiFormGroup}>
-                    <label style={styles.aiFormLabel}>Fallback title (used if content is too short)</label>
-                    <input
-                      style={styles.aiFormInput}
-                      value={aiFallbackTitle}
-                      onChange={(e) => setAiFallbackTitle(e.target.value)}
-                      placeholder={selectedDoc?.title || 'Untitled Document'}
-                      onKeyDown={(e) => e.key === 'Enter' && handleRunAiAction()}
-                    />
-                  </div>
-                )}
-
-                {aiAction === 'translate' && (
-                  <div style={styles.aiFormGroup}>
-                    <label style={styles.aiFormLabel}>Target language</label>
-                    <select
-                      style={styles.aiFormSelect}
-                      value={aiLanguage}
-                      onChange={(e) => setAiLanguage(e.target.value)}
-                    >
-                      <option value="Spanish">Spanish</option>
-                      <option value="French">French</option>
-                      <option value="German">German</option>
-                      <option value="Hindi">Hindi</option>
-                      <option value="Japanese">Japanese</option>
-                      <option value="Italian">Italian</option>
-                      <option value="Portuguese">Portuguese</option>
-                      <option value="Russian">Russian</option>
-                      <option value="Arabic">Arabic</option>
-                    </select>
-                  </div>
-                )}
-
-                {['summarize', 'grammar', 'rewrite', 'title', 'translate'].includes(aiAction) && (
-                  <p style={styles.aiFormHint}>
-                    Selected document: <strong>{selectedDoc?.title || 'None — select a document first'}</strong>
-                  </p>
-                )}
-
-                <div style={styles.aiFormActions}>
-                  <button
-                    style={{ ...styles.aiBtnRun, ...(aiRunning ? { opacity: 0.6, cursor: 'not-allowed' } : null) }}
-                    onClick={handleRunAiAction}
-                    disabled={aiRunning}
-                  >
-                    {aiRunning ? 'Running…' : 'Run'}
-                  </button>
-                  <button
-                    style={styles.aiBtnCancel}
-                    onClick={() => setAiAction(null)}
-                    disabled={aiRunning}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
-          </section>
-        )}
-
-        {activeMenu === 'info' && (
-          <section style={styles.panel}>
-            <h2 style={styles.panelTitle}>Document Info</h2>
-            <div style={styles.panelRow}>Name: {selectedDoc?.title || '-'}</div>
-            <div style={styles.panelRow}>Last modified: {selectedDoc ? formatActualTime(selectedDoc.updatedAt) : '-'}</div>
-            <div style={styles.panelRow}>Pages: {stats.pages}</div>
-          </section>
-        )}
-
-        {activeMenu === 'statistics' && (
-          <section style={styles.panel}>
-            <h2 style={styles.panelTitle}>Statistics</h2>
-            <div style={styles.panelRow}>Words: {stats.words}</div>
-            <div style={styles.panelRow}>Characters: {stats.chars}</div>
-            <div style={styles.panelRow}>Pages: {stats.pages}</div>
-          </section>
-        )}
-
-        {activeMenu === 'settings' && (
-          <section style={styles.panel}>
-            <h2 style={styles.panelTitle}>Settings</h2>
-            <div style={styles.panelRow}>Appearance mode</div>
-            <div style={styles.darkModeStatus} aria-label="Appearance mode">
-              <span style={styles.darkModeIndicator} aria-hidden="true" />
-              Dark mode is always enabled
-            </div>
-          </section>
-        )}
-
-        {activeMenu === 'saveAs' && (
-          <section style={styles.saveAsShell}>
-            <div style={styles.saveAsContainer}>
-              <div style={styles.saveAsHeader}>
-                <h2 style={styles.saveAsTitle}>Save As</h2>
-                <p style={styles.saveAsSubtitle}>Choose where to save your document and select the format</p>
-              </div>
-
-              <div style={styles.saveAsMainContent}>
-                {/* Quick Access Sidebar */}
-                <aside style={styles.saveAsQuickAccess}>
-                  <div style={styles.saveAsQuickAccessTitle}>QUICK ACCESS</div>
-                  {SAVE_AS_LOCATIONS.filter((item) => item.area === 'leftTop').map((item) => (
-                    <button
-                      key={item.key}
-                      style={{
-                        ...styles.saveAsQuickItem,
-                        ...(saveAsLocation === item.key ? styles.saveAsQuickItemActive : null),
-                      }}
-                      onClick={() => setSaveAsLocation(item.key)}
-                    >
-                      <span style={styles.saveAsQuickIcon}>{getSaveAsIcon(item.key)}</span>
-                      <span style={styles.saveAsQuickLabel}>{item.label}</span>
-                    </button>
-                  ))}
-
-                  <div style={{ ...styles.saveAsQuickAccessTitle, marginTop: 16 }}>LOCATIONS</div>
-                  {SAVE_AS_LOCATIONS.filter((item) => item.area === 'other').map((item) => (
-                    <button
-                      key={item.key}
-                      style={{
-                        ...styles.saveAsQuickItem,
-                        ...(saveAsLocation === item.key ? styles.saveAsQuickItemActive : null),
-                      }}
-                      onClick={() => setSaveAsLocation(item.key)}
-                    >
-                      <span style={styles.saveAsQuickIcon}>{getSaveAsIcon(item.key)}</span>
-                      <span style={styles.saveAsQuickLabel}>{item.label}</span>
-                    </button>
-                  ))}
-
-                  <div style={{ ...styles.saveAsQuickAccessTitle, marginTop: 16 }}>SHARING</div>
-                  {SAVE_AS_LOCATIONS.filter((item) => item.area === 'share').map((item) => (
-                    <button
-                      key={item.key}
-                      style={{
-                        ...styles.saveAsQuickItem,
-                        ...(saveAsLocation === item.key ? styles.saveAsQuickItemActive : null),
-                      }}
-                      onClick={() => {
-                        setSaveAsLocation(item.key);
-                        if (item.key === 'share') {
-                          openShareForSaveAs();
-                        }
-                      }}
-                    >
-                      <span style={styles.saveAsQuickIcon}>{getSaveAsIcon(item.key)}</span>
-                      <span style={styles.saveAsQuickLabel}>{item.label}</span>
-                    </button>
-                  ))}
-                </aside>
-
-                {/* Main Content Area */}
-                <div style={styles.saveAsFormArea}>
-                  {/* Current Location Card */}
-                  <div style={styles.saveAsLocationCard}>
-                    <div style={styles.saveAsLocationIcon}>{getSaveAsLargeIcon(saveAsLocation)}</div>
-                    <div>
-                      <div style={styles.saveAsLocationName}>
-                        {SAVE_AS_LOCATIONS.find((l) => l.key === saveAsLocation)?.label || 'Select a location'}
-                      </div>
-                      <div style={styles.saveAsLocationPath}>
-                        {saveAsLocation === 'thisPc' && 'Download to your computer'}
-                        {saveAsLocation === 'share' && 'Share and collaborate in real-time with team members'}
-                        {saveAsLocation === 'recent' && 'Recently used locations'}
-                      </div>
-                    </div>
-                  </div>
-
-                  {saveAsLocation === 'recent' && (
-                    <div style={styles.saveAsRecentPanel}>
-                      <div style={styles.saveAsRecentTitle}>Recent documents</div>
-                      {docs.length > 0 ? docs.slice(0, 8).map((doc) => (
-                        <button
-                          type="button"
-                          key={doc.id}
-                          style={styles.saveAsRecentItem}
-                          onClick={() => {
-                            setSelectedDocId(doc.id);
-                            setSaveAsName(nextCopyName(doc.title));
-                            setSaveAsLocation('thisPc');
-                          }}
-                        >
-                          <span style={styles.saveAsRecentItemMain}>
-                            <span style={styles.saveAsRecentItemTitle}>{doc.title}</span>
-                            <span style={styles.saveAsRecentItemMeta}>{formatActualTime(doc.updatedAt)}</span>
-                          </span>
-                          <span style={styles.saveAsRecentItemAction}>Use</span>
-                        </button>
-                      )) : (
-                        <div style={styles.saveAsRecentEmpty}>No recent documents found.</div>
-                      )}
-                    </div>
-                  )}
-
-                  {saveAsLocation === 'share' ? (
-                    <div style={{
-                      padding: '24px 20px',
-                      background: 'var(--bg-surface)',
-                      border: '1px solid var(--border)',
-                      borderRadius: 8,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 16,
-                      marginTop: 16,
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-                        <div style={{
-                          width: 44,
-                          height: 44,
-                          borderRadius: 8,
-                          background: 'rgba(212, 175, 55, 0.15)',
-                          border: '1px solid var(--border-gold)',
-                          display: 'grid',
-                          placeItems: 'center',
-                          color: 'var(--text-gold)',
-                          flexShrink: 0,
-                        }}>
-                          <Share2 size={22} />
-                        </div>
-                        <div>
-                          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
-                            Ready to Collaborate
-                          </div>
-                          <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>
-                            Share "{saveAsSourceDoc?.title || 'this document'}" to collaborate in real-time. Invite team members with viewer, commenter, or editor permissions, or copy a share link.
-                          </p>
-                        </div>
-                      </div>
-
-                      <div>
-                        <button
-                          type="button"
-                          style={{
-                            ...styles.primaryActionBtn,
-                            marginBottom: 0,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 8,
-                            padding: '10px 18px',
-                            fontWeight: 600,
-                          }}
-                          onClick={openShareForSaveAs}
-                          disabled={saveAsBusy}
-                        >
-                          <Share2 size={16} />
-                          Open Share Dialog
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    /* Form Fields */
-                    <div style={styles.saveAsFormSection}>
-                      <div style={styles.saveAsFormGroup}>
-                        <label style={styles.saveAsLabel}>File name</label>
-                        <input
-                          value={saveAsName}
-                          onChange={(e) => setSaveAsName(e.target.value)}
-                          placeholder="Enter file name"
-                          style={styles.saveAsInputLarge}
-                          onKeyPress={(e) => e.key === 'Enter' && performSaveAs()}
-                        />
-                        <div style={styles.saveAsInputHint}>
-                          Keep your filename descriptive and relevant
-                        </div>
-                      </div>
-
-                      <div style={styles.saveAsFormGroup}>
-                        <label style={styles.saveAsLabel}>Save as type</label>
-                        <select
-                          value={saveAsFormat}
-                          onChange={(e) => setSaveAsFormat(e.target.value)}
-                          style={styles.saveAsSelectLarge}
-                        >
-                          {SAVE_AS_FORMATS.map((fmt) => (
-                            <option key={fmt.key} value={fmt.key}>{fmt.label}</option>
-                          ))}
-                        </select>
-                        <div style={styles.saveAsInputHint}>
-                          {saveAsFormat === 'etherx' && 'Native EtherX format - recommended for editing'}
-                          {saveAsFormat === 'docx' && 'Microsoft Word format - compatible with Word'}
-                          {saveAsFormat === 'pdf' && 'PDF Document - ideal for printing and sharing'}
-                          {saveAsFormat === 'html' && 'Web format - for viewing in browsers'}
-                          {saveAsFormat === 'markdown' && 'Markdown format - lightweight plain text'}
-                          {saveAsFormat === 'epub' && 'EPUB format - compatible with e-readers'}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Action Buttons */}
-                  <div style={styles.saveAsActionBar}>
-                    <button
-                      style={{
-                        ...styles.saveAsCancelBtn,
-                        ...(saveAsBusy ? { opacity: 0.5, cursor: 'not-allowed' } : {}),
-                      }}
-                      onClick={() => setActiveMenu('home')}
-                      disabled={saveAsBusy}
-                    >
-                      Cancel
-                    </button>
-                    {saveAsLocation === 'share' ? (
-                      <button
-                        style={{
-                          ...styles.saveAsSubmitBtn,
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 6,
-                          ...(saveAsBusy ? { opacity: 0.7, cursor: 'not-allowed' } : {}),
-                        }}
-                        onClick={openShareForSaveAs}
-                        disabled={saveAsBusy}
-                      >
-                        {saveAsBusy ? <><LoadingIcon />Preparing…</> : <><Share2 size={15} />Share Document</>}
-                      </button>
-                    ) : (
-                      <button
-                        style={{
-                          ...styles.saveAsSubmitBtn,
-                          ...(saveAsBusy ? { opacity: 0.7, cursor: 'not-allowed' } : {}),
-                        }}
-                        onClick={performSaveAs}
-                        disabled={saveAsBusy}
-                      >
-                        {saveAsBusy ? <><LoadingIcon />Saving…</> : <><SaveIcon />Save As</>}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-        )}
-
-        {(activeMenu === 'open' || activeMenu === 'share' || activeMenu === 'export') && (
-          <section style={styles.panel}>
-            <h2 style={styles.panelTitle}>{activeMenu[0].toUpperCase() + activeMenu.slice(1)}</h2>
-            {activeMenu === 'open' && (
-              <button style={styles.primaryActionBtn} onClick={() => fileInputRef.current?.click()}>
-                Browse from device
-              </button>
-            )}
-            {activeMenu === 'share' && (
-              <div style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 8px 0' }}>
-                  Generate a shareable link for the selected document. Select the document in the list below first.
-                </p>
-                <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <button
-                    style={{
-                      ...styles.primaryActionBtn,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      marginBottom: 0,
-                      ...(shareCopied ? { background: '#22c55e', borderColor: '#22c55e', color: '#fff' } : {})
-                    }}
-                    onClick={shareSelectedDoc}
-                    disabled={!selectedDoc || shareWorking}
-                  >
-                    {shareCopied ? (
-                      <><Check size={14} strokeWidth={2.5} /> Copied!</>
-                    ) : (
-                      <><Copy size={14} strokeWidth={2} /> {selectedDoc ? `Copy share link for "${selectedDoc.title}"` : 'Select a document below first'}</>
-                    )}
-                  </button>
-                  {selectedDoc && (
-                    <button
-                      style={{
-                        ...styles.secondaryActionBtn,
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 6,
-                      }}
-                      onClick={async () => {
-                        try {
-                          const cloudDoc = await ensureCloudDocForShare(selectedDoc);
-                          setShareDialogDoc(cloudDoc);
-                        } catch (err) {
-                          toast(`Unable to prepare document: ${err?.message}`, 'error');
-                        }
-                      }}
-                    >
-                      <Share2 size={14} /> Collaborate & Invite
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-            {activeMenu === 'export' && (
-              <div style={{ marginBottom: 16 }}>
-                <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 10px 0' }}>
-                  Choose a format and export the selected document.
-                </p>
-                <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-                  {[
-                    { key: 'pdf', label: 'PDF', tier: 'free' },
-                    { key: 'docx', label: 'Word (.docx)', tier: 'free' },
-                    { key: 'markdown', label: 'Markdown (.md)', tier: 'basic' },
-                    { key: 'html', label: 'HTML', tier: 'pro' },
-                    { key: 'epub', label: 'EPUB (.epub)', tier: 'pro' },
-                  ].map((f) => {
-                    const locked = !canExportFormat(plan, f.key);
-                    return (
-                      <button
-                        key={f.key}
-                        style={{
-                          ...styles.secondaryActionBtn,
-                          background: exportFormat === f.key ? 'var(--bg-hover)' : 'transparent',
-                          borderColor: exportFormat === f.key ? 'var(--border-gold)' : 'var(--border)',
-                          color: exportFormat === f.key ? 'var(--text-gold)' : 'var(--text-secondary)',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 6,
-                        }}
-                        onClick={() => {
-                          if (locked) {
-                            openUpgradeModal(
-                              `${f.label} export requires ${f.tier === 'pro' ? 'an EtherX Pro' : 'a Basic or Pro'} subscription.`,
-                              f.tier
-                            );
-                            return;
-                          }
-                          setExportFormat(f.key);
-                        }}
-                      >
-                        <span>{f.label}</span>
-                        {locked && (
-                          <span style={{ fontSize: 9, padding: '1px 4px', borderRadius: 3, background: f.tier === 'pro' ? '#f59e0b' : '#2563eb', color: '#fff', fontWeight: 700 }}>
-                            {f.tier.toUpperCase()}
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-                <button
-                  style={{ ...styles.primaryActionBtn, ...(exportBusy ? { opacity: 0.6, cursor: 'not-allowed' } : {}) }}
-                  onClick={() => exportSelectedDoc(exportFormat)}
-                  disabled={exportBusy || !selectedDoc}
-                >
-                  {exportBusy ? <><LoadingIcon />Exporting…</> : `Export as ${exportFormat.toUpperCase()}`}
-                </button>
-              </div>
-            )}
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search documents"
-              style={styles.search}
-            />
-            <div style={styles.panelList}>
-              {docs.filter((d) => d.title.toLowerCase().includes(search.toLowerCase())).slice(0, 8).map((doc) => (
-                <div key={doc.id} style={styles.panelItem}>
-                  <button
-                    style={{
-                      ...styles.panelItemMain,
-                      ...(selectedDocId === doc.id ? { background: 'var(--bg-hover)', color: 'var(--text-gold)', fontWeight: 600 } : {}),
-                    }}
-                    onClick={() => {
-                      setSelectedDocId(doc.id);
-                      if (activeMenu === 'open') {
-                        openDoc(doc);
-                      }
-                    }}
-                  >
-                    <span>{doc.title}</span>
-                    <span style={styles.panelItemMeta}>{formatActualTime(doc.updatedAt)}</span>
-                  </button>
-                  <button
-                    style={styles.panelDeleteBtn}
-                    onClick={() => deleteDoc(doc)}
-                    title="Delete document"
-                  >
-                    Delete
-                  </button>
-                </div>
-              ))}
-            </div>
-            <div style={styles.panelActions}>
-              <button style={styles.secondaryActionBtn} onClick={() => selectedDoc && openDoc(selectedDoc)}>
-                Open selected
-              </button>
-            </div>
-          </section>
-        )}
-      </main>
-    </div>
-    <UpgradeModal />
-    {(shareDialogDoc || dialogs?.shareDoc) && (
-      <ShareDialog
-        documentId={shareDialogDoc?.id || selectedDoc?.id}
-        documentTitle={shareDialogDoc?.title || selectedDoc?.title}
-        documentContent={shareDialogDoc?.content || selectedDoc?.content}
-        onClose={() => {
-          setShareDialogDoc(null);
-          closeDialog('shareDoc');
-        }}
-      />
-    )}
-    </>
-  );
+  return <>
+    <input ref={fileInputRef} type="file" hidden onChange={handleUploadOpen} />
+    <FileWorkspace page={activeMenu} setPage={(key) => { setActiveMenu(key); if (key === 'saveAs') setSaveAsName(`Copy of ${saveAsSourceDoc?.title || 'Untitled Document'}`); }}
+      docs={docs.map((doc) => ({ ...doc, pageCount: doc.pageCount || estimatePagesFromHtml(doc.content) }))} document={saveAsSourceDoc || selectedDoc} search={search} onSearch={setSearch}
+      onSaveTitle={(title) => {
+        if (saveAsSourceDoc?.id === currentEditorId) setDocTitle(title);
+        else setDocs((previous) => previous.map((doc) => doc.id === selectedDocId ? { ...doc, title, isDirty: true } : doc));
+      }}
+      openDoc={openDoc} createTemplate={createFromTemplate} back={handleBackToEditor} browse={() => fileInputRef.current?.click()}
+      saveName={saveAsName} setSaveName={setSaveAsName} saveFormat={saveAsFormat} setSaveFormat={setSaveAsFormat}
+      saveLocation={saveAsLocation} setSaveLocation={setSaveAsLocation} saveAs={performSaveAs} saveBusy={saveAsBusy}
+      exportFormat={exportFormat} setExportFormat={setExportFormat} exportDocument={() => exportSelectedDoc(exportFormat)} exportBusy={exportBusy}
+      plan={plan} user={currentUser} stats={stats} isAdmin={isAdminUser} onMenuAction={runMenuAction}
+      requestDelete={setConfirmDelete} share={openShareForSaveAs} copyShareLink={shareSelectedDoc}>
+      <p style={{ padding: 48 }}>Choose a page from the File menu.</p>
+    </FileWorkspace>
+    <DialogManager />
+    {confirmDelete && <Modal title="Delete document?" onClose={() => setConfirmDelete(null)}>
+      <p>Delete “{confirmDelete.title}” permanently?</p>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 20 }}>
+        <Button onClick={() => setConfirmDelete(null)}>Cancel</Button>
+        <Button onClick={() => { const doc = confirmDelete; setConfirmDelete(null); deleteDoc(doc); }}>Delete</Button>
+      </div>
+    </Modal>}
+    {shareDialogDoc && <ShareDialog documentId={shareDialogDoc.id} documentTitle={shareDialogDoc.title} documentContent={shareDialogDoc.content} initialEmail={shareDialogDoc.initialEmail} initialRole={shareDialogDoc.initialRole} onClose={() => setShareDialogDoc(null)} />}
+  </>;
 }
 
 const styles = {
@@ -2512,17 +1866,6 @@ const styles = {
     overflowX: 'hidden',
     overscrollBehaviorY: 'contain',
     WebkitOverflowScrolling: 'touch',
-  },
-  fileMenuTitle: {
-    height: 90,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderBottom: '1px solid var(--border)',
-    color: 'var(--text-secondary)',
-    letterSpacing: '.12em',
-    fontSize: 12,
-    fontWeight: 700,
   },
   menuList: {
     flex: '0 0 auto',
@@ -2592,22 +1935,9 @@ const styles = {
     color: 'var(--text-gold)',
     border: '1px solid var(--border-gold)',
   },
-  usageUpgradeBtn: {
-    background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-    border: 'none',
-    borderRadius: 4,
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: 600,
-    padding: '3px 8px',
-    cursor: 'pointer',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-  },
   usageLabel: {
-    fontSize: 11,
-    color: 'var(--text-muted)',
-    display: 'flex',
-    justifyContent: 'space-between',
+    fontSize: 11.5,
+    color: 'var(--text-secondary)',
   },
   usageBarBg: {
     width: '100%',
@@ -2620,43 +1950,6 @@ const styles = {
     height: '100%',
     borderRadius: 3,
     transition: 'width 0.3s ease',
-  },
-  sidebarFooter: {
-    flexShrink: 0,
-    marginTop: 'auto',
-    borderTop: '1px solid var(--border)',
-    padding: '10px 8px 10px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 8,
-  },
-  docPill: {
-    border: '1px solid var(--border)',
-    borderRadius: 8,
-    padding: '10px 10px',
-    background: 'var(--bg-elevated)',
-  },
-  docPillTitle: {
-    fontSize: 13,
-    color: 'var(--text-primary)',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-  },
-  docPillMeta: {
-    marginTop: 4,
-    fontSize: 11,
-    color: 'var(--text-muted)',
-  },
-  backEditorBtn: {
-    border: '1px solid var(--border-gold)',
-    borderRadius: 8,
-    background: 'var(--bg-elevated)',
-    color: 'var(--text-gold)',
-    padding: '8px 10px',
-    cursor: 'pointer',
-    fontSize: 16,
-    textAlign: 'left',
   },
   darkModeStatus: {
     display: 'flex',
@@ -2685,132 +1978,349 @@ const styles = {
     background: 'var(--bg-app)',
     overflowY: 'auto',
   },
-  topBar: {
-    height: 70,
-    borderBottom: '1px solid var(--border-strong)',
-    display: 'flex',
-    alignItems: 'center',
-    padding: '0 20px',
-    color: 'var(--text-muted)',
-    fontSize: 13,
-    background: 'transparent',
-    cursor: 'pointer',
-    fontFamily: 'inherit',
-    textAlign: 'left',
-  },
   hero: {
-    padding: '46px 54px 10px',
+    padding: '40px 48px 8px',
+    width: '100%',
+    boxSizing: 'border-box',
+    display: 'flex',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    gap: 20,
+    flexWrap: 'wrap',
   },
   heroTitle: {
     margin: 0,
-    fontSize: 44,
-    letterSpacing: '.03em',
+    fontSize: 32,
+    fontWeight: 600,
+    letterSpacing: '-0.01em',
     color: 'var(--text-heading)',
   },
   heroSub: {
-    marginTop: 8,
+    marginTop: 6,
     marginBottom: 0,
     color: 'var(--text-muted)',
-    fontSize: 17,
-  },
-  gridArea: {
-    padding: '20px 54px 40px',
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: 44,
-    minWidth: 860,
-  },
-  sectionLabel: {
-    fontSize: 13,
-    color: 'var(--text-muted)',
-    letterSpacing: '.12em',
-    fontWeight: 700,
-    marginBottom: 14,
-  },
-  recentsWrap: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 10,
-  },
-  recentCard: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    border: '1px solid var(--border)',
-    background: 'var(--bg-elevated)',
-    borderRadius: 10,
-    padding: '8px 10px 8px 14px',
-    textAlign: 'left',
-    color: 'var(--text-primary)',
+    fontSize: 14,
   },
   recentOpenBtn: {
     border: 'none',
     background: 'transparent',
-    color: 'inherit',
+    color: 'var(--text-primary)',
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
     gap: 12,
-    flex: 1,
     minWidth: 0,
     textAlign: 'left',
-    padding: '6px 2px',
+    padding: 0,
+    fontFamily: 'inherit',
   },
   recentDeleteBtn: {
-    border: '1px solid var(--border)',
-    background: 'var(--bg-surface)',
+    border: 'none',
+    background: 'transparent',
     color: 'var(--text-muted)',
     borderRadius: 6,
     cursor: 'pointer',
     width: 28,
     height: 28,
-    flex: '0 0 auto',
-  },
-  recentIcon: {
-    fontSize: 14,
-    color: 'var(--text-secondary)',
-  },
-  recentTextWrap: {
-    display: 'flex',
-    flexDirection: 'column',
-    minWidth: 0,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   recentTitle: {
-    fontSize: 16,
-    fontWeight: 600,
+    fontSize: 13.5,
+    fontWeight: 500,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
   },
-  recentMeta: {
-    marginTop: 4,
-    fontSize: 13,
-    color: 'var(--text-muted)',
-  },
-  viewAllBtn: {
-    border: '1px solid var(--border-gold)',
-    borderRadius: 3,
-    background: 'transparent',
-    color: 'var(--text-gold)',
-    padding: '8px 14px',
-    cursor: 'pointer',
-    fontSize: 15,
-    fontWeight: 600,
-  },
   templateGrid: {
     display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: 10,
+    gridTemplateColumns: 'repeat(auto-fit, minmax(132px, 1fr))',
+    gap: 16,
   },
-  templateBtn: {
+  sidebarTop: {
+    padding: '20px 16px 12px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 16,
+    borderBottom: '1px solid var(--border)',
+  },
+  fileMenuLogo: {
+    width: 168,
+    height: 'auto',
+    display: 'block',
+    alignSelf: 'flex-start',
+  },
+  backLink: {
+    border: 'none',
+    background: 'transparent',
+    color: 'var(--text-muted)',
+    padding: 0,
+    cursor: 'pointer',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    fontSize: 12.5,
+    fontFamily: 'inherit',
+    alignSelf: 'flex-start',
+  },
+  managePlanBtn: {
+    marginTop: 4,
+    border: '1px solid var(--border-gold)',
+    borderRadius: 6,
+    background: 'transparent',
+    color: 'var(--text-gold)',
+    padding: '6px 10px',
+    fontSize: 12,
+    fontWeight: 500,
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+  },
+  searchBox: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    height: 34,
+    padding: '0 12px',
+    borderRadius: 8,
     border: '1px solid var(--border)',
+    background: 'var(--bg-elevated)',
+    color: 'var(--text-muted)',
+    width: 260,
+    maxWidth: '100%',
+    boxSizing: 'border-box',
+  },
+  searchInput: {
+    flex: 1,
+    minWidth: 0,
+    border: 'none',
+    outline: 'none',
+    background: 'transparent',
+    color: 'var(--text-primary)',
+    fontSize: 13,
+    fontFamily: 'inherit',
+  },
+  homeArea: {
+    padding: '24px 48px 48px',
+    boxSizing: 'border-box',
+    width: '100%',
+  },
+  startCards: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+    gap: 12,
+    marginBottom: 36,
+  },
+  startCard: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 4,
+    padding: 16,
     borderRadius: 10,
+    border: '1px solid rgba(255,255,255,0.07)',
     background: 'var(--bg-elevated)',
     color: 'var(--text-primary)',
-    minHeight: 58,
     cursor: 'pointer',
-    fontSize: 16,
+    textAlign: 'left',
+    fontFamily: 'inherit',
+    transition: 'border-color 120ms ease',
+  },
+  startCardPrimary: {
+    borderColor: 'rgba(214,178,94,0.45)',
+  },
+  startCardIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: 'var(--bg-hover)',
+    color: 'var(--text-secondary)',
+    marginBottom: 8,
+  },
+  startCardIconPrimary: {
+    background: 'var(--gold)',
+    color: '#1a1a1a',
+  },
+  startCardTitle: {
+    fontSize: 13.5,
+    fontWeight: 500,
+  },
+  startCardText: {
+    fontSize: 12,
+    color: 'var(--text-muted)',
+  },
+  sectionHead: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 16,
+    flexWrap: 'wrap',
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    margin: 0,
+    fontSize: 15,
     fontWeight: 600,
+    color: 'var(--text-heading)',
+  },
+  catChip: {
+    border: '1px solid var(--border)',
+    borderRadius: 999,
+    background: 'transparent',
+    color: 'var(--text-secondary)',
+    padding: '4px 12px',
+    fontSize: 12,
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+  },
+  catChipActive: {
+    borderColor: 'var(--border-gold)',
+    background: 'var(--bg-hover)',
+    color: 'var(--text-gold)',
+  },
+  templateCard: {
+    border: 'none',
+    background: 'transparent',
+    padding: 0,
+    cursor: 'pointer',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    gap: 4,
+    textAlign: 'left',
+    color: 'var(--text-primary)',
+    fontFamily: 'inherit',
+  },
+  templatePaper: {
+    position: 'relative',
+    aspectRatio: '8.5 / 11',
+    background: '#fafaf7',
+    borderRadius: 4,
+    boxShadow: '0 1px 2px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.06)',
+    padding: '14% 12%',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 5,
+    marginBottom: 6,
+    overflow: 'hidden',
+  },
+  paperLine: {
+    display: 'block',
+    height: 3,
+    borderRadius: 1,
+    background: '#d9d6cf',
+    flexShrink: 0,
+  },
+  lockBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    padding: '2px 6px',
+    borderRadius: 4,
+    background: '#1a1a1a',
+    color: 'var(--gold)',
+    fontSize: 9.5,
+    fontWeight: 600,
+    textTransform: 'uppercase',
+    letterSpacing: '0.04em',
+  },
+  templateName: {
+    fontSize: 13,
+    fontWeight: 500,
+  },
+  templateCat: {
+    fontSize: 11.5,
+    color: 'var(--text-muted)',
+  },
+  recentTabBtn: {
+    border: 'none',
+    background: 'transparent',
+    padding: '0 0 10px',
+    fontSize: 13.5,
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+  },
+  viewAllLink: {
+    border: 'none',
+    background: 'transparent',
+    color: 'var(--text-gold)',
+    fontSize: 12.5,
+    cursor: 'pointer',
+    padding: '0 0 10px',
+    fontFamily: 'inherit',
+  },
+  recentTable: {
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  recentRow: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(0, 3fr) minmax(0, 1.2fr) minmax(0, 1.4fr) 56px 32px',
+    alignItems: 'center',
+    gap: 12,
+    padding: '9px 8px',
+    borderBottom: '1px solid rgba(255,255,255,0.04)',
+    fontSize: 12.5,
+    color: 'var(--text-secondary)',
+  },
+  recentHeadRow: {
+    fontSize: 11,
+    color: 'var(--text-muted)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.06em',
+    padding: '10px 8px 8px',
+  },
+  drawerBackdrop: {
+    position: 'fixed',
+    inset: 0,
+    background: 'rgba(0,0,0,0.55)',
+    zIndex: 40,
+  },
+  mobileBar: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    padding: '12px 16px',
+    borderBottom: '1px solid var(--border)',
+    position: 'sticky',
+    top: 0,
+    zIndex: 5,
+    background: 'var(--bg-app)',
+  },
+  mobileMenuBtn: {
+    width: 36,
+    height: 36,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    border: '1px solid var(--border)',
+    borderRadius: 8,
+    background: 'var(--bg-elevated)',
+    color: 'var(--text-primary)',
+    cursor: 'pointer',
+  },
+  chipScroller: {
+    display: 'flex',
+    gap: 6,
+    width: '100%',
+    overflowX: 'auto',
+    paddingBottom: 2,
+    scrollbarWidth: 'none',
+  },
+  docIcon: {
+    width: 22,
+    height: 28,
+    flexShrink: 0,
+    borderRadius: 2,
+    background: '#fafaf7',
+    padding: '5px 4px',
+    boxSizing: 'border-box',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 3,
   },
   panel: {
     margin: '10px 54px 40px',
@@ -3470,5 +2980,88 @@ const styles = {
   empty: {
     color: 'var(--text-muted)',
     fontSize: 14,
+  },
+  emptyState: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 6,
+    padding: '36px 16px',
+    color: 'var(--text-muted)',
+    textAlign: 'center',
+  },
+  emptyCta: {
+    marginTop: 10,
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    height: 36,
+    padding: '0 14px',
+    border: '1px solid var(--border-gold)',
+    borderRadius: 8,
+    background: 'transparent',
+    color: 'var(--text-gold)',
+    fontSize: 13,
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+  },
+  dialogBackdrop: {
+    position: 'fixed',
+    inset: 0,
+    zIndex: 100,
+    background: 'rgba(0,0,0,0.6)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+  },
+  dialog: {
+    width: '100%',
+    maxWidth: 400,
+    background: 'var(--bg-elevated)',
+    border: '1px solid var(--border)',
+    borderRadius: 12,
+    padding: 20,
+    boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+  },
+  dialogTitle: {
+    margin: 0,
+    fontSize: 16,
+    fontWeight: 600,
+    color: 'var(--text-heading)',
+    overflowWrap: 'anywhere',
+  },
+  dialogText: {
+    margin: '8px 0 20px',
+    fontSize: 13.5,
+    color: 'var(--text-muted)',
+  },
+  dialogActions: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    gap: 8,
+  },
+  dialogCancelBtn: {
+    height: 38,
+    padding: '0 16px',
+    borderRadius: 8,
+    border: '1px solid var(--border)',
+    background: 'transparent',
+    color: 'var(--text-primary)',
+    fontSize: 13.5,
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+  },
+  dialogDangerBtn: {
+    height: 38,
+    padding: '0 16px',
+    borderRadius: 8,
+    border: 'none',
+    background: '#e5484d',
+    color: '#fff',
+    fontSize: 13.5,
+    fontWeight: 600,
+    cursor: 'pointer',
+    fontFamily: 'inherit',
   },
 };

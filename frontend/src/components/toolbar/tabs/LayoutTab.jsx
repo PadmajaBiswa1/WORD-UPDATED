@@ -7,6 +7,7 @@ import {
 import { useDocumentStore, useEditorStore, useUIStore } from '@/store';
 import { PAGE_SIZES, MARGIN_MAP, getLayoutMetrics } from '@/utils/pageLayout';
 import { RibbonGroup } from '../RibbonGroup';
+import { groupSelectedImages, ungroupSelectedImage } from '@/utils/imageGroup';
 
 const INDENT_CM = [0, 0.5, 1, 1.5, 2, 2.5, 3];
 const SPACING_PT = [0, 3, 6, 8, 10, 12, 18, 24, 30];
@@ -245,7 +246,7 @@ const metricSelectStyle = {
   outline: 'none',
 };
 
-export function LayoutTab() {
+export function LayoutTab({ renderRibbon } = {}) {
   const { editor } = useEditorStore();
   const pageCount = useDocumentStore((s) => s.pageCount);
   const layout = useDocumentStore((s) => s.layout);
@@ -268,6 +269,7 @@ export function LayoutTab() {
   const [spacingBeforePt, setSpacingBeforePt] = useState(0);
   const [spacingAfterPt, setSpacingAfterPt] = useState(8);
   const [breakAction, setBreakAction] = useState('');
+  const [menu, setMenu] = useState(null);
 
   const activeMargin = layout?.pageMargin || pageMargin || 'normal';
   const activeOrientation = layout?.pageOrientation || pageOrientation || 'portrait';
@@ -348,7 +350,7 @@ export function LayoutTab() {
       const leftPx = parseInt((css['margin-left'] || '0').replace('px', ''), 10) || 0;
       const rightPx = parseInt((css['margin-right'] || '0').replace('px', ''), 10) || 0;
       const beforePx = parseInt((css['margin-top'] || '0').replace('px', ''), 10) || 0;
-      const afterPx = parseInt((css['margin-bottom'] || '0').replace('px', ''), 10) || 0;
+      const afterPx = parseFloat((css['margin-bottom'] || '10.6667').replace('px', '')) || 0;
       setIndentLeftCm(pxToCm(leftPx));
       setIndentRightCm(pxToCm(rightPx));
       setSpacingBeforePt(Math.round(beforePx * 0.75));
@@ -359,13 +361,6 @@ export function LayoutTab() {
     editor.on('selectionUpdate', syncFromSelection);
     return () => editor.off('selectionUpdate', syncFromSelection);
   }, [editor]);
-
-  useEffect(() => {
-    const pm = document.querySelector('.ProseMirror');
-    if (!pm) return;
-    setLineNumbersOn(pm.classList.contains('etherx-line-numbers'));
-    setHyphenationOn(pm.style.hyphens === 'auto');
-  }, []);
 
   const insertBreak = () => {
     if (!editor) return toast('Editor is not ready yet', 'info');
@@ -433,9 +428,10 @@ export function LayoutTab() {
   const layerImage = (direction) => {
     withSelectedImage((attrs, css) => {
       const current = parseInt(String(css['z-index'] || attrs.zIndex || '1'), 10) || 1;
-      const next = direction === 'up' ? current + 1 : Math.max(0, current - 1);
+      const forward = direction === 'up' || direction === 'forward';
+      const next = forward ? current + 1 : Math.max(0, current - 1);
       updateImageAttrs({ zIndex: String(next) }, { position: 'relative', 'z-index': String(next) });
-      toast(direction === 'up' ? 'Brought forward' : 'Sent backward', 'success');
+      toast(forward ? 'Brought forward' : 'Sent backward', 'success');
     });
   };
 
@@ -472,6 +468,63 @@ export function LayoutTab() {
     });
   };
 
+  // Word's Orientation, Breaks, Line Numbers and Hyphenation buttons open menus.
+  const openMenu = (event, items) => setMenu({ rect: event.currentTarget.getBoundingClientRect(), items });
+  const menus = {
+    Orientation: (event) => openMenu(event, [
+      { label: 'Portrait', checked: activeOrientation === 'portrait', run: () => setLayout({ pageOrientation: 'portrait' }) },
+      { label: 'Landscape', checked: activeOrientation === 'landscape', run: () => setLayout({ pageOrientation: 'landscape' }) },
+    ]),
+    Breaks: (event) => openMenu(event, [
+      { label: 'Page', hint: 'Ctrl+Enter', run: insertBreak },
+      { label: 'Text Wrapping', hint: 'Shift+Enter', run: () => editor?.chain().focus().setHardBreak().run() },
+    ]),
+    'Line Numbers': (event) => openMenu(event, [
+      { label: 'None', checked: !lineNumbersOn, run: () => lineNumbersOn && toggleLineNumbers() },
+      { label: 'Continuous', checked: lineNumbersOn, run: () => !lineNumbersOn && toggleLineNumbers() },
+    ]),
+    // Picture position and alignment keep the picture's size (styles are merged).
+    Position: (event) => openMenu(event, [
+      { label: 'In Line with Text', run: () => withSelectedImage(() => { updateImageAttrs({}, { display: null, float: null, margin: null }); toast('In line with text', 'success'); }) },
+      { label: 'Left, Text Wraps Right', run: () => withSelectedImage(() => { updateImageAttrs({}, { display: null, float: 'left', margin: '8px 16px 8px 0' }); toast('Positioned left', 'success'); }) },
+      { label: 'Center', run: () => alignImage('center') },
+      { label: 'Right, Text Wraps Left', run: () => withSelectedImage(() => { updateImageAttrs({}, { display: null, float: 'right', margin: '8px 0 8px 16px' }); toast('Positioned right', 'success'); }) },
+    ]),
+    Align: (event) => openMenu(event, [
+      { label: 'Align Left', run: () => alignImage('left') },
+      { label: 'Align Center', run: () => alignImage('center') },
+      { label: 'Align Right', run: () => alignImage('right') },
+    ]),
+    Group: (event) => openMenu(event, [
+      { label: 'Group', run: async () => {
+        if (!editor) return;
+        try {
+          const res = await groupSelectedImages(editor);
+          toast(res.error || `Grouped ${res.count} pictures`, res.error ? 'info' : 'success');
+        } catch (err) { toast(`Could not group these pictures: ${err.message}`, 'error'); }
+      } },
+      { label: 'Ungroup', run: () => {
+        if (!editor) return;
+        const res = ungroupSelectedImage(editor);
+        toast(res.error || `Ungrouped ${res.count} pictures`, res.error ? 'info' : 'success');
+      } },
+    ]),
+    Hyphenation: (event) => openMenu(event, [
+      { label: 'None', checked: !hyphenationOn, run: () => hyphenationOn && toggleHyphenation() },
+      { label: 'Automatic', checked: hyphenationOn, run: () => !hyphenationOn && toggleHyphenation() },
+    ]),
+  };
+
+  if (renderRibbon) return <>{renderRibbon({
+    ...menus,
+    'Bring Forward': () => layerImage('forward'), 'Send Backward': () => layerImage('backward'),
+    'Wrap Text': wrapText, Rotate: rotateImage,
+  }, {
+    Left: { value: indentLeftCm, change: (value) => { setIndentLeftCm(value); applyParagraphLayout({ indentLeftCm: value }); } },
+    Right: { value: indentRightCm, change: (value) => { setIndentRightCm(value); applyParagraphLayout({ indentRightCm: value }); } },
+    Before: { value: spacingBeforePt, change: (value) => { setSpacingBeforePt(value); applyParagraphLayout({ spacingBeforePt: value }); } },
+    After: { value: spacingAfterPt, change: (value) => { setSpacingAfterPt(value); applyParagraphLayout({ spacingAfterPt: value }); } },
+  })}{menu && <RibbonMenu {...menu} onClose={() => setMenu(null)} />}</>;
   return (
     <>
       <Group title="Page Setup">
@@ -904,3 +957,31 @@ const styles = {
     fontSize: 12,
   },
 };
+
+// A ribbon dropdown menu anchored under its button; closes on choice, outside
+// click or Escape.
+function RibbonMenu({ rect, items, onClose }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    const onDown = (e) => { if (!e.target.closest?.('[data-ribbon-menu]')) onClose(); };
+    // Capture phase: the editor and dialogs handle Escape themselves.
+    window.addEventListener('keydown', onKey, true);
+    window.addEventListener('mousedown', onDown);
+    return () => { window.removeEventListener('keydown', onKey, true); window.removeEventListener('mousedown', onDown); };
+  }, [onClose]);
+  return (
+    <div data-ribbon-menu role="menu" style={{ position: 'fixed', top: rect.bottom + 4, left: rect.left, zIndex: 3000, minWidth: 180, padding: 4, borderRadius: 8, background: 'var(--bg-elevated)', border: '1px solid var(--border)', boxShadow: '0 12px 32px rgba(0,0,0,0.4)' }}>
+      {items.map((item) => (
+        <button key={item.label} type="button" role="menuitemradio" aria-checked={Boolean(item.checked)}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => { item.run(); onClose(); }}
+          style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '6px 10px', border: 0, borderRadius: 6, background: 'transparent', color: 'var(--text-primary)', fontSize: 12.5, cursor: 'pointer', textAlign: 'left' }}>
+          <span style={{ width: 14, color: 'var(--gold)' }}>{item.checked ? <Check size={12} strokeWidth={2} /> : null}</span>
+          <span style={{ flex: 1 }}>{item.label}</span>
+          {item.hint && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{item.hint}</span>}
+        </button>
+      ))}
+    </div>
+  );
+}
+

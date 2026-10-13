@@ -25,7 +25,7 @@ const SUBSCRIPTION_TIERS = {
       templatesCount: 4,
     },
     features: {
-      exportFormats: ['pdf', 'docx'],
+      exportFormats: ['pdf', 'docx', 'txt'],
       realTimeCollaboration: false,
       collaboratorsCount: 0,
       comments: false,
@@ -63,7 +63,7 @@ const SUBSCRIPTION_TIERS = {
       templatesCount: 20,
     },
     features: {
-      exportFormats: ['docx', 'pdf', 'odt', 'markdown'],
+      exportFormats: ['docx', 'pdf', 'odt', 'markdown', 'txt'],
       realTimeCollaboration: true,
       collaboratorsCount: 3,
       comments: true,
@@ -101,7 +101,7 @@ const SUBSCRIPTION_TIERS = {
       templatesCount: Infinity,
     },
     features: {
-      exportFormats: ['docx', 'pdf', 'odt', 'markdown', 'html', 'epub'],
+      exportFormats: ['docx', 'pdf', 'odt', 'markdown', 'html', 'epub', 'txt'],
       realTimeCollaboration: true,
       collaboratorsCount: Infinity,
       comments: true,

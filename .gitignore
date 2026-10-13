@@ -24,3 +24,7 @@ frontend/.env
 # Local database runtime files
 backend/data/*.json
 !backend/data/documents.json
+
+# Docs (kept local only)
+docs/
+/*.md

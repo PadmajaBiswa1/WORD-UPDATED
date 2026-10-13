@@ -33,10 +33,13 @@ export function useAutoSave() {
       design,
       headerFooter,
       layout,
+      pageCount,
       comments,
       trackChanges,
       security,
       documentParts,
+      signatures,
+      accessPolicy,
       aiProfile,
       references,
       styles,
@@ -67,10 +70,11 @@ export function useAutoSave() {
     setSaving(true);
     const saveInitiatedTime = docUpdatedAt ? new Date(docUpdatedAt).getTime() : Date.now();
 
+    // Declared outside try: the catch block caches it for the recent-docs list.
+    let payloadContent = stripAutoPageBreaks(c);
     try {
       console.log(`💾 Saving document ${docId}: "${title}" (manual=${manual})`);
 
-      let payloadContent = stripAutoPageBreaks(c);
       let payloadContentJson = contentJson;
       let currentSecurity = security ? { ...security } : null;
 
@@ -114,6 +118,7 @@ export function useAutoSave() {
         design,
         headerFooter,
         layout,
+        pageCount,
         comments,
         trackChanges,
         security: currentSecurity ? {
@@ -126,6 +131,8 @@ export function useAutoSave() {
           encryptedPayload: currentSecurity.encryptedPayload || '',
         } : null,
         documentParts: Array.isArray(documentParts) ? documentParts : [],
+        signatures: Array.isArray(signatures) ? signatures : [],
+        accessPolicy,
         aiProfile: aiProfile || null,
         references: references || { citations: [], captions: [], indexEntries: [] },
         styles: Array.isArray(styles) ? styles : [],
@@ -140,7 +147,19 @@ export function useAutoSave() {
       // 2. Check if newer edits were made while save was in flight
       const latestStore = useDocumentStore.getState();
       const currentStoreTime = latestStore.updatedAt ? new Date(latestStore.updatedAt).getTime() : 0;
-      const hasNewerEdits = currentStoreTime > saveInitiatedTime;
+      const hasNewerEdits = currentStoreTime > saveInitiatedTime
+        || latestStore.title !== title || latestStore.content !== c
+        || latestStore.design !== design || latestStore.layout !== layout
+        || latestStore.headerFooter !== headerFooter || latestStore.comments !== comments
+        || latestStore.contentJson !== contentJson || latestStore.trackChanges !== trackChanges
+        || latestStore.references !== references || latestStore.styles !== styles
+        || latestStore.signatures !== signatures || latestStore.accessPolicy !== accessPolicy
+        || latestStore.documentParts !== documentParts || latestStore.aiProfile !== aiProfile;
+
+      if (latestStore.id !== docId) {
+        writeLocalDraft(docId, { ...store, isDirty: false });
+        return;
+      }
 
       if (!hasNewerEdits) {
         setLastSaved(new Date());
@@ -153,17 +172,21 @@ export function useAutoSave() {
       }
 
       updateCachedRecentDoc(docId, {
+        ...savedDoc,
         title,
         content: payloadContent,
         design,
         headerFooter,
-        updatedAt: new Date().toISOString(),
+        layout,
+        pageCount,
+        updatedAt: savedDoc?.updatedAt || new Date().toISOString(),
       });
 
       console.log(`✅ Document ${docId} saved successfully`);
       if (manual) {
         toast('Document saved', 'success');
       }
+      return savedDoc;
     } catch (err) {
       console.error(`❌ Save failed for ${docId}:`, err);
       writeLocalDraft(docId, { ...useDocumentStore.getState(), isDirty: true });
@@ -172,9 +195,12 @@ export function useAutoSave() {
         content: payloadContent,
         design,
         headerFooter,
+        layout,
+        pageCount,
         updatedAt: new Date().toISOString(),
       });
       toast(manual ? 'Save failed' : 'Auto-save failed - changes saved locally', 'error');
+      return null;
     } finally {
       isSavingRef.current = false;
       setSaving(false);
@@ -250,10 +276,14 @@ export function useAutoSave() {
           contentJson: store.security?.protected ? null : store.contentJson,
           design: store.design,
           headerFooter: store.headerFooter,
+          layout: store.layout,
+          pageCount: store.pageCount,
           comments: store.comments,
           trackChanges: store.trackChanges,
           security: store.security,
           documentParts: store.documentParts,
+          signatures: store.signatures,
+          accessPolicy: store.accessPolicy,
           aiProfile: store.aiProfile,
           references: store.references,
           styles: store.styles,
@@ -308,7 +338,9 @@ export function useAutoSave() {
       }
     };
     window.addEventListener('keydown', h);
-    return () => window.removeEventListener('keydown', h);
+    const onSaveRequest = () => save({ manual: true });
+    window.addEventListener('etherx-save-document', onSaveRequest);
+    return () => { window.removeEventListener('keydown', h); window.removeEventListener('etherx-save-document', onSaveRequest); };
   }, [save]);
 
   return { save };

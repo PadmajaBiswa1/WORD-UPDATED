@@ -303,8 +303,8 @@ body {
 
 /* ── 3-Row Ribbon Group Styling (flex-column + wrap model) ── */
 .ribbon-group-content {
-  height: 82px;
-  max-height: 82px;
+  height: 70px;
+  max-height: 70px;
   display: flex;
   align-items: center;
   flex-shrink: 0;
@@ -316,8 +316,8 @@ body {
 .ribbon-group-content > div[style*="Column"],
 .ribbon-group-content > div[data-stacked="true"],
 .ribbon-group-content > [data-col="true"] {
-  height: 82px !important;
-  max-height: 82px !important;
+  height: 70px !important;
+  max-height: 70px !important;
   display: flex !important;
   flex-direction: column !important;
   flex-wrap: wrap !important;
@@ -327,13 +327,13 @@ body {
   box-sizing: border-box !important;
 }
 
-/* Standard ribbon buttons inside column wrappers (3 × 25px + 2 × 2px = 79px <= 82px) */
+/* Standard ribbon buttons inside column wrappers (3 × 22px + 2 × 2px = 70px) */
 .ribbon-group-content > div[style*="column"] button,
 .ribbon-group-content > div[style*="Column"] button,
 .ribbon-group-content > div[data-stacked="true"] button,
 .ribbon-group-content > [data-col="true"] button {
-  height: 25px;
-  max-height: 25px;
+  height: 22px;
+  max-height: 22px;
   padding: 1px 7px;
   font-size: 11px;
   white-space: nowrap;
@@ -345,16 +345,16 @@ body {
 .ribbon-group-content > div[style*="Column"] > div,
 .ribbon-group-content > div[data-stacked="true"] > div,
 .ribbon-group-content > [data-col="true"] > div {
-  height: 25px;
-  max-height: 25px;
+  height: 22px;
+  max-height: 22px;
   flex-shrink: 0;
 }
 
 /* Hero buttons span all 3 rows */
 .ribbon-group-content [data-hero="true"],
 .ribbon-group-content button[data-hero="true"] {
-  height: 80px !important;
-  max-height: 80px !important;
+  height: 68px !important;
+  max-height: 68px !important;
   align-self: stretch;
   align-items: center;
 }
@@ -372,6 +372,8 @@ body {
 /* ══ Tiptap / ProseMirror — matches Microsoft Word "Normal" style exactly ══ */
 .ProseMirror {
   font-family: var(--design-font, 'Crimson Pro', Georgia, serif);
+  position: relative;
+  isolation: isolate;
   font-size: 12pt;
   line-height: var(--design-spacing, 1.6);
   color: var(--text-doc, #F5F1E8);
@@ -385,6 +387,7 @@ body {
 
 /* Word: 0pt space before, 10pt space after paragraphs ("Space After = 10pt") */
 .ProseMirror > * { margin-top: 0; margin-bottom: 10pt; }
+.ProseMirror > :not(img):not([data-page-break]) { position: relative; z-index: 1; }
 .ProseMirror > *:last-child { margin-bottom: 0; }
 
 /* ══ EtherX Page Break & Pagination Boundary Rules ══ */
@@ -480,14 +483,8 @@ body {
 }
 
 #editor-scroll-area.etherx-view-read #document-page-0 {
-  width: min(96%, 980px) !important;
   box-shadow: none !important;
   background-image: none !important;
-}
-
-#editor-scroll-area.etherx-view-read .ProseMirror {
-  font-size: 13.5pt;
-  line-height: 1.5;
 }
 
 #editor-scroll-area.etherx-focus-mode {
@@ -682,8 +679,13 @@ body.etherx-is-resizing img,
   background: var(--bg-th); font-weight:600; color:var(--gold);
   font-family:'Cinzel',serif; font-size:.8em; letter-spacing:.04em;
 }
+/* Column resizing (prosemirror-tables): col-resize cursor on cell borders, guide line while dragging. */
+.ProseMirror.resize-cursor { cursor: col-resize; }
+.ProseMirror .column-resize-handle {
+  position:absolute; right:-2px; top:0; bottom:-2px; width:3px; background:var(--gold); pointer-events:none; z-index:3;
+}
 .ProseMirror .selectedCell::after {
-  background: rgba(212,175,55,.12); content:''; inset:0; pointer-events:none; position:absolute; z-index:2;
+  background: rgba(212,175,55,.22); content:''; inset:0; pointer-events:none; position:absolute; z-index:2;
 }
 
 /* Placeholder */
@@ -1385,3 +1387,14 @@ body.etherx-is-resizing img,
 .etherx-zoom-slider { -webkit-appearance: none; appearance: none; height: 3px; border-radius: 2px; background: #2a2a2e; }
 .etherx-zoom-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 2px; height: 11px; background: #e8e6e1; border: 0; }
 .etherx-zoom-slider::-moz-range-thumb { width: 2px; height: 11px; background: #e8e6e1; border: 0; border-radius: 0; }
+
+/* Pragna panel icon buttons (design hover) */
+.pragna-icon-btn:hover:not(:disabled) { background: rgba(var(--ink,255,255,255),0.07) !important; color: var(--t18,#f1efea) !important; }
+.pragna-skill-btn:hover { background: rgba(var(--ink,255,255,255),0.06) !important; border-color: rgba(212,175,55,0.5) !important; }
+
+/* Multi-column pages (column-wrap flow): a manual page break ends the column, and
+   pagination's own fillers are not used. */
+.ProseMirror.etherx-column-flow .etherx-manual-page-break {
+  height: 0 !important;
+  break-after: column;
+}

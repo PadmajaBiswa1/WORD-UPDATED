@@ -2,7 +2,7 @@
 //  EtherX Word — UI Primitives
 // ═══════════════════════════════════════════════════════════════
 import { createPortal } from 'react-dom';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useId } from 'react';
 import { X } from 'lucide-react';
 
 /* ── Button ─────────────────────────────────────────────────── */
@@ -518,11 +518,27 @@ export function ColorSwatch({ color, onSelect, label, size = 18 }) {
 
 /* ── Modal ──────────────────────────────────────────────────── */
 export function Modal({ title, onClose, children, width = 480, noPad = false }) {
+  const dialogRef = useRef(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  const titleId = useId();
   useEffect(() => {
-    const h = (e) => { if (e.key === 'Escape') onClose(); };
+    const previous = document.activeElement;
+    const focusable = () => [...(dialogRef.current?.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex="0"]') || [])].filter((el) => el.getClientRects().length);
+    const frame = requestAnimationFrame(() => {
+      if (!dialogRef.current?.contains(document.activeElement)) (focusable()[0] || dialogRef.current)?.focus();
+    });
+    const h = (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); closeRef.current(); }
+      if (e.key !== 'Tab') return;
+      const list = focusable();
+      if (!list.length) { e.preventDefault(); return; }
+      if (e.shiftKey && document.activeElement === list[0]) { e.preventDefault(); list.at(-1).focus(); }
+      else if (!e.shiftKey && document.activeElement === list.at(-1)) { e.preventDefault(); list[0].focus(); }
+    };
     window.addEventListener('keydown', h);
-    return () => window.removeEventListener('keydown', h);
-  }, [onClose]);
+    return () => { cancelAnimationFrame(frame); window.removeEventListener('keydown', h); if (previous?.isConnected) previous.focus(); };
+  }, []);
 
   return (
     <div onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
@@ -531,7 +547,7 @@ export function Modal({ title, onClose, children, width = 480, noPad = false }) 
         background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(6px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
-      <div className="anim-scale-in" style={{
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} className="anim-scale-in" style={{
         background: 'var(--bg-surface)', border: '1px solid var(--border-gold)',
         borderRadius: 'var(--radius-lg)', width, maxWidth: '95vw', maxHeight: '90vh',
         overflow: 'hidden', display: 'flex', flexDirection: 'column',
@@ -543,8 +559,8 @@ export function Modal({ title, onClose, children, width = 480, noPad = false }) 
           padding: '12px 18px', borderBottom: '1px solid var(--border)',
           background: 'var(--bg-elevated)',
         }}>
-          <span style={{ fontFamily: 'var(--font-ui)', fontWeight: 700, color: 'var(--gold)', fontSize: 13, letterSpacing: '.06em', textTransform: 'uppercase' }}>{title}</span>
-          <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--text-muted)', cursor:'pointer', display:'inline-flex', alignItems:'center', padding:'0 4px', lineHeight:1 }}>
+          <span id={titleId} style={{ fontFamily: 'var(--font-ui)', fontWeight: 600, color: 'var(--text-primary)', fontSize: 15 }}>{title}</span>
+          <button type="button" aria-label="Close dialog" onClick={onClose} style={{ background:'none', border:'none', color:'var(--text-muted)', cursor:'pointer', display:'inline-flex', alignItems:'center', padding:8, lineHeight:1 }}>
             <X size={16} />
           </button>
         </div>

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { X, Search } from 'lucide-react';
 import { useUIStore, useDocumentStore, useEditorStore, useCollaborationStore } from '@/store';
-import { PAGE_SIZES, getLayoutMetrics, PAGE_GAP } from '@/utils/pageLayout';
+import { getLayoutMetrics, PAGE_GAP } from '@/utils/pageLayout';
 
 const THUMB_W  = 96;
 const THUMB_H  = 135;
@@ -51,8 +51,6 @@ export function PageSidebar() {
   const typingUsers = useCollaborationStore((s) => s.typingUsers);
 
   const metrics = getLayoutMetrics({ size: pageSize, orientation: pageOrientation, margin: pageMargin });
-  const sizeLabel = (PAGE_SIZES[pageSize] || PAGE_SIZES.a4).label;
-  const orientationLabel = pageOrientation === 'landscape' ? 'Landscape' : 'Portrait';
 
   const [view, setView] = useState('pages');
   const [query, setQuery] = useState('');
@@ -176,41 +174,41 @@ export function PageSidebar() {
       style={{
         width: 220,
         flexShrink: 0,
-        background: '#0f0f11',
-        borderRight: '1px solid rgba(255,255,255,0.06)',
+        background: 'var(--t2,#0f0f11)',
+        borderRight: '1px solid rgba(var(--ink,255,255,255),0.06)',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
         fontFamily: 'var(--font-ui)',
       }}
     >
-      <div style={{ height: 40, flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 6px 0 14px', fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>
+      <div style={{ height: 40, flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 6px 0 14px', fontSize: 13, fontWeight: 500, color: 'var(--t18,#f1efea)' }}>
         Navigation
         <button
           type="button"
           onClick={() => useUIStore.getState().toggleSidebar()}
           aria-label="Close navigation"
           title="Close"
-          style={{ width: 26, height: 26, border: 0, background: 'transparent', borderRadius: 6, color: 'var(--text-muted)', cursor: 'pointer', display: 'grid', placeItems: 'center' }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; }}
+          style={{ width: 26, height: 26, border: 0, background: 'transparent', borderRadius: 6, color: 'var(--t25,#8b8984)', cursor: 'pointer', display: 'grid', placeItems: 'center' }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(var(--ink,255,255,255),0.07)'; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
         >
           <X size={14} />
         </button>
       </div>
 
-      <label style={{ margin: '0 12px', height: 28, display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px', borderRadius: 6, background: '#17171a', border: '1px solid rgba(255,255,255,0.07)', color: '#6f6d68', fontSize: 12 }}>
+      <label style={{ margin: '0 12px', height: 28, display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px', borderRadius: 6, background: 'var(--t8,#17171a)', border: '1px solid rgba(var(--ink,255,255,255),0.07)', color: 'var(--t28,#6f6d68)', fontSize: 12 }}>
         <Search size={13} />
         <input
           value={query}
           onChange={(e) => { setQuery(e.target.value); if (e.target.value.trim()) setView('results'); }}
           placeholder="Search document"
           aria-label="Search document"
-          style={{ flex: 1, minWidth: 0, border: 0, outline: 'none', background: 'transparent', color: 'var(--text-primary)', fontSize: 12, fontFamily: 'var(--font-ui)' }}
+          style={{ flex: 1, minWidth: 0, border: 0, outline: 'none', background: 'transparent', color: 'var(--t18,#f1efea)', fontSize: 12, fontFamily: 'var(--font-ui)' }}
         />
       </label>
 
-      <div role="tablist" style={{ display: 'flex', gap: 16, padding: '12px 14px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+      <div role="tablist" style={{ display: 'flex', gap: 16, padding: '12px 14px 0', borderBottom: '1px solid rgba(var(--ink,255,255,255),0.06)' }}>
         {navTabs.map(([id, name]) => (
           <button
             key={id}
@@ -218,7 +216,7 @@ export function PageSidebar() {
             role="tab"
             aria-selected={view === id}
             onClick={() => setView(id)}
-            style={{ border: 0, background: 'transparent', padding: '0 0 8px', fontSize: 12.5, cursor: 'pointer', fontFamily: 'var(--font-ui)', color: view === id ? 'var(--text-primary)' : '#7d7b76', fontWeight: view === id ? 500 : 400, boxShadow: `inset 0 -2px 0 ${view === id ? 'var(--gold)' : 'transparent'}` }}
+            style={{ border: 0, background: 'transparent', padding: '0 0 8px', fontSize: 12.5, cursor: 'pointer', fontFamily: 'var(--font-ui)', color: view === id ? 'var(--t18,#f1efea)' : 'var(--t25,#8b8984)', fontWeight: view === id ? 500 : 400, boxShadow: `inset 0 -2px 0 ${view === id ? 'var(--t31,#d6b25e)' : 'transparent'}` }}
           >
             {name}
           </button>
@@ -260,13 +258,13 @@ export function PageSidebar() {
               <span style={{ color: 'var(--text-muted)' }}>{r.after}</span>
             </button>
           )) : (
-            <div style={emptyNote}>{query.trim().length >= 2 ? 'No matches.' : 'Search for text in this document.'}</div>
+            <div style={emptyNote}>{query.trim().length >= 2 ? 'No matches.' : 'Search for text, comments or pages in this document.'}</div>
           )}
         </div>
       )}
 
       {view === 'pages' && (
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 8px', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '14px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
         {order.map((pageNum, i) => {
           const isDragging  = dragIndex === i;
           const isDropAbove = dropIndex === i && dragIndex !== null && dragIndex > i;
@@ -297,9 +295,6 @@ export function PageSidebar() {
             </div>
           );
         })}
-        <div style={{ marginTop: 'auto', paddingTop: 12, textAlign: 'center', fontSize: 11, color: '#6f6d68' }}>
-          {pageCount} page{pageCount !== 1 ? 's' : ''} · {sizeLabel} · {orientationLabel}
-        </div>
       </div>
       )}
     </div>
@@ -327,13 +322,14 @@ const emptyNote = {
   padding: '8px 10px',
   fontSize: 12,
   lineHeight: 1.5,
-  color: '#7d7b76',
+  color: 'var(--t27,#7d7b76)',
   textAlign: 'center',
+  textWrap: 'pretty',
 };
 
 const dropLine = { position: 'absolute', left: 8, right: 8, height: 2, borderRadius: 2, zIndex: 10 };
 
-function rowHoverOn(e) { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }
+function rowHoverOn(e) { e.currentTarget.style.background = 'rgba(var(--ink,255,255,255),0.05)'; }
 function rowHoverOff(e) { e.currentTarget.style.background = 'transparent'; }
 
 function PageThumb({ index, active, thumbnail, isDragging }) {
@@ -345,21 +341,21 @@ function PageThumb({ index, active, thumbnail, isDragging }) {
           height: THUMB_H,
           borderRadius: 2,
           overflow: 'hidden',
-          background: 'var(--bg-page)',
+          background: 'var(--t12)',
           flexShrink: 0,
           boxShadow: isDragging
             ? '0 8px 24px rgba(0,0,0,0.5), 0 0 0 2px var(--gold)'
-            : active ? '0 0 0 2px var(--gold)' : '0 0 0 1px rgba(255,255,255,0.08)',
+            : active ? '0 0 0 2px var(--t31,#d6b25e)' : '0 0 0 1px rgba(var(--ink,255,255,255),0.08)',
           transition: 'box-shadow 0.15s',
         }}
         onMouseEnter={(e) => { if (!active && !isDragging) e.currentTarget.style.boxShadow = '0 0 0 1px rgba(214,178,94,0.6)'; }}
-        onMouseLeave={(e) => { if (!active && !isDragging) e.currentTarget.style.boxShadow = '0 0 0 1px rgba(255,255,255,0.08)'; }}
+        onMouseLeave={(e) => { if (!active && !isDragging) e.currentTarget.style.boxShadow = '0 0 0 1px rgba(var(--ink,255,255,255),0.08)'; }}
       >
         {thumbnail
           ? <img src={thumbnail} alt={`Page ${index + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top', display: 'block' }} />
           : null}
       </div>
-      <span style={{ fontSize: 11.5, fontFamily: 'var(--font-ui)', color: active ? 'var(--gold)' : '#7d7b76', userSelect: 'none' }}>{index + 1}</span>
+      <span style={{ fontSize: 11.5, fontFamily: 'var(--font-ui)', color: active ? 'var(--t31,#d6b25e)' : 'var(--t27,#7d7b76)', userSelect: 'none' }}>{index + 1}</span>
     </div>
   );
 }

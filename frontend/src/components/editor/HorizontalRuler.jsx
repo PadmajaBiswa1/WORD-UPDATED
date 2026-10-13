@@ -28,7 +28,7 @@ export function HorizontalRuler({ pageWidth: propPageWidth }) {
   const dragPositionRef = useRef(null);
 
   const scale = (zoom || 100) / 100;
-  const rulerHeight = 24;
+  const rulerHeight = 22;
   const majorTickHeight = 8;
   const minorTickHeight = 4;
   const inchWidth = PIXELS_PER_INCH * scale;
@@ -39,7 +39,7 @@ export function HorizontalRuler({ pageWidth: propPageWidth }) {
   const layoutMetrics = getLayoutMetrics({ size: pageSize, orientation: pageOrientation, margin: pageMargin });
   const actualPageWidth = Math.round(propPageWidth || (layoutMetrics.pageWidth * scale));
 
-  const marginPx = Math.round((MARGIN_MAP[pageMargin] || MARGIN_MAP.normal) * scale);
+  const marginPx = Math.round((MARGIN_MAP[pageMargin] || MARGIN_MAP.normal) * (92 / 96) * scale);
   const leftMargin = marginPx;
   const rightMargin = marginPx;
 
@@ -96,17 +96,16 @@ export function HorizontalRuler({ pageWidth: propPageWidth }) {
         minWidth: actualPageWidth,
         maxWidth: actualPageWidth,
         height: rulerHeight,
-        backgroundColor: '#262626',
-        borderLeft: '1px solid #404040',
-        borderRight: '1px solid #404040',
-        borderBottom: '1px solid #404040',
+        backgroundColor: 'var(--t9)',
+        border: '1px solid rgba(var(--ink),0.05)',
+        borderRadius: 5,
         display: 'flex',
         alignItems: 'flex-end',
         position: 'relative',
         overflow: 'hidden',
         userSelect: 'none',
         boxSizing: 'border-box',
-        boxShadow: '0 1px 4px rgba(0, 0, 0, 0.25)',
+        boxShadow: 'none',
       }}
     >
       {/* Left shaded margin region */}
@@ -117,8 +116,8 @@ export function HorizontalRuler({ pageWidth: propPageWidth }) {
           top: 0,
           width: leftMargin,
           height: rulerHeight,
-          backgroundColor: 'rgba(0, 0, 0, 0.35)',
-          borderRight: '1px solid rgba(255, 255, 255, 0.1)',
+          backgroundColor: 'transparent',
+          borderRight: 'none',
           pointerEvents: 'none',
         }}
       />
@@ -131,8 +130,8 @@ export function HorizontalRuler({ pageWidth: propPageWidth }) {
           top: 0,
           width: rightMargin,
           height: rulerHeight,
-          backgroundColor: 'rgba(0, 0, 0, 0.35)',
-          borderLeft: '1px solid rgba(255, 255, 255, 0.1)',
+          backgroundColor: 'transparent',
+          borderLeft: 'none',
           pointerEvents: 'none',
         }}
       />
@@ -150,7 +149,7 @@ export function HorizontalRuler({ pageWidth: propPageWidth }) {
           const isHalf = stepIdx % 4 === 0 && !isMajor;
           const isQuarter = stepIdx % 2 === 0 && !isMajor && !isHalf;
           const tickHeight = isMajor ? 8 : (isHalf ? 6 : (isQuarter ? 4 : 2.5));
-          const stroke = isMajor ? '#b0b0b0' : (isHalf ? '#888888' : '#5c5c5c');
+          const stroke = 'var(--t29)';
 
           return (
             <g key={stepIdx}>
@@ -162,18 +161,7 @@ export function HorizontalRuler({ pageWidth: propPageWidth }) {
                 stroke={stroke}
                 strokeWidth="1"
               />
-              {isMajor && stepIdx > 0 && x + 12 <= actualPageWidth && (
-                <text
-                  x={x + 3}
-                  y={rulerHeight - 8 - 2}
-                  fontSize="9"
-                  fill="#b8b8b8"
-                  fontFamily="var(--font-ui, 'Segoe UI', sans-serif)"
-                  fontWeight="500"
-                >
-                  {stepIdx / 8}
-                </text>
-              )}
+
             </g>
           );
         })}
@@ -198,9 +186,12 @@ export function HorizontalRuler({ pageWidth: propPageWidth }) {
       >
         <div
           style={{
-            width: 3,
-            height: 14,
-            backgroundColor: draggingMargin === 'left' ? '#d4af37' : '#9e9e9e',
+            width: 0,
+            height: 0,
+            borderLeft: '6px solid transparent',
+            borderRight: '6px solid transparent',
+            borderTop: '6px solid var(--t31)',
+            alignSelf: 'flex-start',
             borderRadius: 1,
             boxShadow: '0 0 2px rgba(0,0,0,0.5)',
           }}
@@ -226,9 +217,12 @@ export function HorizontalRuler({ pageWidth: propPageWidth }) {
       >
         <div
           style={{
-            width: 3,
-            height: 14,
-            backgroundColor: draggingMargin === 'right' ? '#d4af37' : '#9e9e9e',
+            width: 0,
+            height: 0,
+            borderLeft: '6px solid transparent',
+            borderRight: '6px solid transparent',
+            borderTop: '6px solid var(--t31)',
+            alignSelf: 'flex-start',
             borderRadius: 1,
             boxShadow: '0 0 2px rgba(0,0,0,0.5)',
           }}

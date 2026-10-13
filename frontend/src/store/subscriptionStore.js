@@ -184,18 +184,18 @@ export const useSubscriptionStore = create((set, get) => ({
                 loading: false,
               });
 
-              toast(`🎉 Upgraded to ${getTier(tierId).name}! All features unlocked.`, 'success');
+              showToast(`🎉 Upgraded to ${getTier(tierId).name}! All features unlocked.`, 'success');
               get().fetchSubscription();
               resolve({ success: true });
             } catch (err) {
               set({ loading: false, error: err.message });
-              toast(`Verification error: ${err.message}`, 'error');
+              showToast(`Verification error: ${err.message}`, 'error');
               resolve({ success: false, error: err.message });
             }
           },
           onError: (err) => {
             set({ loading: false, error: err?.message });
-            toast(`Payment failed: ${err?.message || 'Transaction could not be completed'}`, 'error');
+            showToast(`Payment failed: ${err?.message || 'Transaction could not be completed'}`, 'error');
             resolve({ success: false, error: err?.message });
           },
           onDismiss: () => {

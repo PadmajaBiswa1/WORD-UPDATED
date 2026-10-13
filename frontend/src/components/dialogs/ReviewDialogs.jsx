@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useDocumentStore, useEditorStore, useUIStore, useProductivityStore } from '@/store';
 import { Button, Input, Label, Modal, Select, Stack } from '@/components/ui';
+import { newCommentId } from '@/ai/suggestions';
 
 const LANGUAGE_KEY = 'etherx-language';
 
@@ -132,7 +133,7 @@ export function WordCountDialog() {
 }
 
 export function CommentsDialog() {
-  const { closeDialog, toast } = useUIStore();
+  const { closeDialog, toast, openPragna } = useUIStore();
   const { comments, addComment, resolveComment, deleteComment } = useDocumentStore();
   const [newComment, setNewComment] = useState('');
 
@@ -141,8 +142,22 @@ export function CommentsDialog() {
       toast('Comment cannot be empty', 'info');
       return;
     }
-    addComment({ text: newComment.trim(), author: 'You', timestamp: new Date().toISOString() });
+    const text = newComment.trim();
+    const id = newCommentId();
+    // Anchor the comment to the selected text, as Word does.
+    const editor = useEditorStore.getState().editor;
+    const sel = editor?.state.selection;
+    const anchored = Boolean(editor && sel && !sel.empty && editor.schema.marks.commentAnchor);
+    if (anchored) {
+      editor.view.dispatch(editor.state.tr.addMark(sel.from, sel.to, editor.schema.marks.commentAnchor.create({ commentId: id })));
+    }
+    addComment({ id, text, author: 'You', timestamp: new Date().toISOString(), ...(anchored ? { anchor: id } : {}) });
     setNewComment('');
+    if (/@pragna\b/i.test(text)) {
+      closeDialog('comments');
+      openPragna('ask', `Address comment ${id}: "${text.replace(/@pragna\b/ig, '').trim()}". Make the change it asks for, reply to the comment saying what you did, then resolve it.`, { send: true });
+      return;
+    }
     toast('✓ Comment added', 'success');
   };
 
@@ -182,7 +197,7 @@ export function CommentsDialog() {
           <textarea
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
-            placeholder="Write your comment here..."
+            placeholder="Write your comment here… mention @Pragna to have Pragna handle it"
             rows={3}
             style={{
               width: '100%',
@@ -223,6 +238,11 @@ export function CommentsDialog() {
                     <div style={{ color: 'var(--text-secondary)', fontSize: 12, fontFamily: 'var(--font-ui)' }}>
                       {comment.text}
                     </div>
+                    {(comment.replies || []).map((reply, i) => (
+                      <div key={i} style={{ marginTop: 6, paddingLeft: 10, borderLeft: '2px solid var(--border-gold)', fontSize: 12, fontFamily: 'var(--font-ui)', color: 'var(--text-secondary)' }}>
+                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{reply.author}: </span>{reply.text}
+                      </div>
+                    ))}
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                     <Button variant="subtle" onClick={() => openComment(comment)}>Go To</Button>
@@ -261,8 +281,9 @@ export function AccessibilityDialog() {
           EtherX performs a lightweight scan for structure and content issues.
         </div>
         <div style={issueList}>
-          {issues.map((issue) => (
-            <div key={issue} style={issueRow}>{issue}</div>
+          {/* The same issue text can repeat (e.g. two identical heading jumps), so key by position. */}
+          {issues.map((issue, i) => (
+            <div key={i} style={issueRow}>{issue}</div>
           ))}
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
@@ -464,10 +485,11 @@ export function RestrictEditingDialog() {
       toast('Editor is not ready yet', 'info');
       return;
     }
-    const nextLocked = !locked;
+    const nextLocked = locked;
     editor.setEditable(!nextLocked);
     setLocked(nextLocked);
     toast(nextLocked ? 'Editing restricted' : 'Editing unlocked', nextLocked ? 'success' : 'info');
+    closeDialog('restrictEditing');
   };
 
   return (

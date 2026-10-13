@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { useUIStore, useEditorStore, useProductivityStore } from '@/store';
 import { Modal, Button, Stack, Input, Badge } from '@/components/ui';
+import { pasteClipboardData, writeClipboardData } from '@/services/clipboard';
 
 function formatRelativeTime(isoString) {
   if (!isoString) return '';
@@ -43,11 +44,8 @@ export function ClipboardHistoryDrawer() {
       return;
     }
     try {
-      if (item.html) {
-        editor.chain().focus().insertContent(item.html).run();
-      } else {
-        editor.chain().focus().insertContent(item.text).run();
-      }
+      editor.commands.focus();
+      pasteClipboardData(editor, item);
       toast('Pasted clip into editor', 'success');
       closeDialog('clipboardHistory');
     } catch (err) {
@@ -56,11 +54,13 @@ export function ClipboardHistoryDrawer() {
     }
   };
 
-  const handleCopyAgain = (e, text) => {
+  const handleCopyAgain = async (e, item) => {
     e.stopPropagation();
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(text);
+    try {
+      await writeClipboardData(item);
       toast('Copied to system clipboard', 'info');
+    } catch {
+      toast('Clipboard access blocked', 'warning');
     }
   };
 
@@ -178,7 +178,7 @@ export function ClipboardHistoryDrawer() {
                     <Button
                       variant="ghost"
                       size="xs"
-                      onClick={(e) => handleCopyAgain(e, item.text)}
+                      onClick={(e) => handleCopyAgain(e, item)}
                       title="Copy to system clipboard"
                     >
                       📄 Copy

@@ -239,6 +239,11 @@ router.post('/create-order', async (req, res) => {
       }
     }
 
+    // Sandbox orders are for local development only.
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(502).json({ message: 'Payments are temporarily unavailable. Please try again later.' });
+    }
+
     // Sandbox / Local fallback order
     const mockOrderId = `order_mock_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
     return res.json({
@@ -270,43 +275,69 @@ router.post('/verify-payment', async (req, res) => {
       billingCycle = 'monthly',
     } = req.body || {};
 
+    const razorpayKeyId = process.env.RAZORPAY_KEY_ID;
     const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET;
+    const isProduction = process.env.NODE_ENV === 'production';
+    const isMockOrder = String(razorpay_order_id || '').startsWith('order_mock_');
+    let paidTierId = tierId;
+    let paidCycle = billingCycle;
 
-    // If live keys, verify HMAC-SHA256
-    if (razorpayKeySecret && !String(razorpay_order_id).startsWith('order_mock_')) {
-      const generatedSignature = crypto
+    if (isMockOrder || !razorpayKeySecret) {
+      // Sandbox orders only exist for local development.
+      if (isProduction) {
+        return res.status(400).json({ success: false, message: 'Payment could not be verified' });
+      }
+    } else {
+      const expected = crypto
         .createHmac('sha256', razorpayKeySecret)
         .update(`${razorpay_order_id}|${razorpay_payment_id}`)
         .digest('hex');
-
-      if (generatedSignature !== razorpay_signature) {
+      const given = String(razorpay_signature || '');
+      const signatureOk = given.length === expected.length
+        && crypto.timingSafeEqual(Buffer.from(given), Buffer.from(expected));
+      if (!signatureOk) {
         return res.status(400).json({ success: false, message: 'Invalid Razorpay payment signature' });
       }
+
+      // The plan comes from the paid order (set server-side in create-order), never from
+      // the client — otherwise a Basic payment could be claimed as Pro.
+      const authHeader = Buffer.from(`${razorpayKeyId}:${razorpayKeySecret}`).toString('base64');
+      const { data: order } = await axios.get(`https://api.razorpay.com/v1/orders/${encodeURIComponent(razorpay_order_id)}`, {
+        headers: { Authorization: `Basic ${authHeader}` },
+      });
+      const notes = order?.notes || {};
+      const orderTier = SUBSCRIPTION_TIERS[String(notes.tierId || '').toLowerCase()];
+      const paid = order?.status === 'paid' || Number(order?.amount_paid) >= Number(order?.amount);
+      if (!orderTier || !paid || String(notes.userId) !== String(reqUser.id)) {
+        return res.status(400).json({ success: false, message: 'Payment could not be verified' });
+      }
+      paidTierId = orderTier.id;
+      paidCycle = notes.billingCycle === 'yearly' ? 'yearly' : 'monthly';
     }
 
     // Calculate expiry
-    const durationDays = billingCycle === 'yearly' ? 365 : 30;
+    const durationDays = paidCycle === 'yearly' ? 365 : 30;
     const expiresAt = new Date(Date.now() + durationDays * 24 * 3600 * 1000);
 
     const updatedUser = await updateUserSubscription(reqUser.id, reqUser.email, {
-      plan: tierId.toLowerCase(),
-      billingCycle,
+      plan: paidTierId.toLowerCase(),
+      billingCycle: paidCycle,
       subscriptionExpiresAt: expiresAt,
       razorpayPaymentId: razorpay_payment_id || `mock_pay_${Date.now()}`,
       razorpaySubscriptionId: razorpay_order_id || null,
     });
 
-    const finalUser = updatedUser || { ...reqUser, plan: tierId, billingCycle, subscriptionExpiresAt: expiresAt };
+    const finalUser = updatedUser || { ...reqUser, plan: paidTierId, billingCycle: paidCycle, subscriptionExpiresAt: expiresAt };
     const token = signToken(finalUser);
 
     res.json({
       success: true,
-      message: `Congratulations! Your subscription has been upgraded to ${tierId.toUpperCase()}.`,
+      message: `Congratulations! Your subscription has been upgraded to ${paidTierId.toUpperCase()}.`,
       token,
       plan: finalUser.plan,
       billingCycle: finalUser.billingCycle,
       user: formatUser(finalUser),
-      tier: getTier(tierId),
+      tier: getTier(paidTierId),
     });
   } catch (err) {
     console.error('verify-payment error:', err);
@@ -317,6 +348,10 @@ router.post('/verify-payment', async (req, res) => {
 // ── POST /api/subscription/switch-tier ───────────────────────
 // Quick dev/demo switch endpoint
 router.post('/switch-tier', async (req, res) => {
+  // Development only: changes the plan without payment.
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(404).json({ message: 'Not found' });
+  }
   try {
     const reqUser = extractUserFromRequest(req);
     const { tierId = 'free', billingCycle = 'monthly' } = req.body || {};

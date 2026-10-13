@@ -65,7 +65,9 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // DATABASE
 // =====================================================
 
-connectDB();
+// Storage (Mongo vs local JSON) is chosen per request from the connection state,
+// so requests must not be served until the connection attempt has settled.
+const dbReady = connectDB();
 
 // =====================================================
 // API ROUTES
@@ -177,6 +179,7 @@ const PORT = Number(process.env.PORT) || 5053;
 
 async function startServer() {
     await setupFrontend();
+    await dbReady;
 
     app.listen(PORT, '0.0.0.0', () => {
         console.log(`🚀 Server running on http://0.0.0.0:${PORT}`);

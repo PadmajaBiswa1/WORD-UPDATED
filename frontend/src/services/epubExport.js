@@ -3,9 +3,22 @@
 // ═══════════════════════════════════════════════════════════════
 import JSZip from 'jszip';
 import fileSaver from 'file-saver';
+import { portableExportHtml, flattenExportMedia, rasterizeExportImage } from './exportAppearance';
+import { resolveExportMetadata } from './export';
 import { acceptSuggestionsInHtml } from '@/services/suggestionHtml';
 
 const saveAs = fileSaver?.saveAs || fileSaver;
+
+async function prepareEpubContent(html, options) {
+  const root = document.createElement('div');
+  root.innerHTML = portableExportHtml(html, resolveExportMetadata(options));
+  flattenExportMedia(root);
+  for (const image of root.querySelectorAll('img')) if (!/^data:image\/(png|jpeg|jpg|gif);base64,/i.test(image.src) || image.style.filter || image.style.opacity) {
+    const raster = await rasterizeExportImage(image.src, { filter: image.style.filter, opacity: image.style.opacity });
+    image.src = raster.src; image.style.filter = ''; image.style.opacity = '';
+  }
+  return root.innerHTML;
+}
 
 function sanitizeFilename(name) {
   return (name || 'document').replace(/[^a-z0-9_\-\s]/gi, '_').trim();
@@ -45,18 +58,6 @@ function cleanForXhtml(html = '', imageCollector = []) {
     .replace(/<div[^>]*data-page-break="true"[^>]*><\/div>/gi, '<div style="page-break-after: always; break-after: page;"></div>')
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-    // Remove dark theme off-white text color overrides
-    .replace(/style="([^"]*)"/gi, (match, styleBody) => {
-      const parts = styleBody.split(';').map((p) => p.trim()).filter(Boolean);
-      const updated = parts.filter((part) => {
-        const [prop, val] = part.split(':').map((s) => s.trim().toLowerCase());
-        if (prop === 'color' && (val?.includes('245') || val?.includes('f5f1e8') || val?.includes('fff'))) {
-          return false;
-        }
-        return true;
-      });
-      return updated.length ? `style="${updated.join('; ')}"` : '';
-    })
     // Extract base64 images into internal EPUB items
     .replace(/<img\s+([^>]*?)src=["']data:image\/(png|jpeg|jpg|webp|gif);base64,([A-Za-z0-9+/=]+)["']([^>]*?)(?:\s*\/)?>/gi, (match, before, ext, base64Data, after) => {
       const imgIdx = imageCollector.length + 1;
@@ -220,7 +221,7 @@ img {
  * @returns {Promise<{ blob: Blob, filename: string, chapters: number }>}
  */
 export async function exportToEpub(title = 'Untitled Document', contentHtml = '', metadata = {}) {
-  contentHtml = acceptSuggestionsInHtml(contentHtml);
+  contentHtml = acceptSuggestionsInHtml(await prepareEpubContent(contentHtml, metadata));
   const zip = new JSZip();
   const docTitle = title || 'Untitled Document';
   const author = metadata.author || 'EtherX Word Author';
@@ -378,7 +379,7 @@ ${spineItems}
       type: 'blob',
       mimeType: 'application/epub+zip',
     });
-    if (typeof saveAs === 'function' && options.autoDownload !== false) {
+    if (typeof saveAs === 'function' && metadata.autoDownload !== false) {
       saveAs(blob, filename);
     }
   } else {
@@ -399,9 +400,7 @@ ${spineItems}
  */
 export async function buildEpubBlob(title, contentHtml, options = {}) {
   contentHtml = acceptSuggestionsInHtml(contentHtml);
-  const zip = new JSZip();
-  // Call exportToEpub logic without saveAs by temporarily shadowing saveAs or using internal helper
-  const filename = `${sanitizeFilename(title)}.epub`;
+  // Reuse the export pipeline without initiating a download.
   const res = await exportToEpub(title, contentHtml, { ...options, autoDownload: false });
   return res;
 }

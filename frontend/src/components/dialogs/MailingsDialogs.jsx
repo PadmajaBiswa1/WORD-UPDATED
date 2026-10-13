@@ -2,119 +2,18 @@ import { useEffect, useMemo, useState } from 'react';
 import { useEditorStore, useUIStore } from '@/store';
 import { Button, Input, Label, Modal, Stack } from '@/components/ui';
 
-const STORAGE_KEY = 'etherx-mailing-recipients';
+import { loadRecipients, saveRecipients, csvToRecipients, recipientsToCsv, mergeDocumentHtml, extractFields, escapeMailHtml, labelSheetHtml, saveMailingConfig, mailingConfig } from '@/utils/mailMerge';
 
 const DEFAULT_RECIPIENTS = [
   { FirstName: 'Ava', LastName: 'Carter', Address: '12 River Road', City: 'Seattle', State: 'WA', Zip: '98101', Email: 'ava@example.com' },
   { FirstName: 'Noah', LastName: 'Patel', Address: '88 Market Street', City: 'Austin', State: 'TX', Zip: '78701', Email: 'noah@example.com' },
 ];
 
-const mergeTokenRegex = /\{\{\s*([A-Za-z0-9_]+)\s*\}\}/g;
-
-function getStorage() {
-  if (typeof window === 'undefined') return null;
-  return window.localStorage;
-}
-
-function loadRecipients() {
-  const storage = getStorage();
-  if (!storage) return DEFAULT_RECIPIENTS;
-
-  try {
-    const raw = storage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_RECIPIENTS;
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length ? parsed : DEFAULT_RECIPIENTS;
-  } catch {
-    return DEFAULT_RECIPIENTS;
-  }
-}
-
-function saveRecipients(recipients) {
-  const storage = getStorage();
-  if (!storage) return;
-  storage.setItem(STORAGE_KEY, JSON.stringify(recipients));
-}
-
-function parseCsvLine(line) {
-  const values = [];
-  let current = '';
-  let quoted = false;
-
-  for (let index = 0; index < line.length; index += 1) {
-    const char = line[index];
-    const next = line[index + 1];
-
-    if (char === '"') {
-      if (quoted && next === '"') {
-        current += '"';
-        index += 1;
-      } else {
-        quoted = !quoted;
-      }
-      continue;
-    }
-
-    if (char === ',' && !quoted) {
-      values.push(current.trim());
-      current = '';
-      continue;
-    }
-
-    current += char;
-  }
-
-  values.push(current.trim());
-  return values;
-}
-
-function escapeCsvValue(value) {
-  const text = String(value ?? '');
-  if (/[",\n\r]/.test(text)) {
-    return `"${text.replace(/"/g, '""')}"`;
-  }
-  return text;
-}
-
-function csvToRecipients(csv) {
-  const rows = String(csv || '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-  if (!rows.length) return [];
-
-  const headers = parseCsvLine(rows[0]);
-  return rows.slice(1).map((row) => {
-    const values = parseCsvLine(row);
-    return headers.reduce((recipient, header, index) => {
-      recipient[header || `Field${index + 1}`] = (values[index] || '').trim();
-      return recipient;
-    }, {});
-  }).filter((recipient) => Object.values(recipient).some(Boolean));
-}
-
-function recipientsToCsv(recipients) {
-  if (!recipients.length) return 'FirstName,LastName,Address,City,State,Zip,Email\n';
-  const headers = Object.keys(recipients[0]);
-  const lines = [headers.join(',')];
-  recipients.forEach((recipient) => {
-    lines.push(headers.map((header) => escapeCsvValue(recipient[header])).join(','));
-  });
-  return lines.join('\n');
-}
-
 function insertHtml(editor, html) {
   if (!editor) return false;
   editor.chain().focus().insertContent(html).run();
   editor.view?.focus();
   return true;
-}
-
-function mergeDocumentHtml(html, recipient) {
-  return String(html || '').replace(mergeTokenRegex, (_, key) => String(recipient?.[key] ?? `{{${key}}}`));
-}
-
-function extractFields(recipients) {
-  const fields = new Set();
-  recipients.forEach((recipient) => Object.keys(recipient || {}).forEach((key) => fields.add(key)));
-  return [...fields];
 }
 
 export function MailMergeDialog() {
@@ -134,7 +33,8 @@ export function MailMergeDialog() {
   const loadSample = () => persist(DEFAULT_RECIPIENTS);
 
   const saveCsv = () => {
-    const parsed = csvToRecipients(csv);
+    let parsed;
+    try { parsed = csvToRecipients(csv); } catch (error) { toast(error.message, 'error'); return false; }
     if (!parsed.length) {
       toast('Add at least one recipient row', 'info');
       return false;
@@ -146,6 +46,7 @@ export function MailMergeDialog() {
 
   const saveCsvAndOpenRecipients = () => {
     if (!saveCsv()) return;
+    closeDialog('mailMerge');
     openDialog('selectRecipients');
   };
 
@@ -155,6 +56,7 @@ export function MailMergeDialog() {
         <div>
           <Label>Recipients CSV</Label>
           <textarea
+            aria-label="Recipients CSV"
             value={csv}
             onChange={(e) => setCsv(e.target.value)}
             rows={11}
@@ -196,7 +98,8 @@ export function SelectRecipientsDialog() {
   const [csv, setCsv] = useState(() => recipientsToCsv(loadRecipients()));
 
   const save = () => {
-    const parsed = csvToRecipients(csv);
+    let parsed;
+    try { parsed = csvToRecipients(csv); } catch (error) { toast(error.message, 'error'); return false; }
     if (!parsed.length) {
       toast('Add at least one recipient row', 'info');
       return;
@@ -204,6 +107,7 @@ export function SelectRecipientsDialog() {
     setRecipients(parsed);
     saveRecipients(parsed);
     toast('Recipients selected', 'success');
+    closeDialog('selectRecipients');
   };
 
   return (
@@ -212,6 +116,7 @@ export function SelectRecipientsDialog() {
         <div>
           <Label>CSV Input</Label>
           <textarea
+            aria-label="Recipients CSV"
             value={csv}
             onChange={(e) => setCsv(e.target.value)}
             rows={11}
@@ -257,7 +162,7 @@ export function EditRecipientsDialog() {
           {recipients.map((recipient, index) => (
             <div key={index} style={{ padding: 12, borderBottom: '1px solid var(--border)' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                {['FirstName', 'LastName', 'Address', 'City', 'State', 'Zip', 'Email'].map((field) => (
+                {[...new Set(['FirstName', 'LastName', 'Address', 'City', 'State', 'Zip', 'Email', ...extractFields(recipients)])].map((field) => (
                   <Input
                     key={field}
                     value={recipient[field] || ''}
@@ -266,6 +171,7 @@ export function EditRecipientsDialog() {
                   />
                 ))}
               </div>
+              <Button variant="subtle" onClick={() => setRecipients((current) => current.filter((_, row) => row !== index))}>Remove Recipient {index + 1}</Button>
             </div>
           ))}
         </div>
@@ -310,8 +216,8 @@ export function InsertMergeFieldDialog() {
         <div>
           <Label>Common Fields</Label>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {['FirstName', 'LastName', 'Address', 'City', 'State', 'Zip', 'Email'].map((item) => (
-              <Button key={item} variant={field === item ? 'primary' : 'subtle'} onClick={() => setField(item)}>{item}</Button>
+            {[...new Set([...extractFields(loadRecipients()), 'FirstName', 'LastName', 'Address', 'City', 'State', 'Zip', 'Email'])].map((item) => (
+              <Button key={item} variant={field === item ? 'primary' : 'subtle'} onClick={() => { setField(item); setCustomField(''); }}>{item}</Button>
             ))}
           </div>
         </div>
@@ -373,7 +279,7 @@ export function GreetingLineDialog() {
     }
 
     const greeting = buildGreeting();
-    insertHtml(editor, `<p>${greeting}</p>`);
+    insertHtml(editor, `<p>${escapeMailHtml(greeting)}</p>`);
     toast('Greeting line inserted', 'success');
     closeDialog('greetingLine');
   };
@@ -438,13 +344,7 @@ export function EnvelopesDialog() {
     const recipientEscaped = String(recipient).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     const senderEscaped = String(sender).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-    const html = `
-      <div style="border:1px solid #cfcfcf;padding:16px;margin:10px 0;min-height:140px;position:relative;background:#fff;">
-        <div style="font-size:18px;font-weight:700;margin-bottom:14px;">Envelope</div>
-        <div style="font-size:15px;line-height:1.5;white-space:pre-line;">${recipientEscaped}</div>
-        <div style="position:absolute;left:16px;bottom:12px;font-size:12px;color:#666;white-space:pre-line;">From: ${senderEscaped}</div>
-      </div>
-    `;
+    const html = `<p style="font-size:12px;">From: ${senderEscaped.replace(/\n/g, '<br>')}</p><p style="font-size:18px;text-align:center;padding:32px;border:1px solid #ccc;">${recipientEscaped.replace(/\n/g, '<br>')}</p>`;
 
     try {
       insertHtml(editor, html);
@@ -475,12 +375,12 @@ export function EnvelopesDialog() {
   );
 }
 
-export function LabelsDialog() {
+export function LabelsDialog({ updateExisting = false } = {}) {
   const { closeDialog, toast } = useUIStore();
   const { editor } = useEditorStore();
-  const [recipients, setRecipients] = useState(() => loadRecipients());
-  const [columns, setColumns] = useState(2);
-  const [rows, setRows] = useState(5);
+  const [recipients] = useState(() => loadRecipients());
+  const [columns, setColumns] = useState(mailingConfig().labels?.columns || 2);
+  const [rows, setRows] = useState(mailingConfig().labels?.rows || 5);
 
   const insertLabels = () => {
     if (!editor) {
@@ -499,37 +399,30 @@ export function LabelsDialog() {
     }
 
     try {
-      const list = recipients.slice(0, rows * columns);
-      const cells = Array.from({ length: rows * columns }, (_, index) => {
-        const recipient = list[index] || {};
-        const text = [recipient.FirstName, recipient.LastName, recipient.Address, [recipient.City, recipient.State, recipient.Zip].filter(Boolean).join(' ')].filter(Boolean).join('<br />') || '&nbsp;';
-        return `<td style="border:1px solid #ccc;padding:10px;vertical-align:top;width:${100 / columns}%;height:72px;">${text}</td>`;
-      });
-
-      const tableRows = Array.from({ length: rows }, (_, rowIndex) => {
-        const start = rowIndex * columns;
-        return `<tr>${cells.slice(start, start + columns).join('')}</tr>`;
-      }).join('');
-
-      insertHtml(editor, `<table style="border-collapse:collapse;width:100%;margin:12px 0;table-layout:fixed;">${tableRows}</table>`);
+      const html = labelSheetHtml(recipients, rows, columns);
+      let existing = null;
+      if (updateExisting) editor.state.doc.descendants((node, pos) => { if (node.type.name === 'table' && node.attrs.id === 'etherx-mailing-labels') existing = { node, pos }; });
+      if (existing) editor.chain().focus().insertContentAt({ from: existing.pos, to: existing.pos + existing.node.nodeSize }, html).run();
+      else insertHtml(editor, html);
+      saveMailingConfig({ labels: { rows, columns } });
       toast(`✓ Label sheet inserted (${rows}x${columns})`, 'success');
-      closeDialog('labels');
+      closeDialog(updateExisting ? 'updateLabels' : 'labels');
     } catch (error) {
       toast('Failed to insert labels: ' + error?.message, 'error');
     }
   };
 
   return (
-    <Modal title="Labels" onClose={() => closeDialog('labels')} width={560}>
+    <Modal title={updateExisting ? "Update Labels" : "Labels"} onClose={() => closeDialog(updateExisting ? 'updateLabels' : 'labels')} width={560}>
       <Stack gap={14}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           <div>
             <Label>Columns</Label>
-            <Input value={String(columns)} onChange={(v) => setColumns(Math.max(1, Math.min(4, Number(v) || 1)))} />
+            <Input aria-label="Label columns" value={String(columns)} onChange={(v) => setColumns(Math.max(1, Math.min(4, Number(v) || 1)))} />
           </div>
           <div>
             <Label>Rows</Label>
-            <Input value={String(rows)} onChange={(v) => setRows(Math.max(1, Math.min(10, Number(v) || 1)))} />
+            <Input aria-label="Label rows" value={String(rows)} onChange={(v) => setRows(Math.max(1, Math.min(10, Number(v) || 1)))} />
           </div>
         </div>
         <div style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-ui)' }}>
@@ -537,18 +430,19 @@ export function LabelsDialog() {
         </div>
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <Button variant="subtle" onClick={() => closeDialog('labels')}>Cancel</Button>
-          <Button variant="primary" onClick={insertLabels}>Insert Labels</Button>
+          <Button variant="primary" onClick={insertLabels}>{updateExisting ? 'Update Labels' : 'Insert Labels'}</Button>
         </div>
       </Stack>
     </Modal>
   );
 }
 
-export function PreviewMergeDialog() {
+export function PreviewMergeDialog({ previewOnly = false } = {}) {
   const { closeDialog, toast } = useUIStore();
   const { editor } = useEditorStore();
   const [recipients] = useState(() => loadRecipients());
-  const [index, setIndex] = useState(0);
+  const [index, setIndex] = useState(() => Math.max(0, Math.min(recipients.length - 1, Number(localStorage.getItem('etherx-preview-index')) || 0)));
+  useEffect(() => { localStorage.setItem('etherx-preview-index', String(index)); window.dispatchEvent(new Event('etherx:recipients-change')); }, [index]);
 
   const current = recipients[index] || null;
   const previewHtml = current ? mergeDocumentHtml(editor?.getHTML() || '', current) : '';
@@ -564,7 +458,7 @@ export function PreviewMergeDialog() {
       return;
     }
 
-    editor.commands.setContent(previewHtml, false);
+    editor.commands.setContent(previewHtml, true);
     toast(`Preview generated for ${current.FirstName || 'recipient'}`, 'success');
     closeDialog('finishMerge');
   };
@@ -581,20 +475,20 @@ export function PreviewMergeDialog() {
     }
 
     const template = editor.getHTML();
-    const merged = recipients.map((recipient) => mergeDocumentHtml(template, recipient)).join('<div style="page-break-after:always;"></div>');
-    editor.commands.setContent(merged, false);
+    const merged = recipients.map((recipient) => mergeDocumentHtml(template, recipient)).join('<div data-page-break="true" data-manual="true"></div>');
+    editor.commands.setContent(merged, true);
     toast('Merged copies generated', 'success');
     closeDialog('finishMerge');
   };
 
   return (
-    <Modal title="Finish & Merge" onClose={() => closeDialog('finishMerge')} width={760}>
+    <Modal title={previewOnly ? 'Preview Results' : 'Finish & Merge'} onClose={() => closeDialog(previewOnly ? 'previewMerge' : 'finishMerge')} width={760}>
       <Stack gap={14}>
         <div>
           <Label>Preview Recipient</Label>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <Button variant="subtle" onClick={() => setIndex((value) => Math.max(0, value - 1))}>Previous</Button>
-            <Button variant="subtle" onClick={() => setIndex((value) => Math.min(recipients.length - 1, value + 1))}>Next</Button>
+            <Button variant="subtle" disabled={index <= 0} onClick={() => setIndex((value) => Math.max(0, value - 1))}>Previous</Button>
+            <Button variant="subtle" disabled={index >= recipients.length - 1} onClick={() => setIndex((value) => Math.min(recipients.length - 1, value + 1))}>Next</Button>
             <div style={{ fontSize: 13, color: 'var(--text-primary)', fontFamily: 'var(--font-ui)', alignSelf: 'center' }}>
               {current ? `${current.FirstName || ''} ${current.LastName || ''}`.trim() || 'Recipient' : 'No recipients'}
             </div>
@@ -609,13 +503,49 @@ export function PreviewMergeDialog() {
         </div>
 
         <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', flexWrap: 'wrap' }}>
-          <Button variant="subtle" onClick={() => closeDialog('finishMerge')}>Close</Button>
-          <div style={{ display: 'flex', gap: 8, marginLeft: 'auto', flexWrap: 'wrap' }}>
-            <Button variant="outline" onClick={insertPreview}>Insert Current Preview</Button>
-            <Button variant="primary" onClick={insertAllMerged}>Merge All</Button>
-          </div>
+          <Button variant="subtle" onClick={() => closeDialog(previewOnly ? 'previewMerge' : 'finishMerge')}>Close</Button>
+          {!previewOnly && <div style={{ display: 'flex', gap: 8, marginLeft: 'auto', flexWrap: 'wrap' }}>
+            <Button variant="outline" disabled={!current} onClick={insertPreview}>Insert Current Preview</Button>
+            <Button variant="primary" disabled={!recipients.length} onClick={insertAllMerged}>Merge All</Button>
+          </div>}
         </div>
       </Stack>
     </Modal>
   );
+}
+
+export function MatchFieldsDialog() {
+  const { closeDialog, toast } = useUIStore();
+  const fields = extractFields(loadRecipients());
+  const [mapping, setMapping] = useState(mailingConfig().mapping || {});
+  const common = ['FirstName', 'LastName', 'Address', 'City', 'State', 'Zip', 'Email'];
+  return <Modal title="Match Fields" onClose={() => closeDialog('matchFields')} width={520}><Stack gap={12}>
+    {common.map((field) => <Label key={field}>{field}<select aria-label={`Map ${field}`} value={mapping[field] || (fields.includes(field) ? field : '')} onChange={(event) => setMapping((current) => ({ ...current, [field]: event.target.value }))}><option value="">Not matched</option>{fields.map((source) => <option key={source}>{source}</option>)}</select></Label>)}
+    <Button variant="primary" onClick={() => { saveMailingConfig({ mapping }); closeDialog('matchFields'); toast('Field matching saved', 'success'); }}>Save Matching</Button>
+  </Stack></Modal>;
+}
+
+export function MergeRulesDialog() {
+  const { editor } = useEditorStore();
+  const { closeDialog, toast } = useUIStore();
+  const fields = extractFields(loadRecipients());
+  const [field, setField] = useState(fields[0] || 'FirstName');
+  const [yes, setYes] = useState('Hello {{FirstName}}');
+  const [no, setNo] = useState('Hello there');
+  return <Modal title="Merge Rules" onClose={() => closeDialog('mergeRules')} width={520}><Stack gap={12}>
+    <Label>When this field has a value<select aria-label="Rule field" value={field} onChange={(event) => setField(event.target.value)}>{fields.map((name) => <option key={name}>{name}</option>)}</select></Label>
+    <Input aria-label="Rule when present" value={yes} onChange={setYes} />
+    <Input aria-label="Rule when empty" value={no} onChange={setNo} />
+    <Button variant="primary" onClick={() => { if (!editor?.isEditable) return; insertHtml(editor, `<p>{{#if ${field}}}${escapeMailHtml(yes)}{{else}}${escapeMailHtml(no)}{{/if}}</p>`); closeDialog('mergeRules'); toast('Conditional rule inserted', 'success'); }}>Insert Rule</Button>
+  </Stack></Modal>;
+}
+
+export function FindRecipientDialog() {
+  const { closeDialog, toast } = useUIStore();
+  const recipients = loadRecipients();
+  const [query, setQuery] = useState('');
+  return <Modal title="Find Recipient" onClose={() => closeDialog('findRecipient')} width={520}><Stack gap={12}>
+    <Input aria-label="Find recipient" value={query} onChange={setQuery} placeholder="Name, email, or address" autoFocus />
+    {recipients.map((recipient, index) => ({ recipient, index })).filter(({ recipient }) => Object.values(recipient).some((value) => String(value).toLowerCase().includes(query.toLowerCase()))).map(({ recipient, index }) => <Button key={index} onClick={() => { localStorage.setItem('etherx-preview-index', String(index)); window.dispatchEvent(new Event('etherx:recipients-change')); closeDialog('findRecipient'); toast(`Selected recipient ${index + 1}`, 'success'); }}>{index + 1}. {recipient.FirstName || recipient.Name || recipient.Email || Object.values(recipient)[0]} {recipient.LastName || ''}</Button>)}
+  </Stack></Modal>;
 }

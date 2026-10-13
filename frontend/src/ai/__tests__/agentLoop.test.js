@@ -25,6 +25,7 @@ describe('runAgent', () => {
     });
     expect(result.summary).toBe('Fixed one typo.');
     expect(result.suggestions).toBe(1);
+    expect(result.changes).toEqual([expect.objectContaining({ text: 'Replaced "teh" with "the"' })]);
     expect(steps.some((l) => l.startsWith('Editing'))).toBe(true);
     editor.commands.acceptAllSuggestions();
     expect(editor.getHTML()).toBe('<p>the fox</p>');
@@ -109,5 +110,39 @@ describe('runAgent', () => {
     expect(result.recorder).toBeTruthy();
     editor.commands.insertContentAt(1, 'y');
     expect(result.recorder.maps).toHaveLength(0);
+  });
+
+  it('streams the plan and writes at the cursor captured when the run started', async () => {
+    const editor = createTestEditor('<p>Hello world</p>');
+    editor.commands.setTextSelection(7);
+    const script = [
+      () => ({ content: '', tool_calls: [call('update_plan', { steps: [{ text: 'Write greeting', status: 'active' }] })] }),
+      () => ({ content: '', tool_calls: [call('insert_at_cursor', { text: 'big ' })] }),
+      () => ({ content: 'Done.', tool_calls: [] }),
+    ];
+    let n = 0;
+    const plans = [];
+    const result = await runAgent({
+      editor,
+      prompt: 'add a word here',
+      agentStep: async () => ({ success: true, ...script[n++]() }),
+      onStep: (s) => { if (s.kind === 'plan') plans.push(s.plan); },
+    });
+    expect(plans).toEqual([[{ text: 'Write greeting', status: 'active' }]]);
+    expect(result.suggestions).toBe(1);
+    editor.commands.acceptAllSuggestions();
+    expect(editor.getHTML()).toBe('<p>Hello big world</p>');
+  });
+
+  it('allows 40 steps by default', async () => {
+    const editor = createTestEditor('<p>x</p>');
+    let n = 0;
+    const result = await runAgent({
+      editor,
+      prompt: 'loop',
+      agentStep: async () => { n += 1; return { success: true, content: '', tool_calls: [call('get_outline', {}, `c${n}`)] }; },
+    });
+    expect(n).toBe(40);
+    expect(result.error).toMatch(/step limit \(40\)/);
   });
 });

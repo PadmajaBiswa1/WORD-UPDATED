@@ -95,10 +95,10 @@ export function parseShapeInfo(src = '', alt = '') {
 
   if (isShapeSrc(src)) {
     try {
-      const raw = decodeURIComponent(src.replace('data:image/svg+xml;utf8,', '').replace('data:image/svg+xml;charset=utf-8,', ''));
+      const raw = decodeSvgDataUrl(src);
       
       const fillMatch = raw.match(/fill="([^"]+)"/);
-      if (fillMatch && fillMatch[1] && fillMatch[1] !== 'none') fill = fillMatch[1];
+      if (fillMatch && fillMatch[1]) fill = fillMatch[1];
       
       const strokeMatch = raw.match(/stroke="([^"]+)"/);
       if (strokeMatch && strokeMatch[1]) stroke = strokeMatch[1];
@@ -131,6 +131,37 @@ export function parseShapeInfo(src = '', alt = '') {
   }
 
   return { shapeId, fill, stroke, strokeWidth, text, textColor };
+}
+
+function decodeSvgDataUrl(src) {
+  const comma = src.indexOf(',');
+  return src.slice(0, comma).includes(';base64') ? atob(src.slice(comma + 1)) : decodeURIComponent(src.slice(comma + 1));
+}
+
+// Preserve SVG geometry, including inserted icons and custom shapes.
+export function updateShapeDataUrl(src, patch = {}) {
+  const document = new DOMParser().parseFromString(decodeSvgDataUrl(src), 'image/svg+xml');
+  const svg = document.documentElement;
+  if (svg.tagName !== 'svg' || document.querySelector('parsererror')) return src;
+  const parts = [...svg.querySelectorAll('path, rect, circle, ellipse, polygon, polyline, line')];
+  for (const [key, attr] of [['fill', 'fill'], ['stroke', 'stroke'], ['strokeWidth', 'stroke-width']]) {
+    if (patch[key] === undefined) continue;
+    svg.setAttribute(attr, String(patch[key]));
+    parts.forEach((part) => part.setAttribute(attr, String(patch[key])));
+  }
+  if (patch.text !== undefined) {
+    svg.querySelectorAll('text[data-etherx-shape-text], text').forEach((node) => node.remove());
+    if (patch.text.trim()) {
+      const viewBox = (svg.getAttribute('viewBox') || '0 0 140 140').split(/\s+/).map(Number);
+      const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      const attrs = { x: viewBox[0] + viewBox[2] / 2, y: viewBox[1] + viewBox[3] / 2, 'text-anchor': 'middle', 'dominant-baseline': 'central', 'font-family': 'Arial, sans-serif', 'font-size': 14, fill: patch.textColor || '#ffffff', 'data-etherx-shape-text': 'true' };
+      Object.entries(attrs).forEach(([key, value]) => text.setAttribute(key, String(value)));
+      text.textContent = patch.text;
+      svg.appendChild(text);
+    }
+  }
+  if (patch.textColor !== undefined) svg.querySelectorAll('text').forEach((node) => node.setAttribute('fill', patch.textColor));
+  return `data:image/svg+xml;utf8,${encodeURIComponent(new XMLSerializer().serializeToString(svg))}`;
 }
 
 export function generateShapeDataUrl({

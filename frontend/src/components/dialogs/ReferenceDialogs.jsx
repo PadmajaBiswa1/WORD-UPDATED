@@ -15,9 +15,13 @@ export function loadSources() {
 
   try {
     const raw = storage.getItem(STORAGE_KEY);
-    if (!raw) return [];
+    if (!raw) return useDocumentStore.getState().references?.sources || [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+    const saved = Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+    const current = useDocumentStore.getState().references?.sources || [];
+    const sources = new Map(saved.map((source) => [source.id, source]));
+    current.forEach((source) => sources.set(source.id, source));
+    return [...sources.values()];
   } catch {
     return [];
   }
@@ -27,6 +31,8 @@ function saveSources(sources) {
   const storage = getStorage();
   if (!storage) return;
   storage.setItem(STORAGE_KEY, JSON.stringify(sources));
+  useDocumentStore.getState().setReferences({ sources });
+  window.dispatchEvent(new Event('etherx:sources-change'));
 }
 
 function makeSourceId() {
@@ -111,13 +117,13 @@ export function buildTocHtml(outline) {
   `;
 }
 
-function formatCitation(source, style) {
+export function formatCitation(source, style, page = '') {
   const author = source.author || source.title || 'Unknown Author';
+  const family = author.includes(',') ? author.split(',')[0].trim() : author.trim().split(/\s+/).at(-1);
   const year = source.year || 'n.d.';
-
-  if (style === 'mla') return `(${author} ${year})`;
-  if (style === 'chicago') return `(${author}, ${year})`;
-  return `(${author}, ${year})`;
+  if (style === 'mla') return `(${family}${page ? ` ${page}` : ''})`;
+  if (style === 'chicago') return `(${family} ${year}${page ? `, ${page}` : ''})`;
+  return `(${family}, ${year}${page ? `, p. ${page}` : ''})`;
 }
 
 function formatBibliographyEntry(source, style) {
@@ -192,15 +198,23 @@ export function InsertCitationDialog() {
   const [selectedId, setSelectedId] = useState('');
   const [style, setStyle] = useState('apa');
   const [customText, setCustomText] = useState('');
+  const [page, setPage] = useState('');
 
   useEffect(() => {
     const next = loadSources();
     setSources(next);
     setSelectedId(next[0]?.id || '');
+    const refresh = () => {
+      const sources = loadSources();
+      setSources(sources);
+      setSelectedId((id) => sources.some((source) => source.id === id) ? id : sources[0]?.id || '');
+    };
+    window.addEventListener('etherx:sources-change', refresh);
+    return () => window.removeEventListener('etherx:sources-change', refresh);
   }, []);
 
-  const selectedSource = sources.find((source) => source.id === selectedId) || sources[0] || null;
-  const preview = customText.trim() || (selectedSource ? formatCitation(selectedSource, style) : '[Citation]');
+  const selectedSource = sources.find((source) => source.id === selectedId) || null;
+  const preview = customText.trim() || (selectedSource ? formatCitation(selectedSource, style, page) : '[Citation]');
 
   const insertCitation = () => {
     if (!editor) {
@@ -211,7 +225,7 @@ export function InsertCitationDialog() {
     const html = customText.trim()
       ? `<span data-etherx-citation="custom" data-style="${style}">${escapeHtml(customText.trim())}</span>`
       : selectedSource
-        ? `<span data-etherx-citation="${escapeHtml(selectedSource.id)}" data-style="${style}">${escapeHtml(formatCitation(selectedSource, style))}</span>`
+        ? `<span data-etherx-citation="${escapeHtml(selectedSource.id)}" data-style="${style}">${escapeHtml(formatCitation(selectedSource, style, page))}</span>`
         : '';
 
     if (!html) {
@@ -220,6 +234,8 @@ export function InsertCitationDialog() {
     }
 
     insertHtml(editor, html);
+    useDocumentStore.getState().addCitation({ sourceId: selectedSource?.id || null, source: selectedSource, style, page, text: preview });
+    if (selectedSource) useDocumentStore.getState().setReferences({ sources: [...(useDocumentStore.getState().references?.sources || []).filter((source) => source.id !== selectedSource.id), selectedSource] });
     toast('Citation inserted', 'success');
     closeDialog('insertCitation');
   };
@@ -230,17 +246,20 @@ export function InsertCitationDialog() {
         <div>
           <Label>Source</Label>
           <select
+            aria-label="Citation source"
             value={selectedId}
             onChange={(e) => setSelectedId(e.target.value)}
             style={{ width: '100%', background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '6px 10px', fontSize: 13, fontFamily: 'var(--font-ui)' }}
           >
-            <option value="">Select a source</option>
+            <option value="">{sources.length ? 'Select a source' : 'No sources yet — add a source'}</option>
             {sources.map((source) => (
               <option key={source.id} value={source.id}>{source.author} - {source.title}</option>
             ))}
           </select>
+          {!sources.length && <p style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--text-muted)' }}>Add your book, article, or website in Manage Sources to cite it.</p>}
         </div>
 
+        <div><Label>Page number (optional)</Label><Input value={page} onChange={setPage} placeholder="e.g. 42" /></div>
         <div>
           <Label>Style</Label>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -253,7 +272,7 @@ export function InsertCitationDialog() {
         </div>
 
         <div>
-          <Label>Custom Citation Text</Label>
+          <Label>Custom Citation Text (overrides selected style)</Label>
           <Input value={customText} onChange={setCustomText} placeholder="Optional custom citation text" />
         </div>
 
@@ -265,7 +284,7 @@ export function InsertCitationDialog() {
         </div>
 
         <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', flexWrap: 'wrap' }}>
-          <Button variant="subtle" onClick={() => { closeDialog('insertCitation'); openDialog('manageSources'); }}>Manage Sources</Button>
+          <Button variant="subtle" onClick={() => { useUIStore.setState({ sourceReturnDialog: 'insertCitation' }); closeDialog('insertCitation'); openDialog('manageSources'); }}>Manage Sources</Button>
           <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
             <Button variant="subtle" onClick={() => closeDialog('insertCitation')}>Cancel</Button>
             <Button variant="primary" onClick={insertCitation}>Insert Citation</Button>
@@ -277,10 +296,15 @@ export function InsertCitationDialog() {
 }
 
 export function ManageSourcesDialog() {
-  const { closeDialog, openDialog, toast } = useUIStore();
+  const { closeDialog, openDialog, toast, sourceReturnDialog } = useUIStore();
   const [sources, setSources] = useState(() => loadSources());
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({ author: '', title: '', year: '', publisher: '', url: '' });
+  const closeSources = () => {
+    useUIStore.setState({ sourceReturnDialog: null });
+    closeDialog('manageSources');
+    if (sourceReturnDialog === 'insertCitation') openDialog('insertCitation');
+  };
 
   const persist = (nextSources) => {
     setSources(nextSources);
@@ -329,6 +353,9 @@ export function ManageSourcesDialog() {
     persist(nextSources);
     toast(editingId ? '✓ Source updated' : '✓ Source added', 'success');
     resetForm();
+    if (sourceReturnDialog === 'insertCitation') {
+      closeSources();
+    }
   };
 
   const removeSource = (id) => {
@@ -339,7 +366,7 @@ export function ManageSourcesDialog() {
   };
 
   return (
-    <Modal title="Manage Sources" onClose={() => closeDialog('manageSources')} width={640}>
+    <Modal title="Manage Sources" onClose={closeSources} width={640}>
       <Stack gap={16}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           <div>
@@ -367,7 +394,7 @@ export function ManageSourcesDialog() {
         <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', flexWrap: 'wrap' }}>
           <Button variant="subtle" onClick={resetForm}>Clear</Button>
           <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
-            <Button variant="subtle" onClick={() => closeDialog('manageSources')}>Close</Button>
+            <Button variant="subtle" onClick={closeSources}>Close</Button>
             {sources.length > 0 && (
               <Button variant="secondary" onClick={() => { closeDialog('manageSources'); openDialog('bibliography'); }}>
                 Insert Bibliography →

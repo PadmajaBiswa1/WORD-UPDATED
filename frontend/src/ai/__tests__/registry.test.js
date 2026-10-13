@@ -7,12 +7,20 @@ import { runAgent } from '@/ai/agentLoop';
 import { listSuggestionIds } from '@/ai/suggestions';
 
 describe('tool registry', () => {
-  it('lists the 17 spec tools', () => {
+  it('lists the 32 spec tools', () => {
     expect(TOOL_SCHEMAS.map((t) => t.function.name).sort()).toEqual([
-      'add_comment', 'delete_blocks', 'find_text', 'format_text', 'get_outline', 'get_selection',
-      'insert_blocks', 'insert_table', 'read_blocks', 'read_table', 'replace_text', 'rewrite_block',
-      'set_block_style', 'set_table_cell', 'table_add_column', 'table_add_row', 'table_delete_row',
+      'add_comment', 'add_footnote', 'delete_blocks', 'find_text', 'format_text', 'get_outline', 'get_selection',
+      'insert_at_cursor', 'insert_blocks', 'insert_image', 'insert_page_break', 'insert_table', 'insert_toc', 'list_changes',
+      'list_comments', 'read_blocks', 'read_table', 'replace_all', 'replace_text', 'reply_comment',
+      'resolve_change', 'resolve_comment', 'rewrite_block', 'set_block_style', 'set_header_footer',
+      'set_link', 'set_list', 'set_table_cell', 'table_add_column', 'table_add_row', 'table_delete_row', 'update_plan',
     ]);
+  });
+
+  // backend/lib/agentStep.js rejects a step with more than MAX_TOOLS (64) tools,
+  // which would break every agent run.
+  it('stays within the backend tool cap', () => {
+    expect(TOOL_SCHEMAS.length).toBeLessThanOrEqual(64);
   });
 
   it('turns bad input into errors', () => {

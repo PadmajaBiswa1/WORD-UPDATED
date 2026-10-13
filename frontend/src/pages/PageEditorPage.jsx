@@ -5,7 +5,6 @@ import { PragnaChatSidebar } from '@/components/sidebar/PragnaChatSidebar';
 import { PageEditor } from '@/components/editor/PageEditor';
 import { PageStatusBar } from '@/components/editor/PageStatusBar';
 import { DialogManager } from '@/components/dialogs/DialogManager';
-import { ToastContainer } from '@/components/ui/Toast';
 import { useUIStore, useDocumentStore } from '@/store';
 import { documentApi } from '@/services/api';
 import { upsertLocalDoc } from '@/services/storageFallback';
@@ -71,7 +70,6 @@ export function PageEditorPage() {
 
       <PageStatusBar />
       <DialogManager />
-      <ToastContainer />
     </div>
   );
 }

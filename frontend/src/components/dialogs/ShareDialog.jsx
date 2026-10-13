@@ -53,6 +53,8 @@ export function ShareDialog({
   documentTitle: propTitle,
   documentContent: propContent,
   onClose: propOnClose,
+  initialEmail = '',
+  initialRole = 'editor',
 } = {}) {
   const { id: routeId } = useParams();
   const { closeDialog, toast } = useUIStore();
@@ -71,8 +73,8 @@ export function ShareDialog({
   const docTitle = propTitle || storeTitle || 'Untitled Document';
   const docContent = propContent || storeContent || '<p></p>';
   const [copied, setCopied] = useState(false);
-  const [email,  setEmail]  = useState('');
-  const [role,   setRole]   = useState('editor');
+  const [email,  setEmail]  = useState(initialEmail);
+  const [role,   setRole]   = useState(initialRole);
   const [working, setWorking] = useState(false);
   const [invitedCollaborators, setInvitedCollaborators] = useState([]);
 

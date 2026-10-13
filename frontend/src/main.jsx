@@ -5,6 +5,8 @@ import App from './App';
 import { applyTheme } from './theme/tokens';
 import { SplashScreen } from './components/ui/SplashScreen';
 import './theme/global.css';
+import './theme/fonts.css';
+import './theme/studio.css';
 
 // Apply the fixed dark appearance before first render to avoid a flash.
 applyTheme();
@@ -23,6 +25,13 @@ function Root() {
   }, []);
 
   useEffect(() => {
+
+    // Help > Get Mobile App offers the browser's install prompt; it fires once,
+    // early, so keep it for later.
+    window.addEventListener('beforeinstallprompt', (event) => {
+      event.preventDefault();
+      window.__etherxInstallPrompt = event;
+    });
 
     // Only register Service Worker in production builds (never on localhost / dev mode)
     const isLocalhost = Boolean(

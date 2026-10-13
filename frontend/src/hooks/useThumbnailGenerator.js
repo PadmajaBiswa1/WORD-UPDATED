@@ -176,7 +176,17 @@ export function useThumbnailGenerator() {
       updateTimer.current = setTimeout(async () => {
         try {
           const fullHTML = editor.getHTML() || '<p></p>';
-          const contentHash = fullHTML.slice(0, 500) + fullHTML.slice(-500) + `_p${pageCount}`;
+          // Paper and ink follow the UI theme unless the document sets its own page fill.
+          const rootStyle = getComputedStyle(document.documentElement);
+          const paper = rootStyle.getPropertyValue('--bg-page').trim();
+          const ink = rootStyle.getPropertyValue('--text-doc').trim();
+          const resolveVar = (value, fallback) => {
+            const m = /^var\((--[\w-]+)\)$/.exec(value);
+            return (m ? rootStyle.getPropertyValue(m[1]).trim() : value) || fallback;
+          };
+          const livePaper = resolveVar(paper, '#1a1a1a');
+          const liveInk = resolveVar(ink, '#e8e0d0');
+          const contentHash = fullHTML.slice(0, 500) + fullHTML.slice(-500) + `_p${pageCount}_${livePaper}_${liveInk}`;
           
           if (lastContentHash.current === contentHash) return;
           if (isRendering.current) return;
@@ -185,8 +195,8 @@ export function useThumbnailGenerator() {
 
           const design = useDocumentStore.getState().design || {};
           const theme = {
-            bgColor: design.pageFill || '#1a1a1a',
-            textColor: '#e8e0d0',
+            bgColor: design.pageFill || livePaper,
+            textColor: liveInk,
             fontFamily: design.bodyFont || design.font || "'Crimson Pro', Georgia, serif",
             headingColor: design.heading || design.accent || '#d4af37',
           };
@@ -217,9 +227,13 @@ export function useThumbnailGenerator() {
 
     editor.on('update', updateThumbnails);
     updateThumbnails();
-    
+    // Redraw when the UI theme (and so the paper colour) changes.
+    const themeObserver = new MutationObserver(updateThumbnails);
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-ui-theme'] });
+
     return () => {
       editor.off('update', updateThumbnails);
+      themeObserver.disconnect();
       clearTimeout(updateTimer.current);
     };
   }, [editor, pageSize, pageOrientation, pageMargin, zoom, pageCount, setThumbnail, metrics]);

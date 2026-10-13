@@ -23,7 +23,7 @@ export function RibbonGroup({
         justifyContent: 'flex-start',
         alignItems: 'center',
         borderRight: noDivider ? 'none' : '1px solid var(--ribbon-divider)',
-        padding: '2px 10px 2px 10px',
+        padding: '0 10px',
         margin: 0,
         height: '100%',
         minWidth: 'fit-content',
@@ -43,8 +43,8 @@ export function RibbonGroup({
             ? {
                 display: 'flex',
                 alignItems: 'center',
-                height: 82,
-                maxHeight: 82,
+                height: 70,
+                maxHeight: 70,
                 width: '100%',
                 flexShrink: 0,
                 ...contentStyle,
@@ -52,8 +52,8 @@ export function RibbonGroup({
             : {
                 display: 'flex',
                 alignItems: 'center',
-                height: 82,
-                maxHeight: 82,
+                height: 70,
+                maxHeight: 70,
                 flexShrink: 0,
                 overflow: 'visible',
                 ...contentStyle,
@@ -72,7 +72,7 @@ export function RibbonGroup({
           alignItems: 'center',
           justifyContent: 'center',
           marginTop: 'auto',
-          height: 16,
+          height: 14,
           boxSizing: 'border-box',
         }}
       >

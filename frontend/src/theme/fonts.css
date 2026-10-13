@@ -1,0 +1,20 @@
+@font-face { font-family: "Cinzel"; src: url("/fonts/document/cinzel-variable.ttf") format("truetype"); font-style: normal; font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Crimson Pro"; src: url("/fonts/document/crimsonpro-variable.ttf") format("truetype"); font-style: normal; font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Inter"; src: url("/fonts/document/inter-variable.ttf") format("truetype"); font-style: normal; font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Lora"; src: url("/fonts/document/lora-variable.ttf") format("truetype"); font-style: normal; font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Lato"; src: url("/fonts/document/lato-regular.ttf") format("truetype"); font-style: normal; font-weight: 400; font-display: swap; }
+@font-face { font-family: "Lato"; src: url("/fonts/document/lato-bold.ttf") format("truetype"); font-style: normal; font-weight: 700; font-display: swap; }
+@font-face { font-family: "Merriweather"; src: url("/fonts/document/merriweather-variable.ttf") format("truetype"); font-style: normal; font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Playfair Display"; src: url("/fonts/document/playfairdisplay-variable.ttf") format("truetype"); font-style: normal; font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Roboto"; src: url("/fonts/document/roboto-variable.ttf") format("truetype"); font-style: normal; font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Spectral"; src: url("/fonts/document/spectral-bold.ttf") format("truetype"); font-style: normal; font-weight: 700; font-display: swap; }
+@font-face { font-family: "Spectral"; src: url("/fonts/document/spectral-regular.ttf") format("truetype"); font-style: normal; font-weight: 400; font-display: swap; }
+@font-face { font-family: "Arial"; src: local("Arial"), url("/fonts/wordart/arimo.ttf") format("truetype"); font-style: normal; font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Times New Roman"; src: local("Times New Roman"), url("/fonts/wordart/tinos-regular.ttf") format("truetype"); font-style: normal; font-weight: 400; font-display: swap; }
+@font-face { font-family: "Times New Roman"; src: url("/fonts/wordart/tinos.ttf") format("truetype"); font-style: normal; font-weight: 700; font-display: swap; }
+@font-face { font-family: "Georgia"; src: local("Georgia"), url("/fonts/wordart/gelasio.ttf") format("truetype"); font-style: normal; font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Impact"; src: local("Impact"), url("/fonts/wordart/anton.ttf") format("truetype"); font-style: normal; font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Trebuchet MS"; src: local("Trebuchet MS"), url("/fonts/wordart/firasans.ttf") format("truetype"); font-style: normal; font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Courier New"; src: local("Courier New"), url("/fonts/wordart/cousine-regular.ttf") format("truetype"); font-style: normal; font-weight: 400; font-display: swap; }
+@font-face { font-family: "Courier New"; src: url("/fonts/wordart/cousine.ttf") format("truetype"); font-style: normal; font-weight: 700; font-display: swap; }
+@font-face { font-family: "Verdana"; src: local("Verdana"), url("/fonts/wordart/notosans.ttf") format("truetype"); font-style: normal; font-weight: 100 900; font-display: swap; }

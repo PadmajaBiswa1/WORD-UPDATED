@@ -1,11 +1,12 @@
 import { useUIStore, useEditorStore, useDocumentStore } from '@/store';
 import {
   FileText, BookOpen, FilePlus2, Table, Image, Shapes, BarChart3, Camera,
-  Link2, MessageSquare, PanelTop, PanelBottom, Hash, BoxSelect,
+  Link2, MessageSquare, PanelTop, BoxSelect,
   Sparkles, CaseUpper, Calendar, Blocks, PenTool, Sigma, Omega, ShieldCheck, FileSignature
 } from 'lucide-react';
 import { RibbonGroup } from '../RibbonGroup';
 import { Tooltip } from '@/components/ui';
+import { insertBlankPage } from '@/utils/blankPage';
 
 export function InsertTab() {
   const { openDialog, toast, setHeaderFooterTab } = useUIStore();
@@ -255,7 +256,7 @@ export function InsertTab() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
           <HeroBtn icon={<FileText size={20} strokeWidth={1.75} />} label="Page Break" title="Insert Page Break (Ctrl+Enter)" onClick={() => run(() => editor.chain().focus().insertPageBreak().run())} />
           <HeroBtn icon={<BookOpen size={20} strokeWidth={1.75} />} label="Cover Page" title="Insert Cover Page Template" onClick={() => openDialog('templates')} />
-          <HeroBtn icon={<FilePlus2 size={20} strokeWidth={1.75} />} label="Blank Page" title="Insert Blank Page" onClick={() => run(() => editor.chain().focus().insertContent('<p></p>').run())} />
+          <HeroBtn icon={<FilePlus2 size={20} strokeWidth={1.75} />} label="Blank Page" title="Insert Blank Page" onClick={() => run(() => insertBlankPage(editor))} />
         </div>
       </RibbonGroup>
 
@@ -283,9 +284,7 @@ export function InsertTab() {
 
       <RibbonGroup label="Header & Footer">
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 74 }}>
-          <HeroBtn icon={<PanelTop size={20} strokeWidth={1.75} />} label="Header" title="Insert or Edit Header" onClick={() => openHeaderFooter('header')} />
-          <HeroBtn icon={<PanelBottom size={20} strokeWidth={1.75} />} label="Footer" title="Insert or Edit Footer" onClick={() => openHeaderFooter('footer')} />
-          <HeroBtn icon={<Hash size={20} strokeWidth={1.75} />} label="Page #" title="Insert Page Numbers" onClick={() => openHeaderFooter('pagenum')} />
+          <HeroBtn icon={<PanelTop size={20} strokeWidth={1.75} />} label="Header & Footer" title="Header & Footer" onClick={() => openHeaderFooter('header')} />
         </div>
       </RibbonGroup>
 
