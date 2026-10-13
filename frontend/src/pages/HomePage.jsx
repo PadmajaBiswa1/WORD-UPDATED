@@ -1621,7 +1621,7 @@ export function HomePage() {
     setSaveAsBusy(true);
     try {
       const cloudDoc = await ensureCloudDocForShare(doc);
-      setShareDialogDoc({ ...cloudDoc, initialEmail: invite.email || '', initialRole: invite.role || 'editor' });
+      setShareDialogDoc({ ...cloudDoc, initialRole: invite.role || 'editor' });
     } catch (err) {
       toast(`Unable to prepare document for sharing: ${err?.message || 'Error'}`, 'error');
     } finally {
@@ -1840,7 +1840,7 @@ export function HomePage() {
         <Button onClick={() => { const doc = confirmDelete; setConfirmDelete(null); deleteDoc(doc); }}>Delete</Button>
       </div>
     </Modal>}
-    {shareDialogDoc && <ShareDialog documentId={shareDialogDoc.id} documentTitle={shareDialogDoc.title} documentContent={shareDialogDoc.content} initialEmail={shareDialogDoc.initialEmail} initialRole={shareDialogDoc.initialRole} onClose={() => setShareDialogDoc(null)} />}
+    {shareDialogDoc && <ShareDialog documentId={shareDialogDoc.id} documentTitle={shareDialogDoc.title} documentContent={shareDialogDoc.content} initialRole={shareDialogDoc.initialRole} onClose={() => setShareDialogDoc(null)} />}
   </>;
 }
 

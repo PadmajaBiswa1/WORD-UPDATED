@@ -730,7 +730,15 @@ export function ReviewTab({ renderRibbon } = {}) {
   const handleReviewingPane = () => openDialog('reviewingPane');
   const handleCompare = () => openDialog('compareDocuments');
   const handleRestrictEditing = () => openDialog('restrictEditing');
-  const handleHideInk = () => setHideInk((value) => !value);
+  const handleHideInk = () => {
+    const inkCount = getEditorRoot()?.querySelectorAll('img[alt="Drawing"], img[data-ink="true"]').length || 0;
+    if (!hideInk && !inkCount) {
+      toast('No ink in this document. Draw on the Draw tab first.', 'info');
+      return;
+    }
+    setHideInk(!hideInk);
+    toast(hideInk ? 'Ink shown' : `Ink hidden (${inkCount} drawing${inkCount === 1 ? '' : 's'})`, 'info');
+  };
   const handleMarkupMode = (value) => {
     setMarkupMode(value);
     toast(`Markup view: ${MARKUP_OPTIONS.find((option) => option.value === value)?.label || value}`, 'info');
@@ -879,8 +887,8 @@ export function ReviewTab({ renderRibbon } = {}) {
     'Comments/Previous': () => stepComment(-1), 'Comments/Next': () => stepComment(1), Delete: removeCurrentComment,
     'All Markup': () => handleMarkupMode('all'), 'Show Markup': () => handleMarkupMode('simple'),
     'Filter All Markup': () => handleMarkupMode('all'),
-    'Hide Ink': () => setHideInk((on) => !on),
-  });
+    'Hide Ink': handleHideInk,
+  }, { 'Hide Ink': { label: hideInk ? 'Show Ink' : 'Hide Ink' } });
   return (
     <>
       <RibbonGroup label="Proofing">

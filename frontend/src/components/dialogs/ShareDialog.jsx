@@ -2,10 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Zap, Check, Copy, Info, Lock } from 'lucide-react';
 import { useUIStore, useDocumentStore, useCollaborationStore, useSubscriptionStore } from '@/store';
-import { canAddCollaborator } from '@/utils/featureGate';
-import { Modal, Button, Input, Label, Stack } from '@/components/ui';
-import { documentApi, getStoredUser } from '@/services/api';
-import { sendInviteEmail } from '@/services/emailjs';
+import { Modal, Button, Label, Stack } from '@/components/ui';
+import { documentApi } from '@/services/api';
 
 function getCollaboratorColor(index) {
   const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F'];
@@ -52,7 +50,6 @@ export function ShareDialog({
   documentTitle: propTitle,
   documentContent: propContent,
   onClose: propOnClose,
-  initialEmail = '',
   initialRole = 'editor',
 } = {}) {
   const { id: routeId } = useParams();
@@ -72,8 +69,7 @@ export function ShareDialog({
   const docTitle = propTitle || storeTitle || 'Untitled Document';
   const docContent = propContent || storeContent || '<p></p>';
   const [copied, setCopied] = useState(false);
-  const [email,  setEmail]  = useState(initialEmail);
-  const [role,   setRole]   = useState(initialRole);
+  const role = initialRole;
   const [working, setWorking] = useState(false);
   const [invitedCollaborators, setInvitedCollaborators] = useState([]);
 
@@ -191,129 +187,6 @@ export function ShareDialog({
       setCopied(false);
       toast('Unable to prepare a shared document right now', 'error');
       console.error('Copy link error:', err);
-    } finally {
-      setWorking(false);
-    }
-  };
-
-  const inviteUser = async () => {
-    if (plan === 'free') {
-      openUpgradeModal('Single-user editing only on Free tier. Upgrade to Basic for up to 3 collaborators or Pro for unlimited real-time collaboration.', 'basic');
-      return;
-    }
-
-    if (!canAddCollaborator(plan, (invitedCollaborators || []).length)) {
-      openUpgradeModal('Basic plan allows up to 3 collaborators per document. Upgrade to Pro for unlimited real-time collaboration.', 'pro');
-      return;
-    }
-
-    const inviteEmail = email.trim().toLowerCase();
-    if (!inviteEmail) {
-      toast('Please enter an email address', 'warning');
-      return;
-    }
-
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(inviteEmail)) {
-      toast('Please enter a valid email address', 'error');
-      return;
-    }
-
-    if (working) {
-      toast('Please wait, processing previous invite...', 'info');
-      return;
-    }
-
-    setWorking(true);
-    try {
-      console.log(`📧 Starting invite process for: ${inviteEmail}`);
-      const docId = await ensureShareableDocument();
-      console.log(`📄 Document ID: ${docId}`);
-      
-      let response;
-      let shareError = null;
-      
-      try {
-        response = await documentApi.share(docId, { email: inviteEmail, role });
-        console.log(`📧 Share response successful:`, response);
-      } catch (err) {
-        console.error(`📧 Share request failed:`, err?.message, `(status: ${err?.status})`);
-        shareError = err;
-        
-        // Only fall back when the server explicitly reports a missing route.
-        // A document-level 404 should be shown as-is instead of being mislabeled
-        // as an API route failure.
-        if (err?.routeMissing && typeof documentApi.invite === 'function') {
-          try {
-            console.log(`📧 Attempting fallback to invite endpoint...`);
-            response = await documentApi.invite(docId, { email: inviteEmail, role });
-            console.log(`📧 Invite response successful:`, response);
-            shareError = null; // Clear error since invite succeeded
-          } catch (inviteErr) {
-            console.error(`📧 Invite request also failed:`, inviteErr?.message);
-            shareError = inviteErr;
-          }
-        }
-        
-        // If no fallback or fallback failed, throw the error
-        if (shareError) throw shareError;
-      }
-      
-      if (!response) throw new Error('No response from share request');
-      console.log(`📧 Final share response:`, response);
-      
-      const sharedEmail = response?.share?.email || inviteEmail;
-
-      // Update invited collaborators list
-      if (Array.isArray(response?.sharedWith)) {
-        setInvitedCollaborators(response.sharedWith);
-        console.log(`✅ Collaborators updated:`, response.sharedWith);
-      } else {
-        await loadInvitedCollaborators(docId);
-      }
-
-      // Provide detailed feedback based on response
-      let emailError = null;
-      if (sharedEmail) {
-        try {
-          await sendInviteEmail({
-            toEmail: sharedEmail,
-            toName: sharedEmail,
-            inviterName: getStoredUser().name || getStoredUser().email || 'A collaborator',
-            documentTitle: docTitle || 'Untitled Document',
-            shareUrl: response?.shareUrl || buildSharedUrl(docId),
-            role,
-          });
-        } catch (inviteEmailErr) {
-          emailError = inviteEmailErr?.message || 'Email delivery failed';
-          console.error('Invite email failed:', inviteEmailErr);
-        }
-      }
-
-      if (response?.share) {
-        if (emailError) {
-          toast(`✓ ${sharedEmail} added as collaborator. Email could not be sent.`, 'warning');
-        } else if (sharedEmail) {
-          toast(`✓ Invitation email sent to ${sharedEmail}`, 'success');
-        } else {
-          toast(`✓ ${sharedEmail} added as collaborator`, 'success');
-        }
-      } else {
-        toast(`✓ ${sharedEmail} has been invited`, 'success');
-      }
-
-      if (!emailError && sharedEmail) {
-        console.log(`✅ Email invitation sent successfully`);
-      }
-      
-      // Clear email field after successful invite
-      setEmail('');
-      console.log(`✅ Email field cleared, ready for next invite`);
-    } catch (error) {
-      const errorMsg = error?.message || 'Unknown error';
-      console.error(`❌ Invite failed: ${errorMsg}`, error);
-      toast(`Invite failed: ${errorMsg}`, 'error');
     } finally {
       setWorking(false);
     }
@@ -452,21 +325,6 @@ export function ShareDialog({
           <div style={{ marginTop: 6, fontFamily:'var(--font-ui)', fontSize: 11, color:'var(--text-muted)', display:'flex', alignItems:'center', gap:5 }}>
             <Info size={13} style={{ flexShrink: 0, color: 'var(--text-gold)' }} />
             <span>Share this link with anyone to start collaborating instantly - no sign-up required. Changes are synchronized in real-time.</span>
-          </div>
-        </div>
-
-        {/* Invite */}
-        <div>
-          <Label>Invite by Email</Label>
-          <div style={{ display:'flex', gap:6 }}>
-            <Input value={email} onChange={setEmail} placeholder="colleague@company.com" style={{ flex:1 }} />
-            <select value={role} onChange={(e) => setRole(e.target.value)}
-              style={{ background:'var(--bg-elevated)', color:'var(--text-primary)', border:'1px solid var(--border)', borderRadius:'var(--radius-sm)', padding:'6px 8px', fontSize:12, fontFamily:'var(--font-ui)', outline:'none' }}>
-              <option value="viewer">Viewer</option>
-              <option value="commenter">Commenter</option>
-              <option value="editor">Editor</option>
-            </select>
-            <Button variant="primary" onClick={inviteUser} disabled={!email.trim() || working}>Invite</Button>
           </div>
         </div>
 
