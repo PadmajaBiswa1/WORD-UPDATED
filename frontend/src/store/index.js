@@ -706,8 +706,6 @@ export const useUIStore = create((set) => ({
     }
   },
   toggleRibbon: () => set((s) => ({ ribbonCollapsed: !s.ribbonCollapsed })),
-  toggleRuler: () => set((s) => ({ rulerVisible: !s.rulerVisible })),
-  toggleGridlines: () => set((s) => ({ gridlinesVisible: !s.gridlinesVisible })),
   setZoom: (z) => set({ zoom: Math.min(200, Math.max(25, z)), isFitPage: false, isPageWidth: false }),
   toggleFitPage: () => {
     const s = useUIStore.getState();

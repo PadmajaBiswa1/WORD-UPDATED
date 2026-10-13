@@ -11,7 +11,7 @@ import {
   ArrowUpDown, WrapText,
   Layers, Crosshair, ArrowUp, ArrowDown, AlignLeft, RotateCw
 } from 'lucide-react';
-import { useUIStore, useEditorStore } from '@/store';
+import { useUIStore, useEditorStore, useDocumentStore, useUIStore as useUI } from '@/store';
 import { Button, Tooltip, Select } from '@/components/ui';
 import { RibbonGroup } from '../RibbonGroup';
 import { recalculatePages } from '@/utils/paginationUtils';
@@ -471,7 +471,6 @@ export function LayoutTab() {
 }
 
 // ── Review Tab ───────────────────────────────────────────────
-import { useDocumentStore, useUIStore as useUI } from '@/store';
 import { runDictation, runImageTextCapture, runReadAloud } from '@/utils/smartFeatures';
 import { parseVoiceCommand, executeVoiceCommand } from '@/services/voiceCommands';
 

@@ -3,7 +3,7 @@
 //  FontSize is implemented as a custom inline Extension so no
 //  extra npm package is required.
 // ═══════════════════════════════════════════════════════════════
-import { useEffect, useCallback, useMemo, useRef } from 'react';
+import { useEffect, useCallback, useMemo } from 'react';
 import { useEditor as useTiptap } from '@tiptap/react';
 import { Extension } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
@@ -30,7 +30,7 @@ import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript';
 import FontFamily from '@tiptap/extension-font-family';
 import Blockquote from '@tiptap/extension-blockquote';
-import { PageBreak, supportsColumnFlow } from '@/components/editor/PageBreak';
+import { PageBreak, supportsColumnFlow, isAutoPaginationTransaction } from '@/components/editor/PageBreak';
 import { getLayoutMetrics, PAGE_GAP, PAGE_BORDER_WIDTH } from '@/utils/pageLayout';
 import { MediaEmbed } from '@/components/editor/MediaEmbed';
 import { TrailingNode } from '@/components/editor/TrailingNode';
@@ -336,7 +336,6 @@ export function useEditorSetup() {
   const { setEditor, fontFamily, fontSize, spellCheck, beginProgrammaticChange } = useEditorStore();
   const { content } = useDocumentStore();
   const { pageColumns, pageSize, pageOrientation, pageMargin } = useUIStore();
-  const isLocalChange = useRef(false);
 
   const syncToolbarFormattingState = useCallback((instance) => {
     const attrs = instance.getAttributes('textStyle') || {};
@@ -446,10 +445,16 @@ export function useEditorSetup() {
         return focusBelowBlockOrDocEnd(view, event.clientX, event.clientY);
       },
     },
-    onUpdate: ({ editor }) => {
+    onUpdate: ({ editor, transaction }) => {
+      const html = editor.getHTML();
+      // Page spacers are view bookkeeping, not edits. They must not trigger
+      // autosave, collaboration writes, or change the user's undo ordering.
+      if (isAutoPaginationTransaction(transaction)) {
+        useDocumentStore.setState({ content: html });
+        return;
+      }
       useEditorStore.getState().recordEditorChange();
       const { isProgrammaticChange, programmaticContent, endProgrammaticChange } = useEditorStore.getState();
-      const html = editor.getHTML();
       
       if (isProgrammaticChange && (programmaticContent === null || programmaticContent === html)) {
         endProgrammaticChange();
@@ -459,15 +464,9 @@ export function useEditorSetup() {
       
       if (isProgrammaticChange) endProgrammaticChange();
       
-      // Mark this as a local change to prevent the sync-back effect from resetting the editor
-      isLocalChange.current = true;
       useDocumentStore.getState().setContent(html);
       syncToolbarFormattingState(editor);
       
-      // Clear the local change flag after the state has had a chance to update
-      requestAnimationFrame(() => {
-        isLocalChange.current = false;
-      });
     },
     onSelectionUpdate: ({ editor }) => {
       syncToolbarFormattingState(editor);
@@ -513,10 +512,8 @@ export function useEditorSetup() {
   useEffect(() => {
     if (!editor || typeof content !== 'string') return;
     
-    // Crucial: Skip if this content update originated from this editor instance
-    if (isLocalChange.current) return;
-    
-    // Skip if content is already in sync
+    // Local updates already match. Always apply differing remote content,
+    // including updates arriving in the same frame as a local transaction.
     if (editor.getHTML() === content) return;
     
     const { from, to } = editor.state.selection;

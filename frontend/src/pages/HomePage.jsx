@@ -7,7 +7,7 @@ import {
   Copy, Check, ArrowLeft, Search, Plus, Upload, Menu
 } from 'lucide-react';
 import { docxToHtml } from '@/services/docxImport';
-import { documentApi } from '@/services/api';
+import { documentApi, getStoredUser } from '@/services/api';
 import {
   buildDocxBlob,
   buildHtmlBlob,
@@ -25,7 +25,6 @@ import {
 import { buildAiResult, executePragnaAi, getPlainTextFromHtml, openTranslationUrl } from '@/services/ai';
 import { useUIStore, useDocumentStore, useSubscriptionStore, getDefaultLayout } from '@/store';
 import { canAccessAi, canAccessTemplate, canCreateDocument, canExportFormat } from '@/utils/featureGate';
-import { getStoredUser } from '@/services/api';
 import { FileWorkspace } from '@/components/design/FileWorkspace';
 import { DialogManager } from '@/components/dialogs/DialogManager';
 import { Modal, Button } from '@/components/ui';

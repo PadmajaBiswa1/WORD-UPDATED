@@ -21,7 +21,7 @@ async function openDialog(page, name) {
   }, name);
 }
 
-async function openEditor(page, content = '<p>Existing content.</p>') {
+async function openEditor(page, content = '<p>Existing content.</p>', routePath = '/doc/layout-test') {
   await page.addInitScript(() => {
     sessionStorage.setItem('etherxword_seen_splash', '1');
     localStorage.setItem('etherx_token', 'layout-test');
@@ -31,12 +31,12 @@ async function openEditor(page, content = '<p>Existing content.</p>') {
   await page.route('**/api/**', async (route) => {
     const path = new URL(route.request().url()).pathname;
     if (path === '/api/upload/image') return route.fulfill({ status: 503, body: 'Offline upload' });
-    const body = path === '/api/documents/layout-test'
+    const body = path === '/api/documents/layout-test' || (path === '/api/documents' && route.request().method() === 'POST')
       ? { id: 'layout-test', title: 'Import layout', content, design: { spacing: '1.15' }, layout: { pageSize: 'a4', pageOrientation: 'portrait', pageMargin: 'normal' } }
       : [];
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
   });
-  await page.goto('/doc/layout-test');
+  await page.goto(routePath);
   await page.waitForFunction(() => !!window.__ETHERX_EDITOR__);
   await page.evaluate(() => document.fonts.ready);
 }
@@ -100,6 +100,29 @@ test('DOCX lists and tables stay inside page margins after import and layout cha
     await expect.poll(() => layoutErrors(page)).toEqual([]);
     expect(await page.locator('.tiptap.ProseMirror').evaluate((pm) => pm.textContent)).toBe(contentText);
   }
+});
+
+test('opening a new document creates one record despite StrictMode effect replay', async ({ page }) => {
+  let creates = 0;
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname === '/api/documents' && request.method() === 'POST') creates += 1;
+  });
+  await openEditor(page, '<p></p>', '/doc/new');
+  await expect(page).toHaveURL(/\/doc\/layout-test$/);
+  expect(creates).toBe(1);
+});
+
+test('opening a multi-page document does not autosave page spacers as edits', async ({ page }) => {
+  let saves = 0;
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname === '/api/documents/layout-test' && request.method() === 'PUT') saves += 1;
+  });
+  await openEditor(page, Array.from({ length: 40 }, (_, i) => `<p>${i} ${itemText.repeat(2)}</p>`).join(''));
+  await expect(page.locator('.tiptap.ProseMirror [data-etherx-auto-break="true"]').first()).toBeAttached();
+  await expect.poll(() => layoutErrors(page)).toEqual([]);
+  // Wait beyond the autosave debounce to catch unexpected background writes.
+  await page.waitForTimeout(1400);
+  expect(saves).toBe(0);
 });
 
 test('adding pictures preserves existing pictures, including a selected picture', async ({ page }) => {

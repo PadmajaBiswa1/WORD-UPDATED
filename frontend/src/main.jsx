@@ -1,6 +1,5 @@
-import React from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import ReactDOM from 'react-dom/client';
-import { useCallback, useEffect, useState } from 'react';
 import App from './App';
 import { applyTheme } from './theme/tokens';
 import { SplashScreen } from './components/ui/SplashScreen';

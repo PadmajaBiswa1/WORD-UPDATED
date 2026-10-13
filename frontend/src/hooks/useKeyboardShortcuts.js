@@ -20,6 +20,7 @@ export function useKeyboardShortcuts() {
 
   useEffect(() => {
     const h = (e) => {
+      if (e.defaultPrevented) return;
       // 1. Check Custom Shortcuts from useProductivityStore first
       const { customShortcuts = {} } = useProductivityStore.getState();
       if (customShortcuts && Object.keys(customShortcuts).length > 0) {
@@ -58,6 +59,11 @@ export function useKeyboardShortcuts() {
       if (!mod && !e.altKey && inField && !/^F\d+$/.test(e.key)) return;
 
       if (mod && !e.altKey && key === 'f') { e.preventDefault(); openDialog('findReplace'); }
+      if (mod && !e.altKey && !e.shiftKey && key === 's') {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent('etherx-save-document'));
+        return;
+      }
       if (mod && !e.altKey && key === 'h') { e.preventDefault(); openDialog('findReplace'); }
       if (mod && key === '/')             { e.preventDefault(); openDialog('commandMap'); }
       if (mod && key === 'k')             { e.preventDefault(); openDialog('insertLink'); }

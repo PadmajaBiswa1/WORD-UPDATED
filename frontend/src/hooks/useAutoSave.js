@@ -2,12 +2,20 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useDocumentStore, useUIStore } from '@/store';
 import { documentApi, API_BASE, getStoredUser } from '@/services/api';
 import { encryptDocument } from '@/services/crypto';
-import { writeLocalDraft } from '@/utils/draftStorage';
+import { readLocalDraft, writeLocalDraft } from '@/utils/draftStorage';
 import { updateCachedRecentDoc } from '@/utils/recentDocsCache';
 import { stripAutoPageBreaks } from '@/components/editor/PageBreak';
 
 const DELAY = 1000; // 1s inactivity debounce
 const MAX_WAIT = 3000; // 3s maximum throttle wait
+const SAVE_FIELDS = ['title', 'content', 'contentJson', 'design', 'headerFooter', 'layout', 'pageCount', 'comments', 'trackChanges', 'security', 'documentParts', 'signatures', 'accessPolicy', 'aiProfile', 'references', 'styles'];
+
+function draftMatchesSnapshot(draft, snapshot) {
+  return SAVE_FIELDS.every((key) => {
+    const normalize = (value) => key === 'content' ? stripAutoPageBreaks(value) : value;
+    return JSON.stringify(normalize(draft[key])) === JSON.stringify(normalize(snapshot[key]));
+  });
+}
 
 export function useAutoSave() {
   const toast = useUIStore((s) => s.toast);
@@ -21,6 +29,11 @@ export function useAutoSave() {
   const vTimer = useRef(null);
   const isSavingRef = useRef(false);
   const pendingSaveRef = useRef(false);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const save = useCallback(async ({ manual = false } = {}) => {
     const store = useDocumentStore.getState();
@@ -48,7 +61,6 @@ export function useAutoSave() {
       updatedAt: docUpdatedAt,
       setSaving,
       setLastSaved,
-      setSecurityEnvelope,
     } = store;
 
     if (!docId) {
@@ -82,10 +94,10 @@ export function useAutoSave() {
       if (security?.protected === true) {
         if (cryptoKey) {
           try {
-            const docPayload = contentJson || {
+            const docPayload = {
               type: 'doc',
-              content: [],
-              html: c || '<p></p>',
+              content: contentJson?.content || [],
+              html: stripAutoPageBreaks(c || '<p></p>'),
             };
             const envelope = await encryptDocument(docPayload, cryptoKey);
             currentSecurity = {
@@ -98,11 +110,9 @@ export function useAutoSave() {
               authTag: envelope.authTag,
               encryptedPayload: envelope.encryptedPayload,
             };
-            if (setSecurityEnvelope) {
-              setSecurityEnvelope(currentSecurity);
-            }
           } catch (encErr) {
             console.error('Failed to re-encrypt document payload during autosave:', encErr);
+            throw encErr;
           }
         }
 
@@ -140,12 +150,14 @@ export function useAutoSave() {
 
       // 1. Send payload to backend
       const savedDoc = await documentApi.save(docId, payload);
-      if (savedDoc && Number.isFinite(Number(savedDoc.revision))) {
-        useDocumentStore.getState().setRevision(Number(savedDoc.revision));
-      }
+
+      updateCachedRecentDoc(docId, {
+        ...savedDoc, ...payload,
+        updatedAt: savedDoc?.updatedAt || new Date().toISOString(),
+      });
 
       // 2. Check if newer edits were made while save was in flight
-      const latestStore = useDocumentStore.getState();
+      let latestStore = useDocumentStore.getState();
       const currentStoreTime = latestStore.updatedAt ? new Date(latestStore.updatedAt).getTime() : 0;
       const hasNewerEdits = currentStoreTime > saveInitiatedTime
         || latestStore.title !== title || latestStore.content !== c
@@ -154,33 +166,35 @@ export function useAutoSave() {
         || latestStore.contentJson !== contentJson || latestStore.trackChanges !== trackChanges
         || latestStore.references !== references || latestStore.styles !== styles
         || latestStore.signatures !== signatures || latestStore.accessPolicy !== accessPolicy
-        || latestStore.documentParts !== documentParts || latestStore.aiProfile !== aiProfile;
+        || latestStore.documentParts !== documentParts || latestStore.aiProfile !== aiProfile
+        || latestStore.security !== security || latestStore.cryptoKey !== cryptoKey
+        || latestStore.pageCount !== pageCount;
 
       if (latestStore.id !== docId) {
-        writeLocalDraft(docId, { ...store, isDirty: false });
-        return;
+        const draft = readLocalDraft(docId);
+        if (!draft || draftMatchesSnapshot(draft, store)) {
+          writeLocalDraft(docId, { ...store, security: currentSecurity, isDirty: false });
+        }
+        return savedDoc;
+      }
+
+      if (savedDoc && Number.isFinite(Number(savedDoc.revision))) {
+        latestStore.setRevision(Number(savedDoc.revision));
+      }
+      // Encryption metadata belongs to this completed save, not a new edit.
+      if (latestStore.security === security && latestStore.cryptoKey === cryptoKey && currentSecurity?.protected) {
+        useDocumentStore.setState({ security: currentSecurity });
+        latestStore = useDocumentStore.getState();
       }
 
       if (!hasNewerEdits) {
         setLastSaved(new Date());
         writeLocalDraft(docId, { ...latestStore, isDirty: false });
       } else {
-        latestStore.setLastSaved(new Date());
-        useDocumentStore.setState({ isDirty: true });
+        useDocumentStore.setState({ lastSaved: new Date(), isDirty: true });
         writeLocalDraft(docId, { ...latestStore, isDirty: true });
         pendingSaveRef.current = true;
       }
-
-      updateCachedRecentDoc(docId, {
-        ...savedDoc,
-        title,
-        content: payloadContent,
-        design,
-        headerFooter,
-        layout,
-        pageCount,
-        updatedAt: savedDoc?.updatedAt || new Date().toISOString(),
-      });
 
       console.log(`✅ Document ${docId} saved successfully`);
       if (manual) {
@@ -189,7 +203,9 @@ export function useAutoSave() {
       return savedDoc;
     } catch (err) {
       console.error(`❌ Save failed for ${docId}:`, err);
-      writeLocalDraft(docId, { ...useDocumentStore.getState(), isDirty: true });
+      const latestStore = useDocumentStore.getState();
+      const draft = latestStore.id === docId ? latestStore : readLocalDraft(docId) || store;
+      writeLocalDraft(docId, { ...draft, isDirty: true });
       updateCachedRecentDoc(docId, {
         title,
         content: payloadContent,
@@ -203,10 +219,10 @@ export function useAutoSave() {
       return null;
     } finally {
       isSavingRef.current = false;
-      setSaving(false);
+      if (useDocumentStore.getState().id === docId) setSaving(false);
       if (pendingSaveRef.current) {
         pendingSaveRef.current = false;
-        save({ manual: false });
+        if (mountedRef.current) save({ manual: false });
       }
     }
   }, [toast]);
@@ -250,12 +266,15 @@ export function useAutoSave() {
 
   // Flush pending changes on page reload, tab close, or navigation
   useEffect(() => {
-    const handleUnload = () => {
+    const handleUnload = (event) => {
       const store = useDocumentStore.getState();
       if (!store || !store.id || !store.isDirty) return;
 
       // Synchronously write to localStorage (guaranteed to persist on reload)
       writeLocalDraft(store.id, store);
+      // Both events fire on a normal exit. Only pagehide publishes the save;
+      // beforeunload may also fire when the user cancels navigation.
+      if (event.type === 'beforeunload') return;
 
       // Attempt keepalive fetch so server also receives data before process ends
       try {
@@ -329,18 +348,11 @@ export function useAutoSave() {
     return () => clearInterval(vTimer.current);
   }, [autoSaveEnabled]);
 
-  // Ctrl/Cmd+S manual save
+  // All save commands use one event; keyboard shortcuts have one dispatcher.
   useEffect(() => {
-    const h = (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        e.preventDefault();
-        save({ manual: true });
-      }
-    };
-    window.addEventListener('keydown', h);
     const onSaveRequest = () => save({ manual: true });
     window.addEventListener('etherx-save-document', onSaveRequest);
-    return () => { window.removeEventListener('keydown', h); window.removeEventListener('etherx-save-document', onSaveRequest); };
+    return () => window.removeEventListener('etherx-save-document', onSaveRequest);
   }, [save]);
 
   return { save };

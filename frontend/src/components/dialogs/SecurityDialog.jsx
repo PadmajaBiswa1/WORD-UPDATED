@@ -38,7 +38,7 @@ export function SecurityDialog() {
 
     setLoading(true);
     try {
-      const docPayload = contentJson || {
+      const docPayload = {
         type: 'doc',
         content: editor?.getJSON()?.content || [],
         html: editor?.getHTML() || content || '<p></p>',
@@ -80,7 +80,9 @@ export function SecurityDialog() {
       const decrypted = await decryptDocument(security, unlockPassphrase);
       unlockDocument(unlockPassphrase);
       if (editor && decrypted) {
-        if (decrypted.content || decrypted.type === 'doc') {
+        if (typeof decrypted.html === 'string') {
+          editor.commands.setContent(decrypted.html);
+        } else if (decrypted.content || decrypted.type === 'doc') {
           editor.commands.setContent(decrypted);
         } else if (typeof decrypted === 'string') {
           editor.commands.setContent(decrypted);

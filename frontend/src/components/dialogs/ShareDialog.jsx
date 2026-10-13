@@ -4,9 +4,8 @@ import { Zap, Check, Copy, Info, Lock } from 'lucide-react';
 import { useUIStore, useDocumentStore, useCollaborationStore, useSubscriptionStore } from '@/store';
 import { canAddCollaborator } from '@/utils/featureGate';
 import { Modal, Button, Input, Label, Stack } from '@/components/ui';
-import { documentApi } from '@/services/api';
+import { documentApi, getStoredUser } from '@/services/api';
 import { sendInviteEmail } from '@/services/emailjs';
-import { getStoredUser } from '@/services/api';
 
 function getCollaboratorColor(index) {
   const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F'];

@@ -14,7 +14,6 @@ import { DialogManager }  from '@/components/dialogs/DialogManager';
 import { useAutoSave }    from '@/hooks/useAutoSave';
 import { useCollaboration } from '@/hooks/useCollaboration';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
-import { usePagination }  from '@/hooks/usePagination';
 import { useClipboardListener } from '@/hooks/useClipboardListener';
 import { useUIStore, useDocumentStore, useCollaborationStore, useSubscriptionStore, getDefaultLayout } from '@/store';
 import { documentApi } from '@/services/api';
@@ -55,6 +54,12 @@ export function EditorPage({ isShared = false }) {
   //  references each render which would cause an infinite loop)
   const { save } = useAutoSave();
   const loadedDocIdRef = useRef(null);
+  const createRequestRef = useRef(null);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   // Stable refs for actions — prevents stale-closure issues without
   // adding the action functions to the useEffect dependency array
@@ -64,7 +69,6 @@ export function EditorPage({ isShared = false }) {
   });
 
   useKeyboardShortcuts();
-  usePagination();
   useClipboardListener();
   
   // For shared documents, always use routeId; for owned, use stored documentId
@@ -105,6 +109,7 @@ export function EditorPage({ isShared = false }) {
       }
 
       console.log(`📖 Loading document: ${docIdToLoad} (${isShared ? 'shared' : 'owned'})`);
+      createRequestRef.current = null;
       setId(docIdToLoad);
       loadedDocIdRef.current = docIdToLoad;
       setLoadError('');
@@ -112,7 +117,7 @@ export function EditorPage({ isShared = false }) {
       documentApi
         .get(docIdToLoad)
         .then((doc) => {
-          if (loadedDocIdRef.current !== docIdToLoad) return;
+          if (!mountedRef.current || loadedDocIdRef.current !== docIdToLoad) return;
           console.log(`✅ Document loaded: "${doc?.title}" (${doc?.content?.length || 0} chars)`);
           
           // Reconcile with any unsaved local draft from a recent refresh or edit session
@@ -160,7 +165,7 @@ export function EditorPage({ isShared = false }) {
           }
         })
         .catch((err) => {
-          if (loadedDocIdRef.current !== docIdToLoad) return;
+          if (!mountedRef.current || loadedDocIdRef.current !== docIdToLoad) return;
           console.error(`❌ Failed to load document ${docIdToLoad}:`, err?.message);
           // Offline fallback: restore from local draft if server is unreachable
           const localDraft = readLocalDraft(docIdToLoad);
@@ -176,9 +181,14 @@ export function EditorPage({ isShared = false }) {
           setLoadError(err?.message || 'Could not open this document.');
         })
         .finally(() => {
-          if (loadedDocIdRef.current === docIdToLoad) setReadyDocId(docIdToLoad);
+          if (mountedRef.current && loadedDocIdRef.current === docIdToLoad) setReadyDocId(docIdToLoad);
         });
     } else if (!isShared && !documentId) {
+      // StrictMode replays mount effects; keep one pending creation request.
+      if (createRequestRef.current) return;
+      const request = Symbol('createDocument');
+      createRequestRef.current = request;
+      loadedDocIdRef.current = null;
       // If store already contains preloaded template content, preserve it
       const storeState = useDocumentStore.getState();
       const hasPreloadedContent = storeState.content && storeState.content !== '<p></p>' && storeState.content !== '';
@@ -199,6 +209,7 @@ export function EditorPage({ isShared = false }) {
           layout: getDefaultLayout(),
         })
         .then((created) => {
+          if (!mountedRef.current || createRequestRef.current !== request) return;
           const newId = String(created?.id || created?._id || '');
           if (newId) {
             console.log(`✅ Document created: ${newId}`);
@@ -215,6 +226,9 @@ export function EditorPage({ isShared = false }) {
         })
         .catch((err) => {
           console.warn(`⚠️  Could not create document on backend:`, err?.message);
+        })
+        .finally(() => {
+          if (createRequestRef.current === request) createRequestRef.current = null;
         });
     }
   }, [routeId, isShared, documentId]);

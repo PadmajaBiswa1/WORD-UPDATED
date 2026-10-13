@@ -7,13 +7,11 @@ const CHANGE_DEBOUNCE_MS = 500;
 const COMMENT_DEBOUNCE_MS = 250;
 
 function commentsKey(comments) {
-  return JSON.stringify(
-    (comments || []).map((comment) => ({
-      id: comment.id,
-      text: comment.text,
-      resolved: comment.resolved,
-    })),
-  );
+  return JSON.stringify(comments || []);
+}
+
+function contentKey(document) {
+  return JSON.stringify([stripAutoPageBreaks(document.content), document.title, document.trackChanges]);
 }
 
 export function useCollaboration(docId) {
@@ -47,7 +45,7 @@ export function useCollaboration(docId) {
   useEffect(() => {
     if (!docId || !collaborationEnabled) {
       resetCollaboration();
-      typingTimersRef.current.forEach((t) => clearTimeout(t));
+      typingTimersRef.current.forEach((entry) => clearTimeout(entry.timer));
       typingTimersRef.current.clear();
       setTypingUsers([]);
       return undefined;
@@ -55,6 +53,17 @@ export function useCollaboration(docId) {
 
 
     const collab = initCollab(docId);
+    const markTyping = (data, duration) => {
+      const user = data?.user || {};
+      const sessionId = data?.sessionId || user.sessionId || user.id || data?.uid;
+      if (!sessionId || sessionId === collab.sessionId) return;
+      const timers = typingTimersRef.current;
+      if (timers.has(sessionId)) clearTimeout(timers.get(sessionId).timer);
+      const refresh = () => setTypingUsers(Array.from(timers, ([id, entry]) => ({ sessionId: id, name: entry.name })));
+      const timer = setTimeout(() => { timers.delete(sessionId); refresh(); }, duration);
+      timers.set(sessionId, { timer, name: user.name || sessionId });
+      refresh();
+    };
     configureSession({
       sessionId: collab.sessionId,
       userName: collab.user.name,
@@ -73,17 +82,19 @@ export function useCollaboration(docId) {
     const offSnapshot = collab.on('snapshot', (data) => {
       if (!data) return;
       const documentState = data.document || {};
-      if (typeof documentState.content === 'string') {
-        const cleaned = stripAutoPageBreaks(documentState.content);
-        suppressNextContentBroadcast.current = cleaned;
-        useDocumentStore.getState().applyRemoteUpdate({ ...documentState, content: cleaned });
-        lastSentContent.current = cleaned;
-      }
-      if (Array.isArray(documentState.comments)) {
-        const key = commentsKey(documentState.comments);
-        suppressNextCommentBroadcast.current = key;
-        useDocumentStore.getState().replaceComments(documentState.comments);
-        lastSentComments.current = key;
+      const currentStore = useDocumentStore.getState();
+      if (!currentStore.isDirty) {
+        const patch = { ...documentState };
+        if (typeof patch.content === 'string') patch.content = stripAutoPageBreaks(patch.content);
+        const key = contentKey({ ...currentStore, ...patch });
+        suppressNextContentBroadcast.current = key;
+        currentStore.applyRemoteUpdate(patch);
+        lastSentContent.current = key;
+        if (Array.isArray(patch.comments)) {
+          const commentKey = commentsKey(patch.comments);
+          suppressNextCommentBroadcast.current = commentKey;
+          lastSentComments.current = commentKey;
+        }
       }
       setCollaborators(data.collaborators || []);
       if (Number.isFinite(Number(documentState.revision))) {
@@ -95,25 +106,7 @@ export function useCollaboration(docId) {
     const offPresence = collab.on('presence', (data) => {
       setCollaborators(data?.collaborators || []);
 
-      // Typing indicator: treat presence updates as activity for the sender.
-      try {
-        const remoteUser = data?.user || {};
-        const remoteSessionId = remoteUser?.id || remoteUser?.sessionId || data?.uid || remoteUser?.uid;
-        if (remoteSessionId && remoteSessionId !== collab.sessionId) {
-          const timers = typingTimersRef.current;
-          const key = remoteSessionId;
-          if (timers.has(key)) clearTimeout(timers.get(key));
-          const timeoutId = setTimeout(() => {
-            const nowTyping = Array.from(typingTimersRef.current.keys()).filter((k) => k !== key);
-            setTypingUsers(nowTyping.map((sid) => ({ sessionId: sid, name: sid })));
-          }, 1200);
-          timers.set(key, timeoutId);
-          const currentTyping = Array.from(timers.keys()).map((sid) => ({ sessionId: sid, name: sid }));
-          setTypingUsers(currentTyping);
-        }
-      } catch {
-        // ignore typing indicator errors
-      }
+      markTyping(data, 1200);
     });
 
 
@@ -124,26 +117,7 @@ export function useCollaboration(docId) {
       }
       const nextDocument = data.payload || {};
 
-      // Typing indicator: mark remote collaborator as typing briefly when changes arrive.
-      try {
-        const remoteUser = data?.user || {};
-        const remoteSessionId = remoteUser?.id || remoteUser?.sessionId || data?.uid || remoteUser?.uid;
-        if (remoteSessionId && remoteSessionId !== collab.sessionId) {
-          const timers = typingTimersRef.current;
-          const key = remoteSessionId;
-          if (timers.has(key)) clearTimeout(timers.get(key));
-          const timeoutId = setTimeout(() => {
-            const nowTyping = Array.from(typingTimersRef.current.keys()).filter((k) => k !== key);
-            setTypingUsers(nowTyping.map((sid) => ({ sessionId: sid, name: sid })));
-          }, 1800);
-          timers.set(key, timeoutId);
-
-          const currentTyping = Array.from(timers.keys()).map((sid) => ({ sessionId: sid, name: sid }));
-          setTypingUsers(currentTyping);
-        }
-      } catch {
-        // ignore typing indicator errors
-      }
+      markTyping(data, 1800);
 
       const currentStore = useDocumentStore.getState();
       const currentRevision = Number(currentStore.revision || 0);
@@ -159,34 +133,22 @@ export function useCollaboration(docId) {
         if (Number.isFinite(incomingRevision)) {
           setRevision(incomingRevision);
         }
-        if (Array.isArray(nextDocument.comments)) {
-          currentStore.replaceComments(nextDocument.comments);
-        }
         return;
       }
 
-      if (typeof nextDocument.content === 'string') {
-        const cleanedContent = stripAutoPageBreaks(nextDocument.content);
-        if (cleanedContent === currentContent) {
-          if (Number.isFinite(incomingRevision)) setRevision(incomingRevision);
-          return;
-        }
-        suppressNextContentBroadcast.current = cleanedContent;
-        currentStore.applyRemoteUpdate({ ...nextDocument, content: cleanedContent });
-        lastSentContent.current = cleanedContent;
-        setLastRemoteEditAt(new Date(nextDocument.updatedAt || Date.now()));
-      } else {
-        currentStore.applyRemoteUpdate(nextDocument);
-      }
+      const patch = { ...nextDocument };
+      if (typeof patch.content === 'string') patch.content = stripAutoPageBreaks(patch.content);
+      if (Number.isFinite(incomingRevision)) patch.revision = incomingRevision;
+      const key = contentKey({ ...currentStore, ...patch });
+      suppressNextContentBroadcast.current = key;
+      currentStore.applyRemoteUpdate(patch);
+      lastSentContent.current = key;
+      setLastRemoteEditAt(new Date(nextDocument.updatedAt || Date.now()));
 
       if (Array.isArray(nextDocument.comments)) {
         const key = commentsKey(nextDocument.comments);
         suppressNextCommentBroadcast.current = key;
-        currentStore.replaceComments(nextDocument.comments);
         lastSentComments.current = key;
-      }
-      if (Number.isFinite(incomingRevision)) {
-        setRevision(incomingRevision);
       }
     });
 
@@ -197,6 +159,10 @@ export function useCollaboration(docId) {
       const currentRevision = Number(useDocumentStore.getState().revision || 0);
       const incomingRevision = Number(data.payload?.revision ?? data.revision);
       if (Number.isFinite(incomingRevision) && incomingRevision <= currentRevision) return;
+      if (useDocumentStore.getState().isDirty) {
+        if (Number.isFinite(incomingRevision)) setRevision(incomingRevision);
+        return;
+      }
 
       const key = commentsKey(data.payload.comments);
       suppressNextCommentBroadcast.current = key;
@@ -227,7 +193,8 @@ export function useCollaboration(docId) {
       // CRITICAL: NEVER overwrite local content if user is currently editing or has uncommitted changes!
       // The user's typed changes must ALWAYS STAY!
       const currentContent = currentStore.content;
-      const editorHtml = editor ? editor.getHTML() : currentContent;
+      const activeEditor = useEditorStore.getState().editor;
+      const editorHtml = stripAutoPageBreaks(activeEditor ? activeEditor.getHTML() : currentContent);
 
       if (currentStore.isDirty || editorHtml !== (latestDocument?.content || '')) {
         // Re-broadcast local changes with the newly aligned revision so changes are persisted
@@ -241,7 +208,7 @@ export function useCollaboration(docId) {
             baseRevision: nextRevision,
             updatedAt: new Date().toISOString(),
           });
-          lastSentContent.current = editorHtml;
+          lastSentContent.current = contentKey({ ...currentStore, content: editorHtml });
         }, 150);
         return;
       }
@@ -250,9 +217,10 @@ export function useCollaboration(docId) {
       if (latestDocument && typeof latestDocument === 'object') {
         const cleanedContent = typeof latestDocument.content === 'string' ? stripAutoPageBreaks(latestDocument.content) : '';
         if (cleanedContent && cleanedContent !== currentContent) {
-          suppressNextContentBroadcast.current = cleanedContent;
+          const key = contentKey({ ...currentStore, ...latestDocument, content: cleanedContent });
+          suppressNextContentBroadcast.current = key;
           currentStore.applyRemoteUpdate({ ...latestDocument, content: cleanedContent });
-          lastSentContent.current = cleanedContent;
+          lastSentContent.current = key;
         }
       }
     });
@@ -270,7 +238,7 @@ export function useCollaboration(docId) {
       offConflict();
       collab.disconnect();
       resetCollaboration();
-      typingTimersRef.current.forEach((t) => clearTimeout(t));
+      typingTimersRef.current.forEach((entry) => clearTimeout(entry.timer));
       typingTimersRef.current.clear();
       setTypingUsers([]);
     };
@@ -280,23 +248,24 @@ export function useCollaboration(docId) {
   useEffect(() => {
     const collab = getCollab();
     if (!docId || !collab) return undefined;
-    if (suppressNextContentBroadcast.current === content) {
+    const key = contentKey({ content, title, trackChanges });
+    if (suppressNextContentBroadcast.current === key) {
       suppressNextContentBroadcast.current = null;
       return undefined;
     }
-    if (content === lastSentContent.current) return undefined;
+    if (key === lastSentContent.current) return undefined;
 
     clearTimeout(changeTimer.current);
     changeTimer.current = setTimeout(() => {
       collab.broadcastChange({
         title,
-        content,
+        content: stripAutoPageBreaks(content),
         comments: useDocumentStore.getState().comments,
         trackChanges,
         baseRevision: Number(useDocumentStore.getState().revision || 0),
         updatedAt: new Date().toISOString(),
       });
-      lastSentContent.current = content;
+      lastSentContent.current = key;
       setLastSyncedAt(new Date());
     }, CHANGE_DEBOUNCE_MS);
 

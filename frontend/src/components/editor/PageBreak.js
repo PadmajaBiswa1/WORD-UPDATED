@@ -12,6 +12,7 @@ export const PAGE_BORDER_WIDTH = 1;
 export const CONTENT_H = PAGE_H - MARGIN_Y * 2 - (PAGE_BORDER_WIDTH * 2); // usable per page
 
 const AUTO_PAGINATION_KEY = new PluginKey('etherxAutoPagination');
+export const isAutoPaginationTransaction = (transaction) => Boolean(transaction?.getMeta(AUTO_PAGINATION_KEY));
 
 export function stripAutoPageBreaks(html) {
   if (!html || typeof html !== 'string') return html || '';

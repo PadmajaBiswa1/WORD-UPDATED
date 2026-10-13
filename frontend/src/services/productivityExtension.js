@@ -134,6 +134,7 @@ export function executeShortcutCommand(commandId, context = {}) {
       return true;
     case 'cmd-save':
       if (typeof context.onSave === 'function') context.onSave();
+      else window.dispatchEvent(new CustomEvent('etherx-save-document'));
       return true;
     case 'cmd-print':
       printDocument();

@@ -18,5 +18,11 @@ module.exports = {
     },
   },
   plugins: ["react-hooks"],
+  rules: {
+    "no-dupe-args": "error",
+    "no-dupe-keys": "error",
+    "no-duplicate-imports": "error",
+    "no-unreachable": "error",
+  },
   ignorePatterns: ["dist", "node_modules"],
 };

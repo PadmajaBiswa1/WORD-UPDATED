@@ -76,9 +76,12 @@ export class CollabSocket {
     this.source = null;
     this.handlers = {};
     this.connected = false;
+    this.closed = false;
   }
 
   connect() {
+    if (this.source) return;
+    this.closed = false;
     const token = typeof window !== 'undefined' ? localStorage.getItem('etherx_token') : null;
     const params = new URLSearchParams({
       sessionId: this.sessionId,
@@ -115,6 +118,7 @@ export class CollabSocket {
   }
 
   async send(type, payload) {
+    if (this.closed) return null;
     try {
       const result = await publish(this.docId, {
         type,
@@ -148,8 +152,11 @@ export class CollabSocket {
   _emit(event, data) { (this.handlers[event] || []).forEach((fn) => fn(data)); }
 
   disconnect() {
+    if (this.closed) return;
     this.send('leave', {}).catch(() => {});
+    this.closed = true;
     this.source?.close();
+    this.source = null;
     this.connected = false;
     this.handlers = {};
   }
@@ -165,4 +172,4 @@ export const initCollab = (docId) => {
   _instance.connect();
   return _instance;
 };
-export const getCollab = () => _instance;
+export const getCollab = () => _instance?.closed ? null : _instance;

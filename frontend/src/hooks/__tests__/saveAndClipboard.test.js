@@ -4,6 +4,8 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { Blob as NodeBlob } from 'node:buffer';
 import { useAutoSave } from '../useAutoSave';
 import { useClipboardListener } from '../useClipboardListener';
+import { useKeyboardShortcuts } from '../useKeyboardShortcuts';
+import * as cryptoService from '@/services/crypto';
 import { useDocumentStore, useUIStore, useEditorStore, useProductivityStore } from '@/store';
 import { documentApi } from '@/services/api';
 import { DEFAULT_COMMANDS } from '@/components/toolbar/defaultCommands';
@@ -17,6 +19,7 @@ let save;
 function Harness() {
   save = useAutoSave().save;
   useClipboardListener();
+  useKeyboardShortcuts();
   return null;
 }
 beforeEach(() => {
@@ -27,7 +30,7 @@ beforeEach(() => {
   Object.defineProperty(window, 'localStorage', { value: local, configurable: true });
   useDocumentStore.getState().reset();
   useUIStore.setState({ autoSaveEnabled: false, toasts: [] });
-  useProductivityStore.setState({ clipboardHistory: [] });
+  useProductivityStore.setState({ clipboardHistory: [], customShortcuts: {} });
   root = createRoot(document.createElement('div'));
 });
 afterEach(async () => {
@@ -77,6 +80,100 @@ it('includes layout and pages in pagehide save', async () => {
   const payload = JSON.parse(fetch.mock.calls[0][1].body);
   expect(payload.layout).toEqual({ pageMargin: 'narrow' });
   expect(payload.pageCount).toBe(4);
+});
+
+it('beforeunload and pagehide publish only one exit save', async () => {
+  useDocumentStore.setState({ id: 'exit-test', content: '<p>Unsaved</p>', isDirty: true });
+  const fetch = vi.fn().mockResolvedValue({});
+  vi.stubGlobal('fetch', fetch);
+  await act(async () => root.render(React.createElement(Harness)));
+  window.dispatchEvent(new Event('beforeunload'));
+  expect(readLocalDraft('exit-test').content).toBe('<p>Unsaved</p>');
+  expect(fetch).not.toHaveBeenCalled();
+  window.dispatchEvent(new Event('pagehide'));
+  expect(fetch).toHaveBeenCalledTimes(1);
+});
+
+for (const [label, modifiers, customShortcuts] of [
+  ['default Save', { ctrlKey: true }, {}],
+  ['remapped Save', { ctrlKey: true, altKey: true }, { 'cmd-save': 'Ctrl+Alt+S' }],
+]) {
+  it(`${label} dispatches exactly one save`, async () => {
+    useDocumentStore.setState({ id: 'shortcut-save', isDirty: true });
+    useProductivityStore.setState({ customShortcuts });
+    const apiSave = vi.spyOn(documentApi, 'save').mockResolvedValue({ revision: 1 });
+    await act(async () => root.render(React.createElement(Harness)));
+    await act(async () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 's', ...modifiers, cancelable: true })));
+    expect(apiSave).toHaveBeenCalledTimes(1);
+  });
+}
+
+function deferred() {
+  let resolve;
+  let reject;
+  const promise = new Promise((res, rej) => { resolve = res; reject = rej; });
+  return { promise, resolve, reject };
+}
+
+it('an old save response cannot change the newly opened document revision or save state', async () => {
+  const request = deferred();
+  vi.spyOn(documentApi, 'save').mockReturnValue(request.promise);
+  useDocumentStore.setState({ id: 'old', content: '<p>Old</p>', isDirty: true });
+  await act(async () => root.render(React.createElement(Harness)));
+  let saving;
+  await act(async () => { saving = save({ manual: true }); });
+  await act(async () => useDocumentStore.setState({ id: 'new', content: '<p>New</p>', revision: 7, isSaving: true, isDirty: false }));
+  await act(async () => { request.resolve({ revision: 99 }); await saving; });
+  expect(useDocumentStore.getState()).toMatchObject({ id: 'new', revision: 7, content: '<p>New</p>', isSaving: true, isDirty: false });
+  expect(readLocalDraft('old')).toMatchObject({ content: '<p>Old</p>', isDirty: false });
+});
+
+it('a failed old save preserves its draft instead of copying another document into it', async () => {
+  const request = deferred();
+  vi.spyOn(documentApi, 'save').mockReturnValue(request.promise);
+  useDocumentStore.setState({ id: 'old-fail', content: '<p>Old draft</p>', isDirty: true });
+  await act(async () => root.render(React.createElement(Harness)));
+  let saving;
+  await act(async () => { saving = save({ manual: true }); });
+  await act(async () => useDocumentStore.setState({ id: 'new-open', content: '<p>Different document</p>', isDirty: false }));
+  await act(async () => { request.reject(new Error('Offline')); await saving; });
+  expect(readLocalDraft('old-fail')).toMatchObject({ content: '<p>Old draft</p>', isDirty: true });
+  expect(useDocumentStore.getState().content).toBe('<p>Different document</p>');
+});
+
+it('a completed old save preserves newer unsaved edits in its local draft', async () => {
+  const request = deferred();
+  vi.spyOn(documentApi, 'save').mockReturnValue(request.promise);
+  useDocumentStore.setState({ id: 'old-edit', content: '<p>Saved snapshot</p>', isDirty: true });
+  await act(async () => root.render(React.createElement(Harness)));
+  let saving;
+  await act(async () => { saving = save({ manual: true }); });
+  await act(async () => useDocumentStore.getState().setContent('<p>Newer draft</p>'));
+  await act(async () => useDocumentStore.setState({ id: 'other', content: '<p>Other</p>', isDirty: false }));
+  await act(async () => { request.resolve({ revision: 2 }); await saving; });
+  expect(readLocalDraft('old-edit')).toMatchObject({ content: '<p>Newer draft</p>', isDirty: true });
+});
+
+it('encrypted save metadata does not trigger another save', async () => {
+  const envelope = { encryptedPayload: 'encrypted', salt: 'salt', nonce: 'nonce', authTag: 'tag' };
+  vi.spyOn(cryptoService, 'encryptDocument').mockResolvedValue(envelope);
+  const apiSave = vi.spyOn(documentApi, 'save').mockResolvedValue({ revision: 1 });
+  useDocumentStore.setState({ id: 'protected', content: '<p>Secret</p>', security: { protected: true }, cryptoKey: 'test-passphrase', isDirty: true });
+  await act(async () => root.render(React.createElement(Harness)));
+  await act(async () => save({ manual: true }));
+  expect(apiSave).toHaveBeenCalledTimes(1);
+  expect(apiSave.mock.calls[0][1]).toMatchObject({ content: '', contentJson: null, security: envelope });
+  expect(useDocumentStore.getState()).toMatchObject({ isDirty: false, security: envelope });
+});
+
+it('encryption failure does not publish a stale encrypted payload as a successful save', async () => {
+  vi.spyOn(cryptoService, 'encryptDocument').mockRejectedValue(new Error('Encryption failed'));
+  const apiSave = vi.spyOn(documentApi, 'save').mockResolvedValue({});
+  useDocumentStore.setState({ id: 'protected-fail', content: '<p>Keep edits</p>', security: { protected: true, encryptedPayload: 'stale' }, cryptoKey: 'test-passphrase', isDirty: true });
+  await act(async () => root.render(React.createElement(Harness)));
+  await act(async () => save({ manual: true }));
+  expect(apiSave).not.toHaveBeenCalled();
+  expect(useDocumentStore.getState().isDirty).toBe(true);
 });
 
 it('replaces previous notification and does not dismiss newest with old timer', () => {
