@@ -1,4 +1,5 @@
 import { Editor } from '@tiptap/core';
+import { afterEach } from 'vitest';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import TextStyle from '@tiptap/extension-text-style';
@@ -11,8 +12,14 @@ import TableCell from '@tiptap/extension-table-cell';
 import TableHeader from '@tiptap/extension-table-header';
 import { SuggestInsert, SuggestDelete, CommentAnchor, Suggestions } from '@/ai/suggestions';
 
+const editors = new Set();
+afterEach(() => {
+  for (const editor of editors) if (!editor.isDestroyed) editor.destroy();
+  editors.clear();
+});
+
 export function createTestEditor(html) {
-  return new Editor({
+  const editor = new Editor({
     element: document.createElement('div'),
     extensions: [
       StarterKit,
@@ -27,4 +34,6 @@ export function createTestEditor(html) {
     ],
     content: html,
   });
+  editors.add(editor);
+  return editor;
 }

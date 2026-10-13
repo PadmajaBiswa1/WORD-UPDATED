@@ -515,7 +515,8 @@ async function extractImageBytes(src) {
     if (src.startsWith('data:image/')) {
       const parts = src.split(',');
       if (parts.length < 2) return null;
-      const binaryString = /;base64/i.test(parts[0]) ? atob(parts.slice(1).join(',')) : decodeURIComponent(parts.slice(1).join(','));
+      if (!/;base64/i.test(parts[0])) return new TextEncoder().encode(decodeURIComponent(parts.slice(1).join(',')));
+      const binaryString = atob(parts.slice(1).join(','));
       const len = binaryString.length;
       const bytes = new Uint8Array(len);
       for (let i = 0; i < len; i += 1) {
@@ -524,17 +525,28 @@ async function extractImageBytes(src) {
       return bytes;
     }
 
-    if (src.startsWith('http://') || src.startsWith('https://') || src.startsWith('blob:')) {
-      const res = await fetch(src);
+    // Uploads use /uploads/... in production and through Vite's proxy. Resolve
+    // paths exactly as the editor's <img> does, including document-relative URLs.
+    const url = new URL(src, document.baseURI);
+    if (['http:', 'https:', 'blob:'].includes(url.protocol)) {
+      const res = await fetch(url.href);
       if (!res.ok) return null;
       const buffer = await res.arrayBuffer();
-      return new Uint8Array(buffer);
+      return buffer.byteLength ? new Uint8Array(buffer) : null;
     }
   } catch (err) {
     console.warn('Could not extract image for DOCX export:', err?.message);
   }
 
   return null;
+}
+
+function isDocxRasterImage(bytes) {
+  const startsWith = (signature) => signature.every((byte, index) => bytes[index] === byte);
+  return startsWith([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]) // PNG
+    || startsWith([0xff, 0xd8, 0xff]) // JPEG
+    || startsWith([0x47, 0x49, 0x46, 0x38]) // GIF
+    || startsWith([0x42, 0x4d]); // BMP
 }
 
 /**
@@ -711,8 +723,10 @@ export async function buildDocxBlob(rawHtml, options = {}) {
 
   const loadNaturalSize = (src) => new Promise((resolve) => {
     const probe = new window.Image();
-    probe.onload = () => resolve({ w: probe.naturalWidth, h: probe.naturalHeight });
-    probe.onerror = () => resolve(null);
+    const finish = (size) => { clearTimeout(timer); resolve(size); };
+    const timer = setTimeout(() => finish(null), 15000);
+    probe.onload = () => finish({ w: probe.naturalWidth, h: probe.naturalHeight });
+    probe.onerror = () => finish(null);
     probe.src = src;
   });
 
@@ -720,16 +734,18 @@ export async function buildDocxBlob(rawHtml, options = {}) {
   await Promise.all(Array.from(div.querySelectorAll('img')).map(async (img) => {
     let src = img.getAttribute('src');
     if (!src) throw new Error('An image has no source');
-    const effects = src.includes('image/svg') || src.includes('image/webp') || img.style.filter || img.style.opacity;
-    if (effects) {
+    const bytes = await extractImageBytes(src);
+    if (!bytes?.length) throw new Error(`Image "${img.alt || 'Document image'}" could not be embedded. Check that its source is available.`);
+    // Detect the payload, not just its URL: uploaded SVG/WebP pictures can have
+    // ordinary paths or extensionless URLs and still need conversion for Word.
+    if (!isDocxRasterImage(bytes) || img.style.filter || img.style.opacity) {
       const raster = await rasterizeExportImage(src, { filter: img.style.filter, opacity: img.style.opacity });
       src = raster.src;
-      const bytes = await extractImageBytes(src);
-      if (!bytes) throw new Error('An image could not be embedded');
-      imageData.set(img, { bytes, natural: { w: raster.width, h: raster.height } });
+      const rasterBytes = await extractImageBytes(src);
+      if (!rasterBytes?.length) throw new Error('An image could not be embedded');
+      imageData.set(img, { bytes: rasterBytes, natural: { w: raster.width, h: raster.height } });
     } else {
-      const [bytes, natural] = await Promise.all([extractImageBytes(src), loadNaturalSize(src)]);
-      if (!bytes) throw new Error('An image could not be embedded');
+      const natural = await loadNaturalSize(src);
       imageData.set(img, { bytes, natural });
     }
   }));
