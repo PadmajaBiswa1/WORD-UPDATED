@@ -151,6 +151,7 @@ let isPaginating = false;
 // paragraph that would cross a page boundary, pushing it to the top of the next page.
 const INNER_BREAK_CLASS = 'etherx-inner-break';
 const INNER_BREAKS_META = 'etherxInnerBreaks';
+const PAGINATION_PENDING_CLASS = 'etherx-pagination-pending';
 const SPLITTABLE_BLOCKS = new Set(['table', 'bulletList', 'orderedList', 'taskList', 'blockquote']);
 const LEAF_SELECTOR = 'p, h1, h2, h3, h4, h5, h6, pre, img, hr, table';
 const MIN_SPLIT_SPACE = 72; // less room than this left on the page: start the block on the next one
@@ -965,6 +966,10 @@ export const PageBreak = Node.create({
           const heightCache = new Map();
 
           const schedule = (view, force = false) => {
+            if (!view || view.isDestroyed) return;
+            // The spacer still reserves flow height while fonts or edits move
+            // it, but its old masks must not paint over the new text layout.
+            view.dom.classList.add(PAGINATION_PENDING_CLASS);
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(() => {
               debounceTimer = null;
@@ -977,6 +982,8 @@ export const PageBreak = Node.create({
               if (paginateDocument(view, force ? null : heightCache)) {
                 heightCache.clear();
                 schedule(view, true);
+              } else {
+                view.dom.classList.remove(PAGINATION_PENDING_CLASS);
               }
             }, 100);
           };
@@ -1056,6 +1063,7 @@ export const PageBreak = Node.create({
             }
           };
           window.addEventListener('resize', onWindowResize, { passive: true });
+          window.addEventListener('image-drag-end', onWindowResize);
 
           // 6. UI Store subscription (page size, orientation, margin, columns, zoom)
           const storeUnsubscribe = useUIStore.subscribe((state, prevState) => {
@@ -1092,6 +1100,7 @@ export const PageBreak = Node.create({
               schedule(view);
             },
             destroy() {
+              editorView.dom.classList.remove(PAGINATION_PENDING_CLASS);
               clearTimeout(debounceTimer);
               clearTimeout(t1);
               clearTimeout(t2);
@@ -1104,6 +1113,7 @@ export const PageBreak = Node.create({
               }
               editorView.dom?.removeEventListener('load', onImgLoad, true);
               window.removeEventListener('resize', onWindowResize);
+              window.removeEventListener('image-drag-end', onWindowResize);
               storeUnsubscribe();
               docStoreUnsubscribe();
               heightCache.clear();

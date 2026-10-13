@@ -735,6 +735,7 @@ export function useImageResizeAndDrag(editor, editorRef) {
     // Pointer / mouse up
     const handlePointerUp = () => {
       const state = dragStateRef.current;
+      if (!state.img) return;
       if (state.img) {
         if (rafPendingRef.current) updateDragFrame();
         const moved = Math.abs(state.lastClientX - state.startX) + Math.abs(state.lastClientY - state.startY) > 3;

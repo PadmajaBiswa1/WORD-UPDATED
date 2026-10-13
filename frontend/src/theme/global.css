@@ -842,6 +842,10 @@ body.etherx-is-resizing img,
 }
 
 /* ── Prevent layout flicker on large docs ───────────────────── */
+.ProseMirror.etherx-pagination-pending .etherx-inner-break > div {
+  visibility: hidden;
+}
+
 .ProseMirror * {
   overflow-wrap: break-word;
   word-break:    break-word;

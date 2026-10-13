@@ -112,6 +112,84 @@ test('opening a new document creates one record despite StrictMode effect replay
   expect(creates).toBe(1);
 });
 
+for (const container of ['list', 'table-list', 'table-columns']) {
+test(`changing selected ${container} text fonts keeps text and page-gap masks aligned`, async ({ page }) => {
+  const items = Array.from({ length: 40 }, (_, i) => `<li><p>${i} ${itemText.repeat(2)}</p></li>`).join('');
+  const list = `<ol>${items}</ol>`;
+  const html = container === 'list' ? list : `<table><tr><td>${list}</td>${container === 'table-columns' ? `<td>${list}</td>` : ''}</tr></table>`;
+  await openEditor(page, html);
+  await expect.poll(() => layoutErrors(page)).toEqual([]);
+  await expect(page.locator('.tiptap.ProseMirror')).not.toHaveClass(/etherx-pagination-pending/);
+  let imageGesturesEnded = 0;
+  await page.exposeFunction('countImageGestureEnd', () => { imageGesturesEnded += 1; });
+  await page.evaluate(() => window.addEventListener('image-drag-end', window.countImageGestureEnd));
+  await page.locator('.tiptap.ProseMirror p').first().click();
+  expect(imageGesturesEnded).toBe(0);
+  const text = await page.locator('.tiptap.ProseMirror').textContent();
+  await page.evaluate(() => {
+    window.__gapErrors = [];
+    window.__gapTimer = setInterval(() => {
+      const frames = [...document.querySelectorAll('[data-etherx-page-surface="background"]')].map(el => el.getBoundingClientRect());
+      const pm = window.__ETHERX_EDITOR__.view.dom;
+      for (const band of pm.querySelectorAll('.etherx-inner-break > div')) {
+        if (getComputedStyle(band).visibility !== 'hidden' && band.style.background === 'var(--bg-app)' && !frames.some(frame => Math.abs(band.getBoundingClientRect().top - frame.bottom) < 3)) window.__gapErrors.push(band.getBoundingClientRect().top);
+      }
+    }, 20);
+  });
+  for (const [font, size] of [['Georgia', '12pt'], ['Courier New', '24pt'], ['Arial', '18pt'], ['Times New Roman', '8pt'], ['Georgia', '12pt']]) {
+    await page.evaluate(({ font, size }) => {
+      const editor = window.__ETHERX_EDITOR__;
+      let target;
+      editor.state.doc.descendants((node, pos) => {
+        if (node.type.name === 'paragraph' && node.textContent.startsWith('10 ')) target = { from: pos + 1, to: pos + 1 + node.content.size };
+      });
+      editor.chain().focus().setTextSelection(target).setFontFamily(font).setFontSize(size).run();
+    }, { font, size });
+    await page.evaluate(() => document.fonts.ready);
+    await expect.poll(() => layoutErrors(page), { message: `${font} ${size} keeps page boundaries aligned` }).toEqual([]);
+    await expect(page.locator('.tiptap.ProseMirror')).not.toHaveClass(/etherx-pagination-pending/);
+    expect(await page.locator('.tiptap.ProseMirror').textContent()).toBe(text);
+  }
+  expect(await page.evaluate(() => { clearInterval(window.__gapTimer); return window.__gapErrors; })).toEqual([]);
+});
+}
+
+test('floating font picker preserves imported question text across pagination and scrolling', async ({ page }) => {
+  await openEditor(page);
+  const children = Array.from({ length: 40 }, (_, i) => new Paragraph({
+    children: [new TextRun({ text: `Question ${i}: ${itemText.repeat(2)}`, size: 22 })],
+    bullet: { level: 0 }, spacing: { after: 100 },
+  }));
+  const buffer = await Packer.toBuffer(new Document({ sections: [{ children }] }));
+  await openDialog(page, 'importDocx');
+  await page.locator('input[type="file"][accept=".docx"]').setInputFiles({ name: 'questions.docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', buffer });
+  await expect(page.locator('.tiptap.ProseMirror li')).toHaveCount(40);
+  await expect.poll(() => layoutErrors(page)).toEqual([]);
+  const text = await page.locator('.tiptap.ProseMirror').textContent();
+  await page.locator('.tiptap.ProseMirror p').filter({ hasText: 'Question 10:' }).scrollIntoViewIfNeeded();
+  await page.evaluate(() => {
+    const editor = window.__ETHERX_EDITOR__;
+    let target;
+    editor.state.doc.descendants((node, pos) => {
+      if (node.type.name === 'paragraph' && node.textContent.startsWith('Question 10:')) target = { from: pos + 15, to: pos + node.content.size };
+    });
+    editor.chain().focus().setTextSelection(target).run();
+  });
+  await expect(page.locator('[data-toolbar-active="true"]')).toBeVisible();
+  await page.locator('[data-toolbar-active="true"]').getByTitle('Font Family', { exact: true }).click();
+  await page.locator('[data-select-menu="true"]').getByText('Georgia', { exact: true }).click();
+  await expect.poll(() => layoutErrors(page)).toEqual([]);
+  await expect(page.locator('.tiptap.ProseMirror')).not.toHaveClass(/etherx-pagination-pending/);
+  expect(await page.evaluate(() => window.__ETHERX_EDITOR__.state.selection.$from.parent.textContent)).toContain('Question 10:');
+  await expect(page.locator('.tiptap.ProseMirror p').filter({ hasText: 'Question 10:' }).locator('span[style*="Georgia"]')).toBeAttached();
+  for (const delta of [-300, 500, -200]) {
+    await page.locator('#editor-scroll-area').hover();
+    await page.mouse.wheel(0, delta);
+    await expect.poll(() => layoutErrors(page)).toEqual([]);
+    expect(await page.locator('.tiptap.ProseMirror').textContent()).toBe(text);
+  }
+});
+
 test('opening a multi-page document does not autosave page spacers as edits', async ({ page }) => {
   let saves = 0;
   page.on('request', (request) => {
