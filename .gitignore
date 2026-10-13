@@ -25,6 +25,11 @@ frontend/.env
 backend/data/*.json
 !backend/data/documents.json
 
-# Docs (kept local only)
-docs/
-/*.md
+# Only frontend/ and backend/ are published; everything else at the root stays local
+/*
+!/frontend/
+!/backend/
+!/.gitignore
+
+# Markdown stays local
+*.md
