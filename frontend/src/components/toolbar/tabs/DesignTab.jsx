@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useUIStore, useEditorStore, useDocumentStore } from '@/store';
 import { patchBlockStyle } from '@/utils/paragraphStyle';
+import { getThemeAppearance } from '@/utils/documentTheme';
 import { Modal, Button, Label, Stack, Input } from '@/components/ui';
 import { runImageTextCapture, runSmartSuggestions } from '@/utils/smartFeatures';
 import { RibbonGroup } from '../RibbonGroup';
@@ -432,19 +433,7 @@ export function DesignTab({ overlaysOnly = false }) {
   }, [designPopover]);
 
   const handleApplyTheme = (theme) => {
-    setDesign({
-      themeName: theme.name,
-      headingFont: theme.headingFont || theme.font,
-      bodyFont: theme.bodyFont || theme.font,
-      font: theme.bodyFont || theme.font,
-      accent: theme.accent,
-      heading: theme.heading,
-      subtle: theme.subtle,
-      spacing: theme.spacing,
-      pageColor: theme.pageColor,
-      effect: theme.effect,
-      pageColorMode: 'custom',
-    });
+    setDesign(getThemeAppearance(theme));
     toast(`Theme "${theme.name}" applied`, 'success');
   };
 
@@ -704,7 +693,7 @@ export function DesignTab({ overlaysOnly = false }) {
             }}
           >
             {THEMES.map((theme, idx) => {
-              const active = design.accent === theme.accent && (design.headingFont === theme.font || design.font === theme.font);
+              const active = design.themeName === theme.name;
               return (
                 <button
                   key={`${theme.name}-${idx}`}

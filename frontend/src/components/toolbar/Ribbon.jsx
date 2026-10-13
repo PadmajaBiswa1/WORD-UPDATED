@@ -14,6 +14,7 @@ import { ReviewTab } from './tabs/ReviewTab';
 import { TableFormatTab } from './tabs/TableFormatTab';
 import { isImageSelection } from '@/utils/imageSelection';
 import { isShapeSrc } from '@/utils/shapeUtils';
+import { getThemeAppearance } from '@/utils/documentTheme';
 import { runCommand } from './commandRegistry';
 import { FONT_SIZE_OPTIONS, fontFamilyChoice, useFontFormattingControls } from './fontFormatting.jsx';
 import { TabStripView, RibbonView } from '@/components/design/DesignViews';
@@ -292,7 +293,7 @@ export function Ribbon() {
       gallery: g.G ? DOCUMENT_THEMES.map((theme) => ({
         key: theme.name, name: theme.name, color: theme.accent, isTheme: true, isTable: false, w: '96px', cardBg: '#f3f0e8',
         border: design.themeName === theme.name ? 'var(--t31,#d6b25e)' : 'rgba(var(--ink,255,255,255),0.08)',
-        run: () => setDesign({ ...theme, themeName: theme.name, font: theme.bodyFont, pageColorMode: 'custom' }),
+        run: () => setDesign(getThemeAppearance(theme)),
       })) : [],
       fieldCols: chunk((g.F || []).map(([label, value]) => ({ key: label, label, value })), 2),
     };

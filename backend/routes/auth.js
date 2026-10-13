@@ -190,7 +190,7 @@ router.post('/signup', async (req, res) => {
       await OTP.findOneAndUpdate(
         { email: normalizedEmail, type: 'verify' },
         { otp, expiresAt: new Date(Date.now() + 10 * 60 * 1000) },
-        { upsert: true, new: true, setDefaultsOnInsert: true }
+        { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
       );
 
       return res.status(201).json({
@@ -298,7 +298,7 @@ router.post('/resend-otp', async (req, res) => {
       await OTP.findOneAndUpdate(
         { email: normalizedEmail, type },
         { otp, expiresAt: new Date(Date.now() + 10 * 60 * 1000) },
-        { upsert: true, new: true, setDefaultsOnInsert: true }
+        { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
       );
 
       return res.json({ message: 'OTP resent', otp });
@@ -427,7 +427,7 @@ router.post('/forgot-password', async (req, res) => {
       await OTP.findOneAndUpdate(
         { email: normalizedEmail, type: 'reset' },
         { otp, expiresAt: new Date(Date.now() + 10 * 60 * 1000) },
-        { upsert: true, new: true, setDefaultsOnInsert: true }
+        { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
       );
 
       return res.json({ message: 'If that email exists, an OTP has been sent.', otp });

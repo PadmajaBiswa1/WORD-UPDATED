@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { useUIStore, useEditorStore } from '@/store';
 import { Modal, Button, Input, Label, Stack } from '@/components/ui';
 import { uploadApi } from '@/services/api';
+import { insertDocumentImage } from '@/utils/insertDocumentImage';
 
 export function InsertImageDialog() {
    const { closeDialog, toast } = useUIStore();
@@ -15,7 +16,7 @@ export function InsertImageDialog() {
    const insertUrl = () => {
      if (!url.trim()) return;
      try {
-       editor?.chain().focus().setImage({ src: url.trim(), alt, width: '360' }).run();
+       if (!insertDocumentImage(editor, { src: url.trim(), alt, width: '360' })) throw new Error('Editor not ready');
        closeDialog('insertImage');
      } catch (err) {
        console.error('Error inserting image from URL:', err);
@@ -35,7 +36,7 @@ export function InsertImageDialog() {
        } catch {
          src = await fileToBase64(file);
        }
-       editor?.chain().focus().setImage({ src, alt: alt || file.name, width: '360' }).run();
+       if (!insertDocumentImage(editor, { src, alt: alt || file.name, width: '360' })) throw new Error('Editor not ready');
        closeDialog('insertImage');
      } catch (err) {
        console.error('Image upload/insert error:', err);

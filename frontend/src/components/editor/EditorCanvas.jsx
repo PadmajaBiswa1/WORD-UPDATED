@@ -67,6 +67,7 @@ export function EditorCanvas() {
   const collaborators = useCollaborationStore((s) => s.collaborators);
   const sessionId = useCollaborationStore((s) => s.sessionId);
   const scale     = zoom / 100;
+  const pageScale = scale * (720 / 794);
   const wrapRef   = useRef();
   const scrollRef = useRef();
   const rulerContainerRef = useRef(null);
@@ -169,16 +170,16 @@ export function EditorCanvas() {
   const layoutMetrics = useMemo(() => getLayoutMetrics({ size: pageSize, orientation: pageOrientation, margin: pageMargin }), [pageSize, pageOrientation, pageMargin]);
 
   const scaledDimensions = useMemo(() => ({
-    pageHeight: layoutMetrics.pageHeight * (720 / 794) * scale,
-    pageWidth: layoutMetrics.pageWidth * (720 / 794) * scale,
+    pageHeight: layoutMetrics.pageHeight * pageScale,
+    pageWidth: layoutMetrics.pageWidth * pageScale,
     padding: layoutMetrics.padding * (docEmpty ? (92 / 96) : (720 / 794)) * scale,
     naturalPadding: layoutMetrics.padding,
-    pageGap: PAGE_GAP * scale,
-    pageStep: (layoutMetrics.pageHeight * (720 / 794) + PAGE_GAP) * scale,
+    pageGap: PAGE_GAP * pageScale,
+    pageStep: (layoutMetrics.pageHeight + PAGE_GAP) * pageScale,
     contentHeight: Math.max(1, layoutMetrics.contentHeight - (PAGE_BORDER_WIDTH * 2)),
     scrollPaddingY: 12 * scale,
     scrollPaddingX: 20 * scale,
-  }), [layoutMetrics, scale, docEmpty]);
+  }), [layoutMetrics, scale, pageScale, docEmpty]);
 
   const borderMetrics = useMemo(() => {
     const isBorderConfigured = Boolean(
@@ -342,10 +343,9 @@ export function EditorCanvas() {
       proseEl.style.fontSize = `${Number(design.fontSize) || 12}pt`;
       proseEl.style.lineHeight = lineSpacing;
       proseEl.style.setProperty('--design-paragraph-gap', `${paragraphGap.toFixed(2)}em`);
-      proseEl.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach((h) => {
-        h.style.fontFamily = `'${headingFont}', serif`;
-        h.style.color = headingColor;
-      });
+      // Heading appearance comes from the CSS variables above. Mutating each
+      // heading's inline style makes ProseMirror save theme changes as edits
+      // and overwrites formatting imported from the document.
     }
 
     if (design.effect === 'soft') {

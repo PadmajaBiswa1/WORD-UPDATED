@@ -109,13 +109,13 @@ function measureBlock(view, node, pos) {
     // CSS-scaled (zoom and the 720/794 page fit), so on-screen rect heights are
     // smaller than layout px; using them let ~9% too much text onto each page,
     // spilling into the bottom margin and the gap between pages.
-    if (dom.offsetHeight > 0) {
-      height = dom.offsetHeight;
-    } else {
-      const rect = dom.getBoundingClientRect();
-      const ratio = view.dom.offsetHeight ? view.dom.getBoundingClientRect().height / view.dom.offsetHeight : 1;
-      if (Number.isFinite(rect.height) && rect.height > 0) height = Math.max(1, rect.height / (ratio || 1));
-    }
+    const rect = dom.getBoundingClientRect();
+    const editorRect = view.dom.getBoundingClientRect();
+    // Preserve fractional line heights: offsetHeight rounds every block, which
+    // accumulates into visible overflow in long imported documents.
+    const ratio = view.dom.offsetWidth ? editorRect.width / view.dom.offsetWidth : 1;
+    if (Number.isFinite(rect.height) && rect.height > 0) height = rect.height / (ratio || 1);
+    else if (dom.offsetHeight > 0) height = dom.offsetHeight;
     try {
       const cs = window.getComputedStyle(dom);
       marginTop = parseFloat(cs.marginTop) || 0;
@@ -194,10 +194,14 @@ function endSplitPass() {
 // Measures, in the real DOM, where each leaf of a splittable block lands and inserts temporary
 // spacers so no leaf crosses a page boundary. Coordinates are relative to the editor content top,
 // where page n's text area starts at n * pageStep.
-function planSplittable(view, blockEl, { pageStep, contentHeight, pageHeight, padding }) {
+function planSplittable(view, blockEl, { pageStep, contentHeight, pageHeight, padding, blockTop }) {
   const pmRect = view.dom.getBoundingClientRect();
-  const scale = pmRect.height / view.dom.offsetHeight || 1;
-  const yOf = (el) => (el.getBoundingClientRect().top - pmRect.top) / scale;
+  const scale = pmRect.width / view.dom.offsetWidth || 1;
+  // Earlier breaks still have their previous heights in the live DOM. Measure
+  // this block at its planned position, so every inner break uses the same
+  // layout as the top-level pass even immediately after a large import.
+  const adjustment = blockTop - (blockEl.getBoundingClientRect().top - pmRect.top) / scale;
+  const yOf = (el) => (el.getBoundingClientRect().top - pmRect.top) / scale + adjustment;
   const spacers = [];
   const leaves = collectLeaves(blockEl).map((leaf) => {
     const parent = leaf.parentNode;
@@ -233,7 +237,7 @@ function planSplittable(view, blockEl, { pageStep, contentHeight, pageHeight, pa
     // across the block's width, so cell borders don't run through it.
     const tempRect = temp.getBoundingClientRect();
     const boxRect = (blockEl.querySelector(':scope > table') || blockEl).getBoundingClientRect();
-    const tempTop = (tempRect.top - pmRect.top) / scale;
+    const tempTop = (tempRect.top - pmRect.top) / scale + adjustment;
     const contentBottom = pageTop + contentHeight;
     const sheetBottom = pageTop - padding + pageHeight;
     const mask = {
@@ -246,7 +250,7 @@ function planSplittable(view, blockEl, { pageStep, contentHeight, pageHeight, pa
     };
     spacers.push({ pos, height: Math.round(height2), mask });
   }
-  const bottom = (blockEl.getBoundingClientRect().bottom - pmRect.top) / scale;
+  const bottom = (blockEl.getBoundingClientRect().bottom - pmRect.top) / scale + adjustment;
   return { spacers, bottom };
 }
 
@@ -483,7 +487,13 @@ function paginateDocument(view, heightCache) {
       const nextBlock = sourceBlocks[index + 1];
       if (!isPageBreakNode(nextBlock.node)) {
         const nextMeasured = measureBlock(view, nextBlock.node, nextBlock.pos);
-        const nextProposedBottom = proposedBottom + Math.max(marginBottom, nextMeasured.marginTop) + nextMeasured.height;
+        // Keep the heading with the first item, not an entire multi-page list
+        // or table. The rest of that block can flow onto following pages.
+        const nextEl = SPLITTABLE_BLOCKS.has(nextBlock.node.type.name) ? getBlockDOM(view, nextBlock.pos) : null;
+        const firstLeaf = nextEl && collectLeaves(nextEl)[0];
+        const ratio = view.dom.getBoundingClientRect().width / (view.dom.offsetWidth || 1) || 1;
+        const nextHeight = firstLeaf ? firstLeaf.getBoundingClientRect().height / ratio : nextMeasured.height;
+        const nextProposedBottom = proposedBottom + Math.max(marginBottom, nextMeasured.marginTop) + nextHeight;
         keepWithNextOverflow = nextProposedBottom > pageContentLimit;
       }
     }
@@ -493,10 +503,10 @@ function paginateDocument(view, heightCache) {
     // otherwise the next pass (triggered by the resize) corrects it.
     const splittableEl = SPLITTABLE_BLOCKS.has(node.type.name) ? getBlockDOM(view, pos) : null;
     const splitHere = splittableEl && !fitsCurrentPage && pageContentLimit - proposedTop >= MIN_SPLIT_SPACE;
-    const placeSplittable = (fallbackBottom) => {
+    const placeSplittable = (fallbackBottom, blockTop = proposedTop) => {
       let plan = null;
       try {
-        plan = planSplittable(view, splittableEl, { pageStep, contentHeight, pageHeight, padding: pagePadding });
+        plan = planSplittable(view, splittableEl, { pageStep, contentHeight, pageHeight, padding: pagePadding, blockTop });
       } catch { plan = null; }
       if (!plan) return fallbackBottom;
       plan.spacers.forEach(({ pos: at, height, mask }) => innerSpacers.push({ pos: at, blockIndex: index, blockPos: pos, height, mask }));
@@ -528,7 +538,8 @@ function paginateDocument(view, heightCache) {
       const newPageBottom = newPageTop + nodeHeight;
 
       pushNode(node, index);
-      currentY = newPageBottom; // moved this pass: split it on the next pass, once it is there
+      currentY = splittableEl && nodeHeight > contentHeight ? placeSplittable(newPageBottom, newPageTop) : newPageBottom;
+      currentPage = Math.floor(currentY / pageStep);
       prevBottomMargin = marginBottom;
       pageHasContent = true;
     } else {
@@ -579,6 +590,7 @@ function paginateDocument(view, heightCache) {
       tr.setMeta('addToHistory', false);
       tr.setMeta(AUTO_PAGINATION_KEY, true);
       view.dispatch(tr);
+      return true;
     }
     return false;
   }
@@ -951,7 +963,14 @@ export const PageBreak = Node.create({
               debounceTimer = null;
               if (!view || view.isDestroyed) return;
               if (document.body.classList.contains('etherx-is-resizing')) return;
-              paginateDocument(view, force ? null : heightCache);
+              // Breaks move the blocks measured by the inner spacer pass. Run
+              // again after that DOM change even when ResizeObserver fires
+              // during applyPagination's guard and skips its notification.
+              if (isPaginating) { schedule(view, true); return; }
+              if (paginateDocument(view, force ? null : heightCache)) {
+                heightCache.clear();
+                schedule(view, true);
+              }
             }, 100);
           };
 

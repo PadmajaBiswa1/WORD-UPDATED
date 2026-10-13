@@ -611,7 +611,7 @@ async function updateDocument(id, input = {}, options = {}) {
   }
 
   try {
-    const updated = await Document.findOneAndUpdate({ id }, next, { new: true });
+    const updated = await Document.findOneAndUpdate({ id }, next, { returnDocument: 'after' });
     return updated ? normalizeDoc(updated.toObject()) : next;
   } catch (err) {
     console.warn('MongoDB update failed, saving to local store:', err.message);

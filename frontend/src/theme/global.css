@@ -611,6 +611,7 @@ body {
   max-width:100%;
   max-height: calc(var(--etherx-page-content-height, 1000px) - 24px);
   height:auto;
+  object-fit: contain;
   border-radius: var(--radius-sm);
   display: block;
   transition: all 0.1s ease;
@@ -636,6 +637,8 @@ body.etherx-is-resizing img,
 
 /* Tables */
 .ProseMirror table { border-collapse:collapse; width:100%; margin:1em 0; table-layout: fixed; }
+/* Include table margins in the wrapper measured by pagination. */
+.ProseMirror .tableWrapper { display: flow-root; }
 /* Word aligns cell content to the top by default (browsers default to middle). */
 .ProseMirror td, .ProseMirror th { vertical-align: top; }
 .ProseMirror table[align="center"],
@@ -803,7 +806,11 @@ body.etherx-is-resizing img,
 .ProseMirror {
   overflow-wrap: break-word;
   word-break:    break-word;
-  overflow-x:    hidden;
+  /* Floating pictures can sit below the last text block. Keep them visible
+     without creating a second, hidden vertical scroll area inside the editor. */
+  overflow-x:    clip;
+  overflow-y:    visible;
+  display:      flow-root;
   min-height:    100%;
 }
 

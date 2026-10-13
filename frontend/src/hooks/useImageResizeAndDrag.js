@@ -602,6 +602,9 @@ export function useImageResizeAndDrag(editor, editorRef) {
         document.body.classList.add('etherx-is-resizing');
         img.classList.add('etherx-is-resizing');
         document.body.style.cursor = DIR_CURSORS[dir] || 'default';
+        // Live geometry is committed once on release. Letting ProseMirror
+        // parse each preview mutation replaces the image DOM during the drag.
+        editor.view.domObserver.stop();
 
         if (dir === 'rot') {
           const rawRot = img.getAttribute('data-rotation') || '0';
@@ -645,6 +648,8 @@ export function useImageResizeAndDrag(editor, editorRef) {
           syncOverlayBounds(img, { w: initW, h: initH, isProportional: !event.shiftKey, rotation: null });
         }
 
+        dragStateRef.current.initialStyle = img.getAttribute('style') || '';
+
         window.dispatchEvent(new CustomEvent('image-drag-start'));
         return;
       }
@@ -653,8 +658,12 @@ export function useImageResizeAndDrag(editor, editorRef) {
       const img = event.target.closest?.('img');
       if (!img || !proseMirrorEl.contains(img)) return;
 
+      event.preventDefault();
+      event.stopPropagation();
+
       // Ensure the image is immediately selected in Tiptap
       selectImageNode(img);
+      editor.view.domObserver.stop();
 
       const rect = img.getBoundingClientRect();
       const computed = window.getComputedStyle(img);
@@ -671,6 +680,7 @@ export function useImageResizeAndDrag(editor, editorRef) {
         ...createIdleDragState(),
         isDragging: true,
         img,
+        initialStyle: img.getAttribute('style') || '',
         initialBounds: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
         startX: event.clientX,
         startY: event.clientY,
@@ -738,6 +748,7 @@ export function useImageResizeAndDrag(editor, editorRef) {
       }
 
       dragStateRef.current = createIdleDragState();
+      if (state.img && !editor.isDestroyed) editor.view.domObserver.start();
       window.dispatchEvent(new CustomEvent('image-drag-end'));
     };
 
@@ -752,13 +763,7 @@ export function useImageResizeAndDrag(editor, editorRef) {
         event.preventDefault();
         // Cancel active resize and restore original size
         if (state.img) {
-          state.img.style.width = `${state.initialWidth}px`;
-          state.img.style.height = `${state.initialHeight}px`;
-          state.img.style.marginLeft = `${state.initialMarginLeft}px`;
-          state.img.style.marginTop = `${state.initialMarginTop}px`;
-          if (state.isRotating) {
-            state.img.style.transform = state.initialRotation ? `rotate(${state.initialRotation}deg)` : '';
-          }
+          state.img.style.cssText = state.initialStyle || '';
           document.body.classList.remove('etherx-is-resizing');
           state.img.classList.remove('etherx-is-resizing');
           document.body.style.cursor = '';
@@ -766,6 +771,7 @@ export function useImageResizeAndDrag(editor, editorRef) {
           syncOverlayBounds(state.img);
         }
         dragStateRef.current = createIdleDragState();
+        editor.view.domObserver.start();
         window.dispatchEvent(new CustomEvent('image-drag-end'));
         return;
       }
@@ -878,6 +884,7 @@ export function useImageResizeAndDrag(editor, editorRef) {
       proseMirrorEl.removeEventListener('contextmenu', handleContextMenu);
 
       document.body.classList.remove('etherx-is-resizing');
+      if (!editor.isDestroyed) editor.view.domObserver.start();
       document.body.style.cursor = '';
       syncOverlayBounds(null);
       dragStateRef.current = createIdleDragState();

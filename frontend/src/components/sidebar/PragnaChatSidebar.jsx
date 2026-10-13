@@ -5,6 +5,7 @@ import { Sparkles, X, FileText, AlertTriangle, ArrowUp, PenLine, CheckCheck } fr
 import { useUIStore, useEditorStore, useDocumentStore } from '@/store';
 import { markdownToHtml } from '@/services/ai';
 import { aiApi, uploadApi } from '@/services/api';
+import { insertDocumentImage } from '@/utils/insertDocumentImage';
 import { useDocumentAgent } from '@/ai/useDocumentAgent';
 import { SuggestionReview } from './SuggestionReview';
 
@@ -58,12 +59,13 @@ function getFileBadge(name = '', type = '') {
   return 'FILE';
 }
 
-function readTextFile(file) {
+function readTextFile(file, asDataUrl = false) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => resolve(e.target?.result || '');
     reader.onerror = reject;
-    reader.readAsText(file);
+    if (asDataUrl) reader.readAsDataURL(file);
+    else reader.readAsText(file);
   });
 }
 
@@ -308,28 +310,15 @@ Ask me anything or attach files below.`,
       return false;
     }
     try {
-      const isDocEmpty = !editor.state.doc.textContent.trim();
-      if (isDocEmpty) {
-        editor.chain().focus().setContent(`<p><img src="${src}" alt="${alt || 'Image'}" width="480" /></p>`).run();
-      } else {
-        const ok = editor.chain().focus().setImage({ src, alt: alt || 'Image', width: '480' }).run();
-        if (!ok) {
-          editor.chain().focus().insertContent(`<p><img src="${src}" alt="${alt || 'Image'}" width="480" /></p>`).run();
-        }
+      if (!insertDocumentImage(editor, { src, alt: alt || 'Image', width: '480' })) {
+        throw new Error('Editor not ready');
       }
       toast('Image inserted into document', 'success');
       return true;
     } catch (err) {
-      console.warn('setImage warning, trying HTML insertContent fallback:', err);
-      try {
-        editor.chain().focus().insertContent(`<p><img src="${src}" alt="${alt || 'Image'}" width="480" /></p>`).run();
-        toast('Image inserted into document', 'success');
-        return true;
-      } catch (err2) {
-        console.error('Error inserting image:', err2);
-        toast('Failed to insert image', 'error');
-        return false;
-      }
+      console.error('Error inserting image:', err);
+      toast('Failed to insert image', 'error');
+      return false;
     }
   };
 
@@ -367,7 +356,9 @@ Ask me anything or attach files below.`,
       const isDocx = file.name.endsWith('.docx');
 
       if (isImg) {
-        const previewUrl = URL.createObjectURL(file);
+        // The same source can be saved in the document when upload is offline.
+        // Blob URLs stop working after refresh; embedded data URLs survive it.
+        const previewUrl = await readTextFile(file, true);
         const attObj = {
           id,
           name: file.name,

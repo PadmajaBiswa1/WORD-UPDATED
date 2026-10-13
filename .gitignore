@@ -12,6 +12,8 @@ frontend/dist/
 
 # Vite cache
 frontend/node_modules/.vite/
+frontend/test-results/
+frontend/playwright-report/
 
 # Environment files
 backend/.env
