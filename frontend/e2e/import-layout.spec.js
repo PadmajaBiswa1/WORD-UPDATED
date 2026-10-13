@@ -179,6 +179,17 @@ test('picture drag, resize, cancel and saved geometry remain stable below the la
   await page.keyboard.press('Escape');
   await page.mouse.up();
   await expect.poll(async () => (await imageGeometry(page, 'moving.svg')).top).toBeCloseTo(moved.top, 0);
+  const beforeCancel = await page.evaluate(() => window.__ETHERX_EDITOR__.getHTML());
+  await image.click();
+  expect(await page.evaluate(() => window.__ETHERX_EDITOR__.getHTML())).toBe(beforeCancel);
+  const cancelBox = await image.boundingBox();
+  await page.mouse.move(cancelBox.x + cancelBox.width / 2, cancelBox.y + cancelBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(cancelBox.x + cancelBox.width / 2 + 20, cancelBox.y + cancelBox.height / 2 + 40, { steps: 5 });
+  await page.evaluate(() => window.dispatchEvent(new PointerEvent('pointercancel')));
+  await page.mouse.up();
+  await expect.poll(async () => (await imageGeometry(page, 'moving.svg')).top).toBeCloseTo(moved.top, 0);
+  expect(await page.evaluate(() => window.__ETHERX_EDITOR__.getHTML())).toBe(beforeCancel);
   const handle = page.locator('[data-etherx-handle="se"]');
   await expect(handle).toBeVisible();
   const corner = await handle.boundingBox();
@@ -196,6 +207,67 @@ test('picture drag, resize, cancel and saved geometry remain stable below the la
   await page.keyboard.type(' Still editable.');
   await expect(page.locator('.tiptap.ProseMirror')).toContainText('Still editable.');
 });
+
+for (const container of ['list', 'table']) {
+test(`moving a picture inside a long ${container} keeps page gaps and surrounding text aligned`, async ({ page }) => {
+  const source = `data:image/svg+xml,${encodeURIComponent(svg)}`;
+  const items = Array.from({ length: 35 }, (_, i) => {
+    const content = `<p>${i} ${itemText.repeat(2)}</p>${i === 1 ? `<img src="${source}" alt="nested" width="240" height="150">` : ''}`;
+    return container === 'list' ? `<li>${content}</li>` : `<tr><td>${content}</td></tr>`;
+  }).join('');
+  const blocks = container === 'list' ? `<ul>${items}</ul>` : `<table><tbody>${items}</tbody></table>`;
+  await openEditor(page, `<p>Before the content.</p>${blocks}<p>After the content.</p>`);
+  await expect.poll(() => layoutErrors(page)).toEqual([]);
+  const image = page.locator('.tiptap.ProseMirror img[alt="nested"]');
+  const before = await imageGeometry(page, 'nested');
+  const text = await page.locator('.tiptap.ProseMirror').textContent();
+  const paragraphs = () => page.locator('.tiptap.ProseMirror p').evaluateAll((els) => els.map((el) => {
+    const rect = el.getBoundingClientRect();
+    const origin = el.closest('.ProseMirror').getBoundingClientRect();
+    return { top: rect.top - origin.top, height: rect.height };
+  }));
+  const originalParagraphs = await paragraphs();
+  const box = await image.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 55, box.y + box.height / 2 + 160, { steps: 15 });
+  await expect.poll(() => layoutErrors(page)).toEqual([]);
+  expect(await paragraphs()).toEqual(originalParagraphs);
+  await page.mouse.up();
+  await expect.poll(() => layoutErrors(page)).toEqual([]);
+  await expect.poll(async () => Math.abs((await imageGeometry(page, 'nested')).top - (before.top + 160 / (720 / 794)))).toBeLessThan(2);
+  expect(await page.locator('.tiptap.ProseMirror').textContent()).toBe(text);
+  expect(await image.evaluate((img) => img.parentElement.classList.contains('ProseMirror'))).toBe(true);
+  const dropped = await imageGeometry(page, 'nested');
+  await page.evaluate(() => window.__ETHERX_EDITOR__.commands.undo());
+  await expect.poll(() => layoutErrors(page)).toEqual([]);
+  await expect.poll(async () => Math.abs((await imageGeometry(page, 'nested')).top - before.top)).toBeLessThan(2);
+  expect(await image.evaluate((img) => img.parentElement.classList.contains('ProseMirror'))).toBe(false);
+  await page.evaluate(() => window.__ETHERX_EDITOR__.commands.redo());
+  await expect.poll(async () => (await imageGeometry(page, 'nested')).top).toBeCloseTo(dropped.top, 0);
+
+  for (const zoom of [50, 125]) {
+    await ui(page, { zoom });
+    await expect.poll(() => layoutErrors(page)).toEqual([]);
+    const previous = await imageGeometry(page, 'nested');
+    const box = await image.boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 + 15, box.y + box.height / 2 + 30, { steps: 5 });
+    await page.mouse.up();
+    await expect.poll(async () => (await imageGeometry(page, 'nested')).top).toBeCloseTo(previous.top + 30 / (zoom / 100 * 720 / 794), 0);
+    await expect.poll(() => layoutErrors(page)).toEqual([]);
+    expect(await page.locator('.tiptap.ProseMirror').textContent()).toBe(text);
+  }
+  const saved = await page.evaluate(() => window.__ETHERX_EDITOR__.getHTML());
+  const savedGeometry = await imageGeometry(page, 'nested');
+  await page.route('**/api/documents/layout-test', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'layout-test', title: 'Moved picture', content: saved }) }));
+  await page.reload();
+  await expect.poll(() => layoutErrors(page)).toEqual([]);
+  await expect.poll(async () => (await imageGeometry(page, 'nested')).top).toBeCloseTo(savedGeometry.top, 0);
+  await expect(page.locator(container === 'list' ? '.tiptap.ProseMirror li' : '.tiptap.ProseMirror tr')).toHaveCount(35);
+});
+}
 
 test('document themes preserve text, inline pictures and floating shapes across pages', async ({ page }) => {
   const source = `data:image/svg+xml,${encodeURIComponent(svg)}`;

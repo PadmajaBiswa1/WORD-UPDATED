@@ -614,7 +614,8 @@ body {
   object-fit: contain;
   border-radius: var(--radius-sm);
   display: block;
-  transition: all 0.1s ease;
+  /* Geometry must settle immediately so pagination and handles share one box. */
+  transition: filter 0.1s ease, border-radius 0.1s ease;
 }
 
 body.etherx-is-resizing,

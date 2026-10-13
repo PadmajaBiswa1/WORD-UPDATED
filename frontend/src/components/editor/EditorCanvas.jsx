@@ -244,6 +244,7 @@ export function EditorCanvas() {
   const recalcPages = useCallback(() => {
     clearTimeout(overflowTimer.current);
     overflowTimer.current = setTimeout(() => {
+      if (document.body.classList.contains('etherx-is-resizing')) return;
       const proseEl = wrapRef.current?.querySelector('.ProseMirror');
       if (!proseEl) return;
       const markerEls = wrapRef.current?.querySelectorAll('div[data-page-break="true"], .etherx-page-break');
@@ -279,6 +280,7 @@ export function EditorCanvas() {
   useEffect(() => {
     if (!editor) return;
     editor.on('update', recalcPages);
+    window.addEventListener('image-drag-end', recalcPages);
     const frame = requestAnimationFrame(recalcPages);
     // Content height also changes without document edits (pagination spacers, images loading).
     const proseEl = wrapRef.current?.querySelector('.ProseMirror');
@@ -287,6 +289,7 @@ export function EditorCanvas() {
     return () => {
       cancelAnimationFrame(frame);
       editor.off('update', recalcPages);
+      window.removeEventListener('image-drag-end', recalcPages);
       resizeObserver?.disconnect();
     };
   }, [editor, recalcPages]);

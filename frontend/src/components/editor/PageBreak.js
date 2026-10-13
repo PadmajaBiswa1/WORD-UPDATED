@@ -174,6 +174,8 @@ function collectLeaves(blockEl) {
   return Array.from(blockEl.querySelectorAll(LEAF_SELECTOR))
     .filter((el) => {
       if (el === ownTable || el.classList.contains(INNER_BREAK_CLASS)) return false;
+      // Floating content has no flow height and must never receive a spacer.
+      if (getComputedStyle(el).position === 'absolute') return false;
       const outer = el.parentElement?.closest(LEAF_SELECTOR);
       return !outer || !blockEl.contains(outer) || outer === ownTable;
     })
@@ -274,7 +276,7 @@ function spacerWidget(pos, height, mask) {
       band(mask.top + mask.margin + mask.gap, mask.next, pageFill);
     }
     return el;
-  }, { side: -1, key: `${INNER_BREAK_CLASS}-${height}-${mask ? Object.values(mask).join('/') : ''}`, ignoreSelection: true });
+  }, { side: -1, key: `${INNER_BREAK_CLASS}-${pos}-${height}-${mask ? Object.values(mask).join('/') : ''}`, ignoreSelection: true });
 }
 
 // Replace the document's blocks with the paginated ones and set the spacer
@@ -473,6 +475,10 @@ function paginateDocument(view, heightCache) {
     }
 
     const { height: nodeHeight, marginTop, marginBottom } = measured;
+    if (nodeHeight === 0) {
+      pushNode(node, index);
+      continue;
+    }
 
     // CSS margin collapsing with previous block on the same page
     const effectiveMarginTop = pageHasContent ? Math.max(prevBottomMargin, marginTop) : 0;

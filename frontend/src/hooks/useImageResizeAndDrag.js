@@ -3,6 +3,7 @@ import { getSelectedImageElement, isImageSelection } from '@/utils/imageSelectio
 import { useUIStore } from '@/store';
 import { getLayoutMetrics } from '@/utils/pageLayout';
 import { fitImageOnPage } from '@/utils/imagePagePlacement';
+import { NodeSelection } from '@tiptap/pm/state';
 
 const parseCssStyle = (style = '') => {
   const out = {};
@@ -413,7 +414,10 @@ export function useImageResizeAndDrag(editor, editorRef) {
       const width = Math.max(MIN_SIZE, Math.round(Number.parseFloat(img.style.width) || Number.parseFloat(computed.width) || img.offsetWidth));
       const height = Math.max(MIN_SIZE, Math.round(Number.parseFloat(img.style.height) || Number.parseFloat(computed.height) || img.offsetHeight));
 
-      const attrs = editor.getAttributes('image') || {};
+      const pos = editor.view.posAtDOM(img, 0);
+      const node = editor.state.doc.nodeAt(pos);
+      if (node?.type.name !== 'image') return;
+      const attrs = node.attrs;
       const css = parseCssStyle(attrs.style || '');
 
       css.width = `${width}px`;
@@ -436,11 +440,24 @@ export function useImageResizeAndDrag(editor, editorRef) {
 
       updateData.style = toCssStyle(css);
 
-      // Re-ensure selection is targeting this image
-      selectImageNode(img);
-
-      // Update Tiptap in one single atomic transaction
-      editor.chain().focus().updateAttributes('image', updateData).run();
+      // Floating coordinates belong to the document, not a positioned list or
+      // table cell. Lift nested pictures into the document in the same undo step.
+      const tr = editor.state.tr;
+      const $pos = tr.doc.resolve(pos);
+      let imagePos = pos;
+      if (state.pagePlaced && $pos.depth > 0) {
+        const anchor = $pos.after(1);
+        tr.delete(pos, pos + node.nodeSize);
+        imagePos = tr.mapping.map(anchor);
+        tr.insert(imagePos, node.type.create({ ...attrs, ...updateData }));
+      } else {
+        tr.setNodeMarkup(pos, null, { ...attrs, ...updateData });
+      }
+      tr.setSelection(NodeSelection.create(tr.doc, imagePos));
+      // Remove preview-only transforms before ProseMirror writes saved geometry.
+      img.style.cssText = state.initialStyle || '';
+      editor.view.dispatch(tr);
+      editor.view.focus();
 
       // Trigger recalculation of page breaks & layouts
       window.dispatchEvent(new CustomEvent('image-reposition-handles'));
@@ -481,7 +498,6 @@ export function useImageResizeAndDrag(editor, editorRef) {
           deg = Math.round(deg / 15) * 15;
         }
         img.style.transform = `rotate(${deg}deg)`;
-        img.setAttribute('data-rotation', String(deg));
         state.currentRotation = deg;
 
         syncOverlayBounds(img, { w: Math.round(state.initialWidth), h: Math.round(state.initialHeight), isProportional: true, rotation: deg });
@@ -561,11 +577,9 @@ export function useImageResizeAndDrag(editor, editorRef) {
 
         window.dispatchEvent(new CustomEvent('image-resize-live', { detail: { width: roundedW, height: roundedH } }));
       } else if (isDragging) {
-        // Dragging image body
-        const newMarginLeft = state.initialMarginLeft + deltaX;
-        const newMarginTop = state.initialMarginTop + deltaY;
-        img.style.marginLeft = `${newMarginLeft}px`;
-        img.style.marginTop = `${newMarginTop}px`;
+        // A visual translation leaves the original footprint and page spacers
+        // intact during the gesture. Margins would move every following block.
+        img.style.transform = `translate(${deltaX}px, ${deltaY}px) ${state.initialTransform || ''}`;
 
         syncOverlayBounds(img);
       }
@@ -573,7 +587,7 @@ export function useImageResizeAndDrag(editor, editorRef) {
 
     // Pointer down handler for handles & images
     const handlePointerDown = (event) => {
-      if (!editor.isEditable) return;
+      if (!editor.isEditable || event.button !== 0) return;
       // 1. Handle element clicked
       const handleEl = event.target.closest?.('[data-etherx-handle]');
       if (handleEl) {
@@ -607,7 +621,7 @@ export function useImageResizeAndDrag(editor, editorRef) {
         editor.view.domObserver.stop();
 
         if (dir === 'rot') {
-          const rawRot = img.getAttribute('data-rotation') || '0';
+          const rawRot = editor.getAttributes('image').rotate || '0';
           const initRot = parseInt(rawRot, 10) || 0;
           dragStateRef.current = {
             ...createIdleDragState(),
@@ -681,6 +695,7 @@ export function useImageResizeAndDrag(editor, editorRef) {
         isDragging: true,
         img,
         initialStyle: img.getAttribute('style') || '',
+        initialTransform: img.style.transform,
         initialBounds: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
         startX: event.clientX,
         startY: event.clientY,
@@ -730,7 +745,7 @@ export function useImageResizeAndDrag(editor, editorRef) {
           const fitted = fitImageOnPage({ ...state.initialBounds, left: state.initialBounds.left + state.lastClientX - state.startX, top: state.initialBounds.top + state.lastClientY - state.startY }, pages);
           const prose = proseMirrorEl.getBoundingClientRect();
           const scale = prose.width / proseMirrorEl.offsetWidth || state.scale;
-          Object.assign(state.img.style, { position: 'absolute', left: `${(fitted.left - prose.left) / scale}px`, top: `${(fitted.top - prose.top) / scale}px`, width: `${fitted.width / scale}px`, height: `${fitted.height / scale}px`, marginLeft: '0px', marginTop: '0px', zIndex: editor.getAttributes('image').wrap === 'behindText' ? '0' : '2' });
+          Object.assign(state.img.style, { position: 'absolute', left: `${(fitted.left - prose.left) / scale}px`, top: `${(fitted.top - prose.top) / scale}px`, width: `${fitted.width / scale}px`, height: `${fitted.height / scale}px`, marginLeft: '0px', marginTop: '0px', transform: state.initialTransform || '', zIndex: editor.getAttributes('image').wrap === 'behindText' ? '0' : '2' });
           state.pagePlaced = true;
         }
         document.body.classList.remove('etherx-is-resizing');
@@ -740,6 +755,7 @@ export function useImageResizeAndDrag(editor, editorRef) {
 
         hideDimensionLabel();
         if (!state.isDragging || moved) persistImageGeometry(state);
+        else state.img.style.cssText = state.initialStyle || '';
 
         requestAnimationFrame(() => {
           const img = getSelectedImageElement(editor);
@@ -752,6 +768,20 @@ export function useImageResizeAndDrag(editor, editorRef) {
       window.dispatchEvent(new CustomEvent('image-drag-end'));
     };
 
+    const cancelInteraction = () => {
+      const state = dragStateRef.current;
+      if (!state.img) return;
+      state.img.style.cssText = state.initialStyle || '';
+      document.body.classList.remove('etherx-is-resizing');
+      state.img.classList.remove('etherx-is-resizing');
+      document.body.style.cursor = '';
+      hideDimensionLabel();
+      syncOverlayBounds(state.img);
+      dragStateRef.current = createIdleDragState();
+      if (!editor.isDestroyed) editor.view.domObserver.start();
+      window.dispatchEvent(new CustomEvent('image-drag-end'));
+    };
+
     // Keyboard handlers (Escape to cancel, Delete/Backspace to remove)
     const handleKeyDown = (event) => {
       if (!editor.isEditable) return;
@@ -761,18 +791,7 @@ export function useImageResizeAndDrag(editor, editorRef) {
       const state = dragStateRef.current;
       if (event.key === 'Escape' && (state.isResizing || state.isRotating || state.isDragging)) {
         event.preventDefault();
-        // Cancel active resize and restore original size
-        if (state.img) {
-          state.img.style.cssText = state.initialStyle || '';
-          document.body.classList.remove('etherx-is-resizing');
-          state.img.classList.remove('etherx-is-resizing');
-          document.body.style.cursor = '';
-          hideDimensionLabel();
-          syncOverlayBounds(state.img);
-        }
-        dragStateRef.current = createIdleDragState();
-        editor.view.domObserver.start();
-        window.dispatchEvent(new CustomEvent('image-drag-end'));
+        cancelInteraction();
         return;
       }
 
@@ -856,7 +875,7 @@ export function useImageResizeAndDrag(editor, editorRef) {
     window.addEventListener('pointerdown', handlePointerDown, { capture: true });
     window.addEventListener('pointermove', handlePointerMove, { passive: true });
     window.addEventListener('pointerup', handlePointerUp);
-    window.addEventListener('pointercancel', handlePointerUp);
+    window.addEventListener('pointercancel', cancelInteraction);
     window.addEventListener('keydown', handleKeyDown);
     document.addEventListener('click', handleDocumentClick);
     proseMirrorEl.addEventListener('dragstart', handleNativeDragStart);
@@ -876,13 +895,14 @@ export function useImageResizeAndDrag(editor, editorRef) {
       window.removeEventListener('pointerdown', handlePointerDown, { capture: true });
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerUp);
-      window.removeEventListener('pointercancel', handlePointerUp);
+      window.removeEventListener('pointercancel', cancelInteraction);
       window.removeEventListener('keydown', handleKeyDown);
       document.removeEventListener('click', handleDocumentClick);
       proseMirrorEl.removeEventListener('dragstart', handleNativeDragStart);
       proseMirrorEl.removeEventListener('dblclick', handleDblClick);
       proseMirrorEl.removeEventListener('contextmenu', handleContextMenu);
 
+      cancelInteraction();
       document.body.classList.remove('etherx-is-resizing');
       if (!editor.isDestroyed) editor.view.domObserver.start();
       document.body.style.cursor = '';

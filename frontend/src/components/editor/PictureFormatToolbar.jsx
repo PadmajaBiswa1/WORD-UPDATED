@@ -102,6 +102,7 @@ export function PictureFormatToolbar({ editor, scrollContainerRef }) {
   }, [hideToolbar]);
 
   const showToolbar = useCallback(() => {
+    if (document.body.classList.contains('etherx-is-resizing')) return;
     if (!editor?.isEditable) { hideToolbar(); return; }
     if (!isImageSelection(editor)) {
       hideToolbar();
@@ -127,7 +128,7 @@ export function PictureFormatToolbar({ editor, scrollContainerRef }) {
   // off-screen in a corner, no matter how large the selected image is.
   const positionToolbar = useCallback(() => {
     const el = toolbarRef.current;
-    const currentAnchor = anchorRef.current;
+    const currentAnchor = getImageBounds(editor) || anchorRef.current;
     if (!el || !currentAnchor) return;
 
     const viewportW = window.innerWidth;
@@ -205,7 +206,7 @@ export function PictureFormatToolbar({ editor, scrollContainerRef }) {
     boxTop = Math.min(Math.max(boxTop, PADDING), maxTop);
 
     setStyle({ top: boxTop, left: boxLeft, maxWidth, maxHeight, placement });
-  }, []);
+  }, [editor]);
 
   // Measure + reposition whenever the toolbar's actual rendered size changes
   // (covers async icon loads, font swaps, content changes — not just mount).
@@ -225,7 +226,7 @@ export function PictureFormatToolbar({ editor, scrollContainerRef }) {
       observer.disconnect();
       cancelAnimationFrame(raf);
     };
-  }, [mounted, positionToolbar]);
+  }, [mounted, positionToolbar, isImageOperationActive]);
 
   useEffect(() => {
     if (!editor) return undefined;
