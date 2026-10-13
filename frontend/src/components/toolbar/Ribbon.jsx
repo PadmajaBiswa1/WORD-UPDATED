@@ -245,7 +245,6 @@ export function Ribbon() {
     openShare: () => openDialog('shareDoc'),
     togglePragna: toggleCopilot,
     pragnaOpen: copilotOpen,
-    pragnaBtnBg: copilotOpen ? 'rgba(212,175,55,0.12)' : 'rgba(212,175,55,0.06)',
   };
 
   const tool = ([icon, label, id, isOn]) => {

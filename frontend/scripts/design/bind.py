@@ -51,7 +51,7 @@ bind('<button title="Editing mode" style="height:30px;',
 bind('<button style="height:30px;padding:0 14px;border:0;border-radius:8px;background:linear-gradient(135deg,#e5c76b 0%,#d4af37 50%,#b8860b 100%);color:#1a1405;font-weight:600;font-size:12.5px;cursor:pointer;display:flex;align-items:center;gap:6px" style-hover="background:var(--t32,#e3c378)"><i class="icon-share-2"',
      '<button title="Share" sc-camel-on-click="{{ openShare }}" style="height:30px;padding:0 14px;border:0;border-radius:8px;background:linear-gradient(135deg,#e5c76b 0%,#d4af37 50%,#b8860b 100%);color:#1a1405;font-weight:600;font-size:12.5px;cursor:pointer;display:flex;align-items:center;gap:6px" style-hover="background:var(--t32,#e3c378)"><i class="icon-share-2"')
 bind('<button sc-camel-on-click="{{ togglePragna }}" title="Pragna" style="height:30px;padding:0 12px;border:1px solid rgba(212,175,55,0.3);background:rgba(212,175,55,0.06);',
-     '<button sc-camel-on-click="{{ togglePragna }}" title="Pragna" aria-pressed="{{ pragnaOpen }}" style="height:30px;padding:0 12px;border:1px solid rgba(212,175,55,0.3);background:{{ pragnaBtnBg }};')
+     '<button sc-camel-on-click="{{ togglePragna }}" title="Pragna" aria-pressed="{{ pragnaOpen }}" style="height:30px;padding:0 12px;border:0;background:transparent;')
 
 # ── Home ribbon ──────────────────────────────────────────────────────
 bind('<div style="height:26px;width:136px;padding:0 8px;box-sizing:border-box;border-radius:6px;background:var(--t10,#1a1a1d);border:1px solid rgba(var(--ink,255,255,255),0.06);display:flex;align-items:center;justify-content:space-between;font-size:14px;font-family:Lora,serif;color:var(--t20,#e8e6e1)">Lora<i class="icon-chevron-down" style="font-size:12px;color:var(--t28,#6f6d68)"></i></div>',

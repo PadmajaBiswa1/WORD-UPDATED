@@ -7,121 +7,121 @@
  {
   "name": "TabStripView",
   "start": 5341,
-  "end": 9050
+  "end": 9013
  },
  {
   "name": "RibbonView",
-  "start": 9141,
-  "end": 28374
+  "start": 9104,
+  "end": 28337
  },
  {
   "name": "NavPaneView",
-  "start": 28456,
-  "end": 30937
+  "start": 28419,
+  "end": 30900
  },
  {
   "name": "CanvasView",
-  "start": 30943,
-  "end": 38001
+  "start": 30906,
+  "end": 37964
  },
  {
   "name": "PragnaPanelView",
-  "start": 38007,
-  "end": 50541
+  "start": 37970,
+  "end": 50504
  },
  {
   "name": "StatusBarView",
-  "start": 50572,
-  "end": 53933
+  "start": 50535,
+  "end": 53896
  },
  {
   "name": "ToastView",
-  "start": 53937,
-  "end": 54718
+  "start": 53900,
+  "end": 54681
  },
  {
   "name": "BackstageNavView",
-  "start": 54847,
-  "end": 57185
+  "start": 54810,
+  "end": 57148
  },
  {
   "name": "CanvasStartersView",
-  "start": 33750,
-  "end": 35000
+  "start": 33713,
+  "end": 34963
  },
  {
   "name": "CanvasStartersLightView",
-  "start": 36612,
-  "end": 37811
+  "start": 36575,
+  "end": 37774
  },
  {
   "name": "BackstageHomeView",
-  "start": 57237,
-  "end": 63782
+  "start": 57200,
+  "end": 63745
  },
  {
   "name": "BackstageNewView",
-  "start": 63783,
-  "end": 65556
+  "start": 63746,
+  "end": 65519
  },
  {
   "name": "BackstageOpenView",
-  "start": 65557,
-  "end": 69488
+  "start": 65520,
+  "end": 69451
  },
  {
   "name": "BackstageSaveView",
-  "start": 69489,
-  "end": 72591
+  "start": 69452,
+  "end": 72554
  },
  {
   "name": "BackstageSaveAsView",
-  "start": 72592,
-  "end": 76903
+  "start": 72555,
+  "end": 76866
  },
  {
   "name": "BackstagePrintView",
-  "start": 76904,
-  "end": 80498
+  "start": 76867,
+  "end": 80461
  },
  {
   "name": "BackstageExportView",
-  "start": 80499,
-  "end": 84676
+  "start": 80462,
+  "end": 84639
  },
  {
   "name": "BackstageShareView",
-  "start": 84677,
-  "end": 88973
+  "start": 84640,
+  "end": 88936
  },
  {
   "name": "BackstageInfoView",
-  "start": 88974,
-  "end": 91232
+  "start": 88937,
+  "end": 91195
  },
  {
   "name": "BackstageStatsView",
-  "start": 91233,
-  "end": 92240
+  "start": 91196,
+  "end": 92203
  },
  {
   "name": "BackstagePragnaView",
-  "start": 92241,
-  "end": 94755
+  "start": 92204,
+  "end": 94718
  },
  {
   "name": "BackstagePlansView",
-  "start": 94756,
-  "end": 98255
+  "start": 94719,
+  "end": 98218
  },
  {
   "name": "BackstageAdminView",
-  "start": 98256,
-  "end": 102367
+  "start": 98219,
+  "end": 102330
  },
  {
   "name": "BackstageSettingsView",
-  "start": 102368,
-  "end": 104524
+  "start": 102331,
+  "end": 104487
  }
 ]

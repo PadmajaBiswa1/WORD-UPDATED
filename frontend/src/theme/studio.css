@@ -14,10 +14,11 @@ button:disabled:hover { filter: none !important; }
 .etherx-studio[data-focus="true"] > .etherx-ribbon,
 .etherx-studio[data-focus="true"] .page-sidebar-container,
 .etherx-studio[data-focus="true"] .pragna-sidebar-container { display: none !important; }
-.etherx-top-bar { border-bottom: 0; }
+.etherx-top-bar { border-bottom: 0; height: 56px !important; }
 .studio-doc-title { min-width: 0; }
 .studio-brand, .file-brand { display: grid; place-items: center; flex: none; padding: 0; border: 0; background: transparent; cursor: pointer; }
-.studio-brand svg { display: block; width: 116px; height: 34px; }
+.studio-brand { margin-right: 8px; padding-right: 18px !important; border-right: 1px solid rgba(var(--ink), .1) !important; height: 36px; }
+.studio-brand svg { display: block; width: 154px; height: 46px; }
 .file-brand { margin: 0 16px 18px; align-self: flex-start; }
 .file-brand svg { display: block; width: 156px; height: 52px; }
 .etherx-tab-strip { min-width: 0; }
@@ -33,7 +34,10 @@ button:disabled:hover { filter: none !important; }
 .studio-setting-row { display: flex; align-items: center; gap: 20px; padding: 12px 0; }
 .studio-setting-row input { accent-color: var(--gold); width: 18px; height: 18px; }
 .studio-loading { min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: var(--bg-app); color: var(--text-secondary); }
-.studio-loading-mark { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; background: var(--gold); color: var(--text-on-gold); font: 32px Georgia, serif; }
+.studio-loading-logo { width: 180px; height: auto; filter: drop-shadow(0 6px 24px rgba(212,175,55,.18)); animation: studio-loading-pulse 1.6s ease-in-out infinite; }
+@keyframes studio-loading-pulse { 50% { opacity: .55; transform: scale(.97); } }
+.studio-loading[role="alert"] .studio-loading-logo { animation: none; }
+@media (prefers-reduced-motion: reduce) { .studio-loading-logo { animation: none; } }
 .studio-loading a { color: var(--gold); }
 .hp-page .hp-card:hover { background: var(--bg-hover) !important; }
 .hp-page h1 { color: var(--text-primary) !important; font-family: Lora, Georgia, serif; font-weight: 400 !important; }

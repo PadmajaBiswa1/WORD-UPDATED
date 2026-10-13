@@ -1,6 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
 //  EditorPage — Main editor layout
 // ═══════════════════════════════════════════════════════════════
+import EtherxWordLogo from '@/components/brand/EtherxWordLogo';
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { TitleBar }       from '@/components/editor/TitleBar';
@@ -220,7 +221,7 @@ export function EditorPage({ isShared = false }) {
 
   if (loadError || (routeId && routeId !== 'new' && readyDocId !== routeId)) {
     return <div className="studio-loading" role={loadError ? 'alert' : 'status'}>
-      <div className="studio-loading-mark" aria-hidden="true">X</div>
+      <EtherxWordLogo className="studio-loading-logo" title="EtherX Word" />
       <p>{loadError || 'Opening your document…'}</p>
       {loadError && <a href="/home">Return to documents</a>}
     </div>;
