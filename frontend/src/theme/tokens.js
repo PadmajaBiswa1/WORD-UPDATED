@@ -97,6 +97,10 @@ export function applyDesignTheme(mode = getUiTheme()) {
     '--gold-border': 'rgba(184,134,11,0.4)', '--text-on-gold': '#211905',
     '--shadow-page': dark ? '0 16px 48px rgba(0,0,0,0.3)' : '0 16px 48px rgba(50,40,20,0.1)',
     '--shadow-lg': dark ? '0 12px 40px rgba(0,0,0,0.5)' : '0 12px 40px rgba(50,40,20,0.14)',
+    '--popup-bg': 'var(--t4)', '--popup-input-bg': 'var(--t3)',
+    '--popup-border': 'rgba(var(--ink),0.16)',
+    '--popup-backdrop': dark ? 'rgba(3,3,3,0.52)' : 'rgba(42,36,21,0.24)',
+    '--popup-shadow': dark ? '0 24px 80px rgba(0,0,0,0.55)' : '0 24px 80px rgba(50,40,20,0.18)',
   };
   Object.entries(shared).forEach(([key, value]) => root.style.setProperty(key, value));
   // Page paper and document ink follow the design's paperDark / paperLight.

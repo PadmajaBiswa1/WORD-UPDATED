@@ -208,13 +208,14 @@ export function ImageContextMenu({
       />
       <div
         ref={menuRef}
+        className="studio-popover"
         style={{
           position: 'fixed',
           left,
           top,
           width: menuWidth,
-          background: 'rgba(24, 24, 24, 0.98)',
-          border: '1px solid var(--border-gold)',
+          background: 'var(--popup-bg)',
+          border: '1px solid var(--popup-border)',
           borderRadius: 8,
           boxShadow: '0 8px 24px rgba(0,0,0,0.55)',
           backdropFilter: 'blur(12px)',
@@ -248,8 +249,8 @@ export function ImageContextMenu({
                 left: menuWidth - 6,
                 top: 0,
                 width: 170,
-                background: 'rgba(24, 24, 24, 0.98)',
-                border: '1px solid var(--border-gold)',
+                background: 'var(--popup-bg)',
+                border: '1px solid var(--popup-border)',
                 borderRadius: 8,
                 padding: 4,
                 boxShadow: '0 8px 20px rgba(0,0,0,0.5)',
@@ -378,8 +379,8 @@ export function ImageContextMenu({
                 left: menuWidth - 6,
                 top: 70,
                 width: 150,
-                background: 'rgba(24, 24, 24, 0.98)',
-                border: '1px solid var(--border-gold)',
+                background: 'var(--popup-bg)',
+                border: '1px solid var(--popup-border)',
                 borderRadius: 8,
                 padding: 4,
                 boxShadow: '0 8px 20px rgba(0,0,0,0.5)',

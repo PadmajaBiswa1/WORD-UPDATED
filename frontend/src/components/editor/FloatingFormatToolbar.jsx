@@ -538,6 +538,7 @@ export function FloatingFormatToolbar({ editor, scrollContainerRef }) {
         >
           <div
             data-toolbar-active="true"
+            className="studio-popover"
             onMouseDown={(event) => {
               if (isFocusableFormField(event.target)) return;
               event.preventDefault();
@@ -783,7 +784,7 @@ export function FloatingFormatToolbar({ editor, scrollContainerRef }) {
               background: !currentTextColor || currentTextColor === '#F5F1E8' ? 'rgba(212, 175, 55, 0.15)' : 'transparent',
               border: '1px solid rgba(212, 175, 55, 0.3)',
               borderRadius: 4,
-              color: '#F5F1E8',
+              color: 'var(--text-primary)',
               fontSize: 11,
               cursor: 'pointer',
               fontFamily: 'var(--font-ui)',
@@ -873,7 +874,7 @@ export function FloatingFormatToolbar({ editor, scrollContainerRef }) {
               background: !currentHighlight ? 'rgba(212, 175, 55, 0.15)' : 'transparent',
               border: '1px solid rgba(212, 175, 55, 0.3)',
               borderRadius: 4,
-              color: '#F5F1E8',
+              color: 'var(--text-primary)',
               fontSize: 11,
               cursor: 'pointer',
               fontFamily: 'var(--font-ui)',

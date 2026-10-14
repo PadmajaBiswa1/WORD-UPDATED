@@ -3,8 +3,9 @@
 // ═══════════════════════════════════════════════════════════════
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Check, X, ShieldCheck, Zap, ArrowRight, Lock } from 'lucide-react';
+import { Sparkles, Check, X, ShieldCheck, Zap } from 'lucide-react';
 import { useSubscriptionStore } from '@/store';
+import { Modal } from '@/components/ui';
 import { SUBSCRIPTION_TIERS } from '@/config/subscriptionTiers';
 
 export function UpgradeModal() {
@@ -36,103 +37,24 @@ export function UpgradeModal() {
   };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 99999,
-        background: 'rgba(5, 7, 10, 0.85)',
-        backdropFilter: 'blur(8px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 20,
-        fontFamily: 'var(--font-ui, Inter, sans-serif)',
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) closeUpgradeModal();
-      }}
-    >
-      <div
-        style={{
-          background: '#121316',
-          border: '1px solid #2a2c33',
-          borderRadius: 16,
-          width: '100%',
-          maxWidth: 780,
-          maxHeight: '92vh',
-          overflowY: 'auto',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.85), 0 0 25px rgba(201, 168, 76, 0.15)',
-          color: '#f4f4f5',
-          padding: 32,
-          position: 'relative',
-        }}
-      >
-        {/* Close button */}
-        <button
-          onClick={closeUpgradeModal}
-          style={{
-            position: 'absolute',
-            top: 20,
-            right: 20,
-            background: 'transparent',
-            border: 'none',
-            color: '#71717a',
-            cursor: 'pointer',
-            padding: 6,
-            borderRadius: 6,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = '#27272a'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = '#71717a'; e.currentTarget.style.background = 'transparent'; }}
-        >
-          <X size={20} />
-        </button>
-
-        {/* Header with trigger reason */}
-        <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            background: 'rgba(201, 168, 76, 0.12)',
-            border: '1px solid rgba(201, 168, 76, 0.3)',
-            color: '#c9a84c',
-            padding: '4px 12px',
-            borderRadius: 20,
-            fontSize: 12,
-            fontWeight: 600,
-            marginBottom: 12,
-          }}>
-            {upgradeReason ? <Lock size={13} /> : <Zap size={13} />}
-            {upgradeReason ? 'Feature Locked' : 'Plans & Pricing'}
-          </div>
-          <h2 style={{ fontSize: 24, fontWeight: 700, margin: '0 0 8px 0', color: '#ffffff' }}>
-            {upgradeReason ? 'Unlock the Full Power of EtherX Word' : 'EtherX Word Plans & Pricing'}
-          </h2>
-          <p style={{ fontSize: 13, color: '#a1a1aa', margin: 0, maxWidth: 540, marginLeft: 'auto', marginRight: 'auto' }}>
-            {upgradeReason || 'Choose the perfect plan for your writing and collaboration needs.'}
-          </p>
-        </div>
-
+    <Modal title="Plans & pricing" icon={Zap} width={780} onClose={closeUpgradeModal}
+      description={upgradeReason || 'Choose a plan for your writing and collaboration needs.'}>
         {/* Billing Cycle Toggle */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 28 }}>
           <div style={{
             display: 'flex',
-            background: '#1c1d22',
+            background: 'var(--popup-input-bg)',
             padding: 4,
             borderRadius: 10,
-            border: '1px solid #27272a',
+            border: '1px solid var(--border-strong)',
             alignItems: 'center',
           }}>
             <button
               onClick={() => setBillingCycle('monthly')}
               style={{
-                background: billingCycle === 'monthly' ? '#2e3038' : 'transparent',
+                background: billingCycle === 'monthly' ? 'var(--bg-hover)' : 'transparent',
                 border: 'none',
-                color: billingCycle === 'monthly' ? '#ffffff' : '#a1a1aa',
+                color: billingCycle === 'monthly' ? 'var(--text-primary)' : 'var(--text-secondary)',
                 padding: '7px 16px',
                 borderRadius: 7,
                 fontSize: 12,
@@ -146,9 +68,9 @@ export function UpgradeModal() {
             <button
               onClick={() => setBillingCycle('yearly')}
               style={{
-                background: billingCycle === 'yearly' ? '#2e3038' : 'transparent',
+                background: billingCycle === 'yearly' ? 'var(--bg-hover)' : 'transparent',
                 border: 'none',
-                color: billingCycle === 'yearly' ? '#c9a84c' : '#a1a1aa',
+                color: billingCycle === 'yearly' ? 'var(--gold)' : 'var(--text-secondary)',
                 padding: '7px 16px',
                 borderRadius: 7,
                 fontSize: 12,
@@ -163,8 +85,8 @@ export function UpgradeModal() {
               Annual Billing
               <span style={{
                 fontSize: 10,
-                background: 'rgba(201, 168, 76, 0.2)',
-                color: '#c9a84c',
+                background: 'var(--gold-dim)',
+                color: 'var(--gold)',
                 padding: '1px 6px',
                 borderRadius: 4,
                 fontWeight: 700,
@@ -176,11 +98,11 @@ export function UpgradeModal() {
         </div>
 
         {/* Two Tier Cards Side by Side */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
+        <div className="upgrade-plan-grid">
           {/* Basic Tier Card */}
           <div style={{
-            background: '#18191e',
-            border: targetTier === 'basic' ? '1px solid #4fc3f7' : '1px solid #27272a',
+            background: 'var(--popup-input-bg)',
+            border: targetTier === 'basic' ? '1px solid var(--gold)' : '1px solid var(--border-strong)',
             borderRadius: 12,
             padding: 24,
             display: 'flex',
@@ -189,12 +111,12 @@ export function UpgradeModal() {
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
               <div>
-                <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: '#ffffff' }}>{basicTier.name}</h3>
-                <p style={{ fontSize: 11, color: '#71717a', margin: '3px 0 0 0' }}>For growing writers & teams</p>
+                <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>{basicTier.name}</h3>
+                <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '3px 0 0 0' }}>For growing writers & teams</p>
               </div>
               <span style={{
-                background: 'rgba(79, 195, 247, 0.12)',
-                color: '#4fc3f7',
+                background: 'var(--gold-dim)',
+                color: 'var(--gold)',
                 fontSize: 11,
                 padding: '3px 8px',
                 borderRadius: 4,
@@ -205,10 +127,10 @@ export function UpgradeModal() {
             </div>
 
             <div style={{ margin: '14px 0 18px 0' }}>
-              <span style={{ fontSize: 28, fontWeight: 800, color: '#ffffff' }}>
+              <span style={{ fontSize: 28, fontWeight: 800, color: 'var(--text-primary)' }}>
                 {billingCycle === 'yearly' ? '₹1,299' : '₹149'}
               </span>
-              <span style={{ fontSize: 12, color: '#71717a' }}>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                 {billingCycle === 'yearly' ? ' / year' : ' / month'}
               </span>
             </div>
@@ -223,13 +145,13 @@ export function UpgradeModal() {
                 'Expanded template library',
                 'Offline mode with autosync',
               ].map((feat, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#d4d4d8' }}>
-                  <Check size={14} color="#4fc3f7" strokeWidth={2.5} />
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-secondary)' }}>
+                  <Check size={14} color="var(--gold)" strokeWidth={2.5} />
                   <span>{feat}</span>
                 </div>
               ))}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#52525b' }}>
-                <X size={14} color="#52525b" />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-muted)' }}>
+                <X size={14} color="var(--text-muted)" />
                 <span>Pragna AI writing assistant (Pro only)</span>
               </div>
             </div>
@@ -240,9 +162,9 @@ export function UpgradeModal() {
               style={{
                 width: '100%',
                 padding: '11px 16px',
-                background: plan === 'basic' ? '#27272a' : 'transparent',
-                border: '1px solid #4fc3f7',
-                color: plan === 'basic' ? '#a1a1aa' : '#4fc3f7',
+                background: plan === 'basic' ? 'var(--border-strong)' : 'transparent',
+                border: '1px solid var(--gold)',
+                color: plan === 'basic' ? 'var(--text-secondary)' : 'var(--gold)',
                 fontWeight: 600,
                 fontSize: 13,
                 borderRadius: 8,
@@ -254,10 +176,10 @@ export function UpgradeModal() {
                 transition: 'all 0.15s ease',
               }}
               onMouseEnter={(e) => {
-                if (plan !== 'basic') { e.currentTarget.style.background = '#4fc3f7'; e.currentTarget.style.color = '#000'; }
+                if (plan !== 'basic') { e.currentTarget.style.background = 'var(--gold)'; e.currentTarget.style.color = 'var(--text-on-gold)'; }
               }}
               onMouseLeave={(e) => {
-                if (plan !== 'basic') { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#4fc3f7'; }
+                if (plan !== 'basic') { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--gold)'; }
               }}
             >
               {plan === 'basic' ? 'Current Plan' : 'Upgrade to Basic via Razorpay'}
@@ -266,8 +188,8 @@ export function UpgradeModal() {
 
           {/* Pro Tier Card */}
           <div style={{
-            background: 'linear-gradient(180deg, #1e1b14 0%, #151411 100%)',
-            border: '1px solid #c9a84c',
+            background: 'var(--gold-dim)',
+            border: '1px solid var(--gold)',
             borderRadius: 12,
             padding: 24,
             display: 'flex',
@@ -277,12 +199,12 @@ export function UpgradeModal() {
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
               <div>
-                <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: '#c9a84c' }}>{proTier.name}</h3>
-                <p style={{ fontSize: 11, color: '#a1a1aa', margin: '3px 0 0 0' }}>Ultimate AI & Collaboration Power</p>
+                <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: 'var(--gold)' }}>{proTier.name}</h3>
+                <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '3px 0 0 0' }}>Ultimate AI & Collaboration Power</p>
               </div>
               <span style={{
-                background: 'rgba(201, 168, 76, 0.2)',
-                color: '#c9a84c',
+                background: 'var(--gold-dim)',
+                color: 'var(--gold)',
                 fontSize: 11,
                 padding: '3px 8px',
                 borderRadius: 4,
@@ -294,10 +216,10 @@ export function UpgradeModal() {
             </div>
 
             <div style={{ margin: '14px 0 18px 0' }}>
-              <span style={{ fontSize: 28, fontWeight: 800, color: '#ffffff' }}>
+              <span style={{ fontSize: 28, fontWeight: 800, color: 'var(--text-primary)' }}>
                 {billingCycle === 'yearly' ? '₹3,999' : '₹399'}
               </span>
-              <span style={{ fontSize: 12, color: '#a1a1aa' }}>
+              <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
                 {billingCycle === 'yearly' ? ' / year' : ' / month'}
               </span>
             </div>
@@ -313,8 +235,8 @@ export function UpgradeModal() {
                 'Custom templates & brand kits',
                 'Priority 24/7 support',
               ].map((feat, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: i === 1 ? '#c9a84c' : '#f4f4f5', fontWeight: i === 1 ? 600 : 400 }}>
-                  {i === 1 ? <Sparkles size={14} color="#c9a84c" /> : <Check size={14} color="#c9a84c" strokeWidth={2.5} />}
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: i === 1 ? 'var(--gold)' : 'var(--text-primary)', fontWeight: i === 1 ? 600 : 400 }}>
+                  {i === 1 ? <Sparkles size={14} color="var(--gold)" /> : <Check size={14} color="var(--gold)" strokeWidth={2.5} />}
                   <span>{feat}</span>
                 </div>
               ))}
@@ -326,9 +248,9 @@ export function UpgradeModal() {
               style={{
                 width: '100%',
                 padding: '11px 16px',
-                background: plan === 'pro' ? '#27272a' : '#c9a84c',
+                background: plan === 'pro' ? 'var(--border-strong)' : 'var(--gold)',
                 border: 'none',
-                color: plan === 'pro' ? '#a1a1aa' : '#000000',
+                color: plan === 'pro' ? 'var(--text-secondary)' : 'var(--text-on-gold)',
                 fontWeight: 700,
                 fontSize: 13,
                 borderRadius: 8,
@@ -340,13 +262,13 @@ export function UpgradeModal() {
                 transition: 'all 0.15s ease',
               }}
               onMouseEnter={(e) => {
-                if (plan !== 'pro') e.currentTarget.style.background = '#d9bb67';
+                if (plan !== 'pro') e.currentTarget.style.background = 'var(--gold-hover)';
               }}
               onMouseLeave={(e) => {
-                if (plan !== 'pro') e.currentTarget.style.background = '#c9a84c';
+                if (plan !== 'pro') e.currentTarget.style.background = 'var(--gold)';
               }}
             >
-              <Zap size={14} fill={plan === 'pro' ? 'none' : '#000'} />
+              <Zap size={14} fill={plan === 'pro' ? 'none' : 'var(--text-on-gold)'} />
               {plan === 'pro' ? 'Current Plan' : 'Upgrade to Pro via Razorpay'}
             </button>
           </div>
@@ -356,15 +278,16 @@ export function UpgradeModal() {
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
+          flexWrap: 'wrap', gap: 12,
           alignItems: 'center',
-          borderTop: '1px solid #27272a',
+          borderTop: '1px solid var(--border-strong)',
           paddingTop: 16,
           fontSize: 11,
-          color: '#71717a',
+          color: 'var(--text-muted)',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <ShieldCheck size={14} color="#c9a84c" />
+              <ShieldCheck size={14} color="var(--gold)" />
               Secured by Razorpay • UPI, Cards & NetBanking
             </span>
             <span>•</span>
@@ -373,7 +296,7 @@ export function UpgradeModal() {
                 closeUpgradeModal();
                 navigate('/pricing', { state: { scrollTo: 'comparison-table' } });
               }}
-              style={{ background: 'none', border: 'none', color: '#c9a84c', cursor: 'pointer', padding: 0, textDecoration: 'underline', fontSize: 11 }}
+              style={{ background: 'none', border: 'none', color: 'var(--gold)', cursor: 'pointer', padding: 0, textDecoration: 'underline', fontSize: 11 }}
             >
               View Full Comparison Table →
             </button>
@@ -382,14 +305,14 @@ export function UpgradeModal() {
           {/* Dev-only plan switch (the server refuses it in production) */}
           {import.meta.env.DEV && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ color: '#52525b' }}>Demo Switch:</span>
+              <span style={{ color: 'var(--text-muted)' }}>Demo Switch:</span>
               {['free', 'basic', 'pro'].map((t) => (
                 <button
                   key={t}
                   onClick={() => handleDevSwitch(t)}
                   style={{
-                    background: plan === t ? '#c9a84c' : '#27272a',
-                    color: plan === t ? '#000' : '#a1a1aa',
+                    background: plan === t ? 'var(--gold)' : 'var(--border-strong)',
+                    color: plan === t ? 'var(--text-on-gold)' : 'var(--text-secondary)',
                     border: 'none',
                     borderRadius: 4,
                     padding: '2px 7px',
@@ -405,7 +328,6 @@ export function UpgradeModal() {
             </div>
           )}
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

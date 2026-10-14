@@ -3,7 +3,7 @@
 // ═══════════════════════════════════════════════════════════════
 import { createPortal } from 'react-dom';
 import { useState, useEffect, useRef, useId } from 'react';
-import { X } from 'lucide-react';
+import { PanelTop, X } from 'lucide-react';
 
 /* ── Button ─────────────────────────────────────────────────── */
 const variantStyle = {
@@ -14,7 +14,7 @@ const variantStyle = {
   subtle:  { bg: 'var(--bg-elevated)', color: 'var(--text-secondary)', hoverBg: 'var(--bg-hover)', activeBg: 'var(--bg-active)' },
 };
 
-export function Button({ children, onClick, onMouseDown, variant = 'ghost', size = 'sm', active = false, disabled = false, title, className = '', style = {} }) {
+export function Button({ children, onClick, onMouseDown, variant = 'ghost', size = 'sm', active = false, disabled = false, title, className = '', style = {}, type = 'button', ...rest }) {
   const v = variantStyle[variant] || variantStyle.ghost;
   const pad = { xs: '2px 5px', sm: '3px 8px', md: '6px 14px', lg: '8px 20px' }[size] || '3px 8px';
   const fz  = { xs: '11px', sm: '12px', md: '13px', lg: '14px' }[size] || '12px';
@@ -23,6 +23,8 @@ export function Button({ children, onClick, onMouseDown, variant = 'ghost', size
 
   return (
     <button
+      {...rest}
+      type={type}
       title={title}
       disabled={disabled}
       onClick={disabled ? undefined : onClick}
@@ -40,7 +42,7 @@ export function Button({ children, onClick, onMouseDown, variant = 'ghost', size
         userSelect: 'none', whiteSpace: 'nowrap', outline: 'none',
         ...cleanStyle,
       }}
-      className={className}
+      className={`ui-button ui-button--${variant} ui-button--${size} ${className}`}
       onMouseEnter={(e) => {
         if (!disabled) {
           e.currentTarget.style.background = v.hoverBg;
@@ -128,19 +130,20 @@ export function Tooltip({ children, text, shortcut, placement = 'top', delay = 4
       {children}
       {show && text && typeof document !== 'undefined' && createPortal(
         <div
-          className="anim-fade-in"
+          className="studio-tooltip anim-fade-in"
+          role="tooltip"
           style={{
             position: 'fixed',
             zIndex: 99999,
             whiteSpace: 'nowrap',
             pointerEvents: 'none',
-            background: '#0a0800',
-            color: '#ece8dc',
-            border: '1px solid var(--border-gold)',
+            background: 'var(--popup-bg)',
+            color: 'var(--text-primary)',
+            border: '1px solid var(--popup-border)',
             fontSize: '11px',
             padding: '4px 9px',
-            borderRadius: 'var(--radius-sm)',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+            borderRadius: 8,
+            boxShadow: 'var(--shadow-lg)',
             top: coords.top,
             left: coords.left,
             transform: coords.actualPlacement === 'top' ? 'translate(-50%, -100%)' : 'translate(-50%, 0)',
@@ -172,11 +175,11 @@ export function Select({ value, onChange, options = [], width = 120, minMenuWidt
   const widthStyle = typeof width === 'number' ? `${width}px` : width;
   
   const styles = {
-    background: '#111111',
-    color: '#f0e6c8',
-    border: '1px solid #3d3000',
-    hoverBg: '#1f1800',
-    arrowColor: '#c9a84c',
+    background: 'var(--bg-elevated)',
+    color: 'var(--text-primary)',
+    border: '1px solid var(--border)',
+    hoverBg: 'var(--bg-hover)',
+    arrowColor: 'var(--gold)',
   };
 
   const normalizedVal = String(value || '').trim().toLowerCase();
@@ -285,11 +288,12 @@ export function Select({ value, onChange, options = [], width = 120, minMenuWidt
       <div style={{ position: 'relative', width: widthStyle, flexShrink: 0 }}>
         <button
           ref={triggerRef}
+          className="ui-select"
           type="button"
           title={title}
           onClick={() => setOpen((current) => !current)}
           onFocus={(e) => {
-            e.currentTarget.style.borderColor = '#c9a84c';
+            e.currentTarget.style.borderColor = 'var(--gold)';
             onFocus?.(e);
           }}
           style={{
@@ -318,7 +322,7 @@ export function Select({ value, onChange, options = [], width = 120, minMenuWidt
             backgroundRepeat: 'no-repeat',
             ...style,
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = styles.hoverBg; e.currentTarget.style.borderColor = '#c9a84c'; }}
+          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = styles.hoverBg; e.currentTarget.style.borderColor = 'var(--gold)'; }}
           onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = styles.background; e.currentTarget.style.borderColor = styles.border.split('solid ')[1]; }}
           onBlur={(e) => (e.currentTarget.style.borderColor = styles.border.split('solid ')[1])}
         >
@@ -329,6 +333,7 @@ export function Select({ value, onChange, options = [], width = 120, minMenuWidt
           <div
             ref={menuRef}
             data-select-menu="true"
+            className="studio-popover"
             style={{
               position: 'fixed',
               top: menuStyle.top,
@@ -343,7 +348,7 @@ export function Select({ value, onChange, options = [], width = 120, minMenuWidt
               overflow: 'hidden',
             }}
           >
-            <div style={{ padding: 6, borderBottom: '1px solid #2a2200' }}>
+            <div style={{ padding: 6, borderBottom: '1px solid var(--border)' }}>
               <input
                 ref={inputRef}
                 type="text"
@@ -374,17 +379,17 @@ export function Select({ value, onChange, options = [], width = 120, minMenuWidt
                   width: '100%',
                   height: 26,
                   boxSizing: 'border-box',
-                   background: '#0d0d0d',
+                   background: 'var(--bg-surface)',
                    color: styles.color,
-                   border: '1px solid #3d3000',
+                   border: '1px solid var(--border)',
                   borderRadius: 4,
                   padding: '0 6px',
                   fontSize: 12,
                   fontFamily: 'var(--font-ui)',
                   outline: 'none',
                 }}
-                 onFocus={(e) => (e.currentTarget.style.borderColor = '#c9a84c')}
-                 onBlur={(e) => (e.currentTarget.style.borderColor = '#3d3000')}
+                 onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--gold)')}
+                 onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}
               />
             </div>
             <div style={{ maxHeight: menuStyle.maxHeight - 40, overflowY: 'auto', padding: 3, scrollbarWidth: 'thin' }}>
@@ -409,8 +414,8 @@ export function Select({ value, onChange, options = [], width = 120, minMenuWidt
                       border: 'none',
                       borderRadius: 3,
                       cursor: 'pointer',
-                      background: isActive ? '#1f1800' : (isSelected ? 'rgba(201, 168, 76, 0.12)' : 'transparent'),
-                      color: isSelected ? 'var(--gold)' : (isActive ? '#f0e6c8' : styles.color),
+                      background: isActive ? 'var(--bg-hover)' : (isSelected ? 'var(--gold-dim)' : 'transparent'),
+                      color: isSelected ? 'var(--gold)' : styles.color,
                       fontFamily: option.style?.fontFamily || 'var(--font-ui)',
                       fontSize: 12,
                       fontWeight: isSelected ? 600 : 400,
@@ -436,11 +441,12 @@ export function Select({ value, onChange, options = [], width = 120, minMenuWidt
   
   return (
     <select 
+      className="ui-select"
       value={value} 
       onChange={(e) => onChange(e.target.value)} 
       title={title}
       onFocus={(e) => {
-        e.target.style.borderColor = '#c9a84c';
+        e.target.style.borderColor = 'var(--gold)';
         onFocus?.(e);
       }}
       style={{
@@ -462,7 +468,7 @@ export function Select({ value, onChange, options = [], width = 120, minMenuWidt
         backgroundRepeat: 'no-repeat',
         ...style,
       }}
-      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = styles.hoverBg; e.currentTarget.style.borderColor = '#c9a84c'; }}
+      onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = styles.hoverBg; e.currentTarget.style.borderColor = 'var(--gold)'; }}
       onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = styles.background; e.currentTarget.style.borderColor = styles.border.split('solid ')[1]; }}
       onBlur={(e)  => (e.target.style.borderColor = styles.border.split('solid ')[1])}>
       {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -493,15 +499,15 @@ export function Input({ value, onChange, placeholder, width = '100%', type = 'te
   };
   return rows
     ? <textarea value={value} onChange={(e) => onChange?.(e.target.value)} placeholder={placeholder}
-        rows={rows} style={base} className={className} {...handlers} {...rest} />
+        rows={rows} style={base} className={`ui-input ${className || ''}`} {...handlers} {...rest} />
     : <input type={type} value={value} onChange={(e) => onChange?.(e.target.value)}
         placeholder={placeholder} autoFocus={autoFocus} onKeyDown={onKeyDown}
-        style={base} className={className} {...handlers} {...rest} />;
+        style={base} className={`ui-input ${className || ''}`} {...handlers} {...rest} />;
 }
 
 /* ── ColorSwatch ────────────────────────────────────────────── */
 export function ColorSwatch({ color, onSelect, label, size = 18 }) {
-  const borderColor = '#3d3000';
+  const borderColor = 'var(--border-strong)';
   
   return (
     <button title={label || color} onClick={() => onSelect(color)}
@@ -510,18 +516,19 @@ export function ColorSwatch({ color, onSelect, label, size = 18 }) {
         border: `1px solid ${borderColor}`, borderRadius: '2px',
         cursor: 'pointer', padding: 0, flexShrink: 0,
       }}
-      onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#c9a84c'; }}
+      onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--gold)'; }}
       onMouseLeave={(e) => { e.currentTarget.style.borderColor = borderColor; }}
     />
   );
 }
 
 /* ── Modal ──────────────────────────────────────────────────── */
-export function Modal({ title, onClose, children, width = 480, noPad = false }) {
+export function Modal({ title, description, icon: Icon = PanelTop, onClose, children, footer, width = 480, noPad = false, className = '' }) {
   const dialogRef = useRef(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
   const titleId = useId();
+  const descriptionId = useId();
   useEffect(() => {
     const previous = document.activeElement;
     const focusable = () => [...(dialogRef.current?.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex="0"]') || [])].filter((el) => el.getClientRects().length);
@@ -529,6 +536,7 @@ export function Modal({ title, onClose, children, width = 480, noPad = false }) 
       if (!dialogRef.current?.contains(document.activeElement)) (focusable()[0] || dialogRef.current)?.focus();
     });
     const h = (e) => {
+      if ([...document.querySelectorAll('.studio-modal')].at(-1) !== dialogRef.current) return;
       if (e.key === 'Escape') { e.preventDefault(); closeRef.current(); }
       if (e.key !== 'Tab') return;
       const list = focusable();
@@ -540,39 +548,32 @@ export function Modal({ title, onClose, children, width = 480, noPad = false }) 
     return () => { cancelAnimationFrame(frame); window.removeEventListener('keydown', h); if (previous?.isConnected) previous.focus(); };
   }, []);
 
-  return (
-    <div onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-      style={{
-        position: 'fixed', inset: 0, zIndex: 9500,
-        background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(6px)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} className="anim-scale-in" style={{
-        background: 'var(--bg-surface)', border: '1px solid var(--border-gold)',
-        borderRadius: 'var(--radius-lg)', width, maxWidth: '95vw', maxHeight: '90vh',
-        overflow: 'hidden', display: 'flex', flexDirection: 'column',
-        boxShadow: '0 0 0 1px rgba(212,175,55,0.08), var(--shadow-md)',
-      }}>
-        {/* Header */}
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '12px 18px', borderBottom: '1px solid var(--border)',
-          background: 'var(--bg-elevated)',
-        }}>
-          <span id={titleId} style={{ fontFamily: 'var(--font-ui)', fontWeight: 600, color: 'var(--text-primary)', fontSize: 15 }}>{title}</span>
-          <button type="button" aria-label="Close dialog" onClick={onClose} style={{ background:'none', border:'none', color:'var(--text-muted)', cursor:'pointer', display:'inline-flex', alignItems:'center', padding:8, lineHeight:1 }}>
+  return createPortal(
+    <div className="studio-modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId}
+        aria-describedby={description ? descriptionId : undefined} tabIndex={-1}
+        className={`studio-modal anim-scale-in ${className}`} style={{ width }}>
+        <div className="studio-modal__header">
+          <span className="studio-modal__icon" aria-hidden="true"><Icon size={19} strokeWidth={1.6} /></span>
+          <div className="studio-modal__heading">
+            <h2 id={titleId} className="studio-modal__title">{title}</h2>
+            {description && <p id={descriptionId} className="studio-modal__description">{description}</p>}
+          </div>
+          <button type="button" className="studio-modal__close" aria-label="Close dialog" onClick={onClose}>
             <X size={16} />
           </button>
         </div>
-        <div style={{ padding: noPad ? 0 : 20, overflowY: 'auto', flex: 1 }}>{children}</div>
+        <div className={`studio-modal__body${noPad ? ' studio-modal__body--flush' : ''}`}>{children}</div>
+        {footer && <div className="studio-modal__footer">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
 /* ── Label ──────────────────────────────────────────────────── */
 export function Label({ children, style }) {
-  return <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-ui)', fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 5, ...style }}>{children}</div>;
+  return <div className="ui-label" style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-ui)', fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 5, ...style }}>{children}</div>;
 }
 
 /* ── Stack ──────────────────────────────────────────────────── */
@@ -596,16 +597,17 @@ export function Badge({ children, color = 'var(--gold)' }) {
 
 /* ── NumberInput ────────────────────────────────────────────── */
 export function NumberInput({ value, onChange, min = 1, max = 100, label }) {
+  const inputId = useId();
   return (
     <Stack dir="column" gap={4}>
-      {label && <Label>{label}</Label>}
-      <div style={{ display:'flex', alignItems:'center', gap:4 }}>
-        <button onClick={() => onChange(Math.max(min, value - 1))}
+      {label && <label className="ui-label" htmlFor={inputId}>{label}</label>}
+      <div className="ui-number-input" style={{ display:'flex', alignItems:'center', gap:4 }}>
+        <button type="button" aria-label={`Decrease ${label || 'value'}`} disabled={value <= min} onClick={() => onChange(Math.max(min, value - 1))}
           style={{ width:24, height:24, background:'var(--bg-elevated)', border:'1px solid var(--border)', borderRadius:'var(--radius-sm)', cursor:'pointer', color:'var(--text-primary)', fontSize:14 }}>−</button>
-        <input type="number" value={value} min={min} max={max}
-          onChange={(e) => onChange(parseInt(e.target.value) || min)}
+        <input id={inputId} aria-label={label || 'Value'} type="number" value={value} min={min} max={max}
+          onChange={(e) => onChange(Math.max(min, Math.min(max, parseInt(e.target.value) || min)))}
           style={{ width:48, textAlign:'center', background:'var(--bg-elevated)', color:'var(--text-primary)', border:'1px solid var(--border)', borderRadius:'var(--radius-sm)', padding:'3px 6px', fontSize:13, fontFamily:'var(--font-ui)', outline:'none' }} />
-        <button onClick={() => onChange(Math.min(max, value + 1))}
+        <button type="button" aria-label={`Increase ${label || 'value'}`} disabled={value >= max} onClick={() => onChange(Math.min(max, value + 1))}
           style={{ width:24, height:24, background:'var(--bg-elevated)', border:'1px solid var(--border)', borderRadius:'var(--radius-sm)', cursor:'pointer', color:'var(--text-primary)', fontSize:14 }}>+</button>
       </div>
     </Stack>

@@ -136,7 +136,7 @@ export function InsertChartDialog() {
 
   return (
     <Modal title="Insert Chart" onClose={() => closeDialog('insertChart')} width={620}>
-      <div style={{ display:'flex', gap:20 }}>
+      <div className="chart-dialog-layout">
         {/* Controls */}
         <div style={{ flex:'0 0 220px', display:'flex', flexDirection:'column', gap:12 }}>
           <div><Label>Chart Type</Label><Select value={type} onChange={handleTypeChange} options={CHART_TYPES} width="100%" /></div>
@@ -158,8 +158,8 @@ export function InsertChartDialog() {
         </div>
 
         {/* Preview */}
-        <div style={{ flex:1, background:'var(--bg-elevated)', borderRadius:'var(--radius-md)', border:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'center', padding:12 }}>
-          <canvas ref={canvasRef} width={340} height={260} style={{ borderRadius:'var(--radius-sm)' }} />
+        <div style={{ minWidth: 0, background:'var(--popup-input-bg)', borderRadius:'var(--radius-md)', border:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'center', padding:12 }}>
+          <canvas ref={canvasRef} width={340} height={260} style={{ maxWidth: '100%', height: 'auto', borderRadius:'var(--radius-sm)' }} />
         </div>
       </div>
     </Modal>

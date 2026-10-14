@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AlignLeft, AlignCenter, AlignRight, Table2 } from 'lucide-react';
 import { useUIStore, useEditorStore } from '@/store';
 import { Modal, Button, NumberInput, Stack, Label } from '@/components/ui';
 
@@ -10,8 +11,9 @@ export function InsertTableDialog() {
   const [header, setHeader] = useState(true);
   const [alignment, setAlignment] = useState('left'); // 'left' | 'center' | 'right'
   const [hoverCell, setHoverCell] = useState(null); // {r, c}
+  const [gridFocus, setGridFocus] = useState(0);
 
-  const GRID = 12; // Increased from 8 to 12 for more visual options
+  const GRID = 12;
 
   const insertTable = (r = rows, c = cols, align = alignment) => {
     const nextRows = Math.max(1, parseInt(String(r), 10) || 3);
@@ -48,39 +50,56 @@ export function InsertTableDialog() {
   };
 
   return (
-    <Modal title="Insert Table" onClose={() => closeDialog('insertTable')} width={450}>
+    <Modal title="Insert Table" description="Choose the size and layout for your table." icon={Table2}
+      onClose={() => closeDialog('insertTable')} width={460}
+      footer={<>
+        <Button variant="subtle" onClick={() => closeDialog('insertTable')}>Cancel</Button>
+        <Button variant="primary" onClick={() => insertTable()}>Insert {rows} × {cols} table</Button>
+      </>}>
       <Stack gap={20}>
         {/* Visual grid picker */}
         <div>
-          <Label>Quick Pick - Click to select size ({hoverCell ? `${hoverCell.r + 1} rows × ${hoverCell.c + 1} cols` : `${rows} rows × ${cols} cols`})</Label>
-          <div style={{ display:'inline-grid', gridTemplateColumns: `repeat(${GRID}, 24px)`, gap:3, marginTop:8, padding: '8px', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-sm)' }}>
+          <div className="table-picker__heading">
+            <Label>Quick pick</Label>
+            <span className="table-picker__size" aria-live="polite">{hoverCell ? `${hoverCell.r + 1} × ${hoverCell.c + 1}` : `${rows} × ${cols}`}</span>
+          </div>
+          <div className="table-picker__grid" onMouseLeave={() => setHoverCell(null)}>
             {Array.from({ length: GRID * GRID }).map((_, i) => {
               const r = Math.floor(i / GRID), c = i % GRID;
               const lit = hoverCell ? (r <= hoverCell.r && c <= hoverCell.c) : (r < rows && c < cols);
               return (
-                <div key={i}
+                <button key={i} type="button" className="table-picker__cell"
+                  tabIndex={i === gridFocus ? 0 : -1}
+                  aria-label={`Insert ${r + 1} rows by ${c + 1} columns`}
+                  data-selected={lit}
                   onMouseEnter={() => setHoverCell({ r, c })}
-                  onMouseLeave={() => setHoverCell(null)}
+                  onFocus={() => { setGridFocus(i); setHoverCell({ r, c }); }}
+                  onBlur={() => setHoverCell(null)}
+                  onKeyDown={(e) => {
+                    const targets = {
+                      ArrowLeft: r * GRID + Math.max(0, c - 1),
+                      ArrowRight: r * GRID + Math.min(GRID - 1, c + 1),
+                      ArrowUp: Math.max(0, r - 1) * GRID + c,
+                      ArrowDown: Math.min(GRID - 1, r + 1) * GRID + c,
+                    };
+                    if (targets[e.key] === undefined) return;
+                    e.preventDefault();
+                    e.currentTarget.parentElement.children[targets[e.key]]?.focus();
+                  }}
                   onClick={() => { setRows(r+1); setCols(c+1); insertTable(r+1, c+1); }}
-                  style={{
-                    width:24, height:24,
-                    background: lit ? 'var(--gold-dim)' : 'var(--bg-surface)',
-                    border: lit ? '2px solid var(--gold)' : '1px solid var(--border)',
-                    borderRadius:2, cursor:'pointer',
-                    transition:'var(--transition)',
-                  }} />
+                />
               );
             })}
           </div>
-          <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-muted)' }}>
-            Hover and click to select table dimensions
+          <div className="table-picker__hint">
+            Hover to preview. Click a cell to insert.
           </div>
         </div>
 
         {/* Manual input */}
         <div>
-          <Label>Custom Size</Label>
-          <div style={{ display:'flex', gap:16, marginTop: 8 }}>
+          <Label>Custom size</Label>
+          <div className="table-picker__options" style={{ marginTop: 8 }}>
             <NumberInput label="Rows" value={rows} onChange={setRows} min={1} max={100} />
             <NumberInput label="Columns" value={cols} onChange={setCols} min={1} max={50} />
           </div>
@@ -88,37 +107,33 @@ export function InsertTableDialog() {
 
         {/* Table Alignment */}
         <div>
-          <Label>Table Alignment</Label>
-          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          <Label>Table alignment</Label>
+          <div className="table-picker__alignment">
             {[
-              { id: 'left', label: 'Left' },
-              { id: 'center', label: 'Center' },
-              { id: 'right', label: 'Right' },
+              { id: 'left', label: 'Left', icon: AlignLeft },
+              { id: 'center', label: 'Center', icon: AlignCenter },
+              { id: 'right', label: 'Right', icon: AlignRight },
             ].map((opt) => (
               <Button
                 key={opt.id}
                 type="button"
-                variant={alignment === opt.id ? 'primary' : 'subtle'}
+                variant="ghost"
+                aria-pressed={alignment === opt.id}
                 size="sm"
                 onClick={() => setAlignment(opt.id)}
                 style={{ flex: 1 }}
               >
-                {opt.label}
+                <opt.icon size={14} aria-hidden="true" />{opt.label}
               </Button>
             ))}
           </div>
         </div>
 
         {/* Header row toggle */}
-        <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontFamily:'var(--font-ui)', fontSize:13, color:'var(--text-primary)' }}>
+        <label className="table-picker__header">
           <input type="checkbox" checked={header} onChange={(e) => setHeader(e.target.checked)} style={{ accentColor:'var(--gold)', cursor: 'pointer' }} />
           Include header row
         </label>
-
-        <div style={{ display:'flex', gap:8, justifyContent:'flex-end', paddingTop: 8, borderTop: '1px solid var(--border)' }}>
-          <Button variant="subtle" onClick={() => closeDialog('insertTable')}>Cancel</Button>
-          <Button variant="primary" onClick={() => insertTable()}>✓ Insert {rows}×{cols} Table</Button>
-        </div>
       </Stack>
     </Modal>
   );

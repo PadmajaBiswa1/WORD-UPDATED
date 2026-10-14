@@ -1,8 +1,9 @@
 import { useState, useRef, useCallback } from 'react';
 import {
   UploadCloud, FileImage, AlertTriangle, CheckCircle2, RefreshCw,
-  Copy, Check, FileText, Sparkles, X, Sliders, ArrowRight
+  Copy, Check, FileText, Sparkles, Sliders, ArrowRight
 } from 'lucide-react';
+import { Modal } from '@/components/ui';
 import { recognizeHandwriting, formatOcrTextToHtml } from '@/services/ocrService';
 
 /**
@@ -137,24 +138,8 @@ export function HandwritingRecognitionModal({
   if (!isOpen) return null;
 
   return (
-    <div style={styles.overlay} onClick={(e) => e.target === e.currentTarget && handleClose()}>
-      <div role="dialog" aria-modal="true" aria-label={title} style={styles.modal}>
-        {/* Header */}
-        <div style={styles.header}>
-          <div style={styles.titleRow}>
-            <div style={styles.iconCircle}>
-              <Sparkles size={18} color="#d4af37" />
-            </div>
-            <div>
-              <h2 style={styles.title}>{title}</h2>
-              <p style={styles.subtitle}>Upload photos or scans of handwritten notes to convert to editable text</p>
-            </div>
-          </div>
-          <button style={styles.closeBtn} onClick={handleClose} title="Close">
-            <X size={18} />
-          </button>
-        </div>
-
+    <Modal title={title} icon={Sparkles} width={620} noPad onClose={handleClose}
+      description="Convert photos or scans of handwritten notes to editable text.">
         {/* Content Body */}
         <div style={styles.body}>
           {/* ── State 1: Upload / Drop Zone ── */}
@@ -360,13 +345,13 @@ export function HandwritingRecognitionModal({
 
         {/* Footer Actions */}
         <div style={styles.footer}>
-          <button style={styles.cancelBtn} onClick={handleClose}>
+          <button className="ui-button ui-button--subtle" style={styles.cancelBtn} onClick={handleClose}>
             Cancel
           </button>
 
           <div style={{ display: 'flex', gap: 10 }}>
             {result && !isProcessing && (
-              <button style={styles.secondaryBtn} onClick={handleReset}>
+              <button className="ui-button ui-button--subtle" style={styles.secondaryBtn} onClick={handleReset}>
                 <RefreshCw size={13} style={{ marginRight: 6 }} />
                 New Image
               </button>
@@ -379,6 +364,7 @@ export function HandwritingRecognitionModal({
                   opacity: editableText.trim() ? 1 : 0.5,
                   cursor: editableText.trim() ? 'pointer' : 'not-allowed',
                 }}
+                className="ui-button ui-button--primary"
                 disabled={!editableText.trim()}
                 onClick={handleInsert}
               >
@@ -388,95 +374,20 @@ export function HandwritingRecognitionModal({
             )}
           </div>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
 const styles = {
-  overlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
-    backdropFilter: 'blur(4px)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 9999,
-    padding: 16,
-  },
-  modal: {
-    background: 'var(--bg-card, #1e1e1e)',
-    border: '1px solid var(--border, #333)',
-    borderRadius: 12,
-    width: '100%',
-    maxWidth: 620,
-    boxShadow: '0 20px 45px rgba(0,0,0,0.6)',
-    display: 'flex',
-    flexDirection: 'column',
-    overflow: 'hidden',
-    color: 'var(--text-primary, #fff)',
-    fontFamily: 'var(--font-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif)',
-  },
-  header: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '16px 20px',
-    borderBottom: '1px solid var(--border, #333)',
-    background: 'var(--bg-elevated, #252526)',
-  },
-  titleRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 12,
-  },
-  iconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    background: 'rgba(212, 175, 55, 0.12)',
-    border: '1px solid rgba(212, 175, 55, 0.25)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: 600,
-    margin: 0,
-    color: 'var(--text-primary, #fff)',
-  },
-  subtitle: {
-    fontSize: 12,
-    color: 'var(--text-muted, #888)',
-    margin: '2px 0 0 0',
-  },
-  closeBtn: {
-    background: 'transparent',
-    border: 'none',
-    color: 'var(--text-muted, #888)',
-    cursor: 'pointer',
-    padding: 6,
-    borderRadius: 6,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   body: {
     padding: 20,
-    maxHeight: '75vh',
-    overflowY: 'auto',
   },
   dropZone: {
     border: '2px dashed var(--border, #444)',
     borderRadius: 10,
     padding: '36px 20px',
     textAlign: 'center',
-    background: 'rgba(255, 255, 255, 0.02)',
+    background: 'var(--popup-input-bg)',
     cursor: 'pointer',
     transition: 'all 0.2s ease',
   },

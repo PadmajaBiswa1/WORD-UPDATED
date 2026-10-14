@@ -622,6 +622,7 @@ export function PenCustomizerPopover({
   return createPortal(
     <div
       ref={popoverRef}
+      className="studio-popover"
       style={{
         position: 'fixed',
         top: `${coords.top}px`,

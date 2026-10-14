@@ -207,6 +207,7 @@ export function InlinePragnaTrigger({ editor, scrollContainerRef }) {
       ) : (
         /* MS Word-style inline expandable prompt card in Pragna Gold Theme */
         <div
+          className="studio-popover"
           style={{
             background: 'var(--bg-elevated)',
             border: '1px solid rgba(212, 175, 55, 0.5)',

@@ -379,6 +379,7 @@ export function PictureFormatToolbar({ editor, scrollContainerRef }) {
     >
       <div
         data-picture-format-toolbar="true"
+        className="studio-popover"
         style={{
            border: '1px solid var(--border-gold)',
            borderRadius: 10,

@@ -6,6 +6,7 @@ import { SplashScreen } from './components/ui/SplashScreen';
 import './theme/global.css';
 import './theme/fonts.css';
 import './theme/studio.css';
+import './theme/popups.css';
 
 // Apply the fixed dark appearance before first render to avoid a flash.
 applyTheme();
